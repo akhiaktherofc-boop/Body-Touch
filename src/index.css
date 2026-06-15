@@ -1,0 +1,424 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;950&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-mono: "Space Grotesk", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #01030e !important; /* Deepest Obsidian Space Black */
+  background: radial-gradient(circle at 50% 28%, #031343 0%, #01030d 100%) no-repeat fixed !important;
+  color: #ffffff !important;
+}
+
+/* Redefining background mappings to high-contrast rich deep-blue & clear text */
+body, 
+.bg-\[\#020712\], 
+.bg-\[\#020714\], 
+.bg-\[\#020716\],
+.bg-\[\#02050f\]\/60 {
+  background-color: #01030e !important;
+  background: radial-gradient(circle at 50% 28%, #031343 0%, #01030d 100%) no-repeat fixed !important;
+  color: #ffffff !important;
+}
+
+.bg-\[\#030a1c\], 
+.bg-\[\#030a1c\]\/90,
+.bg-\[\#030a1c\]\/65,
+.bg-\[\#030a1c\]\/80,
+.bg-\|030a1c\|,
+.bg-\[\#04091a\], 
+.bg-\[\#050e24\], 
+.bg-\[\#050e26\],
+.bg-\[\#05112e\],
+.bg-\[\#05112e\]\/95,
+.bg-\[\#030818\]\/60,
+.bg-\[\#0a1e4d\] {
+  background-color: #020716 !important; /* Much deeper premium carbon midnight blue */
+  background: linear-gradient(145deg, #030b24, #01030d) !important;
+  border: 1.5px solid rgba(13, 110, 253, 0.36) !important;
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.98), inset 0 1px 2px rgba(255, 255, 255, 0.06) !important;
+  color: #ffffff !important;
+}
+
+/* Ensure maximum readability for details and labels in the main panels with fine slate/blue tints */
+.text-\[\#c4d1eb\], 
+.text-slate-100,
+.text-slate-200,
+.text-slate-300,
+.text-slate-400,
+.text-slate-500,
+.text-slate-600,
+.text-zinc-400,
+.text-blue-100,
+.text-blue-200,
+.text-cyan-100,
+.text-cyan-200 {
+  color: #8ea6d6 !important; /* Elegant light steel blue matching user's screenshot exactly */
+}
+
+/* Ensure headings retain their polished look */
+h1, h2, h3, h4, h5, h6,
+span.font-heavy, 
+span.font-black, 
+span.font-extrabold {
+  color: #ffffff !important; /* Beautiful pure white display title */
+}
+
+/* Highlight variables mapping */
+.text-blue-300, 
+.text-blue-400,
+.text-blue-350,
+.text-cyan-400 {
+  color: #38bdf8 !important; /* Elegant vivid sky-blue/cyan highlight text */
+}
+
+.text-blue-500,
+.text-cyan-500 {
+  color: #00e5ff !important; /* Vivid radioactive neon cyan color */
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.25) !important;
+}
+
+/* Do not overwrite amber-500 to blue as this ruins warm badges, stars and warnings */
+.text-amber-500,
+.text-amber-600 {
+  color: #ffa600 !important; /* Majestic bright orange-rose/gold */
+  text-shadow: 0 0 10px rgba(255, 166, 0, 0.2) !important;
+}
+
+/* Custom premium border lines */
+.border-blue-500\/10, 
+.border-blue-500\/15, 
+.border-blue-900\/30, 
+.border-blue-500\/20,
+.border-blue-500\/25,
+.border-blue-500\/30,
+.border-[#101e3d],
+.border-blue-950,
+.border-[#10245a] {
+  border-color: rgba(56, 189, 248, 0.25) !important;
+}
+
+.bg-blue-500\/10 {
+  background-color: rgba(56, 189, 248, 0.12) !important;
+}
+
+.selection\:bg-blue-500,
+::selection {
+  background-color: rgba(56, 189, 248, 0.3) !important;
+  color: #ffffff !important;
+}
+
+/* Custom premium card style matching the elite dashboard design */
+.cyan-glow-card {
+  background: linear-gradient(135deg, #02081c 0%, #000105 100%) !important;
+  border: 1.5px solid rgba(13, 110, 253, 0.42);
+  box-shadow: 0 25px 65px rgba(0, 0, 0, 0.99), 
+              0 0 35px rgba(13, 110, 253, 0.18), 
+              inset 0 1px 3px rgba(255, 255, 255, 0.08);
+}
+
+.blue-glow-border {
+  border: 1.5px solid rgba(0, 229, 255, 0.45);
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.18);
+}
+
+/* Elegant gold/cyan respirating border animations with unblockable overrides */
+@keyframes borderPulseGold {
+  0%, 100% { 
+    border-color: rgba(255, 166, 0, 0.45); 
+    box-shadow: 0 25px 65px rgba(0, 0, 0, 0.99), 0px 0px 14px rgba(255, 166, 0, 0.22); 
+  }
+  50% { 
+    border-color: rgba(255, 166, 0, 0.98); 
+    box-shadow: 0 25px 65px rgba(0, 0, 0, 0.99), 0px 0px 32px rgba(255, 166, 0, 0.65); 
+  }
+}
+
+@keyframes borderPulseCyan {
+  0%, 100% { 
+    border-color: rgba(0, 229, 255, 0.45); 
+    box-shadow: 0px 0px 14px rgba(0, 229, 255, 0.22); 
+  }
+  50% { 
+    border-color: rgba(0, 229, 255, 0.98); 
+    box-shadow: 0px 0px 32px rgba(0, 229, 255, 0.65); 
+  }
+}
+
+@keyframes orangeButtonPulse {
+  0%, 100% {
+    box-shadow: 0 4px 18px rgba(255, 145, 0, 0.38), 0 0 10px rgba(255, 145, 0, 0.2);
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 10px 36px rgba(255, 145, 0, 0.85), 0 0 28px rgba(255, 145, 0, 0.55);
+    transform: scale(1.02);
+    filter: brightness(1.15);
+  }
+}
+
+.gold-breathing-glow {
+  animation: borderPulseGold 3.5s infinite ease-in-out !important;
+}
+
+.cyan-breathing-glow {
+  animation: borderPulseCyan 3.5s infinite ease-in-out !important;
+}
+
+/* Vivid hot orange action buttons matching exactly "SEE PLANS" from the user screenshot */
+.orange-grad-btn {
+  background: #ff9100 !important; /* Solid vibrant orange exactly as pictured */
+  background-image: none !important;
+  color: #000000 !important;
+  border: none !important;
+  font-weight: 950 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  animation: orangeButtonPulse 2.5s infinite ease-in-out !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.orange-grad-btn span,
+.orange-grad-btn svg,
+.orange-grad-btn div {
+  color: #000000 !important; /* Pure black text inside orange button */
+  font-weight: 950 !important;
+}
+
+.chevron-gradient {
+  background: linear-gradient(135deg, #050d26 0%, #020512 100%);
+  border: 1px solid rgba(56, 189, 248, 0.2) !important;
+}
+
+/* Custom form elements styled beautifully exactly as pictured in the user's registry screenshots */
+input[type="text"],
+input[type="number"],
+input[type="password"],
+input[type="email"],
+textarea,
+select {
+  background-color: #060a18 !important; /* Premium rich midnight slate-blue */
+  color: #ffffff !important; /* Crisp high-contrast luxury white */
+  border: 1.5px solid rgba(56, 189, 248, 0.18) !important; /* Beautiful glass-like thin sapphire border */
+  border-radius: 12px !important;
+  padding: 12px 16px;
+  font-family: var(--font-sans) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5) !important; /* Modern premium recessed drop-inset */
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Highly professional placeholder style with sophisticated slate-blue hue */
+input::placeholder,
+textarea::placeholder {
+  color: #4f5f85 !important;
+  opacity: 0.85 !important;
+  font-weight: 400 !important;
+}
+
+select option {
+  background-color: #060a18 !important;
+  color: #ffffff !important;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: #38bdf8 !important; /* Premium electric cyan highlighted focus border */
+  background-color: #081026 !important; /* Elegant subtle lighten feedback */
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.28), inset 0 1.5px 3px rgba(0, 0, 0, 0.4) !important; /* Beautiful neon-ambient glass focus glow */
+  outline: none !important;
+}
+
+/* Payment services preservation (e.g. Bkash, Nagad, Rocket) */
+.bg-\[\#e2125d\], [class*="bg-\[\#e2125d\]"] {
+  background-color: #e2125d !important;
+}
+.bg-\[\#f15a22\], [class*="bg-\[\#f15a22\]"] {
+  background-color: #f15a22 !important;
+}
+.bg-\[\#8c3494\], [class*="bg-\[\#8c3494\]"] {
+  background-color: #8c3494 !important;
+}
+.bg-\[\#e2125d\] *, .bg-\[\#f15a22\] *, .bg-\[\#8c3494\] * {
+  color: #ffffff !important;
+}
+
+/* Fixed Navigation bar on bottom or footer - allow native active state classes to handle colors */
+.fixed.bottom-0 {
+  background-color: rgba(3, 7, 24, 0.96) !important; /* Premium rich deep blue-black */
+  backdrop-filter: blur(12px) !important;
+  border-top: 1.5px solid rgba(56, 189, 248, 0.18) !important;
+}
+
+/* Scrollbar hides */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ==========================================
+   HIGH-CONTRAST PREMIUM BLACK & WHITE STYLE SHEET FOR MODAL REGISTRY 
+   ========================================== */
+
+#join-modal-container {
+  background-color: #000000 !important; /* Pure space onyx-black */
+  background: #000000 !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.28) !important; /* Sharp, high-contrast, crisp luxury light frame */
+  color: #ffffff !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.98), 0 0 35px rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Override the gold breathing animation to clean premium mono-white respirator */
+#join-modal-container.gold-breathing-glow {
+  animation: borderPulseMono 4s infinite ease-in-out !important;
+}
+
+@keyframes borderPulseMono {
+  0%, 100% { 
+    border-color: rgba(255, 255, 255, 0.18) !important; 
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.98), 0 0 15px rgba(255, 255, 255, 0.02) !important; 
+  }
+  50% { 
+    border-color: rgba(255, 255, 255, 0.85) !important; 
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.98), 0 0 35px rgba(255, 255, 255, 0.18) !important; 
+  }
+}
+
+/* Pure Black & White Label Override */
+#join-modal-container label,
+#join-modal-container .text-\[\#dbaa61\],
+#join-modal-container h2 {
+  color: #ffffff !important; /* High contrast crisp white labels and headers */
+  font-weight: 700 !important;
+}
+
+#join-modal-container p,
+#join-modal-container .text-slate-400 {
+  color: #a1a1aa !important; /* Modern high-quality silver/grey description subtitles */
+}
+
+/* Input Fields styling */
+#join-modal-container input[type="text"],
+#join-modal-container input[type="number"],
+#join-modal-container select,
+#join-modal-container textarea {
+  background-color: #030303 !important; /* Deep black recessed input spaces */
+  background: #030303 !important;
+  color: #ffffff !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.22) !important; /* Sharp gray/white division */
+  border-radius: 12px !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.9) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#join-modal-container select option {
+  background-color: #030303 !important;
+  color: #ffffff !important;
+}
+
+#join-modal-container input[type="text"]:focus,
+#join-modal-container input[type="number"]:focus,
+#join-modal-container select:focus,
+#join-modal-container textarea:focus {
+  border-color: #ffffff !important; /* Strong high-contrast solid white focus line */
+  background-color: #0a0a0a !important; /* Fine feedback lighting */
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.22), inset 0 2px 4px rgba(0, 0, 0, 0.9) !important;
+  outline: none !important;
+}
+
+/* Beautiful custom placeholder in pure grayscale style */
+#join-modal-container input::placeholder,
+#join-modal-container textarea::placeholder {
+  color: #52525b !important; /* Perfect mid-gray placeholder */
+}
+
+/* Clean up internal divisions and lines to match monochrome */
+#join-modal-container .border-b,
+#join-modal-container .border-t,
+#join-modal-container .border-\[\#ac843c\]\/15,
+#join-modal-container .border-\[\#ac843c\]\/10 {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Grayscale slots/dropzones for photo uploaders */
+#join-modal-container .border-dashed {
+  border-color: rgba(255, 255, 255, 0.24) !important;
+  background-color: #020202 !important;
+  transition: all 0.2s ease !important;
+}
+#join-modal-container .border-dashed:hover {
+  border-color: #ffffff !important;
+  background-color: #0b0b0c !important;
+}
+#join-modal-container .border-dashed span,
+#join-modal-container .border-dashed div,
+#join-modal-container .border-dashed p {
+  color: #d4d4d8 !important;
+}
+
+/* Security assurance card converted to premium monochrome slate border */
+#join-modal-container .bg-\[\#0c0d12\] {
+  background-color: #070708 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+#join-modal-container .bg-\[\#060608\] {
+  background-color: #030303 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Ensure helper icons are clear monochrome whites/grays instead of gold */
+#join-modal-container svg,
+#join-modal-container button svg {
+  color: #ffffff !important;
+}
+
+/* Close action circular button black-and-white custom look */
+#join-modal-container button .text-slate-400 {
+  color: #a1a1aa !important;
+}
+#join-modal-container button:hover svg {
+  color: #000000 !important;
+}
+
+/* Overriding Submit Button to high contrast Solid White Background with black bold text */
+#join-modal-container button[type="submit"] {
+  background: #ffffff !important; /* Elegant white button */
+  background-image: none !important;
+  color: #000000 !important; /* Deepest black text */
+  box-shadow: 0 10px 25px rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid #ffffff !important;
+  font-weight: 950 !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#join-modal-container button[type="submit"] svg {
+  color: #000000 !important; /* Pure black icon matching the text */
+}
+
+#join-modal-container button[type="submit"]:hover {
+  background: #e4e4e7 !important; /* Premium silver hover */
+  border-color: #e4e4e7 !important;
+  box-shadow: 0 12px 30px rgba(255, 255, 255, 0.28) !important;
+  transform: translateY(-1.5px);
+}
+
+#join-modal-container button[type="submit"]:active {
+  transform: translateY(0px) scale(0.98);
+}
+
+/* Success icon container conversion */
+#join-modal-container .mx-auto.w-16.h-16 {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: #ffffff !important;
+}
+
