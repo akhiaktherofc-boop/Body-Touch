@@ -91,7 +91,9 @@ jobs:
           password: ${{ steps.prep.outputs.password }}
           local-dir: ./dist/
           server-dir: ./public_html/
-          # Fix for 'Timeout (control socket)' / Hostinger FTP handshake issue:
-          # Using plain FTP bypassing TLS handshake. (Set to 'ftps' with 'security: loose' if secure is required)
-          protocol: ftp
+          # Hostinger requires FTPS (FTP over Explicit TLS) on port 21.
+          # To prevent handshake timeouts due to self-signed or domain-mismatched certificates on Hostinger,
+          # we use 'security: loose' which instructs basic-ftp to bypass certificate host verification.
+          protocol: ftps
           port: 21
+          security: loose
