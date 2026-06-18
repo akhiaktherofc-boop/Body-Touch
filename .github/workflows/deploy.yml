@@ -1,3 +1,4 @@
+# Deployment workflow for Hostinger
 name: Deploy React App to Hostinger via FTP
 
 on:
