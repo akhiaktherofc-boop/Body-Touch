@@ -12,7 +12,11 @@ interface Slide {
   icon?: React.ReactNode;
 }
 
-export default function ImageSlider() {
+interface ImageSliderProps {
+  emergencyNotice?: string;
+}
+
+export default function ImageSlider({ emergencyNotice }: ImageSliderProps) {
   const slides: Slide[] = [
     {
       id: 1,
@@ -27,7 +31,7 @@ export default function ImageSlider() {
       id: 2,
       image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=1000',
       title: 'জরুরী বুকিং নোটিশ',
-      subtitle: 'সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যান সার্ভিস বুকিং দিবেন না',
+      subtitle: emergencyNotice || 'সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যাম সার্ভিস বুকিং দিবেন না',
       badge: 'URGENT NOTICE & ALERT',
       badgeColor: 'from-amber-500 to-red-600',
       icon: <Bell className="w-3.5 h-3.5 text-white animate-bounce" />

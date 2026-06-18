@@ -195,7 +195,7 @@ export default function App() {
                         search.includes('join') || search.includes('register') || search.includes('registration') || search.includes('model') || search.includes('joinmale') || search.includes('join-male') || search.includes('joinsparm') || search.includes('join-sparm') || search.includes('joinsperm') || search.includes('join-sperm') || search.includes('sparm') || search.includes('sperm') ||
                         path.includes('join') || path.includes('register') || path.includes('registration') || path.includes('model') || path.includes('joinmale') || path.includes('join-male') || path.includes('joinsparm') || path.includes('join-sparm') || path.includes('joinsperm') || path.includes('join-sperm') || path.includes('sparm') || path.includes('sperm');
                         
-    return isJoinRoute && !(hash.includes('admin') || search.includes('admin') || path.includes('admin'));
+    return isJoinRoute && !(hash.includes('admin') || search.includes('admin') || path.includes('admin') || hash.includes('turmarheda') || search.includes('turmarheda') || path.includes('turmarheda'));
   });
   const [joinModalType, setJoinModalType] = useState<'female' | 'male' | 'donor' | null>(() => {
     const hash = window.location.hash.toLowerCase();
@@ -204,9 +204,9 @@ export default function App() {
     
     const isJoinRoute = hash.includes('join') || hash.includes('register') || hash.includes('registration') || hash.includes('model') || hash.includes('joinmale') || hash.includes('join-male') || hash.includes('joinsparm') || hash.includes('join-sparm') || hash.includes('joinsperm') || hash.includes('join-sperm') || hash.includes('sparm') || hash.includes('sperm') ||
                         search.includes('join') || search.includes('register') || search.includes('registration') || search.includes('model') || search.includes('joinmale') || search.includes('join-male') || search.includes('joinsparm') || search.includes('join-sparm') || search.includes('joinsperm') || search.includes('join-sperm') || search.includes('sparm') || search.includes('sperm') ||
-                        path.includes('join') || path.includes('register') || path.includes('registration') || path.includes('model') || path.includes('joinmale') || path.includes('join-male') || path.includes('joinsparm') || path.includes('join-sparm') || path.includes('joinsperm') || path.includes('join-sperm') || path.includes('sparm') || path.includes('sperm');
+                        path.includes('join') || path.includes('register') || path.includes('registration') || path.includes('model') || path.includes('joinmale') || path.includes('join-male') || hash.includes('joinsparm') || hash.includes('join-sparm') || hash.includes('joinsperm') || hash.includes('join-sperm') || hash.includes('sparm') || hash.includes('sperm');
                         
-    if (isJoinRoute && !(hash.includes('admin') || search.includes('admin') || path.includes('admin'))) {
+    if (isJoinRoute && !(hash.includes('admin') || search.includes('admin') || path.includes('admin') || hash.includes('turmarheda') || search.includes('turmarheda') || path.includes('turmarheda'))) {
       if (hash.includes('male') || search.includes('male') || path.includes('male') || hash.includes('joinmale') || search.includes('joinmale') || path.includes('joinmale') || path.includes('join-male') || hash.includes('join-male')) return 'male';
       if (hash.includes('donor') || search.includes('donor') || path.includes('donor') || hash.includes('sparm') || search.includes('sparm') || path.includes('sparm') || hash.includes('sperm') || search.includes('sperm') || path.includes('sperm')) return 'donor';
       return 'female';
@@ -635,10 +635,7 @@ export default function App() {
   const [partnerImage, setPartnerImage] = useState('');
   const [partnerAppPhone, setPartnerAppPhone] = useState('');
 
-  const [emailLogs, setEmailLogs] = useState<EmailLog[]>(() => {
-    const saved = getStoredItem('bt_email_logs');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
 
   const [emailjsServiceId, setEmailjsServiceId] = useState<string>(() => {
     return getStoredItem('bt_emailjs_service_id') || '';
@@ -663,6 +660,30 @@ export default function App() {
   const [telegramHelpline, setTelegramHelpline] = useState<string>(() => {
     return getStoredItem('bt_telegram_helpline') || 'BodyTouchSupport';
   });
+
+  const [telegram2FAEnabled, setTelegram2FAEnabled] = useState<boolean>(() => {
+    return getStoredItem('bt_telegram_2fa_enabled') !== 'false';
+  });
+
+  const [telegramSendTarget, setTelegramSendTarget] = useState<'group' | 'client'>(() => {
+    return (getStoredItem('bt_telegram_send_target') as 'group' | 'client') || 'group';
+  });
+
+  const [telegramBotSelection, setTelegramBotSelection] = useState<'default' | 'custom'>(() => {
+    const saved = getStoredItem('bt_telegram_bot_selection');
+    if (saved === 'default' || saved === 'custom') return saved;
+    // Fallback: If they have a token configure, default to custom. Otherwise default.
+    const token = getStoredItem('bt_telegram_bot_token');
+    return token ? 'custom' : 'default';
+  });
+
+  const [emergencyNotice, setEmergencyNotice] = useState<string>(() => {
+    return getStoredItem('bt_emergency_notice') || 'সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যাম সার্ভিস বুকিং দিবেন না';
+  });
+
+  useEffect(() => {
+    storage.setItem('bt_emergency_notice', emergencyNotice);
+  }, [emergencyNotice, rememberMe]);
 
   useEffect(() => {
     setEditFullName(fullName);
@@ -737,14 +758,16 @@ export default function App() {
     checkOutDate: string;
     emergencyContact: string;
     cost: number;
+    roomType?: string;
   }) => {
     if (!selectedReserveHotel) return;
 
     const cost = data.cost;
+    const roomSuffix = data.roomType ? ` (${data.roomType})` : '';
     
     const newBooking: Booking = {
       id: 'hotel-' + Date.now(),
-      modelName: `${selectedReserveHotel.name}`,
+      modelName: `${selectedReserveHotel.name}${roomSuffix}`,
       modelTag: 'HOTEL',
       location: selectedReserveHotel.location,
       date: `${data.checkInDate} to ${data.checkOutDate}`,
@@ -752,11 +775,14 @@ export default function App() {
       duration: 'Hotel Booking',
       image: selectedReserveHotel.image,
       status: 'Approved',
-      notes: `Emergency Contact: ${data.emergencyContact}. Booked via corporate alias.`,
+      notes: `Suite Tier: ${data.roomType || 'Standard Class'}. Emergency Contact: ${data.emergencyContact}. Booked via corporate alias.`,
       cost: cost
     };
 
     setBookings((prev) => [newBooking, ...prev]);
+    import('./services/cloudService').then(({ setCloudDocument }) => {
+      setCloudDocument('bookings', newBooking.id, newBooking);
+    });
     
     if (walletBalance >= cost) {
       const newBal = walletBalance - cost;
@@ -773,9 +799,9 @@ export default function App() {
     const hash = window.location.hash.toLowerCase();
     const search = window.location.search.toLowerCase();
     const path = window.location.pathname.toLowerCase();
-    return hash.includes('admin') || hash.includes('wp-admin') || hash.includes('theadmin') || hash.includes('the-admin') || hash.includes('theadminman') ||
-           search.includes('admin') || search.includes('wp-admin') || search.includes('theadmin') || search.includes('the-admin') || search.includes('theadminman') ||
-           path.includes('admin') || path.includes('wp-admin') || path.includes('theadmin') || path.includes('the-admin') || path.includes('theadminman');
+    return hash.includes('turmarheda') ||
+           search.includes('turmarheda') ||
+           path.includes('turmarheda');
   });
 
   useEffect(() => {
@@ -784,16 +810,16 @@ export default function App() {
       const search = window.location.search.toLowerCase();
       const path = window.location.pathname.toLowerCase();
       
-      const isAdminRoute = hash.includes('admin') || hash.includes('wp-admin') || hash.includes('theadmin') || hash.includes('the-admin') || hash.includes('theadminman') ||
-                           search.includes('admin') || search.includes('wp-admin') || search.includes('theadmin') || search.includes('the-admin') || search.includes('theadminman') ||
-                           path.includes('admin') || path.includes('wp-admin') || path.includes('theadmin') || path.includes('the-admin') || path.includes('theadminman');
+      const isAdminRoute = hash.includes('turmarheda') ||
+                           search.includes('turmarheda') ||
+                           path.includes('turmarheda');
       
       if (isAdminRoute) {
         setIsAdminOpen(true);
       } else {
         const isJoinRoute = hash.includes('join') || hash.includes('register') || hash.includes('registration') || hash.includes('model') || hash.includes('joinmale') || hash.includes('join-male') || hash.includes('joinsparm') || hash.includes('join-sparm') || hash.includes('joinsperm') || hash.includes('join-sperm') || hash.includes('sparm') || hash.includes('sperm') ||
                             search.includes('join') || search.includes('register') || search.includes('registration') || search.includes('model') || search.includes('joinmale') || search.includes('join-male') || search.includes('joinsparm') || search.includes('join-sparm') || search.includes('joinsperm') || search.includes('join-sperm') || search.includes('sparm') || search.includes('sperm') ||
-                            path.includes('join') || path.includes('register') || path.includes('registration') || path.includes('model') || path.includes('joinmale') || path.includes('join-male') || path.includes('joinsparm') || path.includes('join-sparm') || path.includes('joinsperm') || path.includes('join-sperm') || path.includes('sparm') || path.includes('sperm');
+                            path.includes('join') || path.includes('register') || path.includes('registration') || path.includes('model') || path.includes('joinmale') || path.includes('join-male') || hash.includes('joinsparm') || hash.includes('join-sparm') || hash.includes('joinsperm') || hash.includes('join-sperm') || hash.includes('sparm') || hash.includes('sperm');
         if (isJoinRoute) {
           if (hash.includes('male') || search.includes('male') || path.includes('male') || hash.includes('joinmale') || search.includes('joinmale') || path.includes('joinmale') || path.includes('join-male') || hash.includes('join-male')) {
             setJoinModalType('male');
@@ -889,10 +915,6 @@ export default function App() {
   }, [avatarUrl, rememberMe]);
 
   useEffect(() => {
-    localStorage.setItem('bt_email_logs', JSON.stringify(emailLogs));
-  }, [emailLogs]);
-
-  useEffect(() => {
     storage.setItem('bt_emailjs_service_id', emailjsServiceId);
   }, [emailjsServiceId, rememberMe]);
 
@@ -917,6 +939,18 @@ export default function App() {
   }, [telegramHelpline, rememberMe]);
 
   useEffect(() => {
+    storage.setItem('bt_telegram_2fa_enabled', String(telegram2FAEnabled));
+  }, [telegram2FAEnabled, rememberMe]);
+
+  useEffect(() => {
+    storage.setItem('bt_telegram_send_target', telegramSendTarget);
+  }, [telegramSendTarget, rememberMe]);
+
+  useEffect(() => {
+    storage.setItem('bt_telegram_bot_selection', telegramBotSelection);
+  }, [telegramBotSelection, rememberMe]);
+
+  useEffect(() => {
     storage.setItem('bt_selected_segment', selectedSegment);
   }, [selectedSegment, rememberMe]);
 
@@ -924,7 +958,185 @@ export default function App() {
     storage.setItem('bt_account_mode', accountMode);
   }, [accountMode, rememberMe]);
 
+  // Load and sync user profile securely from Firestore when username changes or they log in
+  useEffect(() => {
+    if (isLoggedIn && username) {
+      import('./services/cloudService').then(({ getCloudUser, saveCloudUser }) => {
+        getCloudUser(username).then((cloudUser) => {
+          if (cloudUser) {
+            if (cloudUser.userLevel) setUserLevel(cloudUser.userLevel);
+            if (typeof cloudUser.walletBalance === 'number') setWalletBalance(cloudUser.walletBalance);
+            if (cloudUser.fullName) {
+              setFullName(cloudUser.fullName);
+              setEditFullName(cloudUser.fullName);
+            }
+            if (cloudUser.phone) {
+              setPhone(cloudUser.phone);
+              setEditPhone(cloudUser.phone);
+            }
+            if (cloudUser.email) {
+              setEmail(cloudUser.email);
+              setEditEmail(cloudUser.email);
+            }
+          } else {
+            // Setup stats on first cloud login
+            const initialDetails = {
+              username,
+              fullName,
+              email,
+              phone,
+              userLevel,
+              walletBalance
+            };
+            saveCloudUser(initialDetails);
+          }
+        });
+      });
+    }
+  }, [isLoggedIn, username]);
+
+  // Sync user profile updates to Firestore
+  useEffect(() => {
+    if (isLoggedIn && username) {
+      import('./services/cloudService').then(({ saveCloudUser }) => {
+        const stats = {
+          username,
+          fullName,
+          email,
+          phone,
+          userLevel,
+          walletBalance
+        };
+        saveCloudUser(stats);
+      });
+    }
+  }, [userLevel, walletBalance, fullName, phone, email, isLoggedIn, username]);
+
+  // Fetch Settings from Firestore on mount
+  useEffect(() => {
+    const fetchAppSettings = async () => {
+      try {
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { db } = await import('./firebase');
+        
+        // 1. Fetch Telegram Settings
+        const docRef = doc(db, 'settings', 'telegram_settings');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.botToken !== undefined) setTelegramBotToken(data.botToken);
+          if (data.groupId !== undefined) setTelegramGroupId(data.groupId);
+          if (data.helpline !== undefined) setTelegramHelpline(data.helpline);
+          if (data.faEnabled !== undefined) setTelegram2FAEnabled(data.faEnabled);
+          if (data.sendTarget !== undefined) setTelegramSendTarget(data.sendTarget);
+          if (data.botSelection !== undefined) setTelegramBotSelection(data.botSelection);
+        }
+
+        // 2. Fetch Emergency Booking Notice
+        const noticeRef = doc(db, 'settings', 'app_notice');
+        const noticeSnap = await getDoc(noticeRef);
+        if (noticeSnap.exists()) {
+          const data = noticeSnap.data();
+          if (data.text !== undefined) setEmergencyNotice(data.text);
+        }
+      } catch (err) {
+        console.warn('[CloudDB] Failed to load settings:', err);
+      }
+    };
+    fetchAppSettings();
+  }, []);
+
+  // Synchronize collections with Cloud Firestore in real-time
+  useEffect(() => {
+    const bootstrapAll = async () => {
+      try {
+        const { bootstrapCollectionIfEmpty } = await import('./services/cloudService');
+        await bootstrapCollectionIfEmpty('companions', COMPANIONS);
+        await bootstrapCollectionIfEmpty('locations', LOCATIONS);
+        
+        // Feed initial reviews and payments
+        await bootstrapCollectionIfEmpty('reviews', reviews);
+        await bootstrapCollectionIfEmpty('payments', payments);
+      } catch (err) {
+        console.warn('[CloudDB] Bootstrapping failed:', err);
+      }
+    };
+    
+    bootstrapAll();
+
+    const unsubscribers: (() => void)[] = [];
+    
+    import('./services/cloudService').then(({ syncCloudCollection }) => {
+      unsubscribers.push(syncCloudCollection('bookings', (items) => {
+        if (items) {
+          const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
+          setBookings(sorted);
+        }
+      }));
+      
+      unsubscribers.push(syncCloudCollection('payments', (items) => {
+        if (items) {
+          const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
+          setPayments(sorted);
+        }
+      }));
+      
+      unsubscribers.push(syncCloudCollection('companions', (items) => {
+        if (items) {
+          setCompanions(items);
+        }
+      }));
+      
+      unsubscribers.push(syncCloudCollection('locations', (items) => {
+        if (items) {
+          setLocations(items);
+        }
+      }));
+      
+      unsubscribers.push(syncCloudCollection('reviews', (items) => {
+        if (items) {
+          const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
+          setReviews(sorted);
+        }
+      }));
+    });
+
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, []);
+
   // Online Counter fluctuation simulation
+  const handleUpdateCompanions = (updated: Companion[]) => {
+    setCompanions(updated);
+    import('./services/cloudService').then(({ setCloudDocument, deleteCloudDocument }) => {
+      updated.forEach((item) => {
+        setCloudDocument('companions', item.id, item);
+      });
+      companions.forEach((oldItem) => {
+        const stillExists = updated.some(item => item.id === oldItem.id);
+        if (!stillExists) {
+          deleteCloudDocument('companions', oldItem.id);
+        }
+      });
+    });
+  };
+
+  const handleUpdateLocations = (updated: HotelLocation[]) => {
+    setLocations(updated);
+    import('./services/cloudService').then(({ setCloudDocument, deleteCloudDocument }) => {
+      updated.forEach((item) => {
+        setCloudDocument('locations', item.id, item);
+      });
+      locations.forEach((oldItem) => {
+        const stillExists = updated.some(item => item.id === oldItem.id);
+        if (!stillExists) {
+          deleteCloudDocument('locations', oldItem.id);
+        }
+      });
+    });
+  };
+
   useEffect(() => {
     const interval = setInterval(() => {
       setOnlineCount((prev) => prev + (Math.random() > 0.5 ? 1 : -1));
@@ -1025,6 +1237,9 @@ export default function App() {
     };
 
     setBookings((prev) => [newBooking, ...prev]);
+    import('./services/cloudService').then(({ setCloudDocument }) => {
+      setCloudDocument('bookings', newBooking.id, newBooking);
+    });
 
     // Persist updated details to profile states and local storage
     if (data.clientName) {
@@ -1057,6 +1272,9 @@ export default function App() {
         date: new Date().toLocaleString()
       };
       setPayments((prev) => [newDeficitPayment, ...prev]);
+      import('./services/cloudService').then(({ setCloudDocument }) => {
+        setCloudDocument('payments', newDeficitPayment.id, newDeficitPayment);
+      });
       triggerToast(`💸 Booking registered! Please wait while admin verifies your remaining payment of ৳${data.deficitPay.amount.toLocaleString()}.`, 'success');
     } else {
       triggerToast(`✨ Booking request with ${bookingCompanion.name} successfully scheduled!`, 'success');
@@ -1115,7 +1333,20 @@ export default function App() {
     };
 
     setPayments((prev) => [newPaymentLog, ...prev]);
-    setCheckoutTier(null);
+    import('./services/cloudService').then(({ setCloudDocument }) => {
+      setCloudDocument('payments', newPaymentLog.id, newPaymentLog);
+    });
+
+    // Send Telegram Notification
+    const text = `💳 <b>নতুন মেম্বারশিপ পেমেন্ট সাবমিট হয়েছে!</b>\n\n` +
+      `👤 ইউজারনেম: <b>${username || 'N/A'}</b>\n` +
+      `💎 মেম্বারশিপ টায়ার: <b>${checkoutTier.name}</b>\n` +
+      `💰 পেমেন্ট অ্যামাউন্ট: <b>৳${checkoutTier.price} BDT</b>\n` +
+      `💳 পেমেন্ট গেটওয়ে: <b>${data.method}</b>\n` +
+      `🔐 ট্রানজেকশন আইডি (TrxID): <code>${data.trxId}</code>\n\n` +
+      `<i>পেমেন্টটি ম্যানুয়ালি ভেরিফাই বা এপ্রুভ করার জন্য এডমিন প্যানেল চেক করুন।</i>`;
+    sendTelegramNotification(text);
+
     setActiveTab('assets');
     triggerToast('⏳ Payment trace registered! Awaiting manual/auto verification.', 'success');
   };
@@ -1145,6 +1376,20 @@ export default function App() {
     };
 
     setPayments((prev) => [newPaymentLog, ...prev]);
+    import('./services/cloudService').then(({ setCloudDocument }) => {
+      setCloudDocument('payments', newPaymentLog.id, newPaymentLog);
+    });
+
+    // Send Telegram Notification
+    const text = `💰 <b>নতুন ওয়ালেট ডিপোজিট সাবমিট হয়েছে!</b>\n\n` +
+      `👤 ইউজারনেম: <b>${username || 'N/A'}</b>\n` +
+      `💎 ক্যাটাগরি: <b>Wallet Deposit</b>\n` +
+      `💵 ডিপোজিট অ্যামাউন্ট: <b>৳${amount.toLocaleString()} BDT</b>\n` +
+      `💳 পেমেন্ট গেটওয়ে: <b>${allocateMethod}</b>\n` +
+      `🔐 ট্রানজেকশন আইডি (TrxID): <code>${allocateTrx.trim().toUpperCase()}</code>\n\n` +
+      `<i>ডিপোজিটটি ম্যানুয়ালি ভেরিফাই বা এপ্রুভ করার জন্য এডমিন প্যানেল চেক করুন।</i>`;
+    sendTelegramNotification(text);
+
     setIsAllocateOpen(false);
     setAllocateAmount('');
     setAllocateTrx('');
@@ -1183,6 +1428,20 @@ export default function App() {
     };
 
     setPayments((prev) => [newPaymentLog, ...prev]);
+    import('./services/cloudService').then(({ setCloudDocument }) => {
+      setCloudDocument('payments', newPaymentLog.id, newPaymentLog);
+    });
+
+    // Send Telegram Notification
+    const text = `💸 <b>নতুন ওয়ালেট উইথড্রয়াল (উত্তোলন) রিকুয়েস্ট!</b>\n\n` +
+      `👤 ইউজারনেম: <b>${username || 'N/A'}</b>\n` +
+      `💎 ক্যাটাগরি: <b>Withdrawal</b>\n` +
+      `💵 উত্তোলিত অ্যামাউন্ট: <b>৳${amount.toLocaleString()} BDT</b>\n` +
+      `💳 পেমেন্ট গেটওয়ে: <b>${liquidateMethod}</b>\n` +
+      `📱 গেটওয়ে মোবাইল অ্যাকাউন্ট: <code>${liquidateMobile.trim()}</code>\n\n` +
+      `<i>উইথড্রয়াল ট্রানজেকশনটি সম্পূর্ণ করা হয়েছে।</i>`;
+    sendTelegramNotification(text);
+
     setIsLiquidateOpen(false);
     setLiquidateAmount('');
     setLiquidateMobile('');
@@ -1201,65 +1460,20 @@ export default function App() {
     setWalletBalance((prev) => prev + numericPrice);
   };
 
-  // Automated Email dispatch system (EmailJS / Hostinger Mail Server simulator)
+  // Automated Email dispatch system (Email system is disabled as all alerts are routed via Telegram)
   const sendAutoEmail = async (toEmail: string, subject: string, bodyText: string) => {
-    const timestamp = new Date().toLocaleString();
-    const newLogId = 'mail-' + Date.now();
-
-    const pendingLog: EmailLog = {
-      id: newLogId,
-      to: toEmail,
-      subject,
-      body: bodyText,
-      sentAt: timestamp,
-      status: 'Pending'
-    };
-    setEmailLogs((prev) => [pendingLog, ...prev]);
-
-    if (emailjsServiceId && emailjsTemplateId && emailjsPublicKey) {
-      try {
-        const templateParams = {
-          to_email: toEmail,
-          to_name: fullName || username || 'VIP Client',
-          subject: subject,
-          message: bodyText,
-          reply_to: 'support@bodytouch.com'
-        };
-
-        await emailjs.send(
-          emailjsServiceId,
-          emailjsTemplateId,
-          templateParams,
-          emailjsPublicKey
-        );
-
-        setEmailLogs((prev) =>
-          prev.map((log) => (log.id === newLogId ? { ...log, status: 'Delivered' } : log))
-        );
-        triggerToast(`📨 Real Hostinger Email dispatched to ${toEmail}!`, 'success');
-      } catch (err: any) {
-        console.error('EmailJS error:', err);
-        setEmailLogs((prev) =>
-          prev.map((log) => (log.id === newLogId ? { ...log, status: 'Failed' } : log))
-        );
-        triggerToast(`⚠️ Email Error: ${err.text || err.message || 'Verification failure.'}`, 'error');
-      }
-    } else {
-      // Live SMTP queue simulation in absence of active credentials
-      setTimeout(() => {
-        setEmailLogs((prev) =>
-          prev.map((log) => (log.id === newLogId ? { ...log, status: 'Delivered' } : log))
-        );
-        triggerToast(`📨 [Hostinger SMTP Auto-Mail] Sent to ${toEmail}!`, 'success');
-      }, 1000);
-    }
+    // Quietly log to the developer console to confirm execution path can run safely without side-effects
+    console.log(`[Email System Disabled] Quietly bypassed sending email to ${toEmail} with subject: ${subject}`);
   };
 
   // Automated Telegram Group and Private Notification Endpoint
   const sendTelegramNotification = async (htmlText: string, customChatId?: string) => {
-    const token = telegramBotToken || getStoredItem('bt_telegram_bot_token');
-    const defaultChatId = telegramGroupId || getStoredItem('bt_telegram_group_id');
-    const chatId = customChatId || defaultChatId;
+    const defaultBotToken = '7874983058:AAHshUqisKskj6D5-zZ7N0L-GCHV966L1Sg';
+    const customBotToken = telegramBotToken || getStoredItem('bt_telegram_bot_token') || defaultBotToken;
+    const token = telegramBotSelection === 'default' ? defaultBotToken : customBotToken;
+
+    const defaultGroupId = telegramGroupId || getStoredItem('bt_telegram_group_id') || '-1002283928192';
+    const chatId = customChatId || defaultGroupId;
 
     if (!token || !chatId) {
       console.warn('Telegram Notification skipped: Bot Token or Chat ID not configured.');
@@ -1299,6 +1513,69 @@ export default function App() {
     }
   };
 
+  const handleSaveTelegramSettings = async () => {
+    try {
+      const { doc, setDoc } = await import('firebase/firestore');
+      const { db } = await import('./firebase');
+      const docRef = doc(db, 'settings', 'telegram_settings');
+      await setDoc(docRef, {
+        botToken: telegramBotToken,
+        groupId: telegramGroupId,
+        helpline: telegramHelpline,
+        faEnabled: telegram2FAEnabled,
+        sendTarget: telegramSendTarget,
+        botSelection: telegramBotSelection,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      triggerToast("✅ Telegram Credentials & Configuration saved to Cloud Firestore Database successfully!", "success");
+    } catch (err) {
+      console.error(err);
+      triggerToast("❌ Error saving settings to Firestore database: " + (err instanceof Error ? err.message : String(err)), "error");
+    }
+  };
+
+  const handleClearTelegramSettings = async () => {
+    try {
+      const { doc, setDoc } = await import('firebase/firestore');
+      const { db } = await import('./firebase');
+      const docRef = doc(db, 'settings', 'telegram_settings');
+      await setDoc(docRef, {
+        botToken: '',
+        groupId: '',
+        helpline: '',
+        faEnabled: false,
+        sendTarget: 'group',
+        botSelection: 'default',
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      setTelegramBotToken('');
+      setTelegramGroupId('');
+      setTelegramHelpline('');
+      setTelegram2FAEnabled(false);
+      setTelegramSendTarget('group');
+      setTelegramBotSelection('default');
+      triggerToast("⚠️ Disconnected: All Telegram Bot tokens, Chat IDs, and active helpline links have been completely removed from Cloud Database!", "success");
+    } catch (err) {
+      console.error(err);
+      triggerToast("❌ Error disconnecting: " + (err instanceof Error ? err.message : String(err)), "error");
+    }
+  };
+
+  const handleSaveEmergencyNotice = async (text: string) => {
+    try {
+      const { doc, setDoc } = await import('firebase/firestore');
+      const { db } = await import('./firebase');
+      const docRef = doc(db, 'settings', 'app_notice');
+      await setDoc(docRef, { text, updatedAt: new Date().toISOString() }, { merge: true });
+      setEmergencyNotice(text);
+      triggerToast("✅ Emergency booking notice text updated in Cloud Firestore database successfully!", "success");
+    } catch (err) {
+      console.error(err);
+      triggerToast("❌ Failed to update notice text: " + (err instanceof Error ? err.message : String(err)), "error");
+    }
+  };
+
   // Administration bookings / services manual checkers
   const handleAdminApproveCompanion = (companionId: string) => {
     setCompanions((prev) =>
@@ -1306,6 +1583,9 @@ export default function App() {
         if (c.id === companionId) {
           const freshTag = c.badge === 'DEMO' ? 'Class DEMO' : c.badge === 'ELITE' ? 'Class ELITE' : c.badge === 'PREMIUM' ? 'Class PREMIUM' : 'Class REGULAR';
           const updated = { ...c, status: 'Approved' as const, tag: freshTag };
+          import('./services/cloudService').then(({ setCloudDocument }) => {
+            setCloudDocument('companions', c.id, updated);
+          });
           const mailSubject = `🎉 bodyTOUCH Roster: Your Career Application is APPROVED!`;
           const mailBody = `
 Dear ${c.name},
@@ -1354,6 +1634,9 @@ https://service.bodytouch.com
       prev.map((c) => {
         if (c.id === companionId) {
           const updated = { ...c, status: 'Declined' as const };
+          import('./services/cloudService').then(({ setCloudDocument }) => {
+            setCloudDocument('companions', c.id, updated);
+          });
           const mailSubject = `⚠️ bodyTOUCH Notification: Application Status Update`;
           const mailBody = `
 Dear ${c.name},
@@ -1401,12 +1684,18 @@ bodyTOUCH Auditing Core
         date: new Date().toLocaleString()
       };
       setPayments((prev) => [newSpendRecord, ...prev]);
+      import('./services/cloudService').then(({ setCloudDocument }) => {
+        setCloudDocument('payments', newSpendRecord.id, newSpendRecord);
+      });
     }
 
     setBookings((prev) =>
       prev.map((b) => {
         if (b.id === bookingId) {
           const updated = { ...b, status: 'Approved' as const };
+          import('./services/cloudService').then(({ setCloudDocument }) => {
+            setCloudDocument('bookings', b.id, updated);
+          });
           const mailSubject = `✅ Body Touch: Booking Service Approved for ${b.modelName}`;
           const mailBody = `
 Dear ${fullName || 'Client'},
@@ -1430,6 +1719,20 @@ Website: https://bodytouch.com
           `;
           sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
           triggerToast(`✅ Booking approved for ${b.modelName}! Auto email sent!`, 'success');
+
+          // Send Telegram Status Notification
+          const telText = `✅ <b>বুকিং অ্যাপ্রুভ করা হয়েছে!</b>\n\n` +
+            `🆔 বুকিং আইডি: <code>${b.id}</code>\n` +
+            `👤 কাস্টমার: <b>${fullName || 'N/A'}</b>\n` +
+            `👩🏼 মডেল: <b>${b.modelName}</b>\n` +
+            `📍 ভেন্যু: <b>${b.location}</b>\n` +
+            `📅 তারিখ: <b>${b.date}</b>\n` +
+            `⏰ সময়: <b>${b.time}</b>\n` +
+            `⏱️ ডিউরেশন: <b>${b.duration}</b>\n` +
+            `💰 মোট খরচ: <b>৳${(b.cost || 0).toLocaleString()} BDT</b>\n` +
+            `🔐 সিক্রেট পাসফ্রেজ: <code>${b.secretCode || 'N/A'}</code>`;
+          sendTelegramNotification(telText);
+
           return updated;
         }
         return b;
@@ -1442,6 +1745,9 @@ Website: https://bodytouch.com
       prev.map((b) => {
         if (b.id === bookingId) {
           const updated = { ...b, status: 'Declined' as const };
+          import('./services/cloudService').then(({ setCloudDocument }) => {
+            setCloudDocument('bookings', b.id, updated);
+          });
           const mailSubject = `❌ Body Touch Notification: Service Inquiry Declined`;
           const mailBody = `
 Dear ${fullName || 'Client'},
@@ -1455,6 +1761,14 @@ Body Touch VIP Concierge
           `;
           sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
           triggerToast(`❌ Booking declined for ${b.modelName}. Notification mail sent.`, 'error');
+
+          const telText = `❌ <b>বুকিং ডিক্লাইন বা প্রত্যাখ্যান করা হয়েছে!</b>\n\n` +
+            `🆔 বুকিং আইডি: <code>${b.id}</code>\n` +
+            `👤 কাস্টমার: <b>${fullName || 'N/A'}</b>\n` +
+            `👩🏼 মডেল: <b>${b.modelName}</b>\n` +
+            `📅 তারিখ: <b>${b.date}</b>`;
+          sendTelegramNotification(telText);
+
           return updated;
         }
         return b;
@@ -1467,6 +1781,9 @@ Body Touch VIP Concierge
       prev.map((b) => {
         if (b.id === bookingId) {
           const updated = { ...b, status: 'Outgoing' as const };
+          import('./services/cloudService').then(({ setCloudDocument }) => {
+            setCloudDocument('bookings', b.id, updated);
+          });
           const mailSubject = `🚀 Body Touch Notification: Companion is Outgoing!`;
           const mailBody = `
 Dear ${fullName || 'Client'},
@@ -1480,6 +1797,15 @@ Body Touch VIP Concierge
           `;
           sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
           triggerToast(`🚀 Booking marked as Outgoing for ${b.modelName}. Email notification dispatched!`, 'success');
+
+          const telText = `🚀 <b>মডেল বুকিংয়ে রওনা হয়েছে (Outgoing)!</b>\n\n` +
+            `🆔 বুকিং আইডি: <code>${b.id}</code>\n` +
+            `👤 কাস্টমার: <b>${fullName || 'N/A'}</b>\n` +
+            `👩🏼 মডেল: <b>${b.modelName}</b>\n` +
+            `📍 ভেন্যু: <b>${b.location}</b>\n` +
+            `🔐 সিক্রেট ভেরিফিকেশন কোড: <code>${b.secretCode || 'N/A'}</code>`;
+          sendTelegramNotification(telText);
+
           return updated;
         }
         return b;
@@ -1492,6 +1818,9 @@ Body Touch VIP Concierge
       prev.map((b) => {
         if (b.id === bookingId) {
           const updated = { ...b, status: 'Completed' as const };
+          import('./services/cloudService').then(({ setCloudDocument }) => {
+            setCloudDocument('bookings', b.id, updated);
+          });
           const mailSubject = `💖 Body Touch Notification: Service Completed!`;
           const mailBody = `
 Dear ${fullName || 'Client'},
@@ -1506,6 +1835,14 @@ Body Touch VIP Concierge
           `;
           sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
           triggerToast(`💖 Booking marked as Completed for ${b.modelName}. Feedback request notification sent!`, 'success');
+
+          const telText = `💖 <b>বুকিং সফলভাবে সম্পন্ন হয়েছে (Completed)!</b>\n\n` +
+            `🆔 বুকিং আইডি: <code>${b.id}</code>\n` +
+            `👤 কাস্টমার: <b>${fullName || 'N/A'}</b>\n` +
+            `👩🏼 মডেল: <b>${b.modelName}</b>\n` +
+            `⏱️ ডিউরেশন: <b>${b.duration}</b>`;
+          sendTelegramNotification(telText);
+
           return updated;
         }
         return b;
@@ -1567,7 +1904,11 @@ Body Touch VIP Automation Agent
 https://bodytouch.com
             `;
             sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
-            return { ...p, status: 'Approved' };
+            const updated = { ...p, status: 'Approved' as const };
+            import('./services/cloudService').then(({ setCloudDocument }) => {
+              setCloudDocument('payments', p.id, updated);
+            });
+            return updated;
           }
           return p;
         })
@@ -1611,7 +1952,11 @@ Body Touch support operator
 https://bodytouch.com
           `;
           sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
-          return { ...p, status: 'Approved' };
+          const updated = { ...p, status: 'Approved' as const };
+          import('./services/cloudService').then(({ setCloudDocument }) => {
+            setCloudDocument('payments', p.id, updated);
+          });
+          return updated;
         }
         return p;
       })
@@ -1637,7 +1982,11 @@ Sincerely,
 Body Touch Security Core
           `;
           sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
-          return { ...p, status: 'Rejected' };
+          const updated = { ...p, status: 'Rejected' as const };
+          import('./services/cloudService').then(({ setCloudDocument }) => {
+            setCloudDocument('payments', p.id, updated);
+          });
+          return updated;
         }
         return p;
       })
@@ -1895,14 +2244,6 @@ https://service.bodytouch.com
     return 5; // Default free affiliate tier commission rate
   }, [myConversionsCount]);
 
-  if (!isLoggedIn) {
-    return (
-      <div className="text-[#c4d1eb] min-h-screen flex flex-col justify-between selection:bg-rose-500 selection:text-white bg-[#020714]">
-        <LoginGate onLoginSuccess={handleLoginSuccess} />
-      </div>
-    );
-  }
-
   if (isAdminOpen) {
     return (
       <div className="text-slate-100 min-h-screen bg-[#0c0d12] selection:bg-red-500 selection:text-white font-sans w-full">
@@ -1919,9 +2260,9 @@ https://service.bodytouch.com
           isOpen={isAdminOpen}
           onClose={() => setIsAdminOpen(false)}
           companions={companions}
-          onUpdateCompanions={setCompanions}
+          onUpdateCompanions={handleUpdateCompanions}
           locations={locations}
-          onUpdateLocations={setLocations}
+          onUpdateLocations={handleUpdateLocations}
           bookings={bookings}
           onApproveBooking={handleAdminApproveBooking}
           onDeclineBooking={handleAdminDeclineBooking}
@@ -1941,6 +2282,14 @@ https://service.bodytouch.com
           onSetTelegramGroupId={setTelegramGroupId}
           telegramHelpline={telegramHelpline}
           onSetTelegramHelpline={setTelegramHelpline}
+          telegram2FAEnabled={telegram2FAEnabled}
+          onSetTelegram2FAEnabled={setTelegram2FAEnabled}
+          telegramSendTarget={telegramSendTarget}
+          onSetTelegramSendTarget={setTelegramSendTarget}
+          telegramBotSelection={telegramBotSelection}
+          onSetTelegramBotSelection={setTelegramBotSelection}
+          onSaveTelegramSettings={handleSaveTelegramSettings}
+          onClearTelegramSettings={handleClearTelegramSettings}
           onApproveCompanion={handleAdminApproveCompanion}
           onDeclineCompanion={handleAdminDeclineCompanion}
           onSendEmail={sendAutoEmail}
@@ -1958,6 +2307,24 @@ https://service.bodytouch.com
           onUpdateWithdrawals={setWithdrawals}
           categories={categories}
           onUpdateCategories={setCategories}
+          emergencyNotice={emergencyNotice}
+          onSaveEmergencyNotice={handleSaveEmergencyNotice}
+        />
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="text-[#c4d1eb] min-h-screen flex flex-col justify-between selection:bg-rose-500 selection:text-white bg-[#020714]">
+        <LoginGate 
+          onLoginSuccess={handleLoginSuccess} 
+          telegramBotToken={telegramBotToken}
+          telegramGroupId={telegramGroupId}
+          telegram2FAEnabled={telegram2FAEnabled}
+          telegramSendTarget={telegramSendTarget}
+          telegramBotSelection={telegramBotSelection}
+          emergencyNotice={emergencyNotice}
         />
       </div>
     );
@@ -2030,13 +2397,9 @@ https://service.bodytouch.com
               <div className="flex items-center gap-2 overflow-hidden w-full">
                 <span className="flex-shrink-0 text-blue-400 text-sm">📢</span>
                 <div className="whitespace-nowrap overflow-hidden relative w-full">
-                  <motion.div
-                    className="inline-block"
-                    animate={{ x: ['100%', '-100%'] }}
-                    transition={{ repeat: Infinity, duration: 24, ease: 'linear' }}
-                  >
-                    সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যান সার্ভিস বুকিং দিবেন না
-                  </motion.div>
+                  <div className="animate-marquee-text">
+                    {emergencyNotice}
+                  </div>
                 </div>
               </div>
               <button
@@ -2063,7 +2426,7 @@ https://service.bodytouch.com
             >
               {/* Premium Image Banner Slider */}
               <motion.div variants={itemVariants}>
-                <ImageSlider />
+                <ImageSlider emergencyNotice={emergencyNotice} />
               </motion.div>
 
               {/* Premium Welcome Access banner */}
@@ -2663,7 +3026,7 @@ https://service.bodytouch.com
                 </div>
 
                 {/* Grid layout containing location cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 pt-2">
                   {filteredHotelLocations.length > 0 ? (
                     filteredHotelLocations.map((loc) => (
                       <LocationCard
@@ -3901,6 +4264,7 @@ https://service.bodytouch.com
         walletBalance={walletBalance}
         onReservationSuccess={handleHotelReservationSubmit}
         triggerToast={triggerToast}
+        defaultPhone={phone}
       />
 
       {/* 3. Booking scheduler details popup */}
@@ -4041,7 +4405,7 @@ https://service.bodytouch.com
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="cyan-glow-card max-w-sm w-full rounded-3xl overflow-hidden relative shadow-2xl p-6 z-10 bg-[#020714]"
+              className="cyan-glow-card max-w-sm w-full rounded-3xl max-h-[90vh] overflow-y-auto scrollbar-none relative shadow-2xl p-6 z-10 bg-[#020714]"
             >
               <button
                 onClick={() => setIsAllocateOpen(false)}
@@ -4164,7 +4528,7 @@ https://service.bodytouch.com
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="cyan-glow-card max-w-sm w-full rounded-3xl overflow-hidden relative shadow-2xl p-6 z-10 bg-[#020714]"
+              className="cyan-glow-card max-w-sm w-full rounded-3xl max-h-[90vh] overflow-y-auto scrollbar-none relative shadow-2xl p-6 z-10 bg-[#020714]"
             >
               <button
                 onClick={() => setIsLiquidateOpen(false)}

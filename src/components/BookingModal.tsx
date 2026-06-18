@@ -215,7 +215,7 @@ export default function BookingModal({
   });
   const [time, setTime] = useState('');
   const [notes, setNotes] = useState('');
-  const [commsChannel, setCommsChannel] = useState<'PHONE' | 'WHATSAPP' | 'TELEGRAM'>('WHATSAPP');
+  const [commsChannel, setCommsChannel] = useState<'PHONE' | 'TELEGRAM'>('TELEGRAM');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [telegramId, setTelegramId] = useState('');
@@ -472,9 +472,7 @@ export default function BookingModal({
   };
 
   const getActiveContactValue = () => {
-    if (commsChannel === 'PHONE') return phoneNumber;
-    if (commsChannel === 'WHATSAPP') return whatsappNumber;
-    return telegramId;
+    return telegramId || phoneNumber;
   };
 
   const selectedGateway = displayGateways.find(g => g.id === deficitMethod || g.name === deficitMethod) || displayGateways[0];
@@ -494,7 +492,7 @@ export default function BookingModal({
     e.preventDefault();
     const activeVal = getActiveContactValue();
     const resolvedDate = selectedService === 'CAM' ? (date || 'Today (Virtual CAM)') : date;
-    if (!resolvedDate || !time || !activeVal.trim()) return;
+    if (!resolvedDate || !time || !phoneNumber.trim() || !telegramId.trim()) return;
 
     if (isDeficit) {
       if (!deficitTrxId || deficitTrxId.trim().length < 8) return;
@@ -503,7 +501,6 @@ export default function BookingModal({
     // Collate all filled contacts
     const contactsCollated: string[] = [];
     if (phoneNumber.trim()) contactsCollated.push(`Phone: ${phoneNumber.trim()}`);
-    if (whatsappNumber.trim()) contactsCollated.push(`WhatsApp: ${whatsappNumber.trim()}`);
     if (telegramId.trim()) contactsCollated.push(`Telegram: ${telegramId.trim()}`);
     const contactsDetails = contactsCollated.join(' | ');
 
@@ -1616,85 +1613,43 @@ export default function BookingModal({
                   </div>
 
                   <form onSubmit={handleFormSubmit} className="space-y-4">
-                    {/* Comms Channel Options Selector */}
-                    <div className="space-y-1.5">
-                      <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
-                        COMMS CHANNEL
-                      </span>
-
-                      <div className="grid grid-cols-3 gap-2">
-                        {/* PHONE */}
-                        <button
-                          type="button"
-                          onClick={() => setCommsChannel('PHONE')}
-                          className={`py-2 rounded-xl border text-center flex flex-col items-center justify-center space-y-1 transition-all duration-300 cursor-pointer ${
-                            commsChannel === 'PHONE'
-                              ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
-                          }`}
-                        >
-                          <Phone className={`w-4 h-4 ${commsChannel === 'PHONE' ? 'text-blue-400' : 'text-slate-400'}`} />
-                          <span className="text-[9px] font-black uppercase tracking-wider">PHONE</span>
-                        </button>
-
-                        {/* WHATSAPP */}
-                        <button
-                          type="button"
-                          onClick={() => setCommsChannel('WHATSAPP')}
-                          className={`py-2 rounded-xl border text-center flex flex-col items-center justify-center space-y-1 transition-all duration-350 cursor-pointer ${
-                            commsChannel === 'WHATSAPP'
-                              ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-450'
-                          }`}
-                        >
-                          <svg className={`w-4 h-4 ${commsChannel === 'WHATSAPP' ? 'text-blue-400' : 'text-slate-400'}`} fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.713-1.46L0 24zm6.59-3.835c1.64.974 3.242 1.488 4.825 1.489 5.482 0 9.943-4.461 9.947-9.948.002-2.659-1.03-5.16-2.906-7.037C16.637 2.793 14.137 1.76 11.48 1.76 6.002 1.76 1.541 6.219 1.538 11.71c0 1.631.43 3.221 1.244 4.62l-.76 2.775 2.844-.746zm11.517-7.31c-.267-.134-1.58-.78-1.822-.867-.243-.088-.419-.133-.596.133-.176.265-.68.835-.833 1.011-.154.176-.308.198-.574.065-.267-.133-1.127-.415-2.147-1.325-.793-.707-1.329-1.582-1.485-1.848-.156-.266-.017-.409.117-.541.12-.119.267-.277.401-.415.133-.138.177-.23.266-.415.088-.184.044-.347-.022-.48-.065-.133-.596-1.434-.817-1.965-.215-.518-.432-.447-.59-.456-.15-.008-.323-.008-.495-.008-.172 0-.453.065-.69.323-.238.258-.908.887-.908 2.164 0 1.278.929 2.512 1.059 2.688.13.176 1.828 2.793 4.428 3.914.618.267 1.101.427 1.477.546.621.197 1.185.17 1.63.103.496-.074 1.58-.646 1.802-1.238.221-.592.221-1.101.155-1.207-.066-.107-.243-.173-.51-.307z"/>
-                          </svg>
-                          <span className="text-[9px] font-black uppercase tracking-wider">WHATSAPP</span>
-                        </button>
-
-                        {/* TELEGRAM */}
-                        <button
-                          type="button"
-                          onClick={() => setCommsChannel('TELEGRAM')}
-                          className={`py-2 rounded-xl border text-center flex flex-col items-center justify-center space-y-1 transition-all duration-300 cursor-pointer ${
-                            commsChannel === 'TELEGRAM'
-                              ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-450'
-                          }`}
-                        >
-                          <Send className={`w-4 h-4 ${commsChannel === 'TELEGRAM' ? 'text-blue-400' : 'text-slate-400'}`} />
-                          <span className="text-[9px] font-black uppercase tracking-wider">TELEGRAM</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Contact Number / Address Field */}
-                    <div className="space-y-1.5">
-                      <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
-                        {commsChannel === 'PHONE' ? 'SECURE PHONE NUMBER' : commsChannel === 'WHATSAPP' ? 'SECURE WHATSAPP NUMBER' : 'SECURE TELEGRAM ID'}
-                      </span>
-                      <div className="relative">
-                        {commsChannel === 'PHONE' ? (
+                    {/* Contact Number & Telegram ID Fields */}
+                    <div className="space-y-4">
+                      {/* PHONE NUMBER */}
+                      <div className="space-y-1.5">
+                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-left">
+                          SECURE PHONE NUMBER *
+                        </span>
+                        <div className="relative">
                           <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none" />
-                        ) : commsChannel === 'WHATSAPP' ? (
-                          <MessageSquare className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none" />
-                        ) : (
+                          <input
+                            type="text"
+                            required
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            placeholder="e.g. +88017xxxxxxxx"
+                            className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-normal font-semibold font-mono placeholder:text-slate-600"
+                          />
+                        </div>
+                      </div>
+
+                      {/* TELEGRAM ID */}
+                      <div className="space-y-1.5">
+                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-left flex justify-between">
+                          <span>SECURE TELEGRAM ID / USERNAME * (বাধ্যতামূলক)</span>
+                          <span className="text-amber-400 font-black">MANDATORY</span>
+                        </span>
+                        <div className="relative">
                           <Send className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none" />
-                        )}
-                        <input
-                          type="text"
-                          required
-                          value={getActiveContactValue()}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (commsChannel === 'PHONE') setPhoneNumber(val);
-                            else if (commsChannel === 'WHATSAPP') setWhatsappNumber(val);
-                            else setTelegramId(val);
-                          }}
-                          placeholder={commsChannel === 'TELEGRAM' ? 'e.g. @username' : 'e.g. +88017xxxxxxxx'}
-                          className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-normal font-semibold font-mono placeholder:text-slate-600"
-                        />
+                          <input
+                            type="text"
+                            required
+                            value={telegramId}
+                            onChange={(e) => setTelegramId(e.target.value)}
+                            placeholder="e.g. @username"
+                            className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-normal font-semibold font-mono placeholder:text-slate-600"
+                          />
+                        </div>
                       </div>
                     </div>
 

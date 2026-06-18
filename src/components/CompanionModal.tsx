@@ -47,7 +47,7 @@ export default function CompanionModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className="cyan-glow-card max-w-md w-full rounded-3xl overflow-hidden relative shadow-2xl z-10 bg-black border border-slate-800 gold-breathing-glow"
+            className="cyan-glow-card max-w-md w-full rounded-3xl max-h-[90vh] overflow-y-auto scrollbar-none relative shadow-2xl z-10 bg-black border border-slate-800 gold-breathing-glow"
           >
             {/* Close button */}
             <button

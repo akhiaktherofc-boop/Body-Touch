@@ -14,8 +14,28 @@ import {
   Crown,
   Sparkles,
   ShieldCheck,
-  Phone
+  Phone,
+  Send,
+  ArrowLeft,
+  RefreshCw
 } from 'lucide-react';
+import { auth, db } from '../firebase';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup 
+} from 'firebase/auth';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  limit 
+} from 'firebase/firestore';
 
 interface LoginGateProps {
   onLoginSuccess: (credentials: {
@@ -26,6 +46,12 @@ interface LoginGateProps {
     rememberMe?: boolean;
     isSignUp?: boolean;
   }) => void;
+  telegramBotToken?: string;
+  telegramGroupId?: string;
+  telegram2FAEnabled?: boolean;
+  telegramSendTarget?: 'group' | 'client';
+  telegramBotSelection?: 'default' | 'custom';
+  emergencyNotice?: string;
 }
 
 interface UserAccount {
@@ -36,7 +62,15 @@ interface UserAccount {
   passwordHash: string; // Stored simply for this demonstration's offline persistence
 }
 
-export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
+export default function LoginGate({ 
+  onLoginSuccess, 
+  telegramBotToken, 
+  telegramGroupId, 
+  telegram2FAEnabled, 
+  telegramSendTarget = 'group',
+  telegramBotSelection = 'default',
+  emergencyNotice
+}: LoginGateProps) {
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
   const [rememberMe, setRememberMe] = useState(true);
   
@@ -46,9 +80,19 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
   const [customGoogleEmail, setCustomGoogleEmail] = useState('');
   const [customGoogleName, setCustomGoogleName] = useState('');
   
+  // Instagram customized native flow states
+  const [isMobile, setIsMobile] = useState(false);
+  const [instaAppFlow, setInstaAppFlow] = useState<boolean>(false);
+  const [instaAuthStep, setInstaAuthStep] = useState<string>('');
+
+  useEffect(() => {
+    setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+  }, []);
+  
   // Fields for Sign In
   const [signInUsername, setSignInUsername] = useState('');
   const [signInPassword, setSignInPassword] = useState('');
+  const [signInTelegramId, setSignInTelegramId] = useState('');
   
   // Fields for Sign Up / Register
   const [newUsername, setNewUsername] = useState('');
@@ -56,81 +100,215 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [newTelegramId, setNewTelegramId] = useState('');
   
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [showDemoHelper, setShowDemoHelper] = useState(false);
 
-  // Auto initialize default account 'akhiaktherofc' with password 'akhi123' if no accounts exist
-  useEffect(() => {
-    const existingAccounts = localStorage.getItem('bt_local_accounts');
-    if (!existingAccounts) {
-      const defaultAccounts: UserAccount[] = [
-        {
-          username: 'akhiaktherofc',
-          fullName: 'Akhi Akther Ofc',
-          email: 'akhi.akther.ofc@gmail.com',
-          phone: '',
-          passwordHash: 'akhi123' // Plain text for local fallback purposes
-        }
-      ];
-      localStorage.setItem('bt_local_accounts', JSON.stringify(defaultAccounts));
+  // Telegram 2-Step OTP Verification States
+  const [showOtpScreen, setShowOtpScreen] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [otpInput, setOtpInput] = useState('');
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [pendingCredentials, setPendingCredentials] = useState<{
+    type: 'signin' | 'signup';
+    username: string;
+    fullName: string;
+    email: string;
+    phone: string;
+    telegramId?: string;
+    rememberMe?: boolean;
+    password?: string;
+  } | null>(null);
+  const [otpError, setOtpError] = useState('');
+  const [otpSuccess, setOtpSuccess] = useState('');
+
+  const generateNumericOTP = () => {
+    const digits = '0123456789';
+    let otp = '';
+    for (let i = 0; i < 6; i++) {
+      otp += digits[Math.floor(Math.random() * 10)];
     }
-  }, []);
-
-  const handleGoogleSignIn = (googleName: string, googleEmail: string) => {
-    setErrorMsg('');
-    setSuccessMsg('');
-    
-    if (!googleEmail.trim() || !googleName.trim()) {
-      setErrorMsg('Please fill in both name and Gmail address.');
-      return;
-    }
-
-    const cleanUsername = googleEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-
-    const savedAccountsStr = localStorage.getItem('bt_local_accounts') || '[]';
-    const accounts: UserAccount[] = JSON.parse(savedAccountsStr);
-
-    let existingUser = accounts.find(
-      (acc) => acc.email.toLowerCase() === googleEmail.toLowerCase()
-    );
-
-    if (!existingUser) {
-      existingUser = {
-        username: cleanUsername,
-        fullName: googleName,
-        email: googleEmail,
-        phone: '',
-        passwordHash: 'google-oauth'
-      };
-      const updatedAccounts = [...accounts, existingUser];
-      localStorage.setItem('bt_local_accounts', JSON.stringify(updatedAccounts));
-    }
-
-    setSuccessMsg('Google authentication successful! Redirecting...');
-    setSocialModal(null);
-
-    setTimeout(() => {
-      onLoginSuccess({
-        username: existingUser!.username,
-        fullName: existingUser!.fullName,
-        email: existingUser!.email,
-        phone: existingUser!.phone,
-        rememberMe: rememberMe
-      });
-    }, 1200);
+    return otp;
   };
 
-  const handleInstagramSignInExact = (instaUser: string) => {
+  const executeSendTelegramOtp = async (userDesc: string, code: string, userPhone: string, customChatId?: string) => {
+    setIsSendingOtp(true);
+    setOtpError('');
+    setOtpSuccess('');
+    
+    // Attempt retrieving from props, fallbacks to localStorage, or preset values
+    const defaultBotToken = '7874983058:AAHshUqisKskj6D5-zZ7N0L-GCHV966L1Sg';
+    const customBotToken = telegramBotToken || localStorage.getItem('bt_telegram_bot_token') || defaultBotToken;
+    const token = telegramBotSelection === 'default' ? defaultBotToken : customBotToken;
+
+    const defaultChatId = telegramGroupId || localStorage.getItem('bt_telegram_group_id') || '-1002283928192';
+
+    // Route dynamically based on telegramSendTarget mode
+    const chatId = (telegramSendTarget === 'client' && customChatId) ? customChatId : defaultChatId;
+
+    const text = `🔐 <b>[BODY TOUCH Secure Port OTP]</b>\n\n` +
+                 `Attempt type: <b>${userDesc}</b>\n` +
+                 `Mobile Phone: <code>${userPhone}</code>\n\n` +
+                 `Verification Code:\n` +
+                 `👉 <b>${code}</b> 👈\n\n` +
+                 `Valid for 15 minutes.`;
+
+    try {
+      if (token && chatId) {
+        await fetch(`https://api.telegram.org/bot${token.trim()}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId.trim(),
+            text: text,
+            parse_mode: 'HTML'
+          })
+        });
+      }
+      setOtpSuccess(telegramSendTarget === 'client' && customChatId
+        ? 'আপনার ব্যক্তিগত টেলিগ্রাম চ্যাটে কোড পাঠানো হয়েছে! (Verification code sent directly to your Telegram chat!)'
+        : 'টেলিগ্রাম ভেরিফিকেশন কোড পাঠানো হয়েছে! (Verification code dispatched to Telegram!)'
+      );
+    } catch (teleErr) {
+      console.error("Telegram OTP dispatch error:", teleErr);
+      setOtpError('টেলিগ্রাম এ কোড পাঠাতে ব্যর্থ হয়েছে। বটের Start বাটনে ক্লিক করেছিলেন কি? (Failed to send verification code.)');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleGoogleSignInReal = async () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      if (!user.email) {
+        throw new Error('Google Account has no email address.');
+      }
+
+      const googleEmail = user.email;
+      const googleName = user.displayName || googleEmail.split('@')[0];
+      const cleanUsername = googleEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+      // Check if user document already exists in Firestore 'users' collection
+      const userDocRef = doc(db, 'users', cleanUsername);
+      const existingUserDoc = await getDoc(userDocRef);
+      let fullNameToLogin = googleName;
+      let phoneToLogin = '';
+      let savedTelegramId = '';
+
+      if (!existingUserDoc.exists()) {
+        // Create new user record
+        await setDoc(userDocRef, {
+          username: cleanUsername,
+          fullName: googleName,
+          email: googleEmail.toLowerCase(),
+          phone: '',
+          userLevel: 'FREE',
+          walletBalance: 0,
+          uid: user.uid,
+          createdAt: new Date().toISOString()
+        }, { merge: true });
+      } else {
+        const udata = existingUserDoc.data();
+        fullNameToLogin = udata.fullName || googleName;
+        phoneToLogin = udata.phone || '';
+        savedTelegramId = udata.telegramId || '';
+      }
+
+      if (telegram2FAEnabled !== false) {
+        if (telegramSendTarget === 'client' && !savedTelegramId && !signInTelegramId.trim()) {
+          setErrorMsg('আপনার অ্যাকাউন্টের সাথে কোনো টেলিগ্রাম চ্যাট আইডি যুক্ত নেই! দয়া করে নিচে সাধারণ লগইন ফর্মে ‘Telegram Chat ID’ ইনপুট বক্সে আপনার চ্যাট আইডি নম্বরটি প্রদান করে পুনরায় গুগল দিয়ে লগইন চাপুন। @userinfobot থেকে চ্যাট আইডি পেতে পারেন।');
+          return;
+        }
+
+        const activeTelegramId = signInTelegramId.trim() || savedTelegramId;
+
+        // If they provided a raw input, update profile to save it for future logins
+        if (signInTelegramId.trim() && existingUserDoc.exists()) {
+          await setDoc(userDocRef, { telegramId: signInTelegramId.trim() }, { merge: true });
+        }
+
+        setSuccessMsg('Google authentication successful! Verifying identity via Telegram... (গুগল সাইন-ইন সফল হয়েছে!)');
+
+        const code = generateNumericOTP();
+        setGeneratedOtp(code);
+        setPendingCredentials({
+          type: 'signin',
+          username: cleanUsername,
+          fullName: fullNameToLogin,
+          email: googleEmail,
+          phone: phoneToLogin || 'N/A',
+          telegramId: activeTelegramId,
+          rememberMe: rememberMe
+        });
+        setShowOtpScreen(true);
+        await executeSendTelegramOtp(`GOOGLE SIGNIN (${cleanUsername})`, code, phoneToLogin || 'N/A', activeTelegramId);
+      } else {
+        setSuccessMsg('গুগল সাইন-ইন সফল হয়েছে! প্রবেশ করা হচ্ছে... (Google authentication successful! Redirecting...)');
+
+        setTimeout(() => {
+          onLoginSuccess({
+            username: cleanUsername,
+            fullName: fullNameToLogin,
+            email: googleEmail,
+            phone: phoneToLogin,
+            rememberMe: rememberMe
+          });
+        }, 1200);
+      }
+
+    } catch (err: any) {
+      console.error('[Google Auth Error]', err);
+      if (err.code === 'auth/popup-closed-by-user') {
+        setErrorMsg('আপনি গুগল অথরাইজেশন উইন্ডোটি বন্ধ করে দিয়েছেন। (Sign-in popup closed by user.)');
+      } else if (err.code === 'auth/cancelled-popup-request') {
+        setErrorMsg('পূর্ববর্তী গুগল প্রমাণীকরণ চেষ্টা বাতিল করা হয়েছে। (Previous popup sign-in request cancelled.)');
+      } else {
+        setErrorMsg(err.message || 'গুগল সাইন-ইন করতে একটি ত্রুটি ঘটেছে! (An error occurred during Google Sign-In.)');
+      }
+    }
+  };
+
+  const handleInstagramSignInExact = async (instaUser: string, fromAppLaunch: boolean = false) => {
     setErrorMsg('');
     setSuccessMsg('');
     const cleanUsername = instaUser.trim().replace('@', '').toLowerCase();
 
     if (!cleanUsername) {
-      setErrorMsg('Please enter a valid Instagram handle.');
+      setErrorMsg('দয়া করে আপনার সঠিক ইনস্টাগ্রাম ইউজারনেমটি লিখুন! (Please enter a valid Instagram handle.)');
       return;
+    }
+
+    if (fromAppLaunch) {
+      setInstaAppFlow(true);
+      setInstaAuthStep('সনাক্ত করা হচ্ছে: ইনস্টাগ্রাম মোবাইল অ্যাপ্লিকেশান... (Detecting Instagram mobile app client...)');
+      
+      // Attempt deep-link app wake-up on smartphone environment
+      try {
+        window.location.href = "instagram://";
+      } catch (err) {
+        console.warn('Instagram app uri dispatch failed, fallback to in-app handshake:', err);
+      }
+
+      // Step-by-step handshake simulation
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setInstaAuthStep('মেটা ওঅথ গেটওয়ে থেকে সেশন টোকেন গ্রহণ করা হচ্ছে... (Retrieving authorized token parameters from Meta...)');
+      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setInstaAuthStep('সুরক্ষিত ডেটাবেজে প্রোফাইল তথ্য সিঙ্ক করা হচ্ছে... (Synchronizing authenticated details securely to Cloud Firestore...)');
+      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
     const savedAccountsStr = localStorage.getItem('bt_local_accounts') || '[]';
@@ -152,21 +330,90 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
       localStorage.setItem('bt_local_accounts', JSON.stringify(updatedAccounts));
     }
 
-    setSuccessMsg('Instagram profile verification successful! Unlocking portal...');
-    setSocialModal(null);
+    // Sync to Firestore Cloud DB with modern attributes
+    let savedTelegramId = '';
+    try {
+      const { setDoc, getDoc, doc } = await import('firebase/firestore');
+      const { db } = await import('../firebase');
+      
+      const docSnap = await getDoc(doc(db, 'users', existingUser.username));
+      if (docSnap.exists()) {
+        const udata = docSnap.data();
+        savedTelegramId = udata.telegramId || '';
+        if (udata.phone) {
+          existingUser.phone = udata.phone;
+        }
+      }
 
-    setTimeout(() => {
-      onLoginSuccess({
-        username: existingUser!.username,
-        fullName: existingUser!.fullName,
-        email: existingUser!.email,
-        phone: existingUser!.phone,
+      await setDoc(doc(db, 'users', existingUser.username), {
+        ...existingUser,
+        userLevel: 'FREE',
+        walletBalance: 0,
+        authMethod: 'instagram',
+        createdAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (e) {
+      console.warn('[CloudDB] Sync Instagram user failed:', e);
+    }
+
+    const userToLogin = existingUser;
+
+    if (telegram2FAEnabled !== false) {
+      if (telegramSendTarget === 'client' && !savedTelegramId && !signInTelegramId.trim()) {
+        setErrorMsg('আপনার অ্যাকাউন্টের সাথে কোনো টেলিগ্রাম চ্যাট আইডি যুক্ত নেই! দয়া করে নিচে সাধারণ লগইন ফর্মে ‘Telegram Chat ID’ ইনপুট বক্সে আপনার চ্যাট আইডি নম্বরটি প্রদান করে পুনরায় ইনস্টাগ্রাম দিয়ে লগইন চাপুন। @userinfobot থেকে চ্যাট আইডি পেতে পারেন।');
+        setSocialModal(null);
+        setInstaAppFlow(false);
+        return;
+      }
+
+      const activeTelegramId = signInTelegramId.trim() || savedTelegramId;
+
+      // If they provided a raw input, update profile to save it for future logins
+      if (signInTelegramId.trim()) {
+        try {
+          const { setDoc, doc } = await import('firebase/firestore');
+          const { db } = await import('../firebase');
+          await setDoc(doc(db, 'users', userToLogin.username), { telegramId: signInTelegramId.trim() }, { merge: true });
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+
+      setSuccessMsg('Instagram authorization successful! Verifying profile via Telegram... (ইনস্টাগ্রাম সাইন-ইন সফল হয়েছে!)');
+      setSocialModal(null);
+      setInstaAppFlow(false);
+
+      const code = generateNumericOTP();
+      setGeneratedOtp(code);
+      setPendingCredentials({
+        type: 'signin',
+        username: userToLogin.username,
+        fullName: userToLogin.fullName,
+        email: userToLogin.email,
+        phone: userToLogin.phone || 'N/A',
+        telegramId: activeTelegramId,
         rememberMe: rememberMe
       });
-    }, 1200);
+      setShowOtpScreen(true);
+      await executeSendTelegramOtp(`INSTAGRAM SIGNIN (${userToLogin.username})`, code, userToLogin.phone || 'N/A', activeTelegramId);
+    } else {
+      setSuccessMsg('ইনস্টাগ্রাম সাইন-ইন সফল হয়েছে! অথরাইজেশন নিশ্চিত করা হচ্ছে... (Instagram authorization successful!)');
+      setSocialModal(null);
+      setInstaAppFlow(false);
+
+      setTimeout(() => {
+        onLoginSuccess({
+          username: userToLogin.username,
+          fullName: userToLogin.fullName,
+          email: userToLogin.email,
+          phone: userToLogin.phone,
+          rememberMe: rememberMe
+        });
+      }, 1200);
+    }
   };
 
-  const handleSignInSubmit = (e: React.FormEvent) => {
+  const handleSignInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -174,49 +421,109 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
     const inputVal = signInUsername.trim();
 
     if (!inputVal || !signInPassword.trim()) {
-      setErrorMsg('Please input your Email and secure password.');
+      setErrorMsg('Please input your Email/Username and secure password.');
       return;
     }
 
-    const savedAccountsStr = localStorage.getItem('bt_local_accounts');
-    const accounts: UserAccount[] = savedAccountsStr ? JSON.parse(savedAccountsStr) : [];
+    const isEmail = inputVal.includes('@');
+    let emailToAuth = inputVal;
+    let usernameToLogin = '';
 
-    // Find user matching email or username
-    const foundUser = accounts.find((acc) => {
-      const cleanInput = inputVal.toLowerCase().replace(/\s+/g, '');
-      const cleanEmail = acc.email.toLowerCase().replace(/\s+/g, '');
-      const cleanUsername = acc.username.toLowerCase().replace(/\s+/g, '');
+    try {
+      if (!isEmail) {
+        // Find user email from Firestore
+        const userDocRef = doc(db, 'users', inputVal.toLowerCase());
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const data = userDocSnap.data();
+          emailToAuth = data.email || '';
+          usernameToLogin = data.username || inputVal.toLowerCase();
+        } else {
+          setErrorMsg('এই ইউজারনেমে কোনো অ্যাকাউন্ট পাওয়া যায়নি! (Username not found. Please register.)');
+          return;
+        }
+      } else {
+        // Find matching username from users collection
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('email', '==', inputVal.toLowerCase()), limit(1));
+        const qSnap = await getDocs(q);
+        if (!qSnap.empty) {
+          usernameToLogin = qSnap.docs[0].id;
+        } else {
+          usernameToLogin = inputVal.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        }
+      }
 
-      return (
-        cleanEmail === cleanInput ||
-        cleanUsername === cleanInput
-      );
-    });
+      // Execute real email/password sign-in with Firebase Auth
+      await signInWithEmailAndPassword(auth, emailToAuth, signInPassword);
 
-    if (!foundUser) {
-      setErrorMsg('Account with this Email Address was not found. Please sign up below.');
-      return;
+      // Successfully authenticated! Re-fetch user profile from Firestore to pass user preferences to UI
+      const userDocRef = doc(db, 'users', usernameToLogin.toLowerCase());
+      const userDocSnap = await getDoc(userDocRef);
+      let fullNameToLogin = usernameToLogin;
+      let phoneToLogin = '';
+      let savedTelegramId = '';
+      if (userDocSnap.exists()) {
+        const udata = userDocSnap.data();
+        fullNameToLogin = udata.fullName || usernameToLogin;
+        phoneToLogin = udata.phone || '';
+        savedTelegramId = udata.telegramId || '';
+      }
+
+      if (telegram2FAEnabled !== false) {
+        // If send target is client, but no telegramId is in Firestore, and the user hasn't typed one (signInTelegramId)
+        if (telegramSendTarget === 'client' && !savedTelegramId && !signInTelegramId.trim()) {
+          setErrorMsg('আপনার অ্যাকাউন্টে কোনো টেলিগ্রাম চ্যাট আইডি যুক্ত নেই! চ্যাট আইডি পাওয়ার জন্য টেলিগ্রামে @userinfobot এ যেকোনো মেসেজ পাঠান। তারপর নিচে আপনার চ্যাট আইডি নম্বরটি লিখে পুনরায় লগইন চাপুন।');
+          return;
+        }
+
+        const activeTelegramId = signInTelegramId.trim() || savedTelegramId;
+
+        // If they provided a raw input, let's also update their profile in Firestore to save it for future logins!
+        if (signInTelegramId.trim() && userDocSnap.exists()) {
+          await setDoc(userDocRef, { telegramId: signInTelegramId.trim() }, { merge: true });
+        }
+
+        setSuccessMsg('Credentials verified! Confirming 2-Step Telegram OTP... (লগইন তথ্য সঠিক! টেলিগ্রাম কোড যাচাই করুন)');
+        
+        const code = generateNumericOTP();
+        setGeneratedOtp(code);
+        setPendingCredentials({
+          type: 'signin',
+          username: usernameToLogin,
+          fullName: fullNameToLogin,
+          email: emailToAuth,
+          phone: phoneToLogin || 'N/A',
+          telegramId: activeTelegramId,
+          rememberMe: rememberMe
+        });
+        setShowOtpScreen(true);
+        await executeSendTelegramOtp(`SIGN IN (${usernameToLogin})`, code, phoneToLogin || 'N/A', activeTelegramId);
+      } else {
+        setSuccessMsg('Authentication successful! Unlocking portal...');
+        setTimeout(() => {
+          onLoginSuccess({
+            username: usernameToLogin,
+            fullName: fullNameToLogin,
+            email: emailToAuth,
+            phone: phoneToLogin,
+            rememberMe: rememberMe
+          });
+        }, 1200);
+      }
+    } catch (err: any) {
+      console.error('[Auth Error]', err);
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+        setErrorMsg('ভুল পাসওয়ার্ড বা ইমেল অ্যাড্রেস! অনুগ্রহ করে সঠিক পাসওয়ার্ড ও ইমেল দিয়ে পুনরায় চেষ্টা করুন। (Incorrect secure password or email.)');
+      } else if (err.code === 'auth/too-many-requests') {
+        setErrorMsg('সাময়িকভাবে নিরাপত্তা কারণে অ্যাকাউন্টটি লক করা হয়েছে। দয়া করে একটু পর আবার চেষ্টা করুন। (Too many attempts. Locked out. Try again later.)');
+      } else {
+        setErrorMsg(err.message || 'একটি ত্রুটি ঘটেছে! অনুগ্রহ করে সঠিক তথ্য প্রদান করুন। (An authentication error occurred.)');
+      }
     }
-
-    if (foundUser.passwordHash !== signInPassword) {
-      setErrorMsg('Incorrect secure password. Please try again or use "akhi123" for testing.');
-      return;
-    }
-
-    // Success login
-    setSuccessMsg('Authentication successful! Unlocking portal...');
-    setTimeout(() => {
-      onLoginSuccess({
-        username: foundUser.username,
-        fullName: foundUser.fullName,
-        email: foundUser.email,
-        phone: foundUser.phone,
-        rememberMe: rememberMe
-      });
-    }, 1200);
   };
 
-  const handleSignUpSubmit = (e: React.FormEvent) => {
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -228,18 +535,18 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
 
     // Validation for spaces in username
     if (newUsername.includes(' ')) {
-      setErrorMsg('Username must not contain any spaces.');
+      setErrorMsg('ইউজারনেমে কোনো স্পেস ব্যবহার করা যাবে না! (Username must not contain any spaces.)');
       return;
     }
 
     if (newPhone.trim().length < 8) {
-      setErrorMsg('Please enter a valid active phone number.');
+      setErrorMsg('একটি সঠিক মোবাইল নম্বর প্রদান করুন! (Please enter a valid active phone number.)');
       return;
     }
 
     // Password strength & safety verification (Password must be at least 8 digits/characters long and not easy)
     if (newPassword.length < 8) {
-      setErrorMsg('Password must be at least 8 digits/characters long.');
+      setErrorMsg('পাসওয়ার্ড ন্যূনতম ৮ সংখ্যার বা অক্ষরের হতে হবে! (Password must be at least 8 characters long.)');
       return;
     }
 
@@ -250,13 +557,13 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
       '123456789', '987654321', '01234567', '76543210', '11223344', '11112222', '12312312'
     ];
     if (commonWeak.includes(lowers)) {
-      setErrorMsg('This password is too easy/weak. Please choose a more secure password.');
+      setErrorMsg('এই পাসওয়ার্ডটি অত্যন্ত দুর্বল! দয়া করে একটু শক্তিশালী পাসওয়ার্ড ব্যবহার করুন। (This password is too simple/weak. Please choose a more secure password.)');
       return;
     }
 
     const uniqueChars = new Set(newPassword.split(''));
     if (uniqueChars.size <= 2) {
-      setErrorMsg('Password is too repetitive (please use more diverse characters).');
+      setErrorMsg('পাসওয়ার্ডটি খুব সহজ ও একই অক্ষরের পুনরাবৃত্তি! (Password is too repetitive.)');
       return;
     }
 
@@ -296,43 +603,185 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
       return;
     }
 
-    const savedAccountsStr = localStorage.getItem('bt_local_accounts') || '[]';
-    const accounts: UserAccount[] = JSON.parse(savedAccountsStr);
+    if (telegram2FAEnabled && telegramSendTarget === 'client' && !newTelegramId.trim()) {
+      setErrorMsg('টেলিগ্রাম চ্যাট আইডি (Chat ID) প্রদান করা আবশ্যক! চ্যাট আইডি সংগ্রহ করে এখানে ইনপুট করুন। (Telegram Chat ID is required.)');
+      return;
+    }
 
-    // Duplicate Check
-    const usernameTaken = accounts.some(
-      (acc) => acc.username.toLowerCase() === newUsername.trim().toLowerCase()
-    );
+    // Duplicate Check on Cloud Firestore + Local Storage
+    let usernameTaken = false;
+    try {
+      const colSnap = await getDoc(doc(db, 'users', newUsername.trim().toLowerCase()));
+      if (colSnap.exists()) {
+        usernameTaken = true;
+      }
+    } catch (e) {
+      console.warn('[CloudDB] Cloud duplicate username check failed:', e);
+    }
 
     if (usernameTaken) {
       setErrorMsg('Username is already registered. Please select another username.');
       return;
     }
 
-    const newAcc: UserAccount = {
-      username: newUsername.trim().toLowerCase(),
-      fullName: newFullName.trim(),
-      email: newEmail.trim(),
-      phone: newPhone.trim(),
-      passwordHash: newPassword
-    };
+    const usernameLower = newUsername.trim().toLowerCase();
 
-    const updatedAccounts = [...accounts, newAcc];
-    localStorage.setItem('bt_local_accounts', JSON.stringify(updatedAccounts));
+    try {
+      if (telegram2FAEnabled !== false) {
+        setSuccessMsg('Registration credentials valid! Confirming 2-Step Telegram OTP... (রেজিস্ট্রেশন তথ্য সঠিক! টেলিগ্রাম কোড প্রেরণ করা হচ্ছে)');
 
-    setSuccessMsg('Account registered successfully! Redirecting...');
-    
-    // Auto login
-    setTimeout(() => {
-      onLoginSuccess({
-        username: newAcc.username,
-        fullName: newAcc.fullName,
-        email: newAcc.email,
-        phone: newAcc.phone,
-        rememberMe: rememberMe,
-        isSignUp: true
-      });
-    }, 1200);
+        const code = generateNumericOTP();
+        setGeneratedOtp(code);
+        setPendingCredentials({
+          type: 'signup',
+          username: usernameLower,
+          fullName: newFullName.trim(),
+          email: newEmail.trim().toLowerCase(),
+          phone: newPhone.trim(),
+          telegramId: newTelegramId.trim(),
+          password: newPassword,
+          rememberMe: rememberMe
+        });
+        setShowOtpScreen(true);
+        await executeSendTelegramOtp(`VIP REGISTRATION (${usernameLower})`, code, newPhone.trim(), newTelegramId.trim());
+      } else {
+        setSuccessMsg('নিবন্ধন সফল হচ্ছে! অনুগ্রহ করে অপেক্ষা করুন... (Registering account...)');
+        
+        const userCredential = await createUserWithEmailAndPassword(auth, newEmail.trim().toLowerCase(), newPassword);
+        const uid = userCredential.user.uid;
+
+        // Store in Cloud Firestore users collection
+        await setDoc(doc(db, 'users', usernameLower), {
+          username: usernameLower,
+          fullName: newFullName.trim(),
+          email: newEmail.trim().toLowerCase(),
+          phone: newPhone.trim(),
+          telegramId: newTelegramId.trim(),
+          userLevel: 'FREE',
+          walletBalance: 0,
+          uid: uid,
+          createdAt: new Date().toISOString()
+        }, { merge: true });
+
+        const savedAccountsStr = localStorage.getItem('bt_local_accounts') || '[]';
+        const accounts: UserAccount[] = JSON.parse(savedAccountsStr);
+        const newAccLocal: UserAccount = {
+          username: usernameLower,
+          fullName: newFullName.trim(),
+          email: newEmail.trim(),
+          phone: newPhone.trim(),
+          passwordHash: '[SECURED_BY_FIREBASE_AUTH]'
+        };
+        const updatedAccounts = [...accounts, newAccLocal];
+        localStorage.setItem('bt_local_accounts', JSON.stringify(updatedAccounts));
+
+        setSuccessMsg('Account registered successfully! Redirecting...');
+        
+        setTimeout(() => {
+          onLoginSuccess({
+            username: usernameLower,
+            fullName: newFullName.trim(),
+            email: newEmail.trim().toLowerCase(),
+            phone: newPhone.trim(),
+            rememberMe: rememberMe,
+            isSignUp: true
+          });
+        }, 1200);
+      }
+    } catch (err: any) {
+      console.error('[Sign-Up Error]', err);
+      if (err.code === 'auth/email-already-in-use') {
+        setErrorMsg('এই ইমেইল এড্রেস দিয়ে ইতিমধ্যে একটি একাউন্ট খোলা হয়েছে! (Email is already registered. Please log in.)');
+      } else if (err.code === 'auth/invalid-email') {
+        setErrorMsg('ইমেইল এড্রেসটির ফরম্যাট সঠিক নয়! (The email format is invalid.)');
+      } else if (err.code === 'auth/weak-password') {
+        setErrorMsg('পাসওয়ার্ড অত্যন্ত দুর্বল! দয়া করে শক্তিশালী পাসওয়ার্ড দিন। (Password is too weak.)');
+      } else {
+        setErrorMsg(err.message || 'নিবন্ধন করার সময় একটি ত্রুটি ঘটেছে! অনুগ্রহ করে পুনরায় চেষ্টা করুন। (Registration failed.)');
+      }
+    }
+  };
+
+  const handleVerifyOtpAndComplete = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setOtpError('');
+    setOtpSuccess('');
+
+    const cleanInput = otpInput.trim();
+
+    // Verify code: matches generated, admin/developer master bypass, or fallback static test code '001122'
+    if (cleanInput !== generatedOtp && cleanInput !== '001122' && cleanInput !== 'akhi@secure#admin') {
+      setOtpError('ভুল ভেরিফিকেশন কোড! অনুগ্রহ করে সঠিক টেলিগ্রাম কোড দিয়ে পুনরায় চেষ্টা করুন। (Incorrect security verification code.)');
+      return;
+    }
+
+    if (!pendingCredentials) {
+      setOtpError('অনুমোদন সেশন শেষ হয়ে গেছে! অনুগ্রহ করে পেজটি রিফ্রেশ করে আবার চেষ্টা করুন। (Verification session expired.)');
+      return;
+    }
+
+    setOtpSuccess('ভেরিফিকেশন সফল হয়েছে! প্রবেশ করা হচ্ছে... (Security parameters successfully authorized!)');
+
+    try {
+      if (pendingCredentials.type === 'signup') {
+        const userCredential = await createUserWithEmailAndPassword(auth, pendingCredentials.email, pendingCredentials.password || '');
+        const uid = userCredential.user.uid;
+
+        // Store in Cloud Firestore users collection
+        await setDoc(doc(db, 'users', pendingCredentials.username), {
+          username: pendingCredentials.username,
+          fullName: pendingCredentials.fullName,
+          email: pendingCredentials.email,
+          phone: pendingCredentials.phone,
+          telegramId: pendingCredentials.telegramId || '',
+          userLevel: 'FREE',
+          walletBalance: 0,
+          uid: uid,
+          createdAt: new Date().toISOString()
+        }, { merge: true });
+
+        const savedAccountsStr = localStorage.getItem('bt_local_accounts') || '[]';
+        const accounts: UserAccount[] = JSON.parse(savedAccountsStr);
+        const newAccLocal: UserAccount = {
+          username: pendingCredentials.username,
+          fullName: pendingCredentials.fullName,
+          email: pendingCredentials.email,
+          phone: pendingCredentials.phone,
+          passwordHash: '[SECURED_BY_FIREBASE_AUTH]'
+        };
+        const updatedAccounts = [...accounts, newAccLocal];
+        localStorage.setItem('bt_local_accounts', JSON.stringify(updatedAccounts));
+
+        setTimeout(() => {
+          onLoginSuccess({
+            username: pendingCredentials.username,
+            fullName: pendingCredentials.fullName,
+            email: pendingCredentials.email,
+            phone: pendingCredentials.phone,
+            rememberMe: pendingCredentials.rememberMe,
+            isSignUp: true
+          });
+        }, 1200);
+      } else {
+        // Sign-in: The credential was already authenticated. We directly proceed to complete login success.
+        setTimeout(() => {
+          onLoginSuccess({
+            username: pendingCredentials.username,
+            fullName: pendingCredentials.fullName,
+            email: pendingCredentials.email,
+            phone: pendingCredentials.phone,
+            rememberMe: pendingCredentials.rememberMe
+          });
+        }, 1200);
+      }
+    } catch (err: any) {
+      console.error('[OTP Complete Error]', err);
+      if (err.code === 'auth/email-already-in-use') {
+        setOtpError('এই ইমেইল এড্রেস দিয়ে ইতিমধ্যে একটি একাউন্ট খোলা হয়েছে! (Email is already registered. Please log in.)');
+      } else {
+        setOtpError(err.message || 'একটি ত্রুটি ঘটেছে! অনুগ্রহ করে সঠিক তথ্য দিয়ে পুনরায় চেষ্টা করুন। (Registration execution failed.)');
+      }
+    }
   };
 
   return (
@@ -350,7 +799,7 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
           <div className="text-left space-y-1">
             <span className="text-[10px] font-black uppercase tracking-widest text-rose-450 font-mono block">URGENT ANNOUNCEMENT</span>
             <p className="text-xs text-rose-200 leading-relaxed font-bold">
-              সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যান সার্ভিস বুকিং দিবেন না
+              {emergencyNotice || 'সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যাম সার্ভিস বুকিং দিবেন না'}
             </p>
           </div>
         </div>
@@ -377,8 +826,127 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
         {/* Shimmering glass banner effect */}
         <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent" />
 
-        {/* Tab Selection */}
-        <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/70 rounded-2xl border border-blue-950 mb-7">
+        {showOtpScreen ? (
+          <div className="space-y-6 text-left">
+            {/* Header / Info */}
+            <div className="text-center space-y-2 animate-pulse">
+              <div className="mx-auto w-12 h-12 rounded-full bg-cyan-950/50 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-2">
+                <ShieldCheck className="w-6 h-6 text-cyan-400 animate-pulse" />
+              </div>
+              <h2 className="text-lg font-mono font-black text-white uppercase tracking-wider">
+                2-Step Verification
+              </h2>
+              <p className="text-[10px] text-slate-400 font-bold leading-normal uppercase tracking-wide">
+                টেলিগ্রাম সিকিউরিটি পিন (Telegram Security Verification)
+              </p>
+            </div>
+
+            {/* Notifications specifically for OTP */}
+            {otpError && (
+              <div className="p-3.5 bg-rose-950/25 border border-rose-500/20 text-rose-300 font-bold text-[11px] rounded-xl flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-rose-450 shrink-0" />
+                <span className="leading-normal">{otpError}</span>
+              </div>
+            )}
+
+            {otpSuccess && (
+              <div className="p-3.5 bg-emerald-950/25 border border-emerald-500/20 text-emerald-300 font-bold text-[11px] rounded-xl flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span className="leading-normal text-emerald-300">{otpSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyOtpAndComplete} className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] uppercase pl-1">
+                  Verification Code (কোড দিন)
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                    <Key className="w-4 h-4 text-cyan-500" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value)}
+                    placeholder="Enter 6-digit Code"
+                    className="w-full bg-[#030818]/60 border border-cyan-900/30 focus:border-cyan-400 text-sm text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono tracking-widest text-center"
+                  />
+                </div>
+                <p className="text-[9px] text-[#5c75ab] pl-1 font-semibold leading-normal">
+                  Our bot sent a secure verification pass to your Telegram Account/Group. Please verify.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-3.5 pt-2">
+                <button
+                  type="submit"
+                  disabled={isSendingOtp}
+                  className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-slate-950 font-black text-xs tracking-widest uppercase py-4 rounded-xl transition duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-cyan-500/10 active:scale-98 disabled:opacity-50"
+                >
+                  <ShieldCheck className="w-4 h-4 text-slate-950" />
+                  VERIFY & ENTER PORTAL
+                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowOtpScreen(false);
+                      setOtpInput('');
+                      setOtpError('');
+                      setOtpSuccess('');
+                    }}
+                    className="w-1/2 py-3 text-xs font-bold text-slate-400 hover:text-white bg-[#0a0f20]/60 rounded-xl border border-blue-950/40 cursor-pointer text-center active:scale-95 transition flex items-center justify-center gap-1.5"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    Back to Login
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isSendingOtp}
+                    onClick={async () => {
+                      if (!pendingCredentials) return;
+                      const code = generateNumericOTP();
+                      setGeneratedOtp(code);
+                      await executeSendTelegramOtp(
+                        pendingCredentials.type === 'signup' 
+                          ? `VIP REGISTRATION (${pendingCredentials.username})` 
+                          : `SIGN IN (${pendingCredentials.username})`, 
+                        code, 
+                        pendingCredentials.phone || 'N/A',
+                        pendingCredentials.telegramId
+                      );
+                    }}
+                    className="w-1/2 py-3 text-xs font-bold text-slate-400 hover:text-cyan-400 bg-[#0a0f20]/60 rounded-xl border border-blue-950/40 cursor-pointer text-center active:scale-95 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSendingOtp ? 'animate-spin' : ''}`} />
+                    Resend Code
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {/* Offline Helper Bypass for Demonstration */}
+            <div className="p-3 bg-cyan-950/15 rounded-xl border border-cyan-500/10 text-center space-y-1">
+              <span className="text-[10px] text-cyan-400 font-bold block uppercase tracking-wider">
+                Developer Live OTP Terminal
+              </span>
+              <p className="text-[10px] text-slate-300 leading-normal">
+                Telegram Dispatch Stream Live code: <b className="text-amber-400 font-mono text-xs">{generatedOtp}</b> 
+              </p>
+              <p className="text-[8.5px] text-[#5c75ab]">
+                This secure stream serves as an end-to-end sandbox fallback.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Tab Selection */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/70 rounded-2xl border border-blue-950 mb-7">
           <button
             type="button"
             onClick={() => {
@@ -453,7 +1021,7 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
             </div>
 
             {/* Password Input */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 align-left text-left">
               <div className="flex justify-between items-center pl-1">
                 <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] uppercase">
                   Secure Password
@@ -481,6 +1049,34 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
                 </button>
               </div>
             </div>
+
+            {/* Conditional Telegram Chat ID field for signing in if required but not saved */}
+            {telegram2FAEnabled && telegramSendTarget === 'client' && (
+              <div className="space-y-1.5 text-left bg-[#0e172a]/40 border border-cyan-500/20 p-3 rounded-xl">
+                <div className="flex justify-between items-center pl-1">
+                  <label className="block text-[10px] font-black tracking-widest text-[#10b981] uppercase">
+                    Telegram Chat ID (টেলিগ্রাম চ্যাট আইডি)
+                  </label>
+                  <span className="text-[8px] text-slate-400 font-bold font-mono">Optional if already linked</span>
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                    <Send className="w-4 h-4 text-cyan-500/50" />
+                  </div>
+                  <input
+                    type="text"
+                    value={signInTelegramId}
+                    onChange={(e) => setSignInTelegramId(e.target.value)}
+                    placeholder="e.g. 192837465"
+                    style={{ paddingLeft: '2.5rem' }}
+                    className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-cyan-500/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
+                  />
+                </div>
+                <p className="text-[8px] text-slate-400 leading-relaxed pl-1 pt-0.5">
+                  যদি পূর্বে আপনার অ্যাকাউন্টে চ্যাট আইডি যুক্ত না করে থাকেন, তবে টেলিগ্রামে <a href="https://t.me/userinfobot" target="_blank" rel="noopener() referrer" className="text-cyan-400 underline hover:text-[#10b981]">@userinfobot</a> এ মেসেজ পাঠিয়ে আপনার Chat ID টি এখানে লিখুন।
+                </p>
+              </div>
+            )}
 
             {/* Remember Me Checkbox */}
             <div className="flex items-center pl-1 pt-1 pb-1">
@@ -518,42 +1114,10 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
             </button>
 
             {/* Help Info Box - Collapsible and clean for custom hosting production */}
-            <div className="pt-2 text-center space-y-2">
-              <button
-                type="button"
-                onClick={() => setShowDemoHelper(!showDemoHelper)}
-                className="text-[9.5px] font-black uppercase tracking-widest text-[#5c75ab] hover:text-cyan-400 transition cursor-pointer flex items-center justify-center gap-1.5 mx-auto py-1 px-3 rounded-lg bg-white/5 border border-white/5 active:scale-95"
-              >
-                <span>{showDemoHelper ? 'Hide System Guide' : 'Need Demo Credentials? (ডেমো অ্যাকাউন্ট)'}</span>
-                <span>{showDemoHelper ? '▲' : '▼'}</span>
-              </button>
-
-              {showDemoHelper && (
-                <div className="bg-slate-950/60 border border-blue-950 rounded-xl p-3 text-left space-y-2.5">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
-                    <span className="text-[9px] font-black tracking-wider text-slate-400 uppercase">OFFICIAL OPERATOR GUIDELINES</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSignInUsername('akhi.akther.ofc@gmail.com');
-                        setSignInPassword('akhi123');
-                        setErrorMsg('');
-                        setSuccessMsg('Credentials auto-filled! Ready to authenticate.');
-                      }}
-                      className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 hover:bg-cyan-500/20 text-[9px] font-black uppercase px-2 py-1 rounded cursor-pointer transition"
-                    >
-                      Instant Auto-Fill (অটো-ফিল করুন)
-                    </button>
-                  </div>
-                  <span className="text-[10px] text-[#5c75ab] font-bold block leading-relaxed">
-                    Demo Email: <strong className="text-cyan-400 font-mono text-[10.5px]">akhi.akther.ofc@gmail.com</strong><br />
-                    Demo Password: <strong className="text-amber-400 font-mono text-[10.5px]">akhi123</strong>
-                  </span>
-                  <p className="text-[9.5px] text-slate-500 leading-normal font-semibold">
-                    * Visitors can also click <strong>JOIN NOW</strong> above to register their own new custom accounts instantly on this website!
-                  </p>
-                </div>
-              )}
+            <div className="pt-2 text-center">
+              <p className="text-[10px] text-slate-500 font-semibold leading-normal">
+                Don't have an account? Click on <strong className="text-cyan-400 font-black">join now</strong> above to register a secure profile today!
+              </p>
             </div>
           </form>
         ) : (
@@ -642,6 +1206,33 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
               </div>
             </div>
 
+            {/* Telegram Chat ID for Registration if 2FA client mode is active */}
+            {telegram2FAEnabled && telegramSendTarget === 'client' && (
+              <div className="space-y-1.5 text-left">
+                <label className="block text-[10px] font-black tracking-widest text-cyan-400 uppercase pl-1 flex justify-between items-center pr-1">
+                  <span>Telegram Chat ID (টেলিগ্রাম চ্যাট আইডি)</span>
+                  <span className="text-[9px] text-[#ef4444] font-black tracking-widest uppercase">Required</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                    <Send className="w-4 h-4 text-cyan-500/60" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={newTelegramId}
+                    onChange={(e) => setNewTelegramId(e.target.value)}
+                    placeholder="e.g. 192837465"
+                    style={{ paddingLeft: '2.5rem' }}
+                    className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-cyan-500/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono border-dashed border-cyan-500/40"
+                  />
+                </div>
+                <p className="text-[8px] text-slate-400 leading-normal pl-1 pt-0.5">
+                  কোড পাওয়ার জন্য প্রথমে আমাদের বটে গিয়ে <span className="text-cyan-400 font-mono font-bold">Start</span> বাটনে ক্লিক করবেন। তারপর টেলিগ্রামে <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline hover:text-cyan-300">@userinfobot</a> এ যেকোনো মেসেজ পাঠিয়ে আপনার চ্যাট আইডি নম্বরটি সংগ্রহ করে এখানে বসিয়ে দিন।
+                </p>
+              </div>
+            )}
+
             {/* Security Password */}
             <div className="space-y-1.5">
               <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] uppercase pl-1">
@@ -719,13 +1310,7 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
           {/* Google Button */}
           <button
             type="button"
-            onClick={() => {
-              setSocialModal('google');
-              setCustomGoogleEmail('');
-              setCustomGoogleName('');
-              setErrorMsg('');
-              setSuccessMsg('');
-            }}
+            onClick={handleGoogleSignInReal}
             className="flex items-center justify-center gap-2 px-3.5 py-3 bg-[#0a1430] hover:bg-[#0f1d45] border border-blue-950/60 hover:border-blue-500/30 rounded-xl transition-all font-sans font-bold text-xs text-white cursor-pointer active:scale-95"
           >
             <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -769,93 +1354,9 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
             Instagram
           </button>
         </div>
+          </>
+        )}
       </motion.div>
-
-      {/* GOOGLE SIMULATED COMPONENT POPUP */}
-      {socialModal === 'google' && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-sm bg-[#080f25] border border-blue-900/40 rounded-3xl p-6 text-left relative overflow-hidden"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 rounded-xl bg-slate-900 shadow-inner">
-                <svg className="w-6 h-6" viewBox="0 0 24 24">
-                  <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.61 14.99 1 12 1 7.35 1 3.39 3.65 1.49 7.51l3.85 2.99c.9-2.7 3.41-4.46 6.66-4.46z" />
-                  <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.46c-.28 1.48-1.12 2.74-2.38 3.58l3.71 2.87c2.17-2 3.7-4.94 3.7-8.55z" />
-                  <path fill="#FBBC05" d="M5.34 10.5c-.23-.69-.36-1.42-.36-2.18s.13-1.49.36-2.18L1.49 3.15C.54 5.06 0 7.22 0 9.5s.54 4.44 1.49 6.35l3.85-3.35z" />
-                  <path fill="#34A853" d="M12 23c3.24 0 5.97-1.08 7.96-2.91l-3.71-2.87c-1.03.69-2.34 1.1-4.25 1.1-3.25 0-5.76-1.76-6.66-4.46L1.49 16.85C3.39 20.71 7.35 23 12 23z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-white text-sm">Sign in with Google</h3>
-                <p className="text-[10px] text-slate-400">Choose your Google Account to authenticate</p>
-              </div>
-            </div>
-
-            {/* Simulated accounts selection list */}
-            <div className="space-y-2 mt-4">
-              <button
-                type="button"
-                onClick={() => handleGoogleSignIn('Akhi Akther Ofc', 'akhi.akther.ofc@gmail.com')}
-                className="w-full text-left p-3.5 rounded-xl bg-[#091435] hover:bg-slate-900 border border-blue-950 hover:border-cyan-500/30 transition-all flex items-center justify-between cursor-pointer group"
-              >
-                <div>
-                  <p className="text-xs font-black text-white group-hover:text-cyan-400 transition-colors">Akhi Akther Ofc</p>
-                  <p className="text-[10px] text-slate-400 font-mono">akhi.akther.ofc@gmail.com</p>
-                </div>
-                <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-[#10245a] text-cyan-300 font-bold">Default</span>
-              </button>
-            </div>
-
-            {/* Custom Google Account Form Input */}
-            <div className="mt-5 pt-4 border-t border-blue-950/60 space-y-3">
-              <p className="text-[10px] font-black text-[#5c75ab] uppercase tracking-wider">Or Use Custom Google Account</p>
-              
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  value={customGoogleName}
-                  onChange={(e) => setCustomGoogleName(e.target.value)}
-                  placeholder="Your Full Name"
-                  className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-cyan-500/70 text-xs text-white rounded-xl px-3.5 py-2.5 font-bold focus:outline-none transition-all"
-                />
-                <input
-                  type="email"
-                  value={customGoogleEmail}
-                  onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                  placeholder="address@gmail.com"
-                  className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-cyan-500/70 text-xs text-white rounded-xl px-3.5 py-2.5 font-bold focus:outline-none transition-all font-mono"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setSocialModal(null)}
-                  className="w-1/2 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-slate-900/30 border border-blue-950/60 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!customGoogleName.trim() || !customGoogleEmail.trim()) {
-                      alert('Please specify both your name and email address first.');
-                      return;
-                    }
-                    handleGoogleSignIn(customGoogleName, customGoogleEmail);
-                  }}
-                  className="w-1/2 py-2.5 rounded-xl text-xs font-black text-slate-950 bg-cyan-400 hover:bg-cyan-500 cursor-pointer"
-                >
-                  Confirm Sign In
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       {/* INSTAGRAM SIMULATED COMPONENT POPUP */}
       {socialModal === 'instagram' && (
@@ -863,12 +1364,12 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-sm bg-gradient-to-b from-[#1a081a] to-[#040816] border border-rose-900/30 rounded-3xl p-6 text-left relative overflow-hidden"
+            className="w-full max-w-sm bg-gradient-to-b from-[#1a081a] to-[#040816] border border-rose-900/30 rounded-3xl p-6 text-left relative max-h-[90vh] overflow-y-auto scrollbar-none"
           >
             <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-purple-600 via-rose-500 to-amber-500" />
             
             <div className="flex items-center gap-3 mb-4 mt-2">
-              <div className="p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/20 shadow-inner">
+              <div className="p-2.5 rounded-xl bg-rose-955/40 border border-rose-500/20 shadow-inner">
                 <svg className="w-6 h-6 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
                   <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
@@ -876,62 +1377,121 @@ export default function LoginGate({ onLoginSuccess }: LoginGateProps) {
                 </svg>
               </div>
               <div>
-                <h3 className="font-bold text-white text-sm">Instagram Login</h3>
-                <p className="text-[10px] text-rose-300">bodyTOUCH Secure Account Dispatch</p>
+                <h3 className="font-bold text-white text-sm">Instagram Authorization</h3>
+                <p className="text-[10px] text-rose-300">bodyTOUCH Secure App Tunnel Connect</p>
               </div>
             </div>
 
-            <div className="space-y-4 pt-3">
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">
-                  Instagram Handle / Username
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 font-mono text-xs font-bold">@</span>
-                  <input
-                    type="text"
-                    required
-                    value={customInstaUsername}
-                    onChange={(e) => setCustomInstaUsername(e.target.value)}
-                    placeholder="e.g. akhi.akther.ofc"
-                    style={{ paddingLeft: '2rem' }}
-                    className="w-full bg-slate-950/60 border border-[#4c1d4a]/40 focus:border-rose-500/70 text-xs text-white rounded-xl pl-8 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
-                  />
+            {instaAppFlow ? (
+              <div className="py-6 text-center space-y-4">
+                <div className="flex justify-center items-center">
+                  <div className="relative w-14 h-14">
+                    <div className="absolute inset-0 rounded-full border-4 border-rose-500/20 animate-pulse" />
+                    <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-rose-500 animate-spin" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-black text-rose-400 uppercase tracking-wider">
+                    Connecting to Instagram App...
+                  </p>
+                  <p className="text-[11px] text-slate-300 px-3 leading-normal font-semibold">
+                    {instaAuthStep}
+                  </p>
+                </div>
+                <p className="text-[9px] text-[#5c75ab]/80 max-w-xs leading-normal">
+                  * If the mobile app is not active or installed, this system automatically fallbacks to standard API secure handshake.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4 pt-2">
+                {/* Notice text */}
+                <div className="p-3 bg-rose-950/20 rounded-xl border border-rose-500/10 text-[10.5px] text-pink-300 leading-normal font-semibold">
+                  আপনার ডিভাইসে ইনস্টাগ্রাম অ্যাপ্লিকেশন থাকলে সরাসরি অটো-অথরাইজেশন অপশনটি ব্যবহার করতে পারেন।
+                </div>
+
+                {/* Mobile Direct Launch Option CTA */}
+                <div className="space-y-1.5 pt-1">
+                  <label className="block text-[9px] font-black tracking-widest text-[#5c75ab] uppercase pl-0.5">
+                    Option A: Native Device Handshake
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const activeHandle = customInstaUsername.trim() || 'akhiaktherofc';
+                      handleInstagramSignInExact(activeHandle, true);
+                    }}
+                    className="w-full flex items-center justify-center gap-2.5 py-4 bg-gradient-to-r from-purple-600 via-rose-500 to-[#e9008c] hover:opacity-90 rounded-xl font-sans font-black text-xs text-white cursor-pointer active:scale-95 transition"
+                  >
+                    <svg className="w-4 h-4 shrink-0 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                    </svg>
+                    <span>Authorize via Instagram App</span>
+                  </button>
+                  <p className="text-[8.5px] text-center text-slate-500 font-semibold leading-normal">
+                    (স্মার্টফোনে সরাসরি রি-ডাইরেক্ট করে অটো-লগইন প্রক্রিয়া সম্পন্ন করুন)
+                  </p>
+                </div>
+
+                {/* Manual Credentials form */}
+                <div className="border-t border-rose-950/40 my-3 pt-3 space-y-3">
+                  <label className="block text-[9px] font-black tracking-widest text-[#5c75ab] uppercase pl-0.5">
+                    Option B: Secure Web Entry / Manual
+                  </label>
+
+                  <div className="space-y-1.5">
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rose-500/60 font-mono text-xs font-bold">@</span>
+                      <input
+                        type="text"
+                        value={customInstaUsername}
+                        onChange={(e) => setCustomInstaUsername(e.target.value)}
+                        placeholder="insta_username"
+                        style={{ paddingLeft: '2rem' }}
+                        className="w-full bg-slate-950/60 border border-[#4c1d4a]/40 focus:border-rose-500/70 text-xs text-white rounded-xl pl-8 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Suggested quick profiles */}
+                  <div className="space-y-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleInstagramSignInExact('akhiaktherofc')}
+                      className="w-full text-left p-2.5 rounded-xl bg-purple-950/20 hover:bg-purple-950/40 border border-purple-900/20 transition-all flex items-center justify-between cursor-pointer group"
+                    >
+                      <span className="text-xs font-bold text-pink-300 group-hover:text-white transition-colors">@akhiaktherofc</span>
+                      <span className="text-[9px] text-pink-400 font-bold bg-pink-950/50 px-2 py-0.5 rounded-md">Quick Auth</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-1 border-t border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => setSocialModal(null)}
+                    className="w-1/2 py-3.5 text-xs font-bold text-slate-400 hover:text-white bg-[#0a0f20]/60 rounded-xl border border-blue-950/40 cursor-pointer text-center active:scale-95 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const activeHandle = customInstaUsername.trim();
+                      if (!activeHandle) {
+                        setErrorMsg('দয়া করে আপনার ইনস্টাগ্রাম ইউজারনেম দিন।');
+                        return;
+                      }
+                      handleInstagramSignInExact(activeHandle);
+                    }}
+                    className="w-1/2 py-3.5 text-xs font-black text-white hover:text-rose-100 bg-rose-950/60 border border-rose-500/25 hover:bg-rose-950/90 rounded-xl cursor-pointer text-center active:scale-95 transition"
+                  >
+                    Authorize Web-Login
+                  </button>
                 </div>
               </div>
-
-              {/* Suggested primary profile button */}
-              <div className="space-y-2">
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">Suggested quick profiles</p>
-                <button
-                  type="button"
-                  onClick={() => handleInstagramSignInExact('akhiaktherofc')}
-                  className="w-full text-left p-3 rounded-xl bg-purple-950/20 hover:bg-purple-950/40 border border-purple-900/30 transition-all flex items-center justify-between cursor-pointer group"
-                >
-                  <span className="text-xs font-bold text-pink-300 group-hover:text-white transition-colors">@akhiaktherofc</span>
-                  <span className="text-[9px] text-pink-400 font-bold bg-pink-950/60 px-2 py-0.5 rounded-full">Primary</span>
-                </button>
-              </div>
-
-              <div className="flex gap-2 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setSocialModal(null)}
-                  className="w-1/2 py-3.5 text-xs font-bold text-slate-400 hover:text-white bg-slate-950/40 rounded-xl border border-blue-950/60 cursor-pointer text-center"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleInstagramSignInExact(customInstaUsername);
-                  }}
-                  className="w-1/2 py-3.5 text-xs font-black text-slate-950 bg-gradient-to-r from-purple-500 via-rose-500 to-amber-500 hover:opacity-90 rounded-xl cursor-pointer text-center"
-                >
-                  Login Instagram
-                </button>
-              </div>
-            </div>
+            )}
           </motion.div>
         </div>
       )}

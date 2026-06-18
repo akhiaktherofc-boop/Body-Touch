@@ -209,17 +209,13 @@ export default function JoinModal({
       setValidationError('Contact Phone Number is required.');
       return;
     }
+    if (!formData.telegram.trim()) {
+      setValidationError('Telegram Username is mandatory / টেলিগ্রাম ইউজারনেম (@username) অত্যন্ত বাধ্যতামূলক।');
+      return;
+    }
 
     // Model specific rich validation (Female or Male)
     if (type === 'female' || type === 'male') {
-      if (!formData.whatsapp.trim()) {
-        setValidationError('WhatsApp number is required for Model registration.');
-        return;
-      }
-      if (!formData.telegram.trim()) {
-        setValidationError('Telegram Username is mandatory / টেলিগ্রাম ইউজারনেম (@username) অত্যন্ত বাধ্যতামূলক।');
-        return;
-      }
       if (!formData.weight.trim()) {
         setValidationError('Body Weight is required.');
         return;
@@ -293,7 +289,7 @@ export default function JoinModal({
         : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600'),
       category: type === 'female' ? 'Female Model' : type === 'male' ? 'Male Model' : 'Sperm Donor',
       status: 'Pending',
-      phone: formData.phone.trim() || formData.whatsapp.trim() || 'N/A',
+      phone: formData.phone.trim() || 'N/A',
       email: type === 'female' ? `${formData.name.toLowerCase().replace(/\s+/g, '')}@bodytouch-partner.com` : 'code@bodytouch.com',
       bloodGroup: type === 'donor' ? formData.bloodGroup.trim() : undefined,
       spermCount: type === 'donor' ? formData.spermCount.trim() : undefined,
@@ -796,12 +792,12 @@ export default function JoinModal({
                 </div>
               )}
 
-              {/* TWO CONTACT NUMBERS: WhatsApp Number and Phone Number */}
+              {/* TWO CONTACT NUMBERS: Phone Number and Telegram ID */}
               <div className="border-t border-[#ac843c]/25 pt-4 space-y-3">
                 <p className="text-xs font-mono uppercase text-[#dbaa61] font-black tracking-wider">
                   Verified Communications Channels / যোগাযোগের তথ্য
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] text-[#dbaa61] font-mono uppercase tracking-wider mb-1 font-bold">
                       Primary Phone Number *
@@ -816,21 +812,9 @@ export default function JoinModal({
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-[#dbaa61] font-mono uppercase tracking-wider mb-1 font-bold">
-                      WhatsApp Number / Whatsapp নম্বর *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="e.g. +880 19XXXXXXXX"
-                      value={formData.whatsapp}
-                      onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                      className="w-full bg-[#0e101a] border border-[#dbaa61]/35 focus:border-[#dbaa61] text-sm text-[#f3ecdb] rounded-xl px-3 py-3 font-mono font-bold focus:outline-none transition-all placeholder:text-slate-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] text-[#dbaa61] font-mono uppercase tracking-wider mb-1 font-bold">
-                      Telegram Username / টেলিগ্রাম হ্যান্ডেল *
+                    <label className="block text-[11px] text-[#dbaa61] font-mono uppercase tracking-wider mb-1 font-bold flex justify-between">
+                      <span>Telegram Username * (বাধ্যতামূলক)</span>
+                      <span className="text-red-400 text-[9px] font-black">MANDATORY</span>
                     </label>
                     <input
                       type="text"
@@ -838,7 +822,7 @@ export default function JoinModal({
                       placeholder="e.g. @username_handle"
                       value={formData.telegram}
                       onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
-                      className="w-full bg-[#0e101a] border border-[#dbaa61]/35 focus:border-[#dbaa61] text-sm text-[#f3ecdb] rounded-xl px-3 py-3 font-mono font-bold focus:outline-none transition-all placeholder:text-slate-400"
+                      className="w-full bg-[#0e101a] border border-blue-500/35 focus:border-blue-400 text-sm text-[#f3ecdb] rounded-xl px-3 py-3 font-mono font-bold focus:outline-none transition-all placeholder:text-slate-400"
                     />
                   </div>
                 </div>
@@ -1273,7 +1257,7 @@ export default function JoinModal({
                 <span className="font-black text-amber-400 uppercase animate-pulse">UNDER MANUAL INSPECTION</span>
               </div>
               <p className="pt-1 text-xs text-slate-350 font-semibold leading-relaxed">
-                Our dispatch operations team will review your photos, dimensions, and NID credentials. If approved, we will contact you on <span className="font-bold text-[#dbaa61]">{formData.telegram}</span> (Telegram / WhatsApp) within 12 - 24 hours to schedule onboarding coordinates.
+                Our dispatch operations team will review your photos, dimensions, and NID credentials. If approved, we will contact you on <span className="font-bold text-[#dbaa61]">{formData.telegram}</span> (Telegram) within 12 - 24 hours to schedule onboarding coordinates.
               </p>
             </div>
 

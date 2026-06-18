@@ -422,3 +422,24 @@ input:focus, textarea:focus, select:focus {
   border-color: #ffffff !important;
 }
 
+/* Custom smooth marquee animation */
+@keyframes marquee-scroll {
+  0% {
+    transform: translate3d(100%, 0, 0);
+  }
+  100% {
+    transform: translate3d(-100%, 0, 0);
+  }
+}
+
+.animate-marquee-text {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee-scroll 18s linear infinite !important;
+}
+
+.animate-marquee-text:hover {
+  animation-play-state: paused !important;
+}
+
+

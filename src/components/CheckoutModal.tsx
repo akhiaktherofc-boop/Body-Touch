@@ -113,7 +113,7 @@ export default function CheckoutModal({
             initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
-            className="cyan-glow-card max-w-sm w-full rounded-3xl overflow-hidden relative shadow-2xl p-6 z-10 bg-[#020712] gold-breathing-glow"
+            className="cyan-glow-card max-w-sm w-full rounded-3xl max-h-[90vh] overflow-y-auto scrollbar-none relative shadow-2xl p-6 z-10 bg-[#020712] gold-breathing-glow"
           >
             {/* Close */}
             <button

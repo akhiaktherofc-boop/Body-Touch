@@ -1,6 +1,6 @@
 import { HotelLocation } from '../types';
 import { motion } from 'motion/react';
-import { MapPin, Map } from 'lucide-react';
+import { MapPin, Map, Star } from 'lucide-react';
 
 interface LocationCardProps {
   location: HotelLocation;
@@ -22,18 +22,64 @@ export default function LocationCard({ location, onMapClick, onReserveClick }: L
   const badge = getBadgeInfo(location.star);
 
   // Clean fallback helper for address subtitle
-  const getSubtitle = (name: string, desc: string) => {
+  const getSubtitle = (name: string, addr: string | undefined, desc: string) => {
+    if (addr && addr.trim() !== '') return addr;
     if (name.includes('Le Méridien')) return '79/A Airport Road, Nikunja 2, Dhaka';
     if (name.includes('Westin')) return 'Plot 1, Road 45, Gulshan-2, Dhaka 1212';
     if (name.includes('Radisson')) return 'Airport Road, Dhaka Cantonment, Dhaka 1206';
     return desc || 'Premium elite destination sanctuary.';
   };
 
+  const renderStars = (starStr: string) => {
+    const normalized = (starStr || '').toUpperCase();
+    let starsCount = 0;
+    if (normalized.includes('5')) starsCount = 5;
+    else if (normalized.includes('4')) starsCount = 4;
+    else if (normalized.includes('3')) starsCount = 3;
+    else if (normalized.includes('2')) starsCount = 2;
+    else if (normalized.includes('1')) starsCount = 1;
+
+    if (starsCount > 0) {
+      return (
+        <div className="flex items-center gap-0.5" title={`${starsCount} Star Star Rating`}>
+          {Array.from({ length: starsCount }).map((_, i) => (
+            <Star
+              key={i}
+              className="w-3 h-3 text-amber-400 fill-amber-400"
+            />
+          ))}
+        </div>
+      );
+    }
+
+    if (normalized.includes('BOUTIQUE')) {
+      return (
+        <span className="text-[8px] bg-indigo-950/70 text-indigo-300 border border-indigo-500/20 px-1.5 py-0.5 rounded-md font-mono font-bold uppercase tracking-wider">
+          BOUTIQUE
+        </span>
+      );
+    }
+    if (normalized.includes('SAFE HOUSE') || normalized.includes('SAFEHOUSE')) {
+      return (
+        <span className="text-[8px] bg-rose-950/70 text-rose-300 border border-rose-500/20 px-1.5 py-0.5 rounded-md font-mono font-bold uppercase tracking-wider">
+          SAFE HOUSE
+        </span>
+      );
+    }
+    return (
+      <span className="text-[8px] bg-slate-900 border border-slate-800 text-slate-450 px-1.5 py-0.5 rounded font-mono font-bold uppercase">
+        {starStr}
+      </span>
+    );
+  };
+
   return (
     <motion.div
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.3 }}
-      className="flex-shrink-0 w-[22rem] snap-start bg-[#040919]/90 rounded-2xl overflow-hidden border border-slate-900 shadow-2xl flex flex-col justify-between"
+      onClick={() => onReserveClick(location)}
+      whileHover={{ y: -4, scale: 1.01 }}
+      whileTap={{ scale: 0.99 }}
+      transition={{ duration: 0.2 }}
+      className="w-full bg-[#040919]/90 rounded-2xl overflow-hidden border border-slate-900 hover:border-amber-500/30 shadow-2xl flex flex-col justify-between cursor-pointer transition-all animate-fadeIn"
     >
       {/* Top Banner & Photo Section */}
       <div className="relative h-48 bg-[#020510] overflow-hidden group">
@@ -64,16 +110,30 @@ export default function LocationCard({ location, onMapClick, onReserveClick }: L
 
       {/* Card Content & Action Suite */}
       <div className="p-5 flex flex-col flex-1 text-left justify-between bg-gradient-to-b from-[#060c22] to-[#030612]">
-        <div className="space-y-1">
-          {/* Hotel Name Title */}
-          <h4 className="text-[1.125rem] font-bold text-white tracking-wide hover:text-amber-400 transition-colors duration-200 line-clamp-1">
-            {location.name}
-          </h4>
+        <div className="space-y-1.5">
+          {/* Hotel Name Title & Stars row */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <h4 className="text-[1.125rem] font-bold text-white tracking-wide hover:text-amber-400 transition-colors duration-200 line-clamp-1 flex-1">
+              {location.name}
+            </h4>
+            <div className="shrink-0 flex items-center gap-1 py-0.5">
+              {renderStars(location.star)}
+            </div>
+          </div>
           
-          {/* Address and exact local coordinates */}
-          <p className="text-[11px] text-zinc-400 font-medium leading-relaxed tracking-wide line-clamp-1">
-            {getSubtitle(location.name, location.description)}
+          {/* Address string */}
+          <p className="text-[11px] text-zinc-400 font-semibold leading-relaxed tracking-wide line-clamp-1">
+            {getSubtitle(location.name, location.address, location.description)}
           </p>
+
+          {/* Description details render */}
+          {location.description && (
+            <div className="mt-3 bg-black/40 border border-white/5 rounded-xl p-3">
+              <p className="text-[11px] text-slate-300 leading-relaxed font-medium line-clamp-4 italic">
+                "{location.description}"
+              </p>
+            </div>
+          )}
           
           {/* Charge Price Info */}
           <div className="pt-2 flex items-baseline gap-1 animate-fadeIn">

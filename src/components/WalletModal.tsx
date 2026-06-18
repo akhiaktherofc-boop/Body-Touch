@@ -94,7 +94,7 @@ export default function WalletModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className="w-full max-w-md bg-[#020714] border border-blue-500/20 shadow-2xl shadow-blue-500/5 rounded-3xl overflow-hidden relative p-6 z-10 gold-breathing-glow"
+            className="w-full max-w-md bg-[#020714] border border-blue-500/20 shadow-2xl shadow-blue-500/5 rounded-3xl max-h-[90vh] overflow-y-auto scrollbar-none relative p-6 z-10 gold-breathing-glow"
           >
             {/* Close button */}
             <button

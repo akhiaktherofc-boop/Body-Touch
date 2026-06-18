@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel } from '../types';
+import { clearCollection } from '../services/cloudService';
 import { 
   ShieldCheck, 
   RefreshCw, 
@@ -40,7 +41,12 @@ import {
   Award,
   Sparkles,
   TrendingUp,
-  HandCoins
+  HandCoins,
+  Send,
+  MessageSquare,
+  Bot,
+  Cpu,
+  Megaphone
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -72,6 +78,14 @@ interface AdminPanelProps {
   onSetTelegramGroupId: (id: string) => void;
   telegramHelpline?: string;
   onSetTelegramHelpline?: (helpline: string) => void;
+  telegram2FAEnabled?: boolean;
+  onSetTelegram2FAEnabled?: (enabled: boolean) => void;
+  telegramSendTarget?: 'group' | 'client';
+  onSetTelegramSendTarget?: (target: 'group' | 'client') => void;
+  telegramBotSelection?: 'default' | 'custom';
+  onSetTelegramBotSelection?: (selection: 'default' | 'custom') => void;
+  onSaveTelegramSettings?: () => Promise<void>;
+  onClearTelegramSettings?: () => Promise<void>;
   onApproveCompanion: (id: string) => void;
   onDeclineCompanion: (id: string) => void;
   onSendEmail?: (toEmail: string, subject: string, bodyText: string) => Promise<void>;
@@ -97,6 +111,8 @@ interface AdminPanelProps {
   onUpdateWithdrawals?: (updated: WithdrawalRecord[]) => void;
   categories?: string[];
   onUpdateCategories?: (updated: string[]) => void;
+  emergencyNotice?: string;
+  onSaveEmergencyNotice?: (text: string) => Promise<void>;
 }
 
 // Beautiful and elegant Unsplash placeholder images to select instantly
@@ -150,6 +166,14 @@ export default function AdminPanel({
   onSetTelegramGroupId,
   telegramHelpline = 'BodyTouchSupport',
   onSetTelegramHelpline,
+  telegram2FAEnabled = true,
+  onSetTelegram2FAEnabled,
+  telegramSendTarget = 'group',
+  onSetTelegramSendTarget,
+  telegramBotSelection = 'default',
+  onSetTelegramBotSelection,
+  onSaveTelegramSettings,
+  onClearTelegramSettings,
   onApproveCompanion,
   onDeclineCompanion,
   onSendEmail,
@@ -179,15 +203,54 @@ export default function AdminPanel({
   withdrawals = [],
   onUpdateWithdrawals,
   categories = ['Female Model', 'Male Model', 'Sperm Donor'],
-  onUpdateCategories
+  onUpdateCategories,
+  emergencyNotice = 'সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যাম সার্ভিস বুকিং দিবেন না',
+  onSaveEmergencyNotice
 }: AdminPanelProps) {
   
-  if (!isOpen) return null;
-
   // Security gate authentication using sessionStorage
   const [isAuth, setIsAuth] = useState(() => {
     return sessionStorage.getItem('metro_maa_admin_auth') === 'true';
   });
+
+  const [isResetting, setIsResetting] = useState(false);
+  const [liveTime, setLiveTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const IntervalId = setInterval(() => {
+      setLiveTime(new Date());
+    }, 1000);
+    return () => clearInterval(IntervalId);
+  }, []);
+
+  const [editableNotice, setEditableNotice] = useState(emergencyNotice);
+
+  useEffect(() => {
+    if (emergencyNotice) {
+      setEditableNotice(emergencyNotice);
+    }
+  }, [emergencyNotice]);
+
+  const handleClearClientAccounts = async () => {
+    const confirmClear = window.confirm(
+      "⚠️ আপনি কি নিশ্চিত যে আপনি সকল কাস্টমার অ্যাকাউন্ট, বুকিং হিস্ট্রি এবং ট্রানজেকশন ডাটাবেজ থেকে মুছে ফেলতে চান?\n\n" +
+      "এই অপারেশনটি সম্পূর্ণ অপরিবর্তনীয় এবং ডাটাবেজের সকল কাস্টমার অ্যাকাউন্ট, বুকিং হিস্ট্রি এবং পেমেন্ট রেকর্ড স্থায়ীভাবে মুছে যাবে।"
+    );
+    if (!confirmClear) return;
+
+    try {
+      setIsResetting(true);
+      await clearCollection('users');
+      await clearCollection('bookings');
+      await clearCollection('payments');
+      alert("✅ সফলভাবে ডাটাবেজ থেকে পূর্বের সকল কাস্টমার অ্যাকাউন্ট, বুকিং হিস্ট্রি এবং ট্রানজেকশন পেমেন্ট রেকর্ড মুছে ফেলা হয়েছে! এখন আপনি নতুন অ্যাকাউন্ট খুলে ফ্রেশ টেস্ট করতে পারবেন।");
+    } catch (err: any) {
+      console.error(err);
+      alert("❌ ডাটা ক্লিয়ার করতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।");
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const [adminEmail, setAdminEmail] = useState(() => {
     return localStorage.getItem('metro_maa_admin_validated_email') || '';
@@ -300,19 +363,45 @@ export default function AdminPanel({
     }
   }, [cooldown]);
 
-  const [adminEmails, setAdminEmails] = useState<string[]>(() => {
-    const stored = localStorage.getItem('bt_admin_emails');
+  interface AdminUser {
+    email: string;
+    telegram: string;
+  }
+
+  const [adminEmails, setAdminEmails] = useState<AdminUser[]>(() => {
+    const stored = localStorage.getItem('bt_admin_emails_v2');
     if (stored) {
       try {
         return JSON.parse(stored);
       } catch (e) {}
     }
-    return ['akhi.akther.ofc@gmail.com', 'admin@metromaa.com'];
+    // Backward compatibility with strings
+    const oldStored = localStorage.getItem('bt_admin_emails');
+    if (oldStored) {
+      try {
+        const parsed = JSON.parse(oldStored);
+        if (Array.isArray(parsed)) {
+          return parsed.map(item => {
+            if (typeof item === 'string') {
+              return {
+                email: item,
+                telegram: item.toLowerCase() === 'akhi.akther.ofc@gmail.com' ? '@akhi_ofc_tele' : '@bodytouch_admin'
+              };
+            }
+            return item;
+          });
+        }
+      } catch (e) {}
+    }
+    return [
+      { email: 'akhi.akther.ofc@gmail.com', telegram: '@akhi_ofc_tele' },
+      { email: 'admin@bodytouch.com', telegram: '@bodytouch_admin' }
+    ];
   });
 
-  const updateAdminEmails = (updated: string[]) => {
+  const updateAdminEmails = (updated: AdminUser[]) => {
     setAdminEmails(updated);
-    localStorage.setItem('bt_admin_emails', JSON.stringify(updated));
+    localStorage.setItem('bt_admin_emails_v2', JSON.stringify(updated));
   };
 
   const generateNumericOTP = () => {
@@ -335,7 +424,7 @@ export default function AdminPanel({
     }
 
     // STRICT Whitelist Security Check
-    const isAllowed = adminEmails.map(e => e.toLowerCase()).includes(normalizedEmail);
+    const isAllowed = adminEmails.some(a => a.email.toLowerCase() === normalizedEmail);
     if (!isAllowed) {
       setAuthError('অ্যাক্সেস অস্বীকৃত! এই ইমেলটি পোর্টালের অনুমোদিত এডমিন তালিকায় নিবন্ধিত নয়। শুধুমাত্র প্রকৃত অনার ও এডমিনরাই সাইন-ইন করতে পারবেন।');
       return;
@@ -346,11 +435,11 @@ export default function AdminPanel({
     setShowInUIWarning(null);
 
     const code = generateNumericOTP();
-    const mailSubject = `🔒 Metro Maa Admin Portal: Secure 2FA Authentication Code`;
+    const mailSubject = `🔒 "Body Touch" Portal: Secure 2FA OTP Code`;
     const mailBody = `
-========= METRO MAA SECURE NETWORK DIRECTORY =========
+========= "BODY TOUCH" DIRECTORY SERVICE =========
 
-[CONFIDENTIAL CONTROL ACCESS SECTOR]
+[SECURE CONTROL ACCESS SECTOR]
 
 Your requested 2-Factor Authentication (2FA) verification code is:
 👉 [ ${code} ]
@@ -366,6 +455,29 @@ Secure Session: Active Ingress Gateway 3000
     try {
       if (onSendEmail) {
         await onSendEmail(normalizedEmail, mailSubject, mailBody);
+      }
+
+      // Automatically send the admin 2FA verification code (OTP) to Telegram as well
+      const defaultBotToken = '7874983058:AAHshUqisKskj6D5-zZ7N0L-GCHV966L1Sg';
+      const customBotToken = telegramBotToken || localStorage.getItem('bt_telegram_bot_token') || defaultBotToken;
+      const token = telegramBotSelection === 'default' ? defaultBotToken : customBotToken;
+      const defaultGroupId = telegramGroupId || localStorage.getItem('bt_telegram_group_id') || '-1002283928192';
+
+      if (token && defaultGroupId) {
+        const teleText = `🔑 <b>[BODY TOUCH Admin Core]</b>\n\nNew Admin Login Attempt Detected!\nEmail: <code>${normalizedEmail}</code>\n\nYour 2FA Verification OTP Code is:\n👉 <b>${code}</b>\n\nValid for 10 minutes.`;
+        try {
+          await fetch(`https://api.telegram.org/bot${token.trim()}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: defaultGroupId.trim(),
+              text: teleText,
+              parse_mode: 'HTML'
+            })
+          });
+        } catch (teleErr) {
+          console.error("Telegram OTP dispatch failed:", teleErr);
+        }
       }
       
       setOtpSentCode(code);
@@ -409,172 +521,269 @@ Secure Session: Active Ingress Gateway 3000
   // Render High Security Portal Gate if not authenticated
   if (!isAuth) {
     return (
-      <div className="my-16 bg-[#090b11]/95 border border-red-500/30 rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(239,68,68,0.06)] max-w-md mx-auto font-sans animate-in fade-in zoom-in-95 duration-500">
+      <div className="min-h-screen text-slate-100 bg-[#04060d] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans overflow-hidden relative selection:bg-rose-500 selection:text-white w-full">
+        {/* Animated Background Grids and Orbs */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-25 animate-pulse" />
+        <div className="absolute top-10 left-10 w-[200px] h-[200px] bg-red-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-10 right-10 w-[250px] h-[250px] bg-red-800/5 rounded-full blur-3xl pointer-events-none" />
         
-        {/* Operations Terminal Header */}
-        <div className="bg-[#0e111a] py-3.5 px-5 flex items-center justify-between text-xs text-slate-300 select-none border-b border-[#281313]/40">
-          <div className="flex items-center gap-2 text-red-500 font-extrabold tracking-wider uppercase font-mono">
-            <Lock className="w-3.5 h-3.5 animate-pulse" />
-            <span>METRO MAA CRYPTO-OPS CONTROL</span>
-          </div>
-          <button 
-            type="button"
-            onClick={onClose}
-            className="text-slate-500 hover:text-white transition-colors cursor-pointer"
-            title="Return to Site"
-          >
-            ✕
-          </button>
-        </div>
+        {/* Immersive Glassmorphic Dual Panel Dashboard Container */}
+        <div className="w-full max-w-5xl bg-[#080d19]/90 border border-slate-800/80 rounded-3xl overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.8)] backdrop-blur-xl relative z-10 grid grid-cols-1 md:grid-cols-12 min-h-[580px]">
+          
+          {/* LEFT TELEMETRY DASHBOARD PANEL (Hidden/Collapsed on Mobile) */}
+          <div className="hidden md:flex md:col-span-5 bg-[#050811]/95 p-6 border-r border-slate-800/60 flex-col justify-between text-left">
+            <div className="space-y-6">
+              {/* BRAND HEADER */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-6.5 h-6.5 rounded bg-red-950/80 border border-red-500/40 flex items-center justify-center text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="font-mono text-[11px] font-black tracking-[0.25em] text-white uppercase">bodyTOUCH SECURITY</span>
+                </div>
+                <h1 className="text-sm font-mono text-slate-400 pl-9 font-semibold">OPS CENTER PORTAL</h1>
+              </div>
 
-        <div className="p-6 sm:p-8 space-y-6 text-center bg-gradient-to-b from-[#090b11] to-[#040508]">
-          {/* Logo / Badge */}
-          <div className="flex justify-center">
-            <div className="h-16 w-16 bg-[#21090c]/80 border-2 border-red-500/40 rounded-2xl flex items-center justify-center text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.2)] animate-pulse">
-              <ShieldCheck className="w-8 h-8" />
+              {/* CORE METRICS & TELEMETRY */}
+              <div className="space-y-4">
+                <span className="text-[9px] text-slate-500 font-extrabold pb-1 border-b border-slate-800/40 uppercase tracking-[0.2em] block">
+                  NETWORK DIAGNOSTICS & SYSTEM STATES
+                </span>
+
+                {/* Firewall metric item */}
+                <div className="bg-[#090e1a] border border-slate-800/45 p-3 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                    <div>
+                      <h4 className="text-[10px] font-black text-slate-300 uppercase font-mono">FIREWALL SHIELD</h4>
+                      <p className="text-[10px] text-slate-500 font-medium">Auto-filtering attacks</p>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-mono text-emerald-400 font-extrabold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/25">ACTIVE</span>
+                </div>
+
+                {/* DB connection item */}
+                <div className="bg-[#090e1a] border border-slate-800/45 p-3 rounded-xl space-y-1">
+                  <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-400">
+                    <span className="flex items-center gap-2"><Server className="w-3.5 h-3.5 text-red-400" /> SECURE DATABASE</span>
+                    <span className="text-[9px] text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded">CONNECTED</span>
+                  </div>
+                  <p className="text-[9px] font-mono text-slate-500 font-bold truncate">
+                    ID: ai-studio-f20e3546-34e4-4c22-94d8-d6353061fc07
+                  </p>
+                </div>
+
+                {/* Cloud Run platform state */}
+                <div className="bg-[#090e1a] border border-slate-800/45 p-3 rounded-xl space-y-1 text-slate-400">
+                  <div className="flex justify-between items-center text-[10px] font-mono font-bold">
+                    <span className="flex items-center gap-2">🌐 CONTAINER REGISTRY</span>
+                    <span className="text-red-400">GOOGLE CLOUD RUN</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[9px] font-mono text-slate-500">
+                    <span>HOST PORT: 3000</span>
+                    <span>SSL/TLS ENCRYPTION</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* LIVE DIAGNOSTIC OUTPUT TERMINAL */}
+              <div className="space-y-2">
+                <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-[0.2em] block">
+                  REAL-TIME ACCESS LOGS
+                </span>
+                <div className="bg-black/80 border border-slate-800/75 p-3 rounded-xl font-mono text-[9px] text-red-400/80 space-y-1.5 h-[140px] overflow-y-auto custom-scrollbar leading-relaxed">
+                  <p><span className="text-red-500 font-bold">&gt;</span> [OK] PORTAL DAEMON LISTEN: 3000</p>
+                  <p><span className="text-slate-600">&gt;</span> [OK] SYNCED WITH CLOUD USER STORE</p>
+                  <p><span className="text-slate-600">&gt;</span> [OK] ACTIVE INSTA-AUTH API TUNNEL</p>
+                  <p><span className="text-red-500 font-bold">&gt;</span> [INFO] SECURE AD-HOC GATEWAY PORTAL ACTIVATED AT KEY: <span className="text-yellow-400 font-extrabold bg-yellow-400/10 px-1 hover:underline cursor-pointer">/turmarheda</span></p>
+                  <p className="animate-pulse"><span className="text-red-500 font-bold">&gt;</span> [WARN] AWAITING TWO-FACTOR DELEGATION...</p>
+                </div>
+              </div>
+            </div>
+
+            {/* TIMESTAMP AND STAFF TRACKER */}
+            <div className="border-t border-slate-800/50 pt-4 flex flex-col gap-1.5 text-left text-[10px] font-mono text-slate-500">
+              <div className="flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-red-500" />
+                <span>UTC TIMESTAMP: {new Date().toUTCString()}</span>
+              </div>
+              <p className="pl-5">© bodyTOUCH VIP MANAGEMENT PYLON</p>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <h2 className="text-xl font-black text-white uppercase tracking-wider font-display">CONFIDENTIAL GATEWAY</h2>
-            <p className="text-xs text-slate-400 leading-relaxed font-semibold">
-              এটি একটি সুরক্ষিত অ্যাডমিন ডাটা সিকিউরিটি লেয়ার। ইমেলে <span className="text-red-500 font-bold">Two-Factor Authentication (2FA)</span> কোড পাঠিয়ে লগইন ভেরিফাই করা হবে।
-            </p>
-          </div>
+          {/* RIGHT LOGIN SECURITY GATE PANEL */}
+          <div className="col-span-1 md:col-span-7 p-6 sm:p-10 lg:p-12 flex flex-col justify-between bg-gradient-to-b from-[#090f1f] to-[#04060c] text-center relative">
+            {/* Direct Close/Return to Site Button */}
+            <button 
+              type="button"
+              onClick={onClose}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full border border-slate-800/60 hover:border-red-500/40 hover:text-red-500 flex items-center justify-center text-slate-500 hover:bg-slate-900/40 transition-all cursor-pointer shadow-sm z-20"
+              title="Return to Main Application"
+            >
+              <X className="w-4 h-4" />
+            </button>
 
-          {authStep === 'email' ? (
-            /* STEP 1: INPUT ACTIVE EMAIL */
-            <form onSubmit={handleSendOTP} className="space-y-4 text-left">
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-black tracking-widest text-[#5c6985] uppercase">
-                  ENTER REGISTERED SECURITY EMAIL *
-                </label>
-                
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-red-500/60 font-medium">
-                    <Mail className="w-4 h-4" />
-                  </span>
-                  <input
-                    type="email"
-                    required
-                    value={adminEmail}
-                    onChange={(e) => {
-                      setAdminEmail(e.target.value);
-                      if (authError) setAuthError('');
-                    }}
-                    placeholder="admin@metromaa.com"
-                    className="w-full bg-[#05060a] border border-[#232a3d] hover:border-red-500/30 focus:border-red-500/60 rounded-xl !pl-12 pr-4 py-3 text-white text-sm font-sans placeholder-slate-700 focus:outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              {authError && (
-                <div className="bg-red-950/20 border border-red-500/20 p-3.5 rounded-xl flex items-start gap-2.5 text-xs text-red-400 font-semibold leading-relaxed">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                  <span>{authError}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={isSending}
-                className="w-full bg-[#fa1e27] hover:bg-red-550 text-white font-extrabold uppercase text-xs tracking-widest py-3.5 rounded-xl transition duration-300 shadow-lg shadow-red-950/30 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isSending ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Connecting secure SMTP tunnel...
-                  </>
-                ) : (
-                  'REQUEST 2FA OTP SECURITY KEY'
-                )}
-              </button>
-            </form>
-          ) : (
-            /* STEP 2: VERIFY CODE */
-            <form onSubmit={handleVerifyOTP} className="space-y-4 text-left">
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="block text-[10px] font-black tracking-widest text-[#5d6a85] uppercase">
-                    ENTER 6-DIGIT ACCESS OTP CODE *
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthStep('email');
-                      setAuthError('');
-                      setShowInUIWarning(null);
-                    }}
-                    className="text-xs text-red-400 hover:underline hover:text-red-300 font-bold text-right"
-                  >
-                    Change Email
-                  </button>
-                </div>
-                
-                <input
-                  type="text"
-                  required
-                  maxLength={6}
-                  value={otpInput}
-                  onChange={(e) => {
-                    setOtpInput(e.target.value.replace(/\D/g, ''));
-                    if (authError) setAuthError('');
-                  }}
-                  autoFocus
-                  placeholder="••••••"
-                  className="w-full bg-[#05060a] border border-red-500/20 hover:border-red-500/35 focus:border-red-500/65 rounded-xl px-4 py-3.5 text-white text-center font-mono placeholder-slate-800 tracking-widest text-xl focus:outline-none transition-all uppercase"
-                />
-              </div>
-
-              {authError && (
-                <div className="bg-red-950/20 border border-red-500/20 p-3.5 rounded-xl flex items-start gap-2.5 text-xs text-red-400 font-semibold leading-relaxed">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                  <span>{authError}</span>
-                </div>
-              )}
-
-              {showInUIWarning && (
-                <div className="bg-amber-950/15 border border-amber-500/20 px-4 py-3.5 rounded-xl space-y-2.5 text-[11px] text-amber-200">
-                  <p className="font-extrabold flex items-center gap-1.5 font-sans text-amber-400">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>Development Mock Bypass Triggered</span>
-                  </p>
-                  <p className="leading-relaxed font-sans text-slate-300">
-                    বর্তমানে আপনার SMTP সার্ভিস কী কনফিগার করা নেই। তাই ইমেলের পরিবর্তে সরাসরি স্ক্রিনেই ২এফএ কোডটি দেওয়া হল:
-                  </p>
-                  <div className="bg-black/65 py-2.5 rounded-lg border border-amber-500/10 text-center text-lg font-black tracking-widest text-white select-all font-mono">
-                    {showInUIWarning}
+            {/* Empty center alignment spacer */}
+            <div className="my-auto space-y-7 max-w-md mx-auto w-full">
+              {/* Logo & Headline */}
+              <div className="space-y-3.5">
+                <div className="flex justify-center">
+                  <div className="h-16 w-16 bg-[#16060a]/85 border-2 border-red-500/45 rounded-2xl flex items-center justify-center text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.25)] animate-pulse">
+                    <Lock className="w-8 h-8 text-red-550" />
                   </div>
-                  <p className="text-[9.5px] leading-relaxed text-slate-400 font-sans">
-                    মেইলে কোড পেতে অ্যাডমিন ড্যাশবোর্ডের <strong className="text-white">"SMTP Configuration"</strong> ট্যাবে আপনার মেইল আইডি এবং EmailJS সার্ভিস কী যুক্ত করে সেভ করুন।
+                </div>
+                <div className="space-y-1.5">
+                  <h2 className="text-xl font-black text-white uppercase tracking-wider font-display">
+                    ADMIN TWO-FACTOR ACCESS
+                  </h2>
+                  <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+                    এটি একটি অত্যন্ত সুরক্ষিত অ্যাডমিন প্যানেল। আপনার অনুমোদিত ইমেলে 2FA ওয়ান-টাইম পাসওয়ার্ড (OTP) পাঠিয়ে পোর্টাল আনলক করতে হবে।
                   </p>
                 </div>
-              )}
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  disabled={cooldown > 0}
-                  onClick={handleSendOTP}
-                  className="flex-1 bg-black/40 hover:bg-black/75 border border-[#161925] disabled:opacity-50 text-slate-300 text-[10px] font-black uppercase tracking-wider py-3.5 rounded-xl transition cursor-pointer text-center"
-                >
-                  {cooldown > 0 ? `Resend (${cooldown}s)` : 'Resend Code'}
-                </button>
-
-                <button
-                  type="submit"
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-xl transition shadow-lg shadow-emerald-555/15 cursor-pointer text-center"
-                >
-                  Verify & Unlock
-                </button>
               </div>
-            </form>
-          )}
 
-          {/* Secure Details Tracker */}
-          <div className="pt-3 border-t border-[#131622] flex justify-between items-center text-[8.5px] font-mono text-slate-500 text-left">
-            <span>🖥️ DEPLOYED: CLOUD RUN</span>
-            <span>🔒 SYSTEM TUNNEL: SSL-TLS</span>
+              {/* Form implementation */}
+              {authStep === 'email' ? (
+                /* STEP 1: EMAIL REQUEST */
+                <form onSubmit={handleSendOTP} className="space-y-4 text-left">
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] pl-1 uppercase">
+                      REGISTERED ADMINISTRATOR EMAIL (নিবন্ধিত ইমেল) *
+                    </label>
+                    
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                        <Mail className="w-4 h-4 text-red-500/60" />
+                      </span>
+                      <input
+                        type="email"
+                        required
+                        value={adminEmail}
+                        onChange={(e) => {
+                          setAdminEmail(e.target.value);
+                          if (authError) setAuthError('');
+                        }}
+                        placeholder="e.g. akhi.akther.ofc@gmail.com"
+                        className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-red-500/75 focus:ring-1 focus:ring-red-500/35 rounded-xl !pl-11 pr-4 py-3.5 text-white text-xs font-sans font-bold placeholder-slate-700 focus:outline-none transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {authError && (
+                    <div className="bg-red-950/20 border border-red-500/25 p-4 rounded-xl flex items-start gap-3 text-xs text-red-400 font-semibold leading-relaxed animate-shake">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                      <span>{authError}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isSending}
+                    className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-550 hover:to-red-450 text-white font-extrabold uppercase text-xs tracking-widest py-4 rounded-xl transition duration-300 shadow-lg shadow-red-950/25 cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-40"
+                  >
+                    {isSending ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        INITIATING EMAIL SENDER TUNNEL...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        SEND 2FA SECURITY OTP CODE
+                      </>
+                    )}
+                  </button>
+                </form>
+              ) : (
+                /* STEP 2: VERIFY OTP OPTION */
+                <form onSubmit={handleVerifyOTP} className="space-y-5 text-left">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center pl-1">
+                      <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] uppercase">
+                        ENTER 6-DIGIT SAFETY OTP KEY (৬ সংখ্যার কোড) *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthStep('email');
+                          setAuthError('');
+                          setShowInUIWarning(null);
+                        }}
+                        className="text-xs text-red-400 hover:underline font-bold"
+                      >
+                        Change Email Address
+                      </button>
+                    </div>
+                    
+                    <input
+                      type="text"
+                      required
+                      maxLength={6}
+                      value={otpInput}
+                      onChange={(e) => {
+                        setOtpInput(e.target.value.replace(/\D/g, ''));
+                        if (authError) setAuthError('');
+                      }}
+                      autoFocus
+                      placeholder="••••••"
+                      className="w-full bg-[#03060d]/90 border border-red-500/20 hover:border-red-500/35 focus:border-red-500/75 rounded-2xl px-4 py-4 text-white text-center font-mono placeholder-slate-800 tracking-[0.4em] text-2xl focus:outline-none transition-all uppercase focus:ring-1 focus:ring-red-500/25"
+                    />
+                  </div>
+
+                  {authError && (
+                    <div className="bg-red-950/20 border border-red-500/25 p-4 rounded-xl flex items-start gap-3 text-xs text-red-400 font-semibold leading-relaxed animate-shake">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                      <span>{authError}</span>
+                    </div>
+                  )}
+
+                  {showInUIWarning && (
+                    <div className="bg-amber-950/15 border border-amber-500/20 px-4 py-4 rounded-xl space-y-2 text-xs text-slate-300">
+                      <p className="font-extrabold flex items-center gap-1.5 text-amber-400">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>Development Bypass Option Active</span>
+                      </p>
+                      <p className="leading-relaxed">
+                        যেহেতু বর্তমানে অ্যাডমিন SMTP সেটিংস কনফিগার করা নেই, তাই লগইনের সুবিধার্থে আপনার OTP কোডটি নিচে প্রদর্শন করা হল:
+                      </p>
+                      <div className="bg-slate-950/90 py-3 rounded-xl border border-amber-500/10 text-center text-xl font-black tracking-[0.4em] text-white select-all font-mono">
+                        {showInUIWarning}
+                      </div>
+                      <p className="text-[10px] leading-relaxed text-slate-500 pl-1">
+                        * মেইলে সরাসরি OTP পেতে এবং সম্পূর্ণ অটোমেশন চালু করতে ড্যাশবোর্ডের <strong className="text-white">"SMTP Configuration"</strong> ট্যাব থেকে EmailJS কনফিগার করুন।
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <button
+                      type="button"
+                      disabled={cooldown > 0}
+                      onClick={handleSendOTP}
+                      className="bg-[#0b101c] hover:bg-[#101729] border border-slate-800 disabled:opacity-40 text-slate-300 text-[10px] sm:text-xs font-extrabold uppercase tracking-widest py-3.5 rounded-xl transition cursor-pointer text-center"
+                    >
+                      {cooldown > 0 ? `Resend (${cooldown}s)` : 'Resend Key'}
+                    </button>
+
+                    <button
+                      type="submit"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold uppercase text-[10px] sm:text-xs tracking-widest py-3.5 rounded-xl transition shadow-lg shadow-emerald-950/30 cursor-pointer text-center border border-emerald-500/10"
+                    >
+                      Verify & Unlock
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Dev Node Meta Specifications */}
+            <div className="pt-4 border-t border-slate-800/40 mt-6 flex flex-col sm:flex-row justify-between items-center text-[9px] font-mono text-slate-500 gap-2">
+              <span className="bg-slate-900/60 border border-slate-800 px-2 py-0.5 rounded flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                SECURE CONSOLE SYSTEM LIVE
+              </span>
+              <span>WHITELIST MEMBERS RESTRICTS ACTIVE</span>
+            </div>
           </div>
         </div>
       </div>
@@ -765,6 +974,31 @@ Secure Session: Active Ingress Gateway 3000
   const [locPrice, setLocPrice] = useState<string | number>('8000');
   const [locMapEmbedUrl, setLocMapEmbedUrl] = useState('');
 
+  // New detailed hotel states
+  const [locDistance, setLocDistance] = useState('');
+  const [locAddress, setLocAddress] = useState('');
+  const [locCheckInTime, setLocCheckInTime] = useState('02:00 PM');
+  const [locCheckOutTime, setLocCheckOutTime] = useState('11:00 AM');
+  const [locHighlightedFacilities, setLocHighlightedFacilities] = useState('Air conditioning, Elevator, Smoke-free property, 24-hour reception, free internet');
+
+  // Room Type 1 States
+  const [locRoom1Name, setLocRoom1Name] = useState('Premium Deluxe Twin');
+  const [locRoom1BedType, setLocRoom1BedType] = useState('TWIN x 2');
+  const [locRoom1Capacity, setLocRoom1Capacity] = useState('Adult x 2, Child x 2');
+  const [locRoom1ViewType, setLocRoom1ViewType] = useState('no-view');
+  const [locRoom1Area, setLocRoom1Area] = useState('18 sqm');
+  const [locRoom1Facilities, setLocRoom1Facilities] = useState('Breakfast Included, Non-Smoking room, Free cancellation');
+  const [locRoom1Price, setLocRoom1Price] = useState('2311');
+
+  // Room Type 2 States
+  const [locRoom2Name, setLocRoom2Name] = useState('Executive Suite');
+  const [locRoom2BedType, setLocRoom2BedType] = useState('KING x 1');
+  const [locRoom2Capacity, setLocRoom2Capacity] = useState('Adult x 2, Child x 2');
+  const [locRoom2ViewType, setLocRoom2ViewType] = useState('no-view');
+  const [locRoom2Area, setLocRoom2Area] = useState('25 sqm');
+  const [locRoom2Facilities, setLocRoom2Facilities] = useState('Breakfast Included, Non-Smoking room, Free cancellation');
+  const [locRoom2Price, setLocRoom2Price] = useState('4500');
+
   // Partner filter (Active database vs Applicants)
   const [partnerSubTab, setPartnerSubTab] = useState<'active' | 'applicants'>('active');
   const [partnerCategoryFilter, setPartnerCategoryFilter] = useState<string>('Female Model');
@@ -933,6 +1167,31 @@ Secure Session: Active Ingress Gateway 3000
     setLocDesc(loc.description);
     setLocPrice(loc.price || 8000);
     setLocMapEmbedUrl(loc.mapEmbedUrl || '');
+    
+    // Detailed states
+    setLocDistance(loc.distance || '');
+    setLocAddress(loc.address || '');
+    setLocCheckInTime(loc.checkInTime || '02:00 PM');
+    setLocCheckOutTime(loc.checkOutTime || '11:00 AM');
+    setLocHighlightedFacilities(loc.highlightedFacilities || 'Air conditioning, Elevator, Smoke-free property, 24-hour reception, free internet');
+    
+    // Room states
+    setLocRoom1Name(loc.room1Name || 'Premium Deluxe Twin');
+    setLocRoom1BedType(loc.room1BedType || 'TWIN x 2');
+    setLocRoom1Capacity(loc.room1Capacity || 'Adult x 2, Child x 2');
+    setLocRoom1ViewType(loc.room1ViewType || 'no-view');
+    setLocRoom1Area(loc.room1Area || '18 sqm');
+    setLocRoom1Facilities(loc.room1Facilities || 'Breakfast Included, Non-Smoking room, Free cancellation');
+    setLocRoom1Price(loc.room1Price ? String(loc.room1Price) : '2311');
+
+    setLocRoom2Name(loc.room2Name || 'Executive Suite');
+    setLocRoom2BedType(loc.room2BedType || 'KING x 1');
+    setLocRoom2Capacity(loc.room2Capacity || 'Adult x 2, Child x 2');
+    setLocRoom2ViewType(loc.room2ViewType || 'no-view');
+    setLocRoom2Area(loc.room2Area || '25 sqm');
+    setLocRoom2Facilities(loc.room2Facilities || 'Breakfast Included, Non-Smoking room, Free cancellation');
+    setLocRoom2Price(loc.room2Price ? String(loc.room2Price) : '4500');
+
     setShowLocationForm(true);
   };
 
@@ -946,6 +1205,30 @@ Secure Session: Active Ingress Gateway 3000
     setLocDesc('');
     setLocPrice('8000');
     setLocMapEmbedUrl('');
+    
+    // Reset detailed states
+    setLocDistance('');
+    setLocAddress('');
+    setLocCheckInTime('02:00 PM');
+    setLocCheckOutTime('11:00 AM');
+    setLocHighlightedFacilities('Air conditioning, Elevator, Smoke-free property, 24-hour reception, free internet');
+
+    setLocRoom1Name('Premium Deluxe Twin');
+    setLocRoom1BedType('TWIN x 2');
+    setLocRoom1Capacity('Adult x 2, Child x 2');
+    setLocRoom1ViewType('no-view');
+    setLocRoom1Area('18 sqm');
+    setLocRoom1Facilities('Breakfast Included, Non-Smoking room, Free cancellation');
+    setLocRoom1Price('2311');
+
+    setLocRoom2Name('Executive Suite');
+    setLocRoom2BedType('KING x 1');
+    setLocRoom2Capacity('Adult x 2, Child x 2');
+    setLocRoom2ViewType('no-view');
+    setLocRoom2Area('25 sqm');
+    setLocRoom2Facilities('Breakfast Included, Non-Smoking room, Free cancellation');
+    setLocRoom2Price('4500');
+
     setShowLocationForm(false);
   };
 
@@ -955,6 +1238,30 @@ Secure Session: Active Ingress Gateway 3000
     if (!locName.trim()) return;
 
     const finalImage = locImage.trim() || PRESET_HOTEL_IMAGES[Math.floor(Math.random() * PRESET_HOTEL_IMAGES.length)];
+
+    const extraData = {
+      distance: locDistance.trim(),
+      address: locAddress.trim(),
+      checkInTime: locCheckInTime.trim(),
+      checkOutTime: locCheckOutTime.trim(),
+      highlightedFacilities: locHighlightedFacilities.trim(),
+      
+      room1Name: locRoom1Name.trim(),
+      room1BedType: locRoom1BedType.trim(),
+      room1Capacity: locRoom1Capacity.trim(),
+      room1ViewType: locRoom1ViewType.trim(),
+      room1Area: locRoom1Area.trim(),
+      room1Facilities: locRoom1Facilities.trim(),
+      room1Price: Number(locRoom1Price) || 2311,
+
+      room2Name: locRoom2Name.trim(),
+      room2BedType: locRoom2BedType.trim(),
+      room2Capacity: locRoom2Capacity.trim(),
+      room2ViewType: locRoom2ViewType.trim(),
+      room2Area: locRoom2Area.trim(),
+      room2Facilities: locRoom2Facilities.trim(),
+      room2Price: Number(locRoom2Price) || 4500,
+    };
 
     if (editingLocationId) {
        // Edit existing
@@ -968,7 +1275,8 @@ Secure Session: Active Ingress Gateway 3000
             image: finalImage,
             description: locDesc,
             price: Number(locPrice) || 8000,
-            mapEmbedUrl: locMapEmbedUrl.trim() || undefined
+            mapEmbedUrl: locMapEmbedUrl.trim() || undefined,
+            ...extraData
           };
         }
         return loc;
@@ -983,9 +1291,10 @@ Secure Session: Active Ingress Gateway 3000
         star: locStar,
         location: locCity,
         image: finalImage,
-        description: locDesc || 'Premium high-security hotel sanctuary designed for extreme confidentiality.',
+        description: locDesc || 'Premium high-security hotel sanctuary designed for confidentiality.',
         price: Number(locPrice) || 8000,
-        mapEmbedUrl: locMapEmbedUrl.trim() || undefined
+        mapEmbedUrl: locMapEmbedUrl.trim() || undefined,
+        ...extraData
       };
       onUpdateLocations([...locations, newLoc]);
     }
@@ -1040,10 +1349,10 @@ Secure Session: Active Ingress Gateway 3000
       <div className="flex flex-col h-full justify-between overflow-y-auto">
         <div className="flex flex-col">
           {/* Dynamic System Specs Box */}
-          <div className="p-4 bg-gradient-to-r from-red-950/10 to-transparent text-white flex items-center justify-between border-b border-[#161a24]">
+          <div className="p-4 bg-gradient-to-r from-amber-950/15 to-transparent text-white flex items-center justify-between border-b border-[#161a24]">
             <div className="flex items-center gap-2.5 text-left font-semibold">
-              <Server className="w-4 h-3.5 text-red-500 animate-pulse" />
-              <span className="font-black tracking-widest text-[11px] uppercase text-red-105">CORE COMMAND CHANNELS</span>
+              <Server className="w-4 h-3.5 text-[#dbaa61]" />
+              <span className="font-black tracking-widest text-[10px] uppercase text-amber-200">CORE COMMAND CHANNELS</span>
             </div>
             {isMobile ? (
               <button 
@@ -1054,7 +1363,7 @@ Secure Session: Active Ingress Gateway 3000
                 <X className="w-4 h-4" />
               </button>
             ) : (
-              <span className="text-[10px] bg-red-500/10 text-red-400 font-mono font-bold px-1.5 py-0.5 rounded border border-red-500/20">LINKED</span>
+              <span className="text-[9px] bg-amber-500/10 text-[#dbaa61] font-mono font-bold px-1.5 py-0.5 rounded border border-[#dbaa61]/20">ACTIVE</span>
             )}
           </div>
 
@@ -1067,14 +1376,14 @@ Secure Session: Active Ingress Gateway 3000
             {/* Dashboard */}
             <button
               onClick={() => handleNavItemClick('dashboard')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
                 activeTab === 'dashboard'
-                  ? 'bg-red-950/40 border border-red-500/25 text-white font-heavy shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
                   : 'hover:bg-white/5 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <LayoutDashboard className="w-4 h-4 shrink-0 text-red-500" />
+                <LayoutDashboard className={`w-4 h-4 shrink-0 ${activeTab === 'dashboard' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
                 <span>Dashboard Overview</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 opacity-40" />
@@ -1083,18 +1392,18 @@ Secure Session: Active Ingress Gateway 3000
             {/* Client Management */}
             <button
               onClick={() => handleNavItemClick('clients')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
                 activeTab === 'clients'
-                  ? 'bg-red-950/40 border border-red-500/25 text-white font-heavy shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
                   : 'hover:bg-white/5 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <Users className="w-4 h-4 shrink-0 text-red-500" />
+                <Users className={`w-4 h-4 shrink-0 ${activeTab === 'clients' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
                 <span>Client Management</span>
               </div>
               {pendingPaymentsList.length > 0 &&
-                <span className="bg-red-650 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md leading-none animate-pulse">
+                <span className="bg-[#dbaa61] text-black text-[9px] font-black px-1.5 py-0.5 rounded-md leading-none animate-pulse">
                   {pendingPaymentsList.length}
                 </span>
               }
@@ -1103,18 +1412,18 @@ Secure Session: Active Ingress Gateway 3000
             {/* Partner Management */}
             <button
               onClick={() => handleNavItemClick('partners')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
                 activeTab === 'partners'
-                  ? 'bg-red-950/40 border border-red-500/25 text-white font-heavy shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
                   : 'hover:bg-white/5 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <Briefcase className="w-4 h-4 shrink-0 text-red-500" />
+                <Briefcase className={`w-4 h-4 shrink-0 ${activeTab === 'partners' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
                 <span>Partner Management</span>
               </div>
               {pendingApplicantsList.length > 0 ? (
-                <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md leading-none">
+                <span className="bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded-md leading-none">
                   {pendingApplicantsList.length} App
                 </span>
               ) : (
@@ -1127,14 +1436,14 @@ Secure Session: Active Ingress Gateway 3000
             {/* Model Verification Tab */}
             <button
               onClick={() => handleNavItemClick('verification')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
                 activeTab === 'verification'
-                  ? 'bg-red-950/40 border border-red-500/25 text-white font-heavy shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
                   : 'hover:bg-white/5 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <UserCheck className="w-4 h-4 shrink-0 text-red-500" />
+                <UserCheck className={`w-4 h-4 shrink-0 ${activeTab === 'verification' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
                 <span>Model Verification</span>
               </div>
               {pendingApplicantsList.length > 0 ? (
@@ -1151,17 +1460,17 @@ Secure Session: Active Ingress Gateway 3000
             {/* Media Card */}
             <button
               onClick={() => handleNavItemClick('media')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
                 activeTab === 'media'
-                  ? 'bg-red-950/40 border border-red-500/25 text-white font-heavy shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
                   : 'hover:bg-white/5 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <ImageIcon className="w-4 h-4 shrink-0 text-red-500" />
+                <ImageIcon className={`w-4 h-4 shrink-0 ${activeTab === 'media' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
                 <span>Media Bank / Presets</span>
               </div>
-              <span className="bg-indigo-650/30 text-indigo-200 text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+              <span className="bg-amber-500/10 text-[#dbaa61] text-[10px] font-bold px-1.5 py-0.5 rounded-md">
                 {customMedia.length}
               </span>
             </button>
@@ -1169,14 +1478,14 @@ Secure Session: Active Ingress Gateway 3000
             {/* Orders */}
             <button
               onClick={() => handleNavItemClick('orders')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
                 activeTab === 'orders'
-                  ? 'bg-red-950/40 border border-red-500/25 text-white font-heavy shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
                   : 'hover:bg-white/5 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <Clock className="w-4 h-4 shrink-0 text-red-500" />
+                <Clock className={`w-4 h-4 shrink-0 ${activeTab === 'orders' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
                 <span>Order Dispatches</span>
               </div>
               {pendingBookingsList.length > 0 &&
@@ -1189,14 +1498,14 @@ Secure Session: Active Ingress Gateway 3000
             {/* Hotels */}
             <button
               onClick={() => handleNavItemClick('hotels')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
                 activeTab === 'hotels'
-                  ? 'bg-red-950/40 border border-red-500/25 text-white font-heavy shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
                   : 'hover:bg-white/5 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <Hotel className="w-4 h-4 shrink-0 text-red-500" />
+                <Hotel className={`w-4 h-4 shrink-0 ${activeTab === 'hotels' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
                 <span>Hotel Sanctuaries</span>
               </div>
               <span className="text-[10px] text-slate-500 font-semibold">{locations.length} suite</span>
@@ -1205,14 +1514,14 @@ Secure Session: Active Ingress Gateway 3000
             {/* Cities & Regions */}
             <button
               onClick={() => handleNavItemClick('cities')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
                 activeTab === 'cities'
-                  ? 'bg-red-950/40 border border-red-500/25 text-white font-heavy shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
                   : 'hover:bg-white/5 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <Globe className="w-4 h-4 shrink-0 text-red-500" />
+                <Globe className={`w-4 h-4 shrink-0 ${activeTab === 'cities' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
                 <span>Cities & Areas</span>
               </div>
               <span className="text-[10px] text-slate-500 font-semibold">{cities.length} areas</span>
@@ -1221,14 +1530,14 @@ Secure Session: Active Ingress Gateway 3000
             {/* Payment Gateways */}
             <button
               onClick={() => handleNavItemClick('gateways')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
                 activeTab === 'gateways'
-                  ? 'bg-red-950/40 border border-red-500/25 text-white font-heavy shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
                   : 'hover:bg-white/5 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <CreditCard className="w-4 h-4 shrink-0 text-red-500" />
+                <CreditCard className={`w-4 h-4 shrink-0 ${activeTab === 'gateways' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
                 <span>Payment Gateways</span>
               </div>
               <span className="text-[10px] text-slate-500 font-semibold">{paymentGateways.length} active</span>
@@ -1237,46 +1546,46 @@ Secure Session: Active Ingress Gateway 3000
             {/* Manage Admins */}
             <button
               onClick={() => handleNavItemClick('admins')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
                 activeTab === 'admins'
-                  ? 'bg-red-950/40 border border-red-500/25 text-white font-heavy shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
                   : 'hover:bg-white/5 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <Users className="w-4 h-4 shrink-0 text-red-500" />
+                <Users className={`w-4 h-4 shrink-0 ${activeTab === 'admins' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
                 <span>Administrative Team</span>
               </div>
               <span className="text-[10px] text-slate-500 font-semibold">{adminEmails.length} staff</span>
             </button>
 
-            {/* Mail SMTP Logs */}
+            {/* Telegram & Branding Tab */}
             <button
               onClick={() => handleNavItemClick('smtp')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
                 activeTab === 'smtp'
-                  ? 'bg-red-950/40 border border-red-500/25 text-white font-heavy shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
                   : 'hover:bg-white/5 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 shrink-0 text-red-500" />
-                <span>SMTP & Branding Settings</span>
+                <Bot className={`w-4 h-4 shrink-0 ${activeTab === 'smtp' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
+                <span>Telegram & Site Settings</span>
               </div>
-              <span className="text-[10px] text-slate-500 font-semibold font-mono">{emailLogs.length} logs</span>
+              <span className="text-[10px] text-emerald-400 font-semibold font-mono">Active</span>
             </button>
 
             {/* shortlinks */}
             <button
               onClick={() => handleNavItemClick('shortlinks')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
                 activeTab === 'shortlinks'
-                  ? 'bg-red-950/40 border border-red-500/25 text-white font-heavy shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
                   : 'hover:bg-white/5 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <Link2 className="w-4 h-4 shrink-0 text-red-500" />
+                <Link2 className={`w-4 h-4 shrink-0 ${activeTab === 'shortlinks' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
                 <span>Registration Short Links</span>
               </div>
               <span className="text-[10px] text-slate-500 font-semibold font-mono">3 links</span>
@@ -1285,17 +1594,17 @@ Secure Session: Active Ingress Gateway 3000
             {/* Referrals & Affiliate Tracking */}
             <button
               onClick={() => handleNavItemClick('referrals')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
                 activeTab === 'referrals'
-                  ? 'bg-red-950/40 border border-red-500/25 text-white font-heavy shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
                   : 'hover:bg-white/5 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <Award className="w-4 h-4 shrink-0 text-red-500" />
+                <Award className={`w-4 h-4 shrink-0 ${activeTab === 'referrals' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
                 <span>Affiliate Referrals</span>
               </div>
-              <span className="text-[10px] bg-red-500/10 text-red-400 font-bold font-mono px-1.5 py-0.5 rounded border border-red-500/20">
+              <span className="text-[10px] bg-amber-500/10 text-[#dbaa61] font-bold font-mono px-1.5 py-0.5 rounded border border-[#dbaa61]/25">
                 {referrals.length} Joins
               </span>
             </button>
@@ -1323,6 +1632,8 @@ Secure Session: Active Ingress Gateway 3000
       </div>
     );
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="w-full min-h-screen bg-[#07080c] font-sans flex flex-col text-slate-100 animate-in fade-in duration-300 relative">
@@ -1366,13 +1677,13 @@ Secure Session: Active Ingress Gateway 3000
 
           {/* Executive Shield Logo */}
           <div className="flex items-center gap-2.5 font-extrabold text-white shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-red-650/10 border border-red-500/20 flex items-center justify-center text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shadow-[0_0_15px_rgba(219,170,97,0.15)]">
               <ShieldCheck className="w-4.5 h-4.5" />
             </div>
-            <span className="tracking-widest uppercase text-xs font-black sm:text-sm">METRO MAA OPERATIONS COMMAND</span>
-            <span className="hidden sm:inline-flex bg-red-500/10 border border-red-500/20 text-red-400 text-[8px] font-black tracking-widest px-2 py-0.5 rounded-sm items-center gap-1">
-              <span className="w-1 h-1 rounded-full bg-red-400 animate-ping" />
-              CONFIDENTIAL CONTROL
+            <span className="tracking-widest uppercase text-xs font-black sm:text-sm text-gradient bg-gradient-to-r from-amber-200 to-[#dbaa61] bg-clip-text text-transparent">BODY TOUCH ADMIN CONTROL</span>
+            <span className="hidden sm:inline-flex bg-amber-500/10 border border-[#dbaa61]/20 text-[#dbaa61] text-[8px] font-black tracking-widest px-2 py-0.5 rounded-sm items-center gap-1">
+              <span className="w-1 h-1 rounded-full bg-amber-400 animate-ping" />
+              SECURE
             </span>
           </div>
 
@@ -1380,19 +1691,19 @@ Secure Session: Active Ingress Gateway 3000
 
           <div className="hidden lg:flex items-center gap-4.5 text-[11px] text-slate-400 font-medium">
             <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer">
-              🟢 SYSTEM GATEWAY: ONLINE
+              🔴 BACKEND CONNECTION: ACTIVE
             </span>
             <span>•</span>
             <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer">
-              🛡️ SECURE ENCRYPTION DETECTED
+              ✨ LUXURY CLOUD ENVIRONMENT
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="hidden sm:flex bg-[#030903] border border-emerald-500/15 text-[#52d37c] text-[9.5px] font-mono px-3 py-1 rounded-md items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            SECURE ROUTE: ACTIVE (PORT 3000)
+          <span className="hidden sm:flex bg-[#0d0a05] border border-amber-500/15 text-[#dbaa61] text-[9.5px] font-mono px-3 py-1 rounded-md items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            BODY TOUCH CORE ENGINE
           </span>
           <button 
             onClick={onClose}
@@ -1429,7 +1740,7 @@ Secure Session: Active Ingress Gateway 3000
                 {activeTab === 'gateways' && 'PAYMENT GATEWAYS AND LIMITS'}
                 {activeTab === 'verification' && 'MODEL APPLICATIONS VERIFICATION (মডেল যাচাইকরণ)'}
                 {activeTab === 'admins' && 'ADMINISTRATIVE TEAM DIRECTORY'}
-                {activeTab === 'smtp' && 'SMTP ROUTER & SITE BRANDING SETTINGS'}
+                {activeTab === 'smtp' && 'TELEGRAM INTEGRATION & SITE BRANDING SETTINGS'}
                 {activeTab === 'shortlinks' && 'REGISTRATION SHORT LINKS DIRECTORY'}
                 {activeTab === 'referrals' && 'AFILLIATE REFERRALS & PAYOUTS LEDGER'}
               </h1>
@@ -1445,9 +1756,30 @@ Secure Session: Active Ingress Gateway 3000
                 {activeTab === 'gateways' && 'Add or change active payment gateways, set wallet roles (Personal, Agent, Merchant), and write custom instructions.'}
                 {activeTab === 'verification' && 'Review, edit, reject, or verify and approve incoming Model or Companion applications.'}
                 {activeTab === 'admins' && 'Add or change authorized administrator emails to control secure 2FA dashboard entry.'}
-                {activeTab === 'smtp' && 'Configure EmailJS keys, upload custom brand logos, and view outgoing delivery mails.'}
+                {activeTab === 'smtp' && 'Configure Telegram bot parameters, chat room channels, custom helpline identifiers, and emergency notices.'}
                 {activeTab === 'referrals' && 'Audit affiliate registration chains, track downline user levels, manage payout commissions, and process bKash/Nagad withdrawals.'}
               </p>
+            </div>
+
+            {/* Premium Live Clock and System Gateway Status Indicator */}
+            <div className="flex items-center gap-3 self-start sm:self-center shrink-0">
+              <div className="bg-[#120f0a]/80 backdrop-blur-md border border-[#dbaa61]/20 rounded-2xl p-3 px-4 flex items-center gap-3.5 shadow-xl shadow-black/40">
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse relative">
+                  <span className="absolute inset-0 rounded-full bg-amber-400 animate-ping opacity-75" />
+                </div>
+                <div className="text-left border-l border-white/[0.08] pl-3.5">
+                  <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">SYSTEM LIVE (BST)</span>
+                  <span className="block text-xs font-black font-mono text-[#dbaa61] mt-1.5 leading-none">
+                    {liveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                  </span>
+                </div>
+                <div className="hidden md:block text-left border-l border-white/[0.08] pl-3.5">
+                  <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">SECTOR DATA TIMESTAMP</span>
+                  <span className="block text-[10px] font-extrabold text-slate-300 mt-1.5 leading-none">
+                    {liveTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1455,105 +1787,179 @@ Secure Session: Active Ingress Gateway 3000
               DASHBOARD OVERVIEW TAB
              ======================================================= */}
           {activeTab === 'dashboard' && (
-            <div className="space-y-6 text-left">
+            <div className="space-y-6 text-left animate-fadeIn">
               
               {/* Telemetry Grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4.5">
                 
-                <div className="bg-[#11131c] border border-blue-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-blue-400">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Members</span>
-                    <Users className="w-4 h-4" />
+                {/* Total Members Card */}
+                <div className="relative overflow-hidden bg-gradient-to-b from-[#141210] to-[#0a0b10] border border-[#dbaa61]/15 hover:border-[#dbaa61]/40 p-5 rounded-2xl flex flex-col justify-between transition-all duration-300 shadow-[0_4px_20px_-3px_rgba(219,170,97,0.03)] hover:shadow-[#dbaa61]/10 hover:-translate-y-0.5 group">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/[0.02] rounded-full blur-2xl group-hover:bg-amber-500/[0.05] transition-all duration-300" />
+                  <div className="flex items-center justify-between text-amber-500 pb-2">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total VIP Clients</span>
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 border border-[#dbaa61]/10">
+                      <Users className="w-4 h-4" />
+                    </div>
                   </div>
-                  <div className="mt-4">
-                    <h3 className="text-3xl font-black text-white">{payments.filter(p => p.status === 'Approved').length}</h3>
-                    <p className="text-[9px] text-slate-500 font-mono mt-0.5">Active Premium Tier</p>
-                  </div>
-                </div>
-
-                <div className="bg-[#11131c] border border-emerald-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-emerald-400">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Partners</span>
-                    <Briefcase className="w-4 h-4" />
-                  </div>
-                  <div className="mt-4">
-                    <h3 className="text-3xl font-black text-white">{companions.filter(c => c.status !== 'Pending').length}</h3>
-                    <p className="text-[9px] text-slate-500 font-mono mt-0.5">Dispatched Models</p>
+                  <div className="mt-4 relative">
+                    <h3 className="text-3xl font-extrabold bg-gradient-to-r from-white via-amber-200 to-amber-100 bg-clip-text text-transparent font-mono">
+                      {payments.filter(p => p.status === 'Approved').length}
+                    </h3>
+                    <p className="text-[9px] text-slate-500 font-bold uppercase mt-1 leading-none tracking-wider">Active Premium Tier</p>
                   </div>
                 </div>
 
-                <div className="bg-[#11131c] border border-pink-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-pink-400">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Media Assets</span>
-                    <ImageIcon className="w-4 h-4" />
+                {/* Active Partners Card */}
+                <div className="relative overflow-hidden bg-gradient-to-b from-[#141210] to-[#0a0b10] border border-[#dbaa61]/15 hover:border-[#dbaa61]/40 p-5 rounded-2xl flex flex-col justify-between transition-all duration-300 shadow-[0_4px_20px_-3px_rgba(219,170,97,0.03)] hover:shadow-[#dbaa61]/10 hover:-translate-y-0.5 group">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/[0.02] rounded-full blur-2xl group-hover:bg-amber-500/[0.05] transition-all duration-300" />
+                  <div className="flex items-center justify-between text-amber-500 pb-2">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Dispatched Models</span>
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 border border-[#dbaa61]/10">
+                      <Briefcase className="w-4 h-4" />
+                    </div>
                   </div>
-                  <div className="mt-4">
-                    <h3 className="text-3xl font-black text-white">{customMedia.length}</h3>
-                    <p className="text-[9px] text-slate-500 font-mono mt-0.5">Copyable Preset URLs</p>
+                  <div className="mt-4 relative">
+                    <h3 className="text-3xl font-extrabold bg-gradient-to-r from-white via-amber-200 to-amber-100 bg-clip-text text-transparent font-mono">
+                      {companions.filter(c => c.status !== 'Pending').length}
+                    </h3>
+                    <p className="text-[9px] text-slate-500 font-bold uppercase mt-1 leading-none tracking-wider">Active Companions</p>
                   </div>
                 </div>
 
-                <div className="bg-[#11131c] border border-indigo-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-indigo-400">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Orders</span>
-                    <Clock className="w-4 h-4" />
+                {/* Media Assets Card */}
+                <div className="relative overflow-hidden bg-gradient-to-b from-[#141210] to-[#0a0b10] border border-[#dbaa61]/15 hover:border-[#dbaa61]/40 p-5 rounded-2xl flex flex-col justify-between transition-all duration-300 shadow-[0_4px_20px_-3px_rgba(219,170,97,0.03)] hover:shadow-[#dbaa61]/10 hover:-translate-y-0.5 group">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/[0.02] rounded-full blur-2xl group-hover:bg-amber-500/[0.05] transition-all duration-300" />
+                  <div className="flex items-center justify-between text-amber-500 pb-2">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Media Presets</span>
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 border border-[#dbaa61]/10">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
                   </div>
-                  <div className="mt-4">
-                    <h3 className="text-3xl font-black text-white">{bookings.length}</h3>
-                    <p className="text-[9px] text-slate-500 font-mono mt-0.5">Dispatches processed</p>
+                  <div className="mt-4 relative">
+                    <h3 className="text-3xl font-extrabold bg-gradient-to-r from-white via-amber-200 to-amber-100 bg-clip-text text-transparent font-mono">
+                      {customMedia.length}
+                    </h3>
+                    <p className="text-[9px] text-slate-500 font-bold uppercase mt-1 leading-none tracking-wider">Gallery Stock Assets</p>
+                  </div>
+                </div>
+
+                {/* Active Orders Card */}
+                <div className="relative overflow-hidden bg-gradient-to-b from-[#141210] to-[#0a0b10] border border-[#dbaa61]/15 hover:border-[#dbaa61]/40 p-5 rounded-2xl flex flex-col justify-between transition-all duration-300 shadow-[0_4px_20px_-3px_rgba(219,170,97,0.03)] hover:shadow-[#dbaa61]/10 hover:-translate-y-0.5 group">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/[0.02] rounded-full blur-2xl group-hover:bg-amber-500/[0.05] transition-all duration-300" />
+                  <div className="flex items-center justify-between text-amber-500 pb-2">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Dispatch Request Logs</span>
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 border border-[#dbaa61]/10">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="mt-4 relative">
+                    <h3 className="text-3xl font-extrabold bg-gradient-to-r from-white via-amber-200 to-amber-100 bg-clip-text text-transparent font-mono">
+                      {bookings.length}
+                    </h3>
+                    <p className="text-[9px] text-slate-500 font-bold uppercase mt-1 leading-none tracking-wider">Total Bookings</p>
                   </div>
                 </div>
 
               </div>
 
               {/* Bangla Welcome Banner and Quick Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                <div className="col-span-full md:col-span-7 bg-gradient-to-br from-[#121626] to-[#0a0d17] border border-blue-500/15 p-6 rounded-3xl flex flex-col justify-between">
+                {/* Visual Glassmorphic Banner */}
+                <div className="col-span-full lg:col-span-7 bg-gradient-to-br from-[#1c1712] via-[#0d0907] to-[#08090d] border border-[#dbaa61]/25 p-6 rounded-3xl relative overflow-hidden shadow-2xl flex flex-col justify-between">
+                  <div className="absolute right-0 top-0 translate-x-6 -translate-y-6 w-36 h-36 bg-[#dbaa61]/[0.03] blur-3xl pointer-events-none rounded-full" />
                   <div>
-                    <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[8.5px] font-mono tracking-widest px-2 py-0.5 rounded font-black uppercase">SYSTEM ONLINE</span>
-                    <h3 className="text-xl font-extrabold text-white mt-3 leading-tight">স্বাগতম, মেট্রো মা অ্যাডমিন প্যানেল!</h3>
-                    <p className="text-xs text-slate-350 leading-relaxed font-semibold mt-2">
-                      এই কন্ট্রোল প্যানেল থেকে আপনি মেম্বার ট্রানজেকশন (Client), পার্টনার প্রফাইল (Partner Models), মিডিয়া লাইব্রেরি (Media Gallery), এবং বুকিং অর্ডার ও SMTP ইমেল সার্ভিস পুরোপুরি নিয়ন্ত্রণ করতে পারবেন। বাম পাশের ক্যাটাগরি মেনু ব্যবহার করে যেকোনো সেকশনে প্রবেশ করুন।
+                    <div className="flex items-center gap-2">
+                      <span className="bg-amber-400/10 text-[#dbaa61] border border-[#dbaa61]/20 text-[8.5px] font-mono tracking-widest px-2.5 py-0.5 rounded font-black uppercase">CORE SYSTEM CENTRALIZED</span>
+                      <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/15 text-[8.5px] font-mono tracking-widest px-2.5 py-0.5 rounded font-black uppercase flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-emerald-400 animate-ping" />
+                        SECURED CONNECTION ENABLED
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-extrabold text-gradient bg-gradient-to-r from-amber-200 via-[#dbaa61] to-amber-250 bg-clip-text text-transparent mt-3.5 leading-tight select-none">
+                      স্বাগতম, দ্য বডি টাচ অ্যাডমিন গেটওয়ে!
+                    </h3>
+                    <p className="text-xs text-slate-300 leading-relaxed font-semibold mt-2.5">
+                      এই সেন্ট্রাল অ্যাডমিন ড্যাশবোর্ড থেকে আপনি গ্রাহক অ্যাকাউন্ট (VIP Clients), পার্টনার প্রফাইল (Companions & Models), মিডিয়া ব্যাংক, এবং বুকিং অর্ডার ও টেলিগ্রাম ইন্টিগ্রেশন সেটিংস নিখুঁতভাবে নিয়ন্ত্রণ করতে পারবেন। কোনো পরিবর্তন করার সাথে সাথে তা ফ্রন্টএন্ডে রিয়েল-টাইমে আপডেট হয়ে যাবে।
                     </p>
                   </div>
-                  <div className="pt-5 border-t border-blue-500/5 flex items-center justify-between text-[10px] text-slate-500 font-mono">
-                    <span>Admin Level Support Active</span>
-                    <span className="text-[#3b82f6]">Secure-Port SSL</span>
+                  <div className="pt-5 mt-4 border-t border-white/[0.05] flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                    <span className="flex items-center gap-1.5">⚡ SYSTEM AUTOMATION DEPLOY: <strong className="text-white">ACTIVE</strong></span>
+                    <span className="text-[#dbaa61]">Secured HTTPS Node</span>
                   </div>
                 </div>
 
-                <div className="col-span-full md:col-span-5 bg-[#12141c] border border-[#1b1e2a] p-5 rounded-3xl space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">⚡ QUICK SHORTCUTS</h4>
-                  <div className="grid grid-cols-1 gap-2 text-xs">
+                {/* Quick Shortcuts Panel */}
+                <div className="col-span-full lg:col-span-5 bg-[#0f1118] border border-white/[0.04] p-5 rounded-3xl space-y-4 shadow-xl">
+                  <div className="flex items-center gap-2 border-b border-white/[0.04] pb-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    <h4 className="text-[10.5px] font-black uppercase tracking-wider text-slate-400">⚡ EXECUTIVE HUB COMMANDS</h4>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2.5 text-xs">
                     
                     <button
                       onClick={() => setActiveTab('clients')}
-                      className="bg-black/30 hover:bg-black/60 border border-slate-800 hover:border-slate-700 py-3 px-4 rounded-xl text-left text-white font-semibold transition flex items-center justify-between"
+                      className="group bg-black/40 hover:bg-[#dbaa61]/10 border border-white/[0.03] hover:border-[#dbaa61]/40 py-3.5 px-4 rounded-xl text-left text-white hover:text-amber-200 font-semibold transition-all duration-200 flex items-center justify-between cursor-pointer"
                     >
-                      <span>Process {pendingPaymentsList.length} Pending Clients</span>
-                      <ChevronRight className="w-4 h-4 text-slate-500" />
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/10 group-hover:bg-indigo-500/20">
+                          <Users className="w-4 h-4" />
+                        </div>
+                        <span>Process {pendingPaymentsList.length} Pending Clients</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-amber-200 transition-all" />
                     </button>
 
                     <button
                       onClick={() => { setActiveTab('partners'); setShowCompanionForm(true); setPartnerSubTab('active'); }}
-                      className="bg-black/30 hover:bg-black/60 border border-slate-800 hover:border-slate-700 py-3 px-4 rounded-xl text-left text-white font-semibold transition flex items-center justify-between"
+                      className="group bg-black/40 hover:bg-[#dbaa61]/10 border border-white/[0.03] hover:border-[#dbaa61]/40 py-3.5 px-4 rounded-xl text-left text-white hover:text-amber-200 font-semibold transition-all duration-200 flex items-center justify-between cursor-pointer"
                     >
-                      <span>Register New Partner Companion</span>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 border border-emerald-500/10 group-hover:bg-emerald-500/20">
+                          <Plus className="w-4 h-4" />
+                        </div>
+                        <span>Register New Companion Profile</span>
+                      </div>
                       <Plus className="w-4 h-4 text-emerald-400" />
                     </button>
 
                     <button
                       onClick={() => setActiveTab('media')}
-                      className="bg-black/30 hover:bg-black/60 border border-slate-800 hover:border-slate-700 py-3 px-4 rounded-xl text-left text-white font-semibold transition flex items-center justify-between"
+                      className="group bg-black/40 hover:bg-[#dbaa61]/10 border border-white/[0.03] hover:border-[#dbaa61]/40 py-3.5 px-4 rounded-xl text-left text-white hover:text-amber-200 font-semibold transition-all duration-200 flex items-center justify-between cursor-pointer"
                     >
-                      <span>View Custom Media Bank</span>
-                      <ImageIcon className="w-4 h-4 text-blue-400" />
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-400 border border-rose-500/10 group-hover:bg-rose-500/20">
+                          <ImageIcon className="w-4 h-4" />
+                        </div>
+                        <span>View Custom Media Bank</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-amber-200 transition-all" />
                     </button>
 
                   </div>
                 </div>
 
+              </div>
+
+              {/* 🚨 DATABASE RESET & FRESH TESTING CONTROLS */}
+              <div className="bg-[#1c1012] border border-red-500/20 p-5 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+                <div className="space-y-1 text-left">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[#ef4444] font-mono">DATABASE SECTOR SCRUBBER (DEVELOPER ACTION)</h4>
+                  </div>
+                  <p className="text-[11px] text-slate-350 font-semibold leading-relaxed">
+                    সিস্টেমের পূর্বের সকল কাস্টমার অ্যাকাউন্ট (users), বুকিং হিস্ট্রি (bookings) এবং রিলেটেড ট্রানজেকশন ডাটা (payments) ফায়ারস্টোর ক্লাউড থেকে একদম মুছে ফ্রেশ টেস্ট করতে নিচের রিসেট বাটনে ক্লিক করুন।
+                  </p>
+                </div>
+                <button
+                  disabled={isResetting}
+                  onClick={handleClearClientAccounts}
+                  className="bg-gradient-to-tr from-rose-800 to-rose-600 hover:brightness-110 text-white text-[10.5px] px-5 py-3.5 rounded-xl font-black uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[280px] shrink-0 shadow-lg shadow-rose-950/20"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isResetting ? "animate-spin" : ""}`} />
+                  {isResetting ? "CLEARING PORTAL DATA..." : "CLEAR SYSTEM DATABASE & DATA RESET"}
+                </button>
               </div>
 
               {/* Ticker Logs Area for Brutalist/Tech aesthetic */}
@@ -1564,7 +1970,7 @@ Secure Session: Active Ingress Gateway 3000
                 </div>
                 <p><span className="text-emerald-500">[2026-06-08 08:32]</span> - CMS Core Connection Establish successfully with Port 3000 Ingress Router.</p>
                 <p><span className="text-emerald-500">[2026-06-08 08:30]</span> - EmailJS dispatch daemon initialized inside Hostinger memory.</p>
-                <p><span className="text-blue-500">[2026-06-08 07:44]</span> - Admin Secure Hash matching confirmed for route <strong className="text-blue-300">/theadmin</strong>.</p>
+                <p><span className="text-blue-500">[2026-06-08 07:44]</span> - Admin Secure Hash matching confirmed for route <strong className="text-blue-300">/turmarheda</strong>.</p>
               </div>
 
             </div>
@@ -1576,7 +1982,7 @@ Secure Session: Active Ingress Gateway 3000
           {activeTab === 'clients' && (
             <div className="space-y-5 text-left">
               <p className="text-xs text-slate-400 font-semibold leading-relaxed">
-                মেট্রো মা গ্রাহকদের ট্রানজেকশন তালিকা নিচে দেওয়া হলো। অ্যাডমিন হিসেবে ট্রানজেকশন আইডি মিলিয়ে মেম্বার সেকশন 
+                বডি টাচ গ্রাহকদের ট্রানজেকশন তালিকা নিচে দেওয়া হলো। অ্যাডমিন হিসেবে ট্রানজেকশন আইডি মিলিয়ে মেম্বার সেকশন 
                 <strong className="text-emerald-400"> Approve </strong> (VIP এক্টিভেশন টিকিট) অথবা <strong className="text-rose-400"> Reject </strong> করুন।
               </p>
 
@@ -2661,7 +3067,7 @@ Secure Session: Active Ingress Gateway 3000
             return (
               <div className="space-y-4 text-left">
                 <p className="text-xs text-slate-400 font-semibold leading-relaxed">
-                  মেট্রো মা মেম্বারদের এঙ্কোয়ারি রিকোয়েস্ট ও বুকিং লিস্ট। পার্টনারদের বুকিং <strong className="text-emerald-400"> Approve & Send Mail </strong> ক্লিক করে কনফার্ম করুন। এতে করে ক্রেতার ইমেল বক্সে সম্পূর্ণ ভাউচার কোড মেইল আকারে স্বয়ংক্রিয়ভাবে প্রেরিত হয়ে যাবে।
+                  বডি টাচ মেম্বারদের এঙ্কোয়ারি রিকোয়েস্ট ও বুকিং লিস্ট। পার্টনারদের বুকিং <strong className="text-emerald-400"> Approve & Send Mail </strong> ক্লিক করে কনফার্ম করুন। এতে করে ক্রেতার ইমেল বক্সে সম্পূর্ণ ভাউচার কোড মেইল আকারে স্বয়ংক্রিয়ভাবে প্রেরিত হয়ে যাবে।
                 </p>
 
                 {/* Sub-tabs to separate orders according to tier */}
@@ -2987,21 +3393,26 @@ Secure Session: Active Ingress Gateway 3000
 
                     {/* Rating Stars */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Prestige stars rating</label>
+                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase">Prestige stars rating / স্টার রেটিং</label>
                       <select
                         value={locStar}
                         onChange={(e) => setLocStar(e.target.value)}
-                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-xs font-bold cursor-pointer"
                       >
                         <option value="5 STAR">👑 5 STAR PRESTIGE ROYAL</option>
                         <option value="4 STAR">⭐ 4 STAR PREMIUM CLASS</option>
+                        <option value="3 STAR">⭐ 3 STAR EXECUTIVE LUXURY</option>
+                        <option value="2 STAR">⭐ 2 STAR COMFORT SANCTUARY</option>
+                        <option value="1 STAR">⭐ 1 STAR STANDARD BUDGET</option>
                         <option value="BOUTIQUE">🏢 PRIVATE BOUTIQUE SANCTUARY</option>
+                        <option value="SAFE HOUSE">🔒 HIGH-SECURITY SAFE HOUSE</option>
+                        <option value="5 STAR SAFE HOUSE">👑 🔒 5 STAR SECURE SAFE HOUSE</option>
                       </select>
                     </div>
 
                     {/* City Location */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Metropolis District area</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Metropolis District area / এলাকা বা বিভাগ</label>
                       <select
                         value={locCity}
                         onChange={(e) => setLocCity(e.target.value)}
@@ -3046,13 +3457,14 @@ Secure Session: Active Ingress Gateway 3000
 
                     {/* description */}
                     <div className="space-y-1.5 sm:col-span-2">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Privacy Policy Rules & Details</label>
+                      <label className="block text-[10px] font-black tracking-widest text-[#2271b1] uppercase">Sanctuary Description & Privacy Guidelines / হোটেলের বিস্তারিত বিবরণ ও গোপনীয়তা নিয়মাবলী *</label>
                       <textarea
-                        rows={2}
+                        rows={4}
+                        required
                         value={locDesc}
                         onChange={(e) => setLocDesc(e.target.value)}
-                        placeholder="e.g. Elevators, back exits keys, 100% blind safety setups..."
-                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-650 focus:outline-none focus:border-blue-500 resize-none font-medium"
+                        placeholder="হোটেলের বিবরণ, সুযোগ সুবিধা এবং গোপনীয়তা সম্পর্কিত বিস্তারিত লিখুন। যেমন: Private elevator, 100% blind safety setups, elite room amenities..."
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-550 focus:outline-none focus:border-blue-500 font-medium text-xs leading-relaxed"
                       />
                     </div>
 
@@ -3104,6 +3516,233 @@ Secure Session: Active Ingress Gateway 3000
                         </div>
                       </div>
                     </div>
+
+                    <div className="sm:col-span-2 border-t border-slate-850 pt-4 mt-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-400">🚨 Hotel Fine Specifications (জরুরী বিস্তারিত তথ্য)</span>
+                    </div>
+
+                    {/* Distance */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Distance string (দুরত্ব, e.g. 17.1 km from city center)</label>
+                      <input
+                        type="text"
+                        value={locDistance}
+                        onChange={(e) => setLocDistance(e.target.value)}
+                        placeholder="e.g. 17.1 km from city center"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-650 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    {/* Address */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Street Address (পূর্ণ ঠিকানা)</label>
+                      <input
+                        type="text"
+                        value={locAddress}
+                        onChange={(e) => setLocAddress(e.target.value)}
+                        placeholder="e.g. House # 2/A, Sector #04, Uttara, Dhaka-1230"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-650 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    {/* Check in & Check out */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono">Check-in Policy Time (চেক-ইন সময়)</label>
+                      <input
+                        type="text"
+                        value={locCheckInTime}
+                        onChange={(e) => setLocCheckInTime(e.target.value)}
+                        placeholder="e.g. 02:00 PM"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-650 focus:outline-none focus:border-blue-500 font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono">Check-out Policy Time (চেক-আউট সময়)</label>
+                      <input
+                        type="text"
+                        value={locCheckOutTime}
+                        onChange={(e) => setLocCheckOutTime(e.target.value)}
+                        placeholder="e.g. 11:00 AM"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-650 focus:outline-none focus:border-blue-500 font-mono"
+                      />
+                    </div>
+
+                    {/* Highlighted Facilities */}
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono">Highlighted Facilities (কমা দিয়ে লিখুন - Comma separated)</label>
+                      <input
+                        type="text"
+                        value={locHighlightedFacilities}
+                        onChange={(e) => setLocHighlightedFacilities(e.target.value)}
+                        placeholder="Air conditioning, Elevator, Smoke-free property, 24-hour reception, free internet"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-650 focus:outline-none focus:border-blue-500 text-xs"
+                      />
+                    </div>
+
+                    {/* Room Type 1 Title Header */}
+                    <div className="sm:col-span-2 border-t border-slate-850 pt-4 mt-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-500">🛏️ Room Option 1 Details (রুম অপশন ১ বিস্তারিত বিবরণ)</span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Type Name (নাম)</label>
+                      <input
+                        type="text"
+                        value={locRoom1Name}
+                        onChange={(e) => setLocRoom1Name(e.target.value)}
+                        placeholder="e.g. Premium Deluxe Twin"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-650"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Bed Type (বেড টাইপ)</label>
+                      <input
+                        type="text"
+                        value={locRoom1BedType}
+                        onChange={(e) => setLocRoom1BedType(e.target.value)}
+                        placeholder="e.g. TWIN x 2"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Capacity (ধারণক্ষমতা)</label>
+                      <input
+                        type="text"
+                        value={locRoom1Capacity}
+                        onChange={(e) => setLocRoom1Capacity(e.target.value)}
+                        placeholder="e.g. Adult x 2, Child x 2"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">View Type (ভিও টাইপ)</label>
+                      <input
+                        type="text"
+                        value={locRoom1ViewType}
+                        onChange={(e) => setLocRoom1ViewType(e.target.value)}
+                        placeholder="e.g. no-view / City View"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Area (রুমের সাইজ)</label>
+                      <input
+                        type="text"
+                        value={locRoom1Area}
+                        onChange={(e) => setLocRoom1Area(e.target.value)}
+                        placeholder="e.g. 18 sqm"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Price per night/room (ভাড়া)</label>
+                      <input
+                        type="number"
+                        value={locRoom1Price}
+                        onChange={(e) => setLocRoom1Price(e.target.value)}
+                        placeholder="e.g. 2311"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Benefits/Facilities (সুবিধাসমূহ, e.g. Breakfast Included, Non-Smoking room)</label>
+                      <input
+                        type="text"
+                        value={locRoom1Facilities}
+                        onChange={(e) => setLocRoom1Facilities(e.target.value)}
+                        placeholder="Breakfast Included, Non-Smoking room, Free cancellation"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white"
+                      />
+                    </div>
+
+                    {/* Room Type 2 Title Header */}
+                    <div className="sm:col-span-2 border-t border-slate-850 pt-4 mt-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-500">🛏️ Room Option 2 Details (রুম অপশন ২ বিস্তারিত বিবরণ)</span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Type Name (নাম)</label>
+                      <input
+                        type="text"
+                        value={locRoom2Name}
+                        onChange={(e) => setLocRoom2Name(e.target.value)}
+                        placeholder="e.g. Executive Suite"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-650"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Bed Type (বেড টাইপ)</label>
+                      <input
+                        type="text"
+                        value={locRoom2BedType}
+                        onChange={(e) => setLocRoom2BedType(e.target.value)}
+                        placeholder="e.g. KING x 1"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Capacity (ধারণক্ষমতা)</label>
+                      <input
+                        type="text"
+                        value={locRoom2Capacity}
+                        onChange={(e) => setLocRoom2Capacity(e.target.value)}
+                        placeholder="e.g. Adult x 2, Child x 2"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">View Type (ভিও টাইপ)</label>
+                      <input
+                        type="text"
+                        value={locRoom2ViewType}
+                        onChange={(e) => setLocRoom2ViewType(e.target.value)}
+                        placeholder="e.g. no-view / Skyline View"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Area (রুমের সাইজ)</label>
+                      <input
+                        type="text"
+                        value={locRoom2Area}
+                        onChange={(e) => setLocRoom2Area(e.target.value)}
+                        placeholder="e.g. 25 sqm"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Price per night/room (ভাড়া)</label>
+                      <input
+                        type="number"
+                        value={locRoom2Price}
+                        onChange={(e) => setLocRoom2Price(e.target.value)}
+                        placeholder="e.g. 4500"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 sm:col-span-2">
+                       <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Benefits/Facilities (সুবিধাসমূহ, e.g. Breakfast Included, Non-Smoking room)</label>
+                       <input
+                         type="text"
+                         value={locRoom2Facilities}
+                         onChange={(e) => setLocRoom2Facilities(e.target.value)}
+                         placeholder="Breakfast Included, Non-Smoking room, Free cancellation"
+                         className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white"
+                       />
+                    </div>
                   </div>
 
                   <div className="flex gap-3 pt-3">
@@ -3136,19 +3775,23 @@ Secure Session: Active Ingress Gateway 3000
                       <div className="w-20 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 border border-slate-800">
                         <img src={loc.image} alt={loc.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       </div>
-                      <div className="text-left">
+                      <div className="text-left flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-extrabold text-white text-xs">{loc.name}</span>
-                          <span className="text-[8px] bg-amber-500/15 text-amber-400 font-mono font-black tracking-normal px-1 rounded-sm uppercase shrink-0">
+                          <span className="text-[8px] bg-amber-500/15 text-amber-400 font-mono font-black tracking-normal px-1.5 py-0.5 rounded uppercase shrink-0">
                             {loc.star}
                           </span>
                         </div>
-                        <p className="text-[9px] text-blue-400 font-mono tracking-normal uppercase mt-1">
+                        <p className="text-[9px] text-blue-400 font-mono tracking-normal uppercase mt-0.5">
                           {loc.location}
                         </p>
-                        <p className="text-[10px] text-slate-450 leading-tight block line-clamp-1 mt-1 font-semibold">
-                          {loc.description}
-                        </p>
+                        {loc.description && (
+                          <div className="mt-1.5 bg-slate-950/40 border border-white/5 rounded-lg p-2">
+                            <p className="text-[10px] text-slate-400 leading-relaxed font-medium line-clamp-3 italic">
+                              "{loc.description}"
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -3507,64 +4150,7 @@ Secure Session: Active Ingress Gateway 3000
                 </div>
               </div>
 
-              <div className="p-4.5 bg-[#141d1a]/20 border border-emerald-500/25 rounded-2xl text-xs space-y-3 prose leading-relaxed font-semibold text-slate-350">
-                <h4 className="text-xs font-black uppercase text-emerald-400 flex items-center gap-2">
-                  <Mail className="w-4.5 h-4.5 animate-pulse" />
-                  Hostinger Shared Server Static SMTP credentials (SMTP Mail Engine)
-                </h4>
-                <p>
-                  Hostinger shared environment block outgoing server scripts unless verified credentials matching DNS records are linked. 
-                  Below configure your secure <strong className="text-white"> EmailJS Service </strong> to handle real life auto approval email deliveries!
-                </p>
-                <p className="text-slate-450">
-                  যদি আপনি EmailJS Credentials ফাকা রাখেন, সিস্টেমটি স্বয়ংক্রিয়ভাবে ডিসপ্যাচ ও ভাউচার এক্টিভেশন প্রসেস সফল করবে, এবং নিচে লাইভ <strong>SMTP Mail Delivery Queue Logs</strong> উইন্ডোতে মেইলের কপি প্রদর্শন করবে যাতে সিস্টেমটি সম্পূর্ণ রিয়েল টাইম অনুভব করা যায়।
-                </p>
-              </div>
-
-              {/* Input forms for EmailJS */}
-              <div className="p-5 bg-[#11131a] rounded-2xl border border-blue-500/10 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold">
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1 font-mono">
-                    <Lock className="w-3.5 h-3.5 text-blue-500" />
-                    Service ID (EmailJS)
-                  </label>
-                  <input
-                    type="text"
-                    value={emailjsServiceId}
-                    onChange={(e) => onSetEmailjsServiceId(e.target.value)}
-                    placeholder="e.g. service_xxxxxxx"
-                    className="w-full bg-black/40 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1 font-mono">
-                    <Lock className="w-3.5 h-3.5 text-pink-500" />
-                    Template ID (EmailJS)
-                  </label>
-                  <input
-                    type="text"
-                    value={emailjsTemplateId}
-                    onChange={(e) => onSetEmailjsTemplateId(e.target.value)}
-                    placeholder="e.g. template_xxxxxxx"
-                    className="w-full bg-black/40 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1 font-mono">
-                    <Lock className="w-3.5 h-3.5 text-emerald-500" />
-                    Public Key (EmailJS)
-                  </label>
-                  <input
-                    type="text"
-                    value={emailjsPublicKey}
-                    onChange={(e) => onSetEmailjsPublicKey(e.target.value)}
-                    placeholder="e.g. user_xxxxxxxxxxxx"
-                    className="w-full bg-black/40 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono"
-                  />
-                </div>
-              </div>
+              {/* Telegram Notification Engine replaces SMTP/Email system */}
 
               {/* Input forms for Telegram Notification Bot */}
               <div className="p-4.5 bg-[#14151e] rounded-2xl border border-indigo-500/10 space-y-4">
@@ -3622,12 +4208,158 @@ Secure Session: Active Ingress Gateway 3000
                   </div>
                 </div>
 
+                {/* 2FA Telegram Toggle Section */}
+                <div className="bg-[#0b1022] border border-[#1b254b]/60 rounded-2xl p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-1">
+                  <div className="space-y-1">
+                    <h5 className="text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                      <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                      2-Step Telegram OTP Verification (২-স্টেপ ভেরিফিকেশন সিস্টেম)
+                    </h5>
+                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
+                      যখন এটি সক্রিয় (ENABLED) থাকবে, ব্যবহারকারীদের লগইন এবং অ্যাকাউন্ট খোলার জন্য অবশ্যই টেলিগ্রাম বটের মাধ্যমে পাওয়া ৬ সংখ্যার ওটিপি কোড দিয়ে ভেরিফাই করতে হবে। নিষ্ক্রিয় (DISABLED) থাকলে এটি সরাসরি বাইপাস হয়ে যাবে।
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg border ${telegram2FAEnabled ? 'bg-cyan-950/40 text-cyan-400 border-cyan-550/30' : 'bg-slate-900 text-slate-500 border-slate-800'}`}>
+                      {telegram2FAEnabled ? 'ACTIVE (সক্রিয়)' : 'DISABLED (বন্ধ)'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onSetTelegram2FAEnabled?.(!telegram2FAEnabled)}
+                      className={`relative inline-flex h-6.5 w-12 items-center rounded-full transition-colors duration-200 cursor-pointer focus:outline-none ${
+                        telegram2FAEnabled ? 'bg-gradient-to-r from-cyan-500 to-blue-500' : 'bg-slate-800'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4.5 w-4.5 transform rounded-full bg-white transition-transform duration-200 ${
+                          telegram2FAEnabled ? 'translate-x-[22px]' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {/* OTP Dispatch Destination Selection */}
+                {telegram2FAEnabled && (
+                  <div className="space-y-4">
+                    {/* Bot Selector */}
+                    <div className="bg-[#0b1022] border border-[#1b254b]/60 rounded-2xl p-4.5 space-y-3.5 text-left">
+                      <div className="space-y-1">
+                        <h5 className="text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 font-mono animate-fade-in">
+                          <Bot className="w-4 h-4 text-indigo-400" />
+                          Verification Sender Bot (কোড প্রেরক বট নির্ধারণ)
+                        </h5>
+                        <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
+                          লগইন এবং রেজিস্ট্রেশন ভেরিফিকেশন করার জন্য কোন বট থেকে ওটিপি কোডটি পাঠানো হবে তা নির্বাচন করুন।
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                        {/* Option 1: Built-in Default Bot */}
+                        <button
+                          type="button"
+                          onClick={() => onSetTelegramBotSelection?.('default')}
+                          className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                            telegramBotSelection === 'default'
+                              ? 'bg-gradient-to-r from-indigo-950/40 to-blue-950/40 border-indigo-500/50 text-white shadow-lg shadow-indigo-500/10'
+                              : 'bg-black/30 border-[#1f2642] text-slate-400 hover:text-white hover:border-[#2f3961]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Bot className={`w-4 h-4 ${telegramBotSelection === 'default' ? 'text-indigo-400' : 'text-slate-500'}`} />
+                            <span className="text-xs font-black uppercase tracking-wider font-mono">Default Body Touch Bot</span>
+                          </div>
+                          <p className="text-[9px] text-slate-400 font-bold mt-1.5 leading-normal">
+                            ডিসপ্যাচের জন্য সিস্টেমের আগে থেকে সেট করা অফিশিয়াল সিকিউরিটি চ্যাট বট ব্যবহার করা হবে। (আপনাকে নিজস্ব টোকেন দিতে হবে না)
+                          </p>
+                        </button>
+
+                        {/* Option 2: Custom Bot */}
+                        <button
+                          type="button"
+                          onClick={() => onSetTelegramBotSelection?.('custom')}
+                          className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                            telegramBotSelection === 'custom'
+                              ? 'bg-gradient-to-r from-cyan-950/40 to-teal-950/40 border-cyan-500/50 text-white shadow-lg shadow-cyan-500/10'
+                              : 'bg-black/30 border-[#1f2642] text-slate-400 hover:text-white hover:border-[#2f3961]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Cpu className={`w-4 h-4 ${telegramBotSelection === 'custom' ? 'text-cyan-400' : 'text-slate-500'}`} />
+                            <span className="text-xs font-black uppercase tracking-wider font-mono">My Custom Bot</span>
+                          </div>
+                          <p className="text-[9px] text-slate-400 font-bold mt-1.5 leading-normal">
+                            উপরে আপনার দেওয়া 'Telegram Bot Token' চ্যাট বটটি দিয়ে ওটিপি পাঠানো হবে। (আপনার নিজস্ব ব্যক্তিগত ব্র্যান্ডিং বট)
+                          </p>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Dispatch Destination Selection */}
+                    <div className="bg-[#0b1022] border border-[#1b254b]/60 rounded-2xl p-4.5 space-y-3.5 text-left">
+                      <div className="space-y-1">
+                        <h5 className="text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 font-mono animate-fade-in">
+                          <Send className="w-4 h-4 text-cyan-400" />
+                          OTP Dispatch Target (কোড কোথায় পাঠানো হবে)
+                        </h5>
+                        <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
+                          ব্যবহারকারী যখন লগইন বা রেজিস্ট্রেশন করতে যাবে, কোডটি কি এডমিনের নির্দিষ্ট গ্রুপে যাবে নাকি সরাসরি গ্রাহকের টেলিগ্রাম আইডিতে পাঠানো হবে?
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                        {/* Option 1: Admin Group */}
+                        <button
+                          type="button"
+                          onClick={() => onSetTelegramSendTarget?.('group')}
+                          className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                            telegramSendTarget === 'group'
+                              ? 'bg-gradient-to-r from-blue-950/40 to-indigo-950/40 border-blue-500/50 text-white'
+                              : 'bg-black/30 border-[#1f2642] text-slate-400 hover:text-white hover:border-[#2f3961]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Users className={`w-4 h-4 ${telegramSendTarget === 'group' ? 'text-blue-400' : 'text-slate-500'}`} />
+                            <span className="text-xs font-black uppercase tracking-wider font-mono">Admin Group (গ্রুপে কোড যাবে)</span>
+                          </div>
+                          <p className="text-[9px] text-slate-400 font-bold mt-1.5 leading-normal">
+                            কোডটি আপনার উপরে দেওয়া নির্দিষ্ট 'Telegram Group Chat ID' তে পাঠানো হবে। গ্রাহক সেখান থেকে জেনে নিবে। (Default)
+                          </p>
+                        </button>
+
+                        {/* Option 2: Client Direct Chat */}
+                        <button
+                          type="button"
+                          onClick={() => onSetTelegramSendTarget?.('client')}
+                          className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                            telegramSendTarget === 'client'
+                              ? 'bg-gradient-to-r from-cyan-950/40 to-teal-950/40 border-cyan-500/50 text-white'
+                              : 'bg-black/30 border-[#1f2642] text-slate-400 hover:text-white hover:border-[#2f3961]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <MessageSquare className={`w-4 h-4 ${telegramSendTarget === 'client' ? 'text-cyan-400' : 'text-slate-500'}`} />
+                            <span className="text-xs font-black uppercase tracking-wider font-mono">Client Private Chat (গ্রাহকের নিজস্ব চ্যাটে)</span>
+                          </div>
+                          <p className="text-[9px] text-slate-400 font-bold mt-1.5 leading-normal">
+                            গ্রাহকের নিজস্ব টেলিগ্রাম চ্যাট আইডিতে (Chat ID) কোড পাঠানো হবে। গ্রাহককে রেজিস্ট্রেশনের সময় চ্যাট আইডি অবশ্যই প্রদান করতে হবে।
+                          </p>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* BOT & HELPLINE ADD/REMOVE CONTROL BUTTONS */}
                 <div className="flex flex-wrap gap-2.5 pt-1">
                   <button
                     type="button"
                     onClick={() => {
-                      alert("✅ Telegram Credentials & Support Helpline configurations have been securely added and updated in system databases!");
+                      if (onSaveTelegramSettings) {
+                        onSaveTelegramSettings();
+                      } else {
+                        alert("✅ Telegram Credentials & Support Helpline configurations have been securely added and updated in system databases!");
+                      }
                     }}
                     className="bg-indigo-600 hover:bg-indigo-550 text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg shadow-indigo-600/10 active:scale-98"
                   >
@@ -3638,10 +4370,14 @@ Secure Session: Active Ingress Gateway 3000
                   <button
                     type="button"
                     onClick={() => {
-                      onSetTelegramBotToken('');
-                      onSetTelegramGroupId('');
-                      if (onSetTelegramHelpline) onSetTelegramHelpline('');
-                      alert("⚠️ Disconnected: All Telegram Bot tokens, Chat IDs, and active helpline links have been completely removed and deleted from system memory!");
+                      if (onClearTelegramSettings) {
+                        onClearTelegramSettings();
+                      } else {
+                        onSetTelegramBotToken('');
+                        onSetTelegramGroupId('');
+                        if (onSetTelegramHelpline) onSetTelegramHelpline('');
+                        alert("⚠️ Disconnected: All Telegram Bot tokens, Chat IDs, and active helpline links have been completely removed and deleted from system memory!");
+                      }
                     }}
                     className="bg-rose-950/30 hover:bg-rose-900/40 border border-rose-500/25 text-rose-450 hover:text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 active:scale-98"
                   >
@@ -3669,65 +4405,57 @@ Secure Session: Active Ingress Gateway 3000
                 </div>
               </div>
 
-              <div className="bg-[#11131a] rounded-2xl border border-white/5 p-4.5">
-                <div className="flex items-center justify-between border-b border-[#222938] pb-3 mb-4 select-none">
-                  <h5 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab] flex items-center gap-1.5 font-mono">
-                    <Mail className="w-4 h-4" />
-                    Outgoing SMTP Delivery Mail Queue ({emailLogs.length})
-                  </h5>
-                  {emailLogs.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={onClearEmailLogs}
-                      className="text-slate-400 hover:text-white text-[9px] font-black uppercase bg-[#181a24] border border-slate-800 px-3 py-1.5 rounded-lg transition"
-                    >
-                      Clear Log Queue
-                    </button>
-                  )}
+              {/* Emergency Booking Notice & Slider Text Control Panel */}
+              <div className="p-4.5 bg-[#14151e] rounded-2xl border border-rose-500/10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase text-rose-450 flex items-center gap-2">
+                    <Megaphone className="w-4 h-4 animate-bounce text-rose-550" />
+                    Emergency Notice & Slider Text Control (জরুরী নোটিশ ও স্লাইডার লেখা নিয়ন্ত্রণ)
+                  </h4>
+                </div>
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  হোমপেজের স্ক্রলিং নোটিশ বার এবং ছবি স্লাইডারের জরুরি নোটিশের লেখাটি এখান থেকে পরিবর্তন করতে পারেন। কাস্টমারদের স্ক্রিনে এটি রিয়েল-টাইমে আপডেট হয়ে যাবে।
+                </p>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
+                    🚨 Notice Text Content (জরুরী নোটিশ এর লেখা)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={editableNotice}
+                    onChange={(e) => setEditableNotice(e.target.value)}
+                    placeholder="সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যাম সার্ভিস বুকিং দিবেন না"
+                    className="w-full bg-black/40 border border-[#232733] focus:border-rose-500 rounded-xl px-3 py-2.5 text-white font-sans text-xs focus:outline-none placeholder-slate-700 leading-relaxed"
+                  />
                 </div>
 
-                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 scrollbar-none font-mono font-semibold">
-                  {emailLogs.length === 0 ? (
-                    <div className="py-12 text-center text-slate-500 text-[10px] font-semibold italic">
-                      📭 Outgoing delivery logs queue is currently empty.
-                    </div>
-                  ) : (
-                    emailLogs.map((log) => (
-                      <div
-                        key={log.id}
-                        className="bg-black/40 border border-slate-900 p-4 rounded-xl flex flex-col space-y-2 text-left text-[11px] hover:border-slate-800 transition-all font-mono"
-                      >
-                        <div className="flex justify-between items-center border-b border-white/5 pb-2 text-[9.5px]">
-                          <div className="flex items-center gap-1.5 text-slate-400">
-                            <span className="text-slate-600">To Client:</span>
-                            <span className="text-blue-400 font-bold select-all">{log.to}</span>
-                          </div>
-                          <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${
-                            log.status === 'Delivered'
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                              : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'
-                          }`}>
-                            {log.status === 'Delivered' ? '✅ '+log.status : '❌ '+log.status}
-                          </span>
-                        </div>
+                <div className="bg-[#18080c] border border-rose-550/15 rounded-xl p-3">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-rose-400 font-mono block mb-1">LIVE PREVIEW ON CLIENT INTERFACE:</span>
+                  <div className="text-[11.5px] font-bold text-rose-250 leading-relaxed font-sans select-none">
+                    📢 {editableNotice || 'সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যাম সার্ভিস বুকিং দিবেন না'}
+                  </div>
+                </div>
 
-                        <div>
-                          <span className="text-slate-500 block text-[9.5px]">Subject / মেইল শিরোনাম:</span>
-                          <p className="font-extrabold text-white text-xs font-sans mt-0.5 leading-snug">{log.subject}</p>
-                        </div>
-
-                        <div className="bg-black/60 p-3 rounded-lg text-[9.5px] text-slate-300 leading-relaxed border border-slate-900 select-all whitespace-pre-line overflow-y-auto max-h-52">
-                          {log.body}
-                        </div>
-
-                        <div className="text-[8px] text-slate-500 text-right font-semibold">
-                          Mail deliver dispatch timestamp: {log.sentAt}
-                        </div>
-                      </div>
-                    ))
-                  )}
+                <div className="flex flex-wrap gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (onSaveEmergencyNotice) {
+                        await onSaveEmergencyNotice(editableNotice);
+                      } else {
+                        alert("✅ Temporary local update successful!");
+                      }
+                    }}
+                    className="bg-rose-600 hover:bg-rose-550 text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg shadow-rose-600/10 active:scale-98"
+                  >
+                    <Save className="w-4 h-4 text-white" />
+                    Save & Update Announcement Text
+                  </button>
                 </div>
               </div>
+
+
 
             </div>
           )}
@@ -4260,115 +4988,195 @@ Secure Session: Active Ingress Gateway 3000
               ADMINISTRATIVE ACCOUNTS & DIRECTORY OVERVIEW TAB
               ======================================================= */}
           {activeTab === 'admins' && (
-            <div className="space-y-6 text-left font-semibold">
-              <div className="p-4.5 bg-[#14101e] border border-red-500/15 rounded-2xl text-xs space-y-2.5 leading-relaxed text-slate-350 animate-fadeIn">
-                <h4 className="text-xs font-black uppercase text-red-500 flex items-center gap-2">
-                  <ShieldCheck className="w-4.5 h-4.5 animate-pulse" />
-                  Dynamic Administrators List (এডমিন অ্যাকাউন্ট তালিকা)
+            <div className="space-y-6 text-left font-semibold animate-fadeIn">
+              
+              {/* Luxury Header Banner */}
+              <div className="relative p-6 bg-gradient-to-r from-[#171412] to-[#0c0d12] border-l-4 border-[#dbaa61] rounded-2xl text-xs space-y-3 shadow-2xl overflow-hidden">
+                <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 opacity-10 pointer-events-none">
+                  <ShieldCheck className="w-32 h-32 text-[#dbaa61]" />
+                </div>
+                <h4 className="text-sm font-black uppercase text-[#dbaa61] flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5" />
+                  CONFIDENTIAL ADMINISTRATION GATEWAY / এডমিন অ্যাক্সেস কন্ট্রোল
                 </h4>
-                <p>
-                  You can register, view, or revoke system administrator email whitelists dynamically here to handle your access constraints. Whitelisted administrator emails can trigger secure 2-Factor authentication login codes instantly when logging in via the Admin Workspace.
+                <p className="text-slate-300 leading-relaxed font-medium">
+                  Here you can view, register, or revoke system administrator credentials dynamically. Registered administrators must supply both an authorized Email and a verified Telegram profile. These fields are mandatory to maintain instant 2-Step OTP authentication channels and elite security integrity.
                 </p>
               </div>
 
-              {/* Add New Admin Form */}
-              <div className="p-5 bg-[#11131a] rounded-2xl border border-white/5 text-xs space-y-4">
-                <h5 className="text-[10px] font-black uppercase tracking-widest text-[#ef4444] flex items-center gap-1.5 font-mono">
-                  <Plus className="w-4 h-4 text-emerald-500" />
-                  Whitelisted Email Registration / নতুন এডমিন ইমেইল যোগ করুন
-                </h5>
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+                
+                {/* Form to Register New Admin (Takes 2 Columns) */}
+                <div className="lg:col-span-2 p-5 bg-[#11131a] rounded-2xl border border-white/[0.04] text-xs space-y-5 shadow-xl">
+                  <div className="flex items-center gap-2 border-b border-white/[0.05] pb-3">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                      <Plus className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h5 className="text-[11px] font-black uppercase tracking-wider text-white">
+                        Add New System Administrator
+                      </h5>
+                      <p className="text-[9px] text-slate-500 font-bold">নতুন প্যানেল এডমিন অ্যাকাউন্ট যুক্ত করুন</p>
+                    </div>
+                  </div>
 
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const inputElement = e.currentTarget.elements.namedItem('newAdminEmail') as HTMLInputElement;
-                    const value = inputElement?.value?.trim()?.toLowerCase();
-                    if (!value) return;
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const form = e.currentTarget;
+                      const emailInput = form.elements.namedItem('newAdminEmail') as HTMLInputElement;
+                      const telegramInput = form.elements.namedItem('newAdminTelegram') as HTMLInputElement;
+                      const emailVal = emailInput?.value?.trim()?.toLowerCase();
+                      let telegramVal = telegramInput?.value?.trim();
+                      if (!emailVal || !telegramVal) return;
 
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    if (!emailRegex.test(value)) {
-                      alert('দয়া করে একটি সঠিক ইমেল সংস্করণ ব্যবহার করুন।');
-                      return;
-                    }
+                      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                      if (!emailRegex.test(emailVal)) {
+                        alert('দয়া করে একটি সঠিক ইমেল এড্রেস ব্যবহার করুন।');
+                        return;
+                      }
 
-                    if (adminEmails.map(m => m.toLowerCase()).includes(value)) {
-                      alert('This email is already registered as an administrator.');
-                      return;
-                    }
+                      if (adminEmails.some(a => a.email.toLowerCase() === emailVal)) {
+                        alert('এই ইমেইলটি ইতিমধ্যে এডমিন হিসেবে নিবন্ধিত আছে।');
+                        return;
+                      }
 
-                    updateAdminEmails([...adminEmails, value]);
-                    if (inputElement) inputElement.value = '';
-                  }}
-                  className="flex gap-3 text-xs"
-                >
-                  <input
-                    type="email"
-                    name="newAdminEmail"
-                    required
-                    placeholder="e.g. support@metromaa.com"
-                    className="flex-grow bg-black/40 border border-[#232733] rounded-xl px-4 py-2.5 text-white placeholder-slate-650 focus:outline-none focus:border-red-500 font-bold font-mono text-xs"
-                  />
-                  <button
-                    type="submit"
-                    className="bg-gradient-to-tr from-red-700 to-red-550 hover:opacity-95 text-white px-5 py-2.5 rounded-xl font-heavy uppercase text-[10px] tracking-wider transition cursor-pointer active:scale-95 whitespace-nowrap"
+                      if (!telegramVal.startsWith('@')) {
+                        telegramVal = '@' + telegramVal;
+                      }
+
+                      if (telegramVal.length < 3) {
+                        alert('দয়া করে একটি সঠিক টেলিগ্রাম ইউজারনেম দিন (যেমন: @developer_akhi)।');
+                        return;
+                      }
+
+                      updateAdminEmails([...adminEmails, { email: emailVal, telegram: telegramVal }]);
+                      form.reset();
+                      alert('✅ নতুন এডমিন সফলভাবে তালিকাভুক্ত করা হয়েছে!');
+                    }}
+                    className="space-y-4"
                   >
-                    Add Admin Email
-                  </button>
-                </form>
-              </div>
+                    {/* Email Input */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#dbaa61]">
+                        Administrator Email / এডমিন ইমেল এড্রেস *
+                      </label>
+                      <input
+                        type="email"
+                        name="newAdminEmail"
+                        required
+                        placeholder="e.g. staff@bodytouch.com"
+                        className="w-full bg-black/40 border border-[#232733] hover:border-slate-800 rounded-xl px-4 py-2.5 text-white placeholder-slate-705 focus:outline-none focus:border-[#dbaa61] transition-all font-bold font-mono text-xs"
+                      />
+                    </div>
 
-              {/* List of Whitelisted Emails */}
-              <div className="bg-[#11131a] rounded-2xl border border-white/5 p-4.5">
-                <h5 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab] border-b border-[#222938] pb-3 mb-4 flex items-center gap-1.5 font-mono text-left select-none">
-                  <Users className="w-4 h-4 text-[#ef4444]" />
-                  CURRENT ACTIVE SYSTEM ADMINISTRATORS ({adminEmails.length})
-                </h5>
+                    {/* Telegram Username Input */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#dbaa61]">
+                        Telegram Username / টেলিগ্রাম ইউজারনেম *
+                      </label>
+                      <input
+                        type="text"
+                        name="newAdminTelegram"
+                        required
+                        placeholder="e.g. @akhi_ofc (বা @ ছাড়া)"
+                        className="w-full bg-black/40 border border-[#232733] hover:border-slate-800 rounded-xl px-4 py-2.5 text-white placeholder-slate-705 focus:outline-none focus:border-[#dbaa61] transition-all font-bold font-mono text-xs text-amber-400"
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  {adminEmails.map((emailAddress) => {
-                    const isPrimary = emailAddress.toLowerCase() === 'akhi.akther.ofc@gmail.com';
-                    return (
-                      <div
-                        key={emailAddress}
-                        className="bg-black/30 border border-white/5 rounded-xl p-3 flex justify-between items-center"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-red-950/40 border border-red-500/20 flex items-center justify-center text-red-400 font-extrabold text-xs">
-                            A
-                          </div>
-                          <div className="text-left font-mono">
-                            <span className="text-xs font-bold text-slate-200 block">{emailAddress}</span>
-                            <span className="text-[8.5px] font-black uppercase tracking-wider text-slate-500 mt-0.5 block">
-                              {isPrimary ? 'Primary Executive Owner' : 'Regional Admin Staff'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Action buttons */}
-                        <div className="flex items-center gap-2">
-                          {isPrimary ? (
-                            <span className="text-[8px] font-black uppercase bg-[#103025] text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-                              Protected
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (window.confirm(`Are you sure you want to revoke Admin access for ${emailAddress}?`)) {
-                                  updateAdminEmails(adminEmails.filter(e => e.toLowerCase() !== emailAddress.toLowerCase()));
-                                }
-                              }}
-                              className="p-1 px-2.5 rounded bg-red-950/20 border border-red-500/20 text-red-400 hover:text-red-350 hover:bg-red-950/35 text-[9px] font-extrabold uppercase transition cursor-pointer"
-                            >
-                              Revoke Access
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                    {/* Submit Button */}
+                    <button
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-amber-500 to-[#dbaa61] hover:brightness-110 text-black px-5 py-3 rounded-xl font-black uppercase text-[11px] tracking-wider transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      Save & Whitelist Account
+                    </button>
+                  </form>
                 </div>
+
+                {/* List of Whitelisted Admins (Takes 3 Columns) */}
+                <div className="lg:col-span-3 bg-[#11131a] rounded-2xl border border-white/[0.04] p-5 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/[0.05] pb-3 mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-[#dbaa61]/10 flex items-center justify-center text-[#dbaa61]">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h5 className="text-[11px] font-black uppercase tracking-wider text-white">
+                          Current Active Admin Directory
+                        </h5>
+                        <p className="text-[9px] text-slate-500 font-bold">অনুমোদিত সক্রিয় এডমিন সদস্যদের তালিকা</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black font-mono bg-[#dbaa61]/10 border border-[#dbaa61]/20 text-[#dbaa61] px-2.5 py-0.5 rounded-full uppercase">
+                      {adminEmails.length} STAFF MEMBERS
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 max-h-[480px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800/40 pr-1">
+                    {adminEmails.map((adminObj) => {
+                      const emailAddress = adminObj.email;
+                      const telegramHandle = adminObj.telegram || '@not_configured';
+                      const cleanTeleHandle = telegramHandle.startsWith('@') ? telegramHandle.substring(1) : telegramHandle;
+                      const isPrimary = emailAddress.toLowerCase() === 'akhi.akther.ofc@gmail.com';
+                      
+                      return (
+                        <div
+                          key={emailAddress}
+                          className="bg-black/25 border border-white/[0.02] hover:border-white/[0.05] rounded-xl p-3 flex justify-between items-center transition-all duration-200"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-950/40 to-slate-900 border border-[#dbaa61]/20 flex items-center justify-center text-[#dbaa61] font-extrabold text-xs">
+                              {emailAddress.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="text-left">
+                              <span className="text-xs font-bold text-slate-200 block font-mono">{emailAddress}</span>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${isPrimary ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-slate-900 text-slate-400 border border-slate-800'}`}>
+                                  {isPrimary ? 'Owner Access' : 'Admin Staff'}
+                                </span>
+                                <a
+                                  href={`https://t.me/${cleanTeleHandle}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[8.5px] font-mono font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 hover:underline cursor-pointer"
+                                  title="Contact via Telegram channel"
+                                >
+                                  📨 {telegramHandle}
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isPrimary ? (
+                              <span className="text-[8px] font-black uppercase bg-emerald-950/40 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                                Primary Key
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm(`Are you sure you want to revoke Admin access for ${emailAddress}?`)) {
+                                    updateAdminEmails(adminEmails.filter(e => e.email.toLowerCase() !== emailAddress.toLowerCase()));
+                                  }
+                                }}
+                                className="p-1 px-2.5 rounded bg-red-950/30 border border-red-500/20 text-red-400 hover:text-white hover:bg-red-900/40 text-[9px] font-extrabold uppercase transition cursor-pointer"
+                              >
+                                Revoke
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
               </div>
+
             </div>
           )}
 

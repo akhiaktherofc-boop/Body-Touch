@@ -42,6 +42,31 @@ export interface HotelLocation {
   description: string;
   price: number;
   mapEmbedUrl?: string;
+  
+  // NEW fields for client-accessible details
+  distance?: string;          // e.g. "17.1 km from city center"
+  address?: string;           // e.g. "House # 2/A, Sector #04 Uttara, Dhaka"
+  checkInTime?: string;       // e.g. "02:00 PM"
+  checkOutTime?: string;      // e.g. "11:00 AM"
+  highlightedFacilities?: string; // Comma-separated list of premium benefits
+  
+  // Room Type Option 1
+  room1Name?: string;         // e.g. "Premium Deluxe Twin"
+  room1BedType?: string;      // e.g. "TWIN x 2"
+  room1Capacity?: string;     // e.g. "Adult x 2, Child x 2"
+  room1ViewType?: string;     // e.g. "City View"
+  room1Area?: string;         // e.g. "18 sqm"
+  room1Facilities?: string;   // e.g. "Breakfast Included, Non-Smoking"
+  room1Price?: number;        // Price overrides if selected
+  
+  // Room Type Option 2
+  room2Name?: string;         // e.g. "Executive Suite"
+  room2BedType?: string;      // e.g. "KING x 1"
+  room2Capacity?: string;     // e.g. "Adult x 2, Child x 2"
+  room2ViewType?: string;     // e.g. "Skyline/Pool View"
+  room2Area?: string;         // e.g. "25 sqm"
+  room2Facilities?: string;   // e.g. "Breakfast Included, Gym Access"
+  room2Price?: number;        // Price overrides if selected
 }
 
 export interface Booking {
