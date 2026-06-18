@@ -42,6 +42,23 @@ jobs:
             console.log(`Raw server input length: ${server.length}`);
             console.log(`Raw username input length: ${username.length}`);
             
+            // Validate presence of required secrets
+            if (!server || !username || !password) {
+              core.setFailed(`
+            ❌ Error: Missing essential FTP Secrets!
+            Make sure you have added all three Secrets in your GitHub repository:
+            - FTP_SERVER (Current Status: ${server ? '✅ Set' : '❌ MISSING'})
+            - FTP_USERNAME (Current Status: ${username ? '✅ Set' : '❌ MISSING'})
+            - FTP_PASSWORD (Current Status: ${password ? '✅ Set' : '❌ MISSING'})
+            
+            How to configure Secrets in GitHub:
+            1. Go to your GitHub repository -> Settings -> Secrets and variables -> Actions
+            2. Click "New repository secret"
+            3. Name them exactly as above (case-sensitive) and paste your Hostinger FTP credentials.
+              `);
+              return;
+            }
+            
             // Clean server address:
             // 1. Trim leading and trailing spaces
             server = server.trim();
