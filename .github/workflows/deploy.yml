@@ -30,12 +30,48 @@ jobs:
       - name: Copy .htaccess to dist
         run: cp .htaccess dist/ || true
 
+      - name: Sanitize FTP Credentials
+        id: prep
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let server = process.env.FTP_SERVER || '';
+            let username = process.env.FTP_USERNAME || '';
+            let password = process.env.FTP_PASSWORD || '';
+            
+            console.log(`Raw server input length: ${server.length}`);
+            console.log(`Raw username input length: ${username.length}`);
+            
+            // Clean server address:
+            // 1. Trim leading and trailing spaces
+            server = server.trim();
+            // 2. Remove protocol prefix (e.g. ftp://, ftps://, sftp://, http://, https://)
+            server = server.replace(/^(ftp|ftps|sftp|http|https):\/\//i, '');
+            // 3. Remove any trailing path/directory components (split by '/')
+            server = server.split('/')[0];
+            // 4. Remove any trailing port number components (split by ':')
+            server = server.split(':')[0];
+            
+            username = username.trim();
+            password = password.trim();
+            
+            console.log(`Sanitized server address: ${server || '(empty)'}`);
+            console.log(`Sanitized username length: ${username.length}`);
+            
+            core.setOutput('server', server);
+            core.setOutput('username', username);
+            core.setOutput('password', password);
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+
       - name: Sync Files to Hostinger FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
+          server: ${{ steps.prep.outputs.server }}
+          username: ${{ steps.prep.outputs.username }}
+          password: ${{ steps.prep.outputs.password }}
           local-dir: ./dist/
           server-dir: ./public_html/
           # Fix for 'Timeout (control socket)' / Hostinger FTP handshake issue:
