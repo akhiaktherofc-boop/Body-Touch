@@ -92,7 +92,7 @@ jobs:
         run: |
           lftp -c "
           set ftp:ssl-allow yes;
-          set ftp:ssl-force yes;
+          set ftp:ssl-force no;
           set ssl:verify-certificate no;
           set ftp:passive-mode true;
           set net:timeout 20;
