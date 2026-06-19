@@ -333,9 +333,6 @@ export default function LoginGate({
     // Sync to Firestore Cloud DB with modern attributes
     let savedTelegramId = '';
     try {
-      const { setDoc, getDoc, doc } = await import('firebase/firestore');
-      const { db } = await import('../firebase');
-      
       const docSnap = await getDoc(doc(db, 'users', existingUser.username));
       if (docSnap.exists()) {
         const udata = docSnap.data();
@@ -371,8 +368,6 @@ export default function LoginGate({
       // If they provided a raw input, update profile to save it for future logins
       if (signInTelegramId.trim()) {
         try {
-          const { setDoc, doc } = await import('firebase/firestore');
-          const { db } = await import('../firebase');
           await setDoc(doc(db, 'users', userToLogin.username), { telegramId: signInTelegramId.trim() }, { merge: true });
         } catch (e) {
           console.warn(e);

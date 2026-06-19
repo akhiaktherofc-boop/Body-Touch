@@ -1,4 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { db } from './firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { 
+  bootstrapCollectionIfEmpty, 
+  syncCloudCollection, 
+  setCloudDocument, 
+  deleteCloudDocument, 
+  getCloudUser, 
+  saveCloudUser, 
+  clearCollection 
+} from './services/cloudService';
+
 import { motion, AnimatePresence } from 'motion/react';
 import { BrandLogo } from './components/BrandLogo';
 import {
@@ -816,9 +828,7 @@ export default function App() {
     };
 
     setBookings((prev) => [newBooking, ...prev]);
-    import('./services/cloudService').then(({ setCloudDocument }) => {
-      setCloudDocument('bookings', newBooking.id, newBooking);
-    });
+    setCloudDocument('bookings', newBooking.id, newBooking);
     
     if (walletBalance >= cost) {
       const newBal = walletBalance - cost;
@@ -997,54 +1007,50 @@ export default function App() {
   // Load and sync user profile securely from Firestore when username changes or they log in
   useEffect(() => {
     if (isLoggedIn && username) {
-      import('./services/cloudService').then(({ getCloudUser, saveCloudUser }) => {
-        getCloudUser(username).then((cloudUser) => {
-          if (cloudUser) {
-            if (cloudUser.userLevel) setUserLevel(cloudUser.userLevel);
-            if (typeof cloudUser.walletBalance === 'number') setWalletBalance(cloudUser.walletBalance);
-            if (cloudUser.fullName) {
-              setFullName(cloudUser.fullName);
-              setEditFullName(cloudUser.fullName);
-            }
-            if (cloudUser.phone) {
-              setPhone(cloudUser.phone);
-              setEditPhone(cloudUser.phone);
-            }
-            if (cloudUser.email) {
-              setEmail(cloudUser.email);
-              setEditEmail(cloudUser.email);
-            }
-          } else {
-            // Setup stats on first cloud login
-            const initialDetails = {
-              username,
-              fullName,
-              email,
-              phone,
-              userLevel,
-              walletBalance
-            };
-            saveCloudUser(initialDetails);
+      getCloudUser(username).then((cloudUser) => {
+        if (cloudUser) {
+          if (cloudUser.userLevel) setUserLevel(cloudUser.userLevel);
+          if (typeof cloudUser.walletBalance === 'number') setWalletBalance(cloudUser.walletBalance);
+          if (cloudUser.fullName) {
+            setFullName(cloudUser.fullName);
+            setEditFullName(cloudUser.fullName);
           }
-        });
-      });
+          if (cloudUser.phone) {
+            setPhone(cloudUser.phone);
+            setEditPhone(cloudUser.phone);
+          }
+          if (cloudUser.email) {
+            setEmail(cloudUser.email);
+            setEditEmail(cloudUser.email);
+          }
+        } else {
+          // Setup stats on first cloud login
+          const initialDetails = {
+            username,
+            fullName,
+            email,
+            phone,
+            userLevel,
+            walletBalance
+          };
+          saveCloudUser(initialDetails);
+        }
+      }).catch(e => console.warn('[CloudDB] Sync cloud stats failed:', e));
     }
   }, [isLoggedIn, username]);
 
   // Sync user profile updates to Firestore
   useEffect(() => {
     if (isLoggedIn && username) {
-      import('./services/cloudService').then(({ saveCloudUser }) => {
-        const stats = {
-          username,
-          fullName,
-          email,
-          phone,
-          userLevel,
-          walletBalance
-        };
-        saveCloudUser(stats);
-      });
+      const stats = {
+        username,
+        fullName,
+        email,
+        phone,
+        userLevel,
+        walletBalance
+      };
+      saveCloudUser(stats);
     }
   }, [userLevel, walletBalance, fullName, phone, email, isLoggedIn, username]);
 
@@ -1052,8 +1058,7 @@ export default function App() {
   useEffect(() => {
     const fetchAppSettings = async () => {
       try {
-        const { doc, getDoc } = await import('firebase/firestore');
-        const { db } = await import('./firebase');
+
         
         // 1. Fetch Telegram Settings
         const docRef = doc(db, 'settings', 'telegram_settings');
@@ -1086,7 +1091,7 @@ export default function App() {
   useEffect(() => {
     const bootstrapAll = async () => {
       try {
-        const { bootstrapCollectionIfEmpty } = await import('./services/cloudService');
+
         await bootstrapCollectionIfEmpty('companions', COMPANIONS);
         await bootstrapCollectionIfEmpty('locations', LOCATIONS);
         
@@ -1102,40 +1107,38 @@ export default function App() {
 
     const unsubscribers: (() => void)[] = [];
     
-    import('./services/cloudService').then(({ syncCloudCollection }) => {
-      unsubscribers.push(syncCloudCollection('bookings', (items) => {
-        if (items) {
-          const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
-          setBookings(sorted);
-        }
-      }));
-      
-      unsubscribers.push(syncCloudCollection('payments', (items) => {
-        if (items) {
-          const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
-          setPayments(sorted);
-        }
-      }));
-      
-      unsubscribers.push(syncCloudCollection('companions', (items) => {
-        if (items) {
-          setCompanions(items);
-        }
-      }));
-      
-      unsubscribers.push(syncCloudCollection('locations', (items) => {
-        if (items) {
-          setLocations(items);
-        }
-      }));
-      
-      unsubscribers.push(syncCloudCollection('reviews', (items) => {
-        if (items) {
-          const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
-          setReviews(sorted);
-        }
-      }));
-    });
+    unsubscribers.push(syncCloudCollection('bookings', (items) => {
+      if (items) {
+        const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
+        setBookings(sorted);
+      }
+    }));
+    
+    unsubscribers.push(syncCloudCollection('payments', (items) => {
+      if (items) {
+        const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
+        setPayments(sorted);
+      }
+    }));
+    
+    unsubscribers.push(syncCloudCollection('companions', (items) => {
+      if (items) {
+        setCompanions(items);
+      }
+    }));
+    
+    unsubscribers.push(syncCloudCollection('locations', (items) => {
+      if (items) {
+        setLocations(items);
+      }
+    }));
+    
+    unsubscribers.push(syncCloudCollection('reviews', (items) => {
+      if (items) {
+        const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
+        setReviews(sorted);
+      }
+    }));
 
     return () => {
       unsubscribers.forEach(unsub => unsub());
@@ -1145,31 +1148,27 @@ export default function App() {
   // Online Counter fluctuation simulation
   const handleUpdateCompanions = (updated: Companion[]) => {
     setCompanions(updated);
-    import('./services/cloudService').then(({ setCloudDocument, deleteCloudDocument }) => {
-      updated.forEach((item) => {
-        setCloudDocument('companions', item.id, item);
-      });
-      companions.forEach((oldItem) => {
-        const stillExists = updated.some(item => item.id === oldItem.id);
-        if (!stillExists) {
-          deleteCloudDocument('companions', oldItem.id);
-        }
-      });
+    updated.forEach((item) => {
+      setCloudDocument('companions', item.id, item);
+    });
+    companions.forEach((oldItem) => {
+      const stillExists = updated.some(item => item.id === oldItem.id);
+      if (!stillExists) {
+        deleteCloudDocument('companions', oldItem.id);
+      }
     });
   };
 
   const handleUpdateLocations = (updated: HotelLocation[]) => {
     setLocations(updated);
-    import('./services/cloudService').then(({ setCloudDocument, deleteCloudDocument }) => {
-      updated.forEach((item) => {
-        setCloudDocument('locations', item.id, item);
-      });
-      locations.forEach((oldItem) => {
-        const stillExists = updated.some(item => item.id === oldItem.id);
-        if (!stillExists) {
-          deleteCloudDocument('locations', oldItem.id);
-        }
-      });
+    updated.forEach((item) => {
+      setCloudDocument('locations', item.id, item);
+    });
+    locations.forEach((oldItem) => {
+      const stillExists = updated.some(item => item.id === oldItem.id);
+      if (!stillExists) {
+        deleteCloudDocument('locations', oldItem.id);
+      }
     });
   };
 
@@ -1273,9 +1272,7 @@ export default function App() {
     };
 
     setBookings((prev) => [newBooking, ...prev]);
-    import('./services/cloudService').then(({ setCloudDocument }) => {
-      setCloudDocument('bookings', newBooking.id, newBooking);
-    });
+    setCloudDocument('bookings', newBooking.id, newBooking);
 
     // Persist updated details to profile states and local storage
     if (data.clientName) {
@@ -1308,9 +1305,7 @@ export default function App() {
         date: new Date().toLocaleString()
       };
       setPayments((prev) => [newDeficitPayment, ...prev]);
-      import('./services/cloudService').then(({ setCloudDocument }) => {
-        setCloudDocument('payments', newDeficitPayment.id, newDeficitPayment);
-      });
+      setCloudDocument('payments', newDeficitPayment.id, newDeficitPayment);
       triggerToast(`💸 Booking registered! Please wait while admin verifies your remaining payment of ৳${data.deficitPay.amount.toLocaleString()}.`, 'success');
     } else {
       triggerToast(`✨ Booking request with ${bookingCompanion.name} successfully scheduled!`, 'success');
@@ -1369,9 +1364,7 @@ export default function App() {
     };
 
     setPayments((prev) => [newPaymentLog, ...prev]);
-    import('./services/cloudService').then(({ setCloudDocument }) => {
-      setCloudDocument('payments', newPaymentLog.id, newPaymentLog);
-    });
+    setCloudDocument('payments', newPaymentLog.id, newPaymentLog);
 
     // Send Telegram Notification
     const text = `💳 <b>নতুন মেম্বারশিপ পেমেন্ট সাবমিট হয়েছে!</b>\n\n` +
@@ -1412,9 +1405,7 @@ export default function App() {
     };
 
     setPayments((prev) => [newPaymentLog, ...prev]);
-    import('./services/cloudService').then(({ setCloudDocument }) => {
-      setCloudDocument('payments', newPaymentLog.id, newPaymentLog);
-    });
+    setCloudDocument('payments', newPaymentLog.id, newPaymentLog);
 
     // Send Telegram Notification
     const text = `💰 <b>নতুন ওয়ালেট ডিপোজিট সাবমিট হয়েছে!</b>\n\n` +
@@ -1464,9 +1455,7 @@ export default function App() {
     };
 
     setPayments((prev) => [newPaymentLog, ...prev]);
-    import('./services/cloudService').then(({ setCloudDocument }) => {
-      setCloudDocument('payments', newPaymentLog.id, newPaymentLog);
-    });
+    setCloudDocument('payments', newPaymentLog.id, newPaymentLog);
 
     // Send Telegram Notification
     const text = `💸 <b>নতুন ওয়ালেট উইথড্রয়াল (উত্তোলন) রিকুয়েস্ট!</b>\n\n` +
@@ -1551,8 +1540,7 @@ export default function App() {
 
   const handleSaveTelegramSettings = async () => {
     try {
-      const { doc, setDoc } = await import('firebase/firestore');
-      const { db } = await import('./firebase');
+
       const docRef = doc(db, 'settings', 'telegram_settings');
       await setDoc(docRef, {
         botToken: telegramBotToken,
@@ -1572,8 +1560,7 @@ export default function App() {
 
   const handleClearTelegramSettings = async () => {
     try {
-      const { doc, setDoc } = await import('firebase/firestore');
-      const { db } = await import('./firebase');
+
       const docRef = doc(db, 'settings', 'telegram_settings');
       await setDoc(docRef, {
         botToken: '',
@@ -1600,8 +1587,7 @@ export default function App() {
 
   const handleSaveEmergencyNotice = async (text: string) => {
     try {
-      const { doc, setDoc } = await import('firebase/firestore');
-      const { db } = await import('./firebase');
+
       const docRef = doc(db, 'settings', 'app_notice');
       await setDoc(docRef, { text, updatedAt: new Date().toISOString() }, { merge: true });
       setEmergencyNotice(text);
@@ -1619,9 +1605,7 @@ export default function App() {
         if (c.id === companionId) {
           const freshTag = c.badge === 'DEMO' ? 'Class DEMO' : c.badge === 'ELITE' ? 'Class ELITE' : c.badge === 'PREMIUM' ? 'Class PREMIUM' : 'Class REGULAR';
           const updated = { ...c, status: 'Approved' as const, tag: freshTag };
-          import('./services/cloudService').then(({ setCloudDocument }) => {
-            setCloudDocument('companions', c.id, updated);
-          });
+          setCloudDocument('companions', c.id, updated);
           const mailSubject = `🎉 bodyTOUCH Roster: Your Career Application is APPROVED!`;
           const mailBody = `
 Dear ${c.name},
@@ -1670,9 +1654,7 @@ https://service.bodytouch.com
       prev.map((c) => {
         if (c.id === companionId) {
           const updated = { ...c, status: 'Declined' as const };
-          import('./services/cloudService').then(({ setCloudDocument }) => {
-            setCloudDocument('companions', c.id, updated);
-          });
+          setCloudDocument('companions', c.id, updated);
           const mailSubject = `⚠️ bodyTOUCH Notification: Application Status Update`;
           const mailBody = `
 Dear ${c.name},
@@ -1720,18 +1702,14 @@ bodyTOUCH Auditing Core
         date: new Date().toLocaleString()
       };
       setPayments((prev) => [newSpendRecord, ...prev]);
-      import('./services/cloudService').then(({ setCloudDocument }) => {
-        setCloudDocument('payments', newSpendRecord.id, newSpendRecord);
-      });
+      setCloudDocument('payments', newSpendRecord.id, newSpendRecord);
     }
 
     setBookings((prev) =>
       prev.map((b) => {
         if (b.id === bookingId) {
           const updated = { ...b, status: 'Approved' as const };
-          import('./services/cloudService').then(({ setCloudDocument }) => {
-            setCloudDocument('bookings', b.id, updated);
-          });
+          setCloudDocument('bookings', b.id, updated);
           const mailSubject = `✅ Body Touch: Booking Service Approved for ${b.modelName}`;
           const mailBody = `
 Dear ${fullName || 'Client'},
@@ -1781,9 +1759,7 @@ Website: https://bodytouch.com
       prev.map((b) => {
         if (b.id === bookingId) {
           const updated = { ...b, status: 'Declined' as const };
-          import('./services/cloudService').then(({ setCloudDocument }) => {
-            setCloudDocument('bookings', b.id, updated);
-          });
+          setCloudDocument('bookings', b.id, updated);
           const mailSubject = `❌ Body Touch Notification: Service Inquiry Declined`;
           const mailBody = `
 Dear ${fullName || 'Client'},
@@ -1817,9 +1793,7 @@ Body Touch VIP Concierge
       prev.map((b) => {
         if (b.id === bookingId) {
           const updated = { ...b, status: 'Outgoing' as const };
-          import('./services/cloudService').then(({ setCloudDocument }) => {
-            setCloudDocument('bookings', b.id, updated);
-          });
+          setCloudDocument('bookings', b.id, updated);
           const mailSubject = `🚀 Body Touch Notification: Companion is Outgoing!`;
           const mailBody = `
 Dear ${fullName || 'Client'},
@@ -1854,9 +1828,7 @@ Body Touch VIP Concierge
       prev.map((b) => {
         if (b.id === bookingId) {
           const updated = { ...b, status: 'Completed' as const };
-          import('./services/cloudService').then(({ setCloudDocument }) => {
-            setCloudDocument('bookings', b.id, updated);
-          });
+          setCloudDocument('bookings', b.id, updated);
           const mailSubject = `💖 Body Touch Notification: Service Completed!`;
           const mailBody = `
 Dear ${fullName || 'Client'},
@@ -1941,9 +1913,7 @@ https://bodytouch.com
             `;
             sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
             const updated = { ...p, status: 'Approved' as const };
-            import('./services/cloudService').then(({ setCloudDocument }) => {
-              setCloudDocument('payments', p.id, updated);
-            });
+            setCloudDocument('payments', p.id, updated);
             return updated;
           }
           return p;
@@ -1989,9 +1959,7 @@ https://bodytouch.com
           `;
           sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
           const updated = { ...p, status: 'Approved' as const };
-          import('./services/cloudService').then(({ setCloudDocument }) => {
-            setCloudDocument('payments', p.id, updated);
-          });
+          setCloudDocument('payments', p.id, updated);
           return updated;
         }
         return p;
@@ -2019,9 +1987,7 @@ Body Touch Security Core
           `;
           sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
           const updated = { ...p, status: 'Rejected' as const };
-          import('./services/cloudService').then(({ setCloudDocument }) => {
-            setCloudDocument('payments', p.id, updated);
-          });
+          setCloudDocument('payments', p.id, updated);
           return updated;
         }
         return p;
