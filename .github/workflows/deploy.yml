@@ -76,34 +76,18 @@ jobs:
             console.log(`Sanitized username length: ${username.length}`);
             
             core.setOutput('server', server);
-            core.setOutput('username', username);
-            core.setOutput('password', password);
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
 
-      - name: Install LFTP
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y lftp
-
       - name: Sync Files to Hostinger FTP (Robust Mode)
-        run: |
-          lftp -d -c "
-          debug 10;
-          set ftp:ssl-allow yes;
-          set ftp:ssl-force no;
-          set ssl:verify-certificate no;
-          set ssl:check-hostname no;
-          set dns:order \"inet inet6\";
-          set ftp:passive-mode true;
-          set net:timeout 20;
-          set net:max-retries 4;
-          set net:reconnect-interval-multiplier 2;
-          set net:reconnect-interval-base 5;
-          open -u '${{ steps.prep.outputs.username }}','${{ steps.prep.outputs.password }}' '${{ steps.prep.outputs.server }}';
-          lcd ./dist;
-          mirror -R --delete --verbose=3 . ./public_html;
-          quit;
-          "
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ steps.prep.outputs.server }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dist/
+          server-dir: ./public_html/
+          state-name: .ftp-deploy-sync-state.json
+

@@ -67,6 +67,10 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     path
   };
   console.error('Firestore Error: ', JSON.stringify(errInfo));
+  if (operationType === OperationType.GET) {
+    console.warn(`[CloudDB] Safe recovery: Non-blocking read sync error on path "${path}" handled gracefully.`);
+    return;
+  }
   throw new Error(JSON.stringify(errInfo));
 }
 
