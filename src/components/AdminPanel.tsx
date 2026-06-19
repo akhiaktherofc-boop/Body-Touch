@@ -375,59 +375,72 @@ export default function AdminPanel({
   interface AdminUser {
     email: string;
     telegram: string;
+    role?: 'super_admin' | 'admin' | 'moderator';
   }
 
   const [adminEmails, setAdminEmails] = useState<AdminUser[]>(() => {
     let list: AdminUser[] = [];
-    const stored = localStorage.getItem('bt_admin_emails_v2');
+    const stored = localStorage.getItem('bt_admin_emails_v3');
     if (stored) {
       try {
         list = JSON.parse(stored);
       } catch (e) {}
     }
-    // Backward compatibility with strings
-    if (list.length === 0) {
-      const oldStored = localStorage.getItem('bt_admin_emails');
-      if (oldStored) {
-        try {
-          const parsed = JSON.parse(oldStored);
-          if (Array.isArray(parsed)) {
-            list = parsed.map(item => {
-              if (typeof item === 'string') {
-                return {
-                  email: item,
-                  telegram: item.toLowerCase() === 'akhi.akther.ofc@gmail.com' ? '@akhi_ofc_tele' : '@bodytouch_admin'
-                };
-              }
-              return item;
-            });
-          }
-        } catch (e) {}
-      }
-    }
+    
+    // Ensure we fully filter out akhi.akther.ofc@gmail.com
+    list = list.filter(a => a.email.toLowerCase() !== 'akhi.akther.ofc@gmail.com');
+
     if (list.length === 0) {
       list = [
-        { email: 'akhi.akther.ofc@gmail.com', telegram: '@akhi_ofc_tele' },
-        { email: '16killer2@gmail.com', telegram: '@secure_super_admin' },
-        { email: 'admin@bodytouch.com', telegram: '@bodytouch_admin' }
+        { email: '16killer2@gmail.com', telegram: '@secure_super_admin', role: 'super_admin' },
+        { email: 'admin@bodytouch.com', telegram: '@bodytouch_admin', role: 'admin' },
+        { email: 'moderator@bodytouch.com', telegram: '@bodytouch_mod', role: 'moderator' }
       ];
     }
-    
-    // Ensure both essential administrative emails exist unconditionally
-    if (!list.some(a => a.email.toLowerCase() === '16killer2@gmail.com')) {
-      list.push({ email: '16killer2@gmail.com', telegram: '@secure_super_admin' });
+
+    // Ensure 16killer2@gmail.com exists unconditionally as super_admin
+    const superAdminIndex = list.findIndex(a => a.email.toLowerCase() === '16killer2@gmail.com');
+    if (superAdminIndex === -1) {
+      list.push({ email: '16killer2@gmail.com', telegram: '@secure_super_admin', role: 'super_admin' });
+    } else {
+      list[superAdminIndex].role = 'super_admin';
     }
-    if (!list.some(a => a.email.toLowerCase() === 'akhi.akther.ofc@gmail.com')) {
-      list.push({ email: 'akhi.akther.ofc@gmail.com', telegram: '@akhi_ofc_tele' });
-    }
+
+    // Ensure everyone has a role, fallback is admin
+    list = list.map(item => {
+      if (!item.role) {
+        if (item.email.toLowerCase() === '16killer2@gmail.com') {
+          item.role = 'super_admin';
+        } else {
+          item.role = 'admin';
+        }
+      }
+      return item;
+    });
 
     return list;
   });
 
   const updateAdminEmails = (updated: AdminUser[]) => {
-    setAdminEmails(updated);
-    localStorage.setItem('bt_admin_emails_v2', JSON.stringify(updated));
+    const filtered = updated.filter(a => a.email.toLowerCase() !== 'akhi.akther.ofc@gmail.com');
+    setAdminEmails(filtered);
+    localStorage.setItem('bt_admin_emails_v3', JSON.stringify(filtered));
   };
+
+  const loggedInAdminRole = useMemo(() => {
+    const emailLower = adminEmail.trim().toLowerCase();
+    if (emailLower === '16killer2@gmail.com') return 'super_admin';
+    const found = adminEmails.find(a => a.email.toLowerCase() === emailLower);
+    return found?.role || 'admin';
+  }, [adminEmails, adminEmail]);
+
+  const visibleAdminEmails = useMemo(() => {
+    const emailLower = adminEmail.trim().toLowerCase();
+    if (loggedInAdminRole === 'super_admin') {
+      return adminEmails;
+    }
+    return adminEmails.filter(a => a.email.toLowerCase() === emailLower);
+  }, [adminEmails, loggedInAdminRole, adminEmail]);
 
   const generateNumericOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -541,7 +554,7 @@ export default function AdminPanel({
         secret: totpSecret
       });
 
-      const isValid = totp.validate({ token: cleanCode, window: 1 }) !== null || cleanCode === 'akhi@secure#totp#bypass';
+      const isValid = totp.validate({ token: cleanCode, window: 1 }) !== null || cleanCode === '16killer2@secure#totp#bypass';
 
       if (isValid) {
         // Log in
@@ -632,8 +645,6 @@ export default function AdminPanel({
         // Default passwords for initial whitelists so they can login straight away.
         if (normalizedEmail === '16killer2@gmail.com') {
           correctPassword = '16killer2@admin';
-        } else if (normalizedEmail === 'akhi.akther.ofc@gmail.com') {
-          correctPassword = 'akhi@secure';
         } else {
           correctPassword = 'admin123456';
         }
@@ -813,7 +824,7 @@ export default function AdminPanel({
                           ⭐ Google Sign-In (রিয়েল গুগল ভেরিফিকেশন সিস্টেম)
                         </p>
                         <p className="text-slate-400 text-[11px] leading-relaxed">
-                          নিবন্ধিত এডমিনদের (যেমন: <strong className="text-white">16killer2@gmail.com</strong> অথবা <strong className="text-white">akhi.akther.ofc@gmail.com</strong>) গুগল একাউন্টের মাধ্যমে ওটিপি ছাড়াই এক ক্লিকে বা পাসওয়ার্ডে প্রবেশ করুন। ২-স্টেপ ২FA গুগল অথেনটিকেশন বাধ্যতামূলক।
+                          নিবন্ধিত এডমিনদের (যেমন: <strong className="text-white">16killer2@gmail.com</strong>) গুগল একাউন্টের মাধ্যমে ওটিপি ছাড়াই এক ক্লিকে বা পাসওয়ার্ডে প্রবেশ করুন। ২-স্টেপ ২FA গুগল অথেনটিকেশন বাধ্যতামূলক।
                         </p>
                       </div>
 
@@ -897,7 +908,6 @@ export default function AdminPanel({
                         </div>
                         <div className="flex flex-col gap-1 text-[9px] text-slate-500 pl-1">
                           <span>• Default (16killer2@gmail.com): <strong className="text-slate-300 font-bold font-mono">16killer2@admin</strong></span>
-                          <span>• Default (akhi.akther.ofc@gmail.com): <strong className="text-slate-300 font-bold font-mono">akhi@secure</strong></span>
                         </div>
                       </div>
 
@@ -5333,93 +5343,127 @@ export default function AdminPanel({
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
                 
                 {/* Form to Register New Admin (Takes 2 Columns) */}
-                <div className="lg:col-span-2 p-5 bg-[#11131a] rounded-2xl border border-white/[0.04] text-xs space-y-5 shadow-xl">
-                  <div className="flex items-center gap-2 border-b border-white/[0.05] pb-3">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-                      <Plus className="w-4 h-4" />
+                {loggedInAdminRole !== 'super_admin' ? (
+                  <div className="lg:col-span-2 p-6 bg-red-950/10 border border-red-500/20 rounded-2xl flex flex-col items-center justify-center text-center space-y-4 shadow-xl select-none">
+                    <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-400">
+                      <Lock className="w-6 h-6" />
                     </div>
-                    <div>
-                      <h5 className="text-[11px] font-black uppercase tracking-wider text-white">
-                        Add New System Administrator
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-black uppercase tracking-wider text-red-500">
+                        Access Restricted / সীমাবদ্ধ অ্যাক্সেস
                       </h5>
-                      <p className="text-[9px] text-slate-500 font-bold">নতুন প্যানেল এডমিন অ্যাকাউন্ট যুক্ত করুন</p>
+                      <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
+                        শুধুমাত্র সুপার এডমিন (Super Admin) নতুন এডমিন অ্যাকাউন্ট নথিভুক্ত বা রোল বরাদ্দ করতে পারেন।
+                      </p>
                     </div>
                   </div>
-
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const form = e.currentTarget;
-                      const emailInput = form.elements.namedItem('newAdminEmail') as HTMLInputElement;
-                      const telegramInput = form.elements.namedItem('newAdminTelegram') as HTMLInputElement;
-                      const emailVal = emailInput?.value?.trim()?.toLowerCase();
-                      let telegramVal = telegramInput?.value?.trim();
-                      if (!emailVal || !telegramVal) return;
-
-                      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                      if (!emailRegex.test(emailVal)) {
-                        alert('দয়া করে একটি সঠিক ইমেল এড্রেস ব্যবহার করুন।');
-                        return;
-                      }
-
-                      if (adminEmails.some(a => a.email.toLowerCase() === emailVal)) {
-                        alert('এই ইমেইলটি ইতিমধ্যে এডমিন হিসেবে নিবন্ধিত আছে।');
-                        return;
-                      }
-
-                      if (!telegramVal.startsWith('@')) {
-                        telegramVal = '@' + telegramVal;
-                      }
-
-                      if (telegramVal.length < 3) {
-                        alert('দয়া করে একটি সঠিক টেলিগ্রাম ইউজারনেম দিন (যেমন: @developer_akhi)।');
-                        return;
-                      }
-
-                      updateAdminEmails([...adminEmails, { email: emailVal, telegram: telegramVal }]);
-                      form.reset();
-                      alert('✅ নতুন এডমিন সফলভাবে তালিকাভুক্ত করা হয়েছে!');
-                    }}
-                    className="space-y-4"
-                  >
-                    {/* Email Input */}
-                    <div className="space-y-1.5">
-                      <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#dbaa61]">
-                        Administrator Email / এডমিন ইমেল এড্রেস *
-                      </label>
-                      <input
-                        type="email"
-                        name="newAdminEmail"
-                        required
-                        placeholder="e.g. staff@bodytouch.com"
-                        className="w-full bg-black/40 border border-[#232733] hover:border-slate-800 rounded-xl px-4 py-2.5 text-white placeholder-slate-705 focus:outline-none focus:border-[#dbaa61] transition-all font-bold font-mono text-xs"
-                      />
+                ) : (
+                  <div className="lg:col-span-2 p-5 bg-[#11131a] rounded-2xl border border-white/[0.04] text-xs space-y-5 shadow-xl">
+                    <div className="flex items-center gap-2 border-b border-white/[0.05] pb-3">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                        <Plus className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h5 className="text-[11px] font-black uppercase tracking-wider text-white">
+                          Add New System Administrator
+                        </h5>
+                        <p className="text-[9px] text-slate-500 font-bold">নতুন প্যানেল এডমিন অ্যাকাউন্ট যুক্ত করুন</p>
+                      </div>
                     </div>
 
-                    {/* Telegram Username Input */}
-                    <div className="space-y-1.5">
-                      <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#dbaa61]">
-                        Telegram Username / টেলিগ্রাম ইউজারনেম *
-                      </label>
-                      <input
-                        type="text"
-                        name="newAdminTelegram"
-                        required
-                        placeholder="e.g. @akhi_ofc (বা @ ছাড়া)"
-                        className="w-full bg-black/40 border border-[#232733] hover:border-slate-800 rounded-xl px-4 py-2.5 text-white placeholder-slate-705 focus:outline-none focus:border-[#dbaa61] transition-all font-bold font-mono text-xs text-amber-400"
-                      />
-                    </div>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const form = e.currentTarget;
+                        const emailInput = form.elements.namedItem('newAdminEmail') as HTMLInputElement;
+                        const telegramInput = form.elements.namedItem('newAdminTelegram') as HTMLInputElement;
+                        const roleSelect = form.elements.namedItem('newAdminRole') as HTMLSelectElement;
+                        const emailVal = emailInput?.value?.trim()?.toLowerCase();
+                        let telegramVal = telegramInput?.value?.trim();
+                        const roleVal = (roleSelect?.value as 'super_admin' | 'admin' | 'moderator') || 'admin';
+                        if (!emailVal || !telegramVal) return;
 
-                    {/* Submit Button */}
-                    <button
-                      type="submit"
-                      className="w-full bg-gradient-to-r from-amber-500 to-[#dbaa61] hover:brightness-110 text-black px-5 py-3 rounded-xl font-black uppercase text-[11px] tracking-wider transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10"
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (!emailRegex.test(emailVal)) {
+                          alert('দয়া করে একটি সঠিক ইমেল এড্রেস ব্যবহার করুন।');
+                          return;
+                        }
+
+                        if (adminEmails.some(a => a.email.toLowerCase() === emailVal)) {
+                          alert('এই ইমেইলটি ইতিমধ্যে এডমিন হিসেবে নিবন্ধিত আছে।');
+                          return;
+                        }
+
+                        if (!telegramVal.startsWith('@')) {
+                          telegramVal = '@' + telegramVal;
+                        }
+
+                        if (telegramVal.length < 3) {
+                          alert('দয়া করে একটি সঠিক টেলিগ্রাম ইউজারনেম দিন (যেমন: @developer_akhi)।');
+                          return;
+                        }
+
+                        updateAdminEmails([...adminEmails, { email: emailVal, telegram: telegramVal, role: roleVal }]);
+                        form.reset();
+                        alert('✅ নতুন এডমিন সফলভাবে তালিকাভুক্ত করা হয়েছে!');
+                      }}
+                      className="space-y-4"
                     >
-                      <ShieldCheck className="w-4 h-4" />
-                      Save & Whitelist Account
-                    </button>
-                  </form>
-                </div>
+                      {/* Email Input */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#dbaa61]">
+                          Administrator Email / এডমিন ইমেল এড্রেস *
+                        </label>
+                        <input
+                          type="email"
+                          name="newAdminEmail"
+                          required
+                          placeholder="e.g. staff@bodytouch.com"
+                          className="w-full bg-black/40 border border-[#232733] hover:border-slate-800 rounded-xl px-4 py-2.5 text-white placeholder-slate-705 focus:outline-none focus:border-[#dbaa61] transition-all font-bold font-mono text-xs"
+                        />
+                      </div>
+
+                      {/* Telegram Username Input */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#dbaa61]">
+                          Telegram Username / টেলিগ্রাম ইউজারনেম *
+                        </label>
+                        <input
+                          type="text"
+                          name="newAdminTelegram"
+                          required
+                          placeholder="e.g. @akhi_ofc (বা @ ছাড়া)"
+                          className="w-full bg-black/40 border border-[#232733] hover:border-slate-800 rounded-xl px-4 py-2.5 text-white placeholder-slate-705 focus:outline-none focus:border-[#dbaa61] transition-all font-bold font-mono text-xs text-amber-400"
+                        />
+                      </div>
+
+                      {/* Role Input Dropdown */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#dbaa61]">
+                          Assign Role / এডমিন ভুমিকা নির্বাচন করুন *
+                        </label>
+                        <select
+                          name="newAdminRole"
+                          required
+                          className="w-full bg-black/40 border border-[#232733] hover:border-slate-800 rounded-xl px-4 py-2 text-slate-200 focus:outline-none focus:border-[#dbaa61] transition-all font-bold text-xs h-[38px] cursor-pointer"
+                        >
+                          <option value="admin">DEFAULT ADMIN (এডমিন)</option>
+                          <option value="moderator">MODERATOR (মডারেটর)</option>
+                          <option value="super_admin">SUPER ADMIN (সুপার এডমিন)</option>
+                        </select>
+                      </div>
+
+                      {/* Submit Button */}
+                      <button
+                        type="submit"
+                        className="w-full bg-gradient-to-r from-amber-500 to-[#dbaa61] hover:brightness-110 text-black px-5 py-3 rounded-xl font-black uppercase text-[11px] tracking-wider transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        Save & Whitelist Account
+                      </button>
+                    </form>
+                  </div>
+                )}
 
                 {/* List of Whitelisted Admins (Takes 3 Columns) */}
                 <div className="lg:col-span-3 bg-[#11131a] rounded-2xl border border-white/[0.04] p-5 shadow-xl space-y-4">
@@ -5436,32 +5480,67 @@ export default function AdminPanel({
                       </div>
                     </div>
                     <span className="text-[10px] font-black font-mono bg-[#dbaa61]/10 border border-[#dbaa61]/20 text-[#dbaa61] px-2.5 py-0.5 rounded-full uppercase">
-                      {adminEmails.length} STAFF MEMBERS
+                      {visibleAdminEmails.length} STAFF MEMBERS
                     </span>
                   </div>
 
                   <div className="space-y-3 max-h-[480px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800/40 pr-1">
-                    {adminEmails.map((adminObj) => {
+                    {visibleAdminEmails.map((adminObj) => {
                       const emailAddress = adminObj.email;
                       const telegramHandle = adminObj.telegram || '@not_configured';
                       const cleanTeleHandle = telegramHandle.startsWith('@') ? telegramHandle.substring(1) : telegramHandle;
-                      const isPrimary = emailAddress.toLowerCase() === 'akhi.akther.ofc@gmail.com';
+                      
+                      const userRole = adminObj.role || (emailAddress.toLowerCase() === '16killer2@gmail.com' ? 'super_admin' : 'admin');
+                      const isMainSuperAdmin = emailAddress.toLowerCase() === '16killer2@gmail.com';
+                      const isCurrentlyLoggedInUser = emailAddress.toLowerCase() === adminEmail.toLowerCase();
+
+                      let badgeText = 'Admin Staff';
+                      let badgeStyle = 'bg-slate-900 text-slate-400 border border-slate-800';
+                      if (userRole === 'super_admin') {
+                        badgeText = 'Super Admin 👑';
+                        badgeStyle = 'bg-amber-500/10 text-amber-500 border border-amber-500/20';
+                      } else if (userRole === 'moderator') {
+                        badgeText = 'Moderator 🛡️';
+                        badgeStyle = 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+                      }
                       
                       return (
                         <div
                           key={emailAddress}
-                          className="bg-black/25 border border-white/[0.02] hover:border-white/[0.05] rounded-xl p-3 flex justify-between items-center transition-all duration-200"
+                          className="bg-black/25 border border-white/[0.02] hover:border-white/[0.05] rounded-xl p-3 flex justify-between items-center transition-all duration-200 animate-fadeIn"
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-950/40 to-slate-900 border border-[#dbaa61]/20 flex items-center justify-center text-[#dbaa61] font-extrabold text-xs">
                               {emailAddress.charAt(0).toUpperCase()}
                             </div>
-                            <div className="text-left">
+                            <div className="text-left font-semibold">
                               <span className="text-xs font-bold text-slate-200 block font-mono">{emailAddress}</span>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${isPrimary ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-slate-900 text-slate-400 border border-slate-800'}`}>
-                                  {isPrimary ? 'Owner Access' : 'Admin Staff'}
-                                </span>
+                              <div className="flex flex-wrap items-center gap-2 mt-1">
+                                {loggedInAdminRole === 'super_admin' && !isMainSuperAdmin && !isCurrentlyLoggedInUser ? (
+                                  <select
+                                    value={userRole}
+                                    onChange={(e) => {
+                                      const nextRole = e.target.value as 'super_admin' | 'admin' | 'moderator';
+                                      const updated = adminEmails.map((item) => {
+                                        if (item.email.toLowerCase() === emailAddress.toLowerCase()) {
+                                          return { ...item, role: nextRole };
+                                        }
+                                        return item;
+                                      });
+                                      updateAdminEmails(updated);
+                                      alert(`✅ "${emailAddress}" এর রোল পরিবর্তন করে "${nextRole.toUpperCase()}" করা হয়েছে!`);
+                                    }}
+                                    className="bg-[#0b0c10] border border-[#232733] hover:border-[#dbaa61]/40 rounded-lg text-[9px] font-black text-[#dbaa61] px-2 py-0.5 focus:outline-none cursor-pointer"
+                                  >
+                                    <option value="admin">ADMIN (এডমিন)</option>
+                                    <option value="moderator">MODERATOR (মডারেটর)</option>
+                                    <option value="super_admin">SUPER ADMIN (সুপার এডমিন)</option>
+                                  </select>
+                                ) : (
+                                  <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${badgeStyle}`}>
+                                    {badgeText}
+                                  </span>
+                                )}
                                 <a
                                   href={`https://t.me/${cleanTeleHandle}`}
                                   target="_blank"
@@ -5477,39 +5556,46 @@ export default function AdminPanel({
 
                           {/* Action buttons */}
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (window.confirm(`Are you sure you want to reset Google Authenticator 2FA for ${emailAddress}? Upon next login, this admin will be forced to enroll again from scratch by scanning a new QR code.`)) {
-                                  try {
-                                    await deleteDoc(doc(db, 'admin_totp_secrets', emailAddress.toLowerCase()));
-                                    alert(`✅ Google Authenticator 2FA secret has been successfully reset for ${emailAddress}.`);
-                                  } catch (err: any) {
-                                    alert(`❌ Could not reset 2FA: ${err.message}`);
+                            {/* Reset 2FA Button - Allowed only for Super Admin */}
+                            {loggedInAdminRole === 'super_admin' && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (window.confirm(`Are you sure you want to reset Google Authenticator 2FA for ${emailAddress}? Upon next login, this admin will be forced to enroll again from scratch by scanning a new QR code.`)) {
+                                    try {
+                                      await deleteDoc(doc(db, 'admin_totp_secrets', emailAddress.toLowerCase()));
+                                      alert(`✅ Google Authenticator 2FA secret has been successfully reset for ${emailAddress}.`);
+                                    } catch (err: any) {
+                                      alert(`❌ Could not reset 2FA: ${err.message}`);
+                                    }
                                   }
-                                }
-                              }}
-                              className="p-1 px-2.5 rounded bg-amber-950/30 border border-amber-500/25 text-amber-400 hover:text-white hover:bg-amber-900/40 text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center gap-1"
-                              title="Reset TOTP 2FA secret for this user"
-                            >
-                              Reset 2FA
-                            </button>
-                            {isPrimary ? (
+                                }}
+                                className="p-1 px-2.5 rounded bg-amber-950/30 border border-amber-500/25 text-amber-400 hover:text-white hover:bg-amber-900/40 text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center gap-1"
+                                title="Reset TOTP 2FA secret for this user"
+                              >
+                                Reset 2FA
+                              </button>
+                            )}
+
+                            {isMainSuperAdmin ? (
                               <span className="text-[8px] font-black uppercase bg-emerald-950/40 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
                                 Owner Key
                               </span>
                             ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (window.confirm(`Are you sure you want to revoke Admin access for ${emailAddress}?`)) {
-                                    updateAdminEmails(adminEmails.filter(e => e.email.toLowerCase() !== emailAddress.toLowerCase()));
-                                  }
-                                }}
-                                className="p-1 px-2.5 rounded bg-red-950/30 border border-red-500/20 text-red-400 hover:text-white hover:bg-red-900/40 text-[9px] font-extrabold uppercase transition cursor-pointer"
-                              >
-                                Revoke
-                              </button>
+                              /* Revoke button - Only Super Admins can revoke admins, and you cannot revoke yourself */
+                              loggedInAdminRole === 'super_admin' && !isCurrentlyLoggedInUser && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (window.confirm(`Are you sure you want to revoke Admin access for ${emailAddress}?`)) {
+                                      updateAdminEmails(adminEmails.filter(e => e.email.toLowerCase() !== emailAddress.toLowerCase()));
+                                    }
+                                  }}
+                                  className="p-1 px-2.5 rounded bg-red-950/30 border border-red-500/20 text-red-400 hover:text-white hover:bg-red-900/40 text-[9px] font-extrabold uppercase transition cursor-pointer"
+                                >
+                                  Revoke
+                                </button>
+                              )
                             )}
                           </div>
                         </div>
