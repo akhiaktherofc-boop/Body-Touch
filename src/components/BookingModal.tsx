@@ -2,6 +2,7 @@ import { Companion, PaymentGateway } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Calendar, Clock, Moon, MapPin, Sparkles, User, Video, Heart, Users, ArrowRight, ArrowLeft, Home, Car, ChevronDown, MessageSquare, Phone, Send, CheckCircle2, Copy, Check, Info, Camera, AlertTriangle } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { compressImage } from '../services/imageService';
 
 const PREDEFINED_SANCTUARIES = [
   { name: 'Le Méridien Dhaka', address: 'Le Méridien, Pragati Sarani, Dhaka 1229', price: 9500 },
@@ -395,11 +396,11 @@ export default function BookingModal({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setter(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      compressImage(file, 800, 800, 0.75).then((compressedUrl) => {
+        if (compressedUrl) {
+          setter(compressedUrl);
+        }
+      });
     }
   };
 

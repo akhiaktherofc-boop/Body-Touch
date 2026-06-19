@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel } from '../types';
 import { clearCollection } from '../services/cloudService';
+import { compressImage } from '../services/imageService';
 import { 
   ShieldCheck, 
   RefreshCw, 
@@ -2637,11 +2638,11 @@ Secure Session: Active Ingress Gateway 3000
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setCompImage(reader.result as string);
-                                };
-                                reader.readAsDataURL(file);
+                                compressImage(file, 800, 800, 0.75).then((compressedUrl) => {
+                                  if (compressedUrl) {
+                                    setCompImage(compressedUrl);
+                                  }
+                                });
                               }
                             }}
                             className="hidden"
@@ -2931,16 +2932,17 @@ Secure Session: Active Ingress Gateway 3000
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setNewMediaUrl(reader.result as string);
-                              // Auto generate title from filename if not yet filled
-                              if (!newMediaTitle.trim()) {
-                                const cleanName = file.name.split('.')[0].replace(/[-_]/g, ' ');
-                                setNewMediaTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
+                            // Auto generate title from filename if not yet filled
+                            if (!newMediaTitle.trim()) {
+                              const cleanName = file.name.split('.')[0].replace(/[-_]/g, ' ');
+                              setNewMediaTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
+                            }
+                            // Compress
+                            compressImage(file, 1000, 1000, 0.75).then((compressedUrl) => {
+                              if (compressedUrl) {
+                                setNewMediaUrl(compressedUrl);
                               }
-                            };
-                            reader.readAsDataURL(file);
+                            });
                           }
                         }}
                         className="hidden"
@@ -3934,21 +3936,16 @@ Secure Session: Active Ingress Gateway 3000
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              if (file.size > 2 * 1024 * 1024) {
-                                alert("ভুল সাইজ: লোগোর সর্বোচ্চ সাইজ ২ মেগাবাইট (2MB)-এর কম হতে হবে!");
-                                return;
-                              }
-                              const reader = new FileReader();
-                              reader.onload = (ev) => {
-                                const base64 = ev.target?.result as string;
-                                setTempLogo(base64);
-                                // reset adjustments on new image load
-                                setLogoZoom(100);
-                                setLogoX(0);
-                                setLogoY(0);
-                                setLogoRotate(0);
-                              };
-                              reader.readAsDataURL(file);
+                              compressImage(file, 500, 500, 0.85).then((compressedUrl) => {
+                                if (compressedUrl) {
+                                  setTempLogo(compressedUrl);
+                                  // reset adjustments on new image load
+                                  setLogoZoom(100);
+                                  setLogoX(0);
+                                  setLogoY(0);
+                                  setLogoRotate(0);
+                                }
+                              });
                             }
                           }}
                         />

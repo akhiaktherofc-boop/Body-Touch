@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, User, Briefcase, Camera, Send, Check, Trash2, ShieldCheck, UploadCloud, Copy, Info } from 'lucide-react';
 import { Companion, ParentArea } from '../types';
+import { compressImage } from '../services/imageService';
 
 interface JoinModalProps {
   isOpen: boolean;
@@ -156,11 +157,12 @@ export default function JoinModal({
   const handleAddPicture = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPictures(prev => [...prev, reader.result as string].slice(0, 4));
-      };
-      reader.readAsDataURL(file);
+      // Compress to maximum 800px width/height and 0.75 quality for rapid upload and tiny storage size
+      compressImage(file, 800, 800, 0.75).then((compressedUrl) => {
+        if (compressedUrl) {
+          setPictures(prev => [...prev, compressedUrl].slice(0, 4));
+        }
+      });
     }
   };
 
@@ -171,15 +173,15 @@ export default function JoinModal({
   const handleNidChange = (e: React.ChangeEvent<HTMLInputElement>, side: 'front' | 'back') => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (side === 'front') {
-          setNidFront(reader.result as string);
-        } else {
-          setNidBack(reader.result as string);
+      compressImage(file, 800, 800, 0.75).then((compressedUrl) => {
+        if (compressedUrl) {
+          if (side === 'front') {
+            setNidFront(compressedUrl);
+          } else {
+            setNidBack(compressedUrl);
+          }
         }
-      };
-      reader.readAsDataURL(file);
+      });
     }
   };
 
@@ -1090,11 +1092,11 @@ export default function JoinModal({
                           onChange={(e) => {
                             if (e.target.files && e.target.files[0]) {
                               const file = e.target.files[0];
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                setSelfie(reader.result as string);
-                              };
-                              reader.readAsDataURL(file);
+                              compressImage(file, 800, 800, 0.75).then((compressedUrl) => {
+                                if (compressedUrl) {
+                                  setSelfie(compressedUrl);
+                                }
+                              });
                             }
                           }}
                           className="hidden"
