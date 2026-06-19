@@ -222,6 +222,14 @@ export default function BookingModal({
   const [secretCode, setSecretCode] = useState<string>('');
   const [showThankyou, setShowThankyou] = useState<boolean>(false);
 
+  // Telegram OTP Verification States
+  const [telegramOtp, setTelegramOtp] = useState('');
+  const [enteredOtp, setEnteredOtp] = useState('');
+  const [showOtpScreen, setShowOtpScreen] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [otpSuccess, setOtpSuccess] = useState('');
+
   // First time booking fields
   const [firstTimeBooking, setFirstTimeBooking] = useState<boolean>(false);
   const [userPhoto, setUserPhoto] = useState<string>('');
@@ -488,7 +496,45 @@ export default function BookingModal({
     setTimeout(() => setCopiedPhone(false), 2000);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const executeSendTelegramOtpBooking = async (code: string) => {
+    setIsSendingOtp(true);
+    setOtpError('');
+    setOtpSuccess('');
+    
+    const defaultBotToken = '7874983058:AAHshUqisKskj6D5-zZ7N0L-GCHV966L1Sg';
+    const customBotToken = localStorage.getItem('bt_telegram_bot_token') || defaultBotToken;
+    const token = localStorage.getItem('bt_telegram_bot_selection') === 'default' ? defaultBotToken : customBotToken;
+    const chatId = localStorage.getItem('bt_telegram_group_id') || '-1002283928192';
+
+    const text = `🔐 <b>[BODY TOUCH Booking Verification OTP]</b>\n\n` +
+                 `Client Name: <b>${clientNameInput || 'Guest Client'}</b>\n` +
+                 `Mobile Phone: <code>${phoneNumber}</code>\n` +
+                 `Telegram Username: <b>${telegramId}</b>\n` +
+                 `Companion Name: <b>${companion?.name}</b>\n\n` +
+                 `Verification Code:\n` +
+                 `👉 <b>${code}</b> 👈\n\n` +
+                 `Enter this code in your browser popup to unlock and book.`;
+
+    try {
+      await fetch(`https://api.telegram.org/bot${token.trim()}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId.trim(),
+          text: text,
+          parse_mode: 'HTML'
+        })
+      });
+      setOtpSuccess('Verification code dispatched to Telegram!');
+    } catch (teleErr) {
+      console.error("Telegram OTP dispatch error:", teleErr);
+      setOtpError('Failed to send verification code. Please check Telegram bot connection.');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const activeVal = getActiveContactValue();
     const resolvedDate = selectedService === 'CAM' ? (date || 'Today (Virtual CAM)') : date;
@@ -497,6 +543,8 @@ export default function BookingModal({
     if (isDeficit) {
       if (!deficitTrxId || deficitTrxId.trim().length < 8) return;
     }
+
+    // OTP verification has been disabled as requested by user. Proceed directly to booking confirmation.
 
     // Collate all filled contacts
     const contactsCollated: string[] = [];
@@ -543,6 +591,7 @@ export default function BookingModal({
     };
 
     setLastSubmittedData(bookingPayload);
+    setShowOtpScreen(false);
     setShowThankyou(true);
   };
 
@@ -1612,169 +1661,227 @@ export default function BookingModal({
                     </h2>
                   </div>
 
-                  <form onSubmit={handleFormSubmit} className="space-y-4">
-                    {/* Contact Number & Telegram ID Fields */}
-                    <div className="space-y-4">
-                      {/* PHONE NUMBER */}
-                      <div className="space-y-1.5">
-                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-left">
-                          SECURE PHONE NUMBER *
+                  {showOtpScreen ? (
+                    <div className="space-y-4 animate-fadeIn">
+                      <div className="p-4 rounded-xl border border-blue-500/35 bg-blue-900/10 text-center space-y-2">
+                        <span className="text-[10px] text-blue-400 font-extrabold uppercase tracking-widest block font-mono">
+                          MANDATORY TELEGRAM SECURITY VERIFICATION (বাধ্যতামূলক নিরাপত্তা যাচাইকরণ)
                         </span>
-                        <div className="relative">
-                          <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none" />
-                          <input
-                            type="text"
-                            required
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            placeholder="e.g. +88017xxxxxxxx"
-                            className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-normal font-semibold font-mono placeholder:text-slate-600"
-                          />
-                        </div>
-                      </div>
-
-                      {/* TELEGRAM ID */}
-                      <div className="space-y-1.5">
-                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-left flex justify-between">
-                          <span>SECURE TELEGRAM ID / USERNAME * (বাধ্যতামূলক)</span>
-                          <span className="text-amber-400 font-black">MANDATORY</span>
-                        </span>
-                        <div className="relative">
-                          <Send className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none" />
-                          <input
-                            type="text"
-                            required
-                            value={telegramId}
-                            onChange={(e) => setTelegramId(e.target.value)}
-                            placeholder="e.g. @username"
-                            className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-normal font-semibold font-mono placeholder:text-slate-600"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Integrated Deficit Payment Box */}
-                    {isDeficit ? (
-                      <div className="border border-amber-500/35 bg-amber-550/10 p-3.5 rounded-xl space-y-3 font-semibold">
-                        <div className="flex items-center gap-2">
-                          <span className="text-amber-400 text-sm">⚠️</span>
-                          <span className="text-[10px] text-amber-300 font-extrabold uppercase tracking-wide">
-                            Insufficient funds / বাকি টাকা পরিশোধ
-                          </span>
-                        </div>
-                        <p className="text-[9.5px] text-slate-400 leading-normal font-medium text-left">
-                          আপনার ওয়ালেট ব্যালেন্সের বাইরে অবশিষ্ট <strong className="text-emerald-400 font-mono">৳{deficitAmount.toLocaleString('en-US')}</strong> টাকা নিচের গেটওয়ে নম্বরে পাঠিয়ে ট্রানজেকশন আইডি প্রদান করুন।
-                        </p>
-
-                        {/* Deficit Gateway Picker */}
-                        <div className="space-y-1">
-                          <span className="block text-[8px] text-slate-450 font-black uppercase tracking-widest text-left">
-                            Select Gateway (গেটওয়ে সিলেক্ট করুন):
-                          </span>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[110px] overflow-y-auto pr-1">
-                            {displayGateways.map((g) => {
-                              const isSelected = deficitMethod === g.id || deficitMethod === g.name;
-                              const type = g.method.toUpperCase();
-                              let bgActive = 'bg-blue-600 border-transparent text-white';
-                              if (type.includes('BKASH')) bgActive = 'bg-[#e2125d] border-transparent text-white';
-                              else if (type.includes('NAGAD')) bgActive = 'bg-[#f15a22] border-transparent text-white';
-                              else if (type.includes('ROCKET')) bgActive = 'bg-[#8c3494] border-transparent text-white';
-                              
-                              return (
-                                <button
-                                  key={g.id}
-                                  type="button"
-                                  onClick={() => setDeficitMethod(g.name)}
-                                  className={`py-1.5 px-1 truncate rounded-lg text-[9.5px] font-black uppercase text-center transition cursor-pointer border ${
-                                    isSelected 
-                                      ? bgActive
-                                      : 'bg-slate-900 border-blue-500/10 text-slate-400 hover:text-slate-200 hover:bg-slate-850'
-                                  }`}
-                                  title={`${g.name} (${g.walletType})`}
-                                >
-                                  {g.name}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Phone details copying capsule */}
-                        <div className="bg-slate-950 p-2.5 rounded-lg border border-amber-500/10 text-xs flex justify-between items-center">
-                          <div className="text-left">
-                            <span className="text-slate-550 block text-[8px] uppercase tracking-wider font-extrabold">
-                              Receiver {selectedGateway?.name || 'Receiver'} Mobile
-                            </span>
-                            <span className="text-white font-mono font-bold tracking-wider text-xs select-all">
-                              {selectedGateway?.number || '+৮৮০১৭১২-৩৪৫৬৭৮'}
-                            </span>
-                            <span className="block text-[8px] text-[#f7b749] uppercase tracking-widest mt-0.5">
-                              Mode: {selectedGateway?.walletType || 'Personal'}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handlePhoneCopy}
-                            className="bg-amber-500/10 text-amber-400 hover:text-white text-[9px] font-bold px-2 py-1 rounded border border-amber-500/20 flex items-center gap-1 cursor-pointer transition-all active:scale-95 shrink-0"
-                          >
-                            {copiedPhone ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                            <span>{copiedPhone ? 'Copied' : 'Copy'}</span>
-                          </button>
-                        </div>
-
-                        {/* Dynamic Instructions */}
-                        <div className="bg-black/35 p-2.5 rounded-lg border border-white/5 text-[10px] text-[#faf5ea] leading-relaxed text-left font-medium">
-                          <div className="flex items-center gap-1 text-amber-450 mb-1">
-                            <Info className="w-3.5 h-3.5 shrink-0" />
-                            <span className="font-extrabold uppercase text-[8.5px] tracking-wider">Instructions (পেমেন্ট নিয়মাবলী):</span>
-                          </div>
-                          <p className="leading-normal">{selectedGateway?.instructions || `দয়া করে এই নম্বরে পেমেন্ট সম্পূর্ণ করুন এবং নিচে ট্রানজেকশন আইডি দিন।`}</p>
-                        </div>
-
-                        {/* Deficit TrxId Input */}
-                        <div className="space-y-1">
-                          <label className="block text-[8px] text-amber-400 font-extrabold uppercase tracking-wider text-left">
-                            Remaining Pay Transaction ID (baki TrxID)
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={deficitTrxId}
-                            onChange={(e) => setDeficitTrxId(e.target.value)}
-                            placeholder="e.g. 5TRX9A2C"
-                            className="w-full bg-slate-950 border border-amber-500/25 text-white font-mono rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-amber-405 uppercase text-center tracking-widest font-bold"
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
-                        <span className="text-emerald-400 text-xs">⭐</span>
-                        <p className="text-[10px] font-black text-emerald-300 tracking-wide text-center">
-                          Full Booking covered by your wallet balance!
+                        <p className="text-xs text-slate-300 leading-normal">
+                          আপনার প্রদানকৃত টেলিগ্রাম <b>{telegramId}</b> নম্বরে / চ্যানেলে সিকিউরিটি OTP কোড পাঠানো হয়েছে। কোডটি নিচে সাবমিট করুন।
                         </p>
                       </div>
-                    )}
 
-                    {/* Bottom buttons row */}
-                    <div className="flex gap-3 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setStep(4)}
-                        className="flex-1 bg-transparent border border-blue-500/20 hover:border-blue-500/40 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap"
-                      >
-                        <ArrowLeft className="w-3.5 h-3.5" />
-                        <span>Back</span>
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={!getActiveContactValue().trim() || (isDeficit && deficitTrxId.trim().length < 8)}
-                        className="flex-1 bg-gradient-to-r from-emerald-600 to-indigo-500 hover:from-emerald-500 hover:to-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer shadow-md shadow-emerald-500/20 whitespace-nowrap"
-                      >
-                        <span>CONFIRM BOOKING</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
+                      {otpError && (
+                        <p className="text-red-400 text-xs font-bold text-center bg-red-950/40 p-2.5 rounded-lg border border-red-500/20">{otpError}</p>
+                      )}
+
+                      {otpSuccess && (
+                        <p className="text-emerald-400 text-xs font-bold text-center bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-500/20">{otpSuccess}</p>
+                      )}
+
+                      <div className="space-y-1 text-left">
+                        <label className="block text-[10px] text-[#dbaa61] uppercase tracking-wider font-extrabold text-center">
+                          6-Digit Verification Code (৬-সংখ্যার কোড)
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          value={enteredOtp}
+                          onChange={(e) => setEnteredOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                          placeholder="e.g. 529304"
+                          className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xl rounded-xl py-3 text-center font-bold tracking-[0.2em] font-mono focus:outline-none focus:border-blue-400"
+                        />
+                      </div>
+
+                      <div className="flex gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowOtpScreen(false);
+                            setEnteredOtp('');
+                            setOtpError('');
+                          }}
+                          className="flex-1 bg-transparent border border-blue-500/20 hover:border-blue-500/40 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={enteredOtp.length !== 6 || isSendingOtp}
+                          onClick={handleFormSubmit}
+                          className="flex-1 bg-gradient-to-r from-emerald-600 to-indigo-500 hover:from-emerald-500 hover:to-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer shadow-md shadow-emerald-500/20"
+                        >
+                          <span>{isSendingOtp ? 'SENDING...' : 'VERIFY & CONFIRM'}</span>
+                        </button>
+                      </div>
                     </div>
-                  </form>
+                  ) : (
+                    <form onSubmit={handleFormSubmit} className="space-y-4">
+                      {/* Contact Number & Telegram ID Fields */}
+                      <div className="space-y-4">
+                        {/* PHONE NUMBER */}
+                        <div className="space-y-1.5">
+                          <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-left">
+                            SECURE PHONE NUMBER *
+                          </span>
+                          <div className="relative">
+                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none" />
+                            <input
+                              type="text"
+                              required
+                              value={phoneNumber}
+                              onChange={(e) => setPhoneNumber(e.target.value)}
+                              placeholder="e.g. +88017xxxxxxxx"
+                              className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-normal font-semibold font-mono placeholder:text-slate-600"
+                            />
+                          </div>
+                        </div>
+
+                        {/* TELEGRAM ID */}
+                        <div className="space-y-1.5">
+                          <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-left flex justify-between">
+                            <span>SECURE TELEGRAM ID / USERNAME * (বাধ্যতামূলক)</span>
+                            <span className="text-amber-400 font-black">MANDATORY</span>
+                          </span>
+                          <div className="relative">
+                            <Send className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none" />
+                            <input
+                              type="text"
+                              required
+                              value={telegramId}
+                              onChange={(e) => setTelegramId(e.target.value)}
+                              placeholder="e.g. @username"
+                              className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-normal font-semibold font-mono placeholder:text-slate-600"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Integrated Deficit Payment Box */}
+                      {isDeficit ? (
+                        <div className="border border-amber-500/35 bg-amber-550/10 p-3.5 rounded-xl space-y-3 font-semibold">
+                          <div className="flex items-center gap-2">
+                            <span className="text-amber-400 text-sm">⚠️</span>
+                            <span className="text-[10px] text-amber-300 font-extrabold uppercase tracking-wide">
+                              Insufficient funds / বাকি টাকা পরিশোধ
+                            </span>
+                          </div>
+                          <p className="text-[9.5px] text-slate-400 leading-normal font-medium text-left">
+                            আপনার ওয়ালেট ব্যালেন্সের বাইরে অবশিষ্ট <strong className="text-emerald-400 font-mono">৳{deficitAmount.toLocaleString('en-US')}</strong> টাকা নিচের গেটওয়ে নম্বরে পাঠিয়ে ট্রানজেকশন আইডি প্রদান করুন।
+                          </p>
+
+                          {/* Deficit Gateway Picker */}
+                          <div className="space-y-1">
+                            <span className="block text-[8px] text-slate-455 font-black uppercase tracking-widest text-left">
+                              Select Gateway (গেটওয়ে সিলেক্ট করুন):
+                            </span>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[110px] overflow-y-auto pr-1">
+                              {displayGateways.map((g) => {
+                                const isSelected = deficitMethod === g.id || deficitMethod === g.name;
+                                const type = g.method.toUpperCase();
+                                let bgActive = 'bg-blue-600 border-transparent text-white';
+                                if (type.includes('BKASH')) bgActive = 'bg-[#e2125d] border-transparent text-white';
+                                else if (type.includes('NAGAD')) bgActive = 'bg-[#f15a22] border-transparent text-white';
+                                else if (type.includes('ROCKET')) bgActive = 'bg-[#8c3494] border-transparent text-white';
+                                
+                                return (
+                                  <button
+                                    key={g.id}
+                                    type="button"
+                                    onClick={() => setDeficitMethod(g.name)}
+                                    className={`py-1.5 px-1 truncate rounded-lg text-[9.5px] font-black uppercase text-center transition cursor-pointer border ${
+                                      isSelected 
+                                        ? bgActive
+                                        : 'bg-slate-900 border-blue-500/10 text-slate-400 hover:text-slate-200 hover:bg-slate-850'
+                                    }`}
+                                    title={`${g.name} (${g.walletType})`}
+                                  >
+                                    {g.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Phone details copying capsule */}
+                          <div className="bg-slate-950 p-2.5 rounded-lg border border-amber-500/10 text-xs flex justify-between items-center">
+                            <div className="text-left">
+                              <span className="text-slate-550 block text-[8px] uppercase tracking-wider font-extrabold">
+                                Receiver {selectedGateway?.name || 'Receiver'} Mobile
+                              </span>
+                              <span className="text-white font-mono font-bold tracking-wider text-xs select-all">
+                                {selectedGateway?.number || '+৮৮০১৭১২-৩৪৫৬৭৮'}
+                              </span>
+                              <span className="block text-[8px] text-[#f7b749] uppercase tracking-widest mt-0.5">
+                                Mode: {selectedGateway?.walletType || 'Personal'}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handlePhoneCopy}
+                              className="bg-amber-500/10 text-amber-400 hover:text-white text-[9px] font-bold px-2 py-1 rounded border border-amber-500/20 flex items-center gap-1 cursor-pointer transition-all active:scale-95 shrink-0"
+                            >
+                              {copiedPhone ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                              <span>{copiedPhone ? 'Copied' : 'Copy'}</span>
+                            </button>
+                          </div>
+
+                          {/* Dynamic Instructions */}
+                          <div className="bg-black/35 p-2.5 rounded-lg border border-white/5 text-[10px] text-[#faf5ea] leading-relaxed text-left font-medium">
+                            <div className="flex items-center gap-1 text-amber-450 mb-1">
+                              <Info className="w-3.5 h-3.5 shrink-0" />
+                              <span className="font-extrabold uppercase text-[8.5px] tracking-wider">Instructions (পেমেন্ট নিয়মাবলী):</span>
+                            </div>
+                            <p className="leading-normal">{selectedGateway?.instructions || `দয়া করে এই নম্বরে পেমেন্ট সম্পূর্ণ করুন এবং নিচে ট্রানজেকশন আইডি দিন।`}</p>
+                          </div>
+
+                          {/* Deficit TrxId Input */}
+                          <div className="space-y-1">
+                            <label className="block text-[8px] text-amber-400 font-extrabold uppercase tracking-wider text-left">
+                              Remaining Pay Transaction ID (baki TrxID)
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={deficitTrxId}
+                              onChange={(e) => setDeficitTrxId(e.target.value)}
+                              placeholder="e.g. 5TRX9A2C"
+                              className="w-full bg-slate-950 border border-amber-500/25 text-white font-mono rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-amber-405 uppercase text-center tracking-widest font-bold"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
+                          <span className="text-emerald-400 text-xs">⭐</span>
+                          <p className="text-[10px] font-black text-emerald-300 tracking-wide text-center">
+                            Full Booking covered by your wallet balance!
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Bottom buttons row */}
+                      <div className="flex gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setStep(4)}
+                          className="flex-1 bg-transparent border border-blue-500/20 hover:border-blue-500/40 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap"
+                        >
+                          <ArrowLeft className="w-3.5 h-3.5" />
+                          <span>Back</span>
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={!getActiveContactValue().trim() || (isDeficit && deficitTrxId.trim().length < 8)}
+                          className="flex-1 bg-gradient-to-r from-emerald-600 to-indigo-500 hover:from-emerald-500 hover:to-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer shadow-md shadow-emerald-500/20 whitespace-nowrap"
+                        >
+                          <span>CONFIRM BOOKING</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               )}
                 </>

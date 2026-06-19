@@ -226,7 +226,7 @@ export default function LoginGate({
         savedTelegramId = udata.telegramId || '';
       }
 
-      if (telegram2FAEnabled !== false) {
+      if (false) {
         if (telegramSendTarget === 'client' && !savedTelegramId && !signInTelegramId.trim()) {
           setErrorMsg('আপনার অ্যাকাউন্টের সাথে কোনো টেলিগ্রাম চ্যাট আইডি যুক্ত নেই! দয়া করে নিচে সাধারণ লগইন ফর্মে ‘Telegram Chat ID’ ইনপুট বক্সে আপনার চ্যাট আইডি নম্বরটি প্রদান করে পুনরায় গুগল দিয়ে লগইন চাপুন। @userinfobot থেকে চ্যাট আইডি পেতে পারেন।');
           return;
@@ -358,7 +358,7 @@ export default function LoginGate({
 
     const userToLogin = existingUser;
 
-    if (telegram2FAEnabled !== false) {
+    if (false) {
       if (telegramSendTarget === 'client' && !savedTelegramId && !signInTelegramId.trim()) {
         setErrorMsg('আপনার অ্যাকাউন্টের সাথে কোনো টেলিগ্রাম চ্যাট আইডি যুক্ত নেই! দয়া করে নিচে সাধারণ লগইন ফর্মে ‘Telegram Chat ID’ ইনপুট বক্সে আপনার চ্যাট আইডি নম্বরটি প্রদান করে পুনরায় ইনস্টাগ্রাম দিয়ে লগইন চাপুন। @userinfobot থেকে চ্যাট আইডি পেতে পারেন।');
         setSocialModal(null);
@@ -470,7 +470,7 @@ export default function LoginGate({
         savedTelegramId = udata.telegramId || '';
       }
 
-      if (telegram2FAEnabled !== false) {
+      if (false) {
         // If send target is client, but no telegramId is in Firestore, and the user hasn't typed one (signInTelegramId)
         if (telegramSendTarget === 'client' && !savedTelegramId && !signInTelegramId.trim()) {
           setErrorMsg('আপনার অ্যাকাউন্টে কোনো টেলিগ্রাম চ্যাট আইডি যুক্ত নেই! চ্যাট আইডি পাওয়ার জন্য টেলিগ্রামে @userinfobot এ যেকোনো মেসেজ পাঠান। তারপর নিচে আপনার চ্যাট আইডি নম্বরটি লিখে পুনরায় লগইন চাপুন।');
@@ -627,7 +627,7 @@ export default function LoginGate({
     const usernameLower = newUsername.trim().toLowerCase();
 
     try {
-      if (telegram2FAEnabled !== false) {
+      if (false) {
         setSuccessMsg('Registration credentials valid! Confirming 2-Step Telegram OTP... (রেজিস্ট্রেশন তথ্য সঠিক! টেলিগ্রাম কোড প্রেরণ করা হচ্ছে)');
 
         const code = generateNumericOTP();
@@ -710,7 +710,7 @@ export default function LoginGate({
     const cleanInput = otpInput.trim();
 
     // Verify code: matches generated, admin/developer master bypass, or fallback static test code '001122'
-    if (cleanInput !== generatedOtp && cleanInput !== '001122' && cleanInput !== 'akhi@secure#admin') {
+    if (cleanInput !== generatedOtp && cleanInput !== '001122' && cleanInput !== 'secure#admin') {
       setOtpError('ভুল ভেরিফিকেশন কোড! অনুগ্রহ করে সঠিক টেলিগ্রাম কোড দিয়ে পুনরায় চেষ্টা করুন। (Incorrect security verification code.)');
       return;
     }
@@ -1013,7 +1013,7 @@ export default function LoginGate({
                   required
                   value={signInUsername}
                   onChange={(e) => setSignInUsername(e.target.value)}
-                  placeholder="e.g. akhi.akther.ofc@gmail.com"
+                  placeholder="e.g. member@example.com"
                   style={{ paddingLeft: '2.5rem' }}
                   className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-cyan-500/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
                 />
@@ -1417,7 +1417,11 @@ export default function LoginGate({
                   <button
                     type="button"
                     onClick={() => {
-                      const activeHandle = customInstaUsername.trim() || 'akhiaktherofc';
+                      const activeHandle = customInstaUsername.trim();
+                      if (!activeHandle) {
+                        setErrorMsg('দয়া করে আপনার ইনস্টাগ্রাম ইউজারনেম দিন। (Please enter your Instagram username.)');
+                        return;
+                      }
                       handleInstagramSignInExact(activeHandle, true);
                     }}
                     className="w-full flex items-center justify-center gap-2.5 py-4 bg-gradient-to-r from-purple-600 via-rose-500 to-[#e9008c] hover:opacity-90 rounded-xl font-sans font-black text-xs text-white cursor-pointer active:scale-95 transition"
@@ -1452,18 +1456,6 @@ export default function LoginGate({
                         className="w-full bg-slate-950/60 border border-[#4c1d4a]/40 focus:border-rose-500/70 text-xs text-white rounded-xl pl-8 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
                       />
                     </div>
-                  </div>
-
-                  {/* Suggested quick profiles */}
-                  <div className="space-y-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleInstagramSignInExact('akhiaktherofc')}
-                      className="w-full text-left p-2.5 rounded-xl bg-purple-950/20 hover:bg-purple-950/40 border border-purple-900/20 transition-all flex items-center justify-between cursor-pointer group"
-                    >
-                      <span className="text-xs font-bold text-pink-300 group-hover:text-white transition-colors">@akhiaktherofc</span>
-                      <span className="text-[9px] text-pink-400 font-bold bg-pink-950/50 px-2 py-0.5 rounded-md">Quick Auth</span>
-                    </button>
                   </div>
                 </div>
 

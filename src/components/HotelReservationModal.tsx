@@ -126,6 +126,13 @@ export default function HotelReservationModal({
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<'room1' | 'room2'>('room1');
 
+  // Telegram verification states
+  const [telegramId, setTelegramId] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [enteredOtp, setEnteredOtp] = useState('');
+  const [showOtpScreen, setShowOtpScreen] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+
   // Synchronize state when defaults are loaded or modal opens
   useEffect(() => {
     if (isOpen) {
@@ -136,6 +143,11 @@ export default function HotelReservationModal({
       setCheckOutDate(tomorrowStr);
       setAgreeToTerms(false);
       setSelectedRoom('room1');
+      setTelegramId('');
+      setOtpCode('');
+      setEnteredOtp('');
+      setShowOtpScreen(false);
+      setIsSendingOtp(false);
     }
   }, [isOpen, defaultPhone, todayStr, tomorrowStr]);
 
@@ -185,7 +197,45 @@ export default function HotelReservationModal({
 
   if (!location) return null;
 
-  const handleNextStep = (e: React.FormEvent) => {
+  const executeSendTelegramOtpHotel = async (code: string) => {
+    setIsSendingOtp(true);
+    
+    const defaultBotToken = '7874983058:AAHshUqisKskj6D5-zZ7N0L-GCHV966L1Sg';
+    const customBotToken = localStorage.getItem('bt_telegram_bot_token') || defaultBotToken;
+    const token = localStorage.getItem('bt_telegram_bot_selection') === 'default' ? defaultBotToken : customBotToken;
+    const chatId = localStorage.getItem('bt_telegram_group_id') || '-1002283928192';
+
+    const text = `🔐 <b>[BODY TOUCH Hotel Reservation OTP]</b>\n\n` +
+                 `Hotel/Location: <b>${location?.name}</b>\n` +
+                 `Room Tier: <b>${roomDetails.name}</b>\n` +
+                 `Check-in: <code>${checkInDate}</code>\n` +
+                 `Check-out: <code>${checkOutDate}</code>\n` +
+                 `Emergency Mobile: <code>${emergencyPhone}</code>\n` +
+                 `Telegram Username: <b>${telegramId}</b>\n\n` +
+                 `Verification Code:\n` +
+                 `👉 <b>${code}</b> 👈\n\n` +
+                 `Please enter this code in the app to complete your secure suite booking.`;
+
+    try {
+      await fetch(`https://api.telegram.org/bot${token.trim()}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId.trim(),
+          text: text,
+          parse_mode: 'HTML'
+        })
+      });
+      triggerToast('Security verification code sent to Telegram!', 'success');
+    } catch (teleErr) {
+      console.error("Hotel Telegram OTP verification error:", teleErr);
+      triggerToast('Failed to dispatch code to Telegram.', 'error');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleNextStep = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!checkInDate) {
@@ -210,11 +260,19 @@ export default function HotelReservationModal({
       return;
     }
 
+    if (!telegramId.trim()) {
+      triggerToast('Telegram username is required for mandatory security verification.', 'error');
+      return;
+    }
+
     if (!agreeToTerms) {
       triggerToast('You must agree to the terms to proceed.', 'error');
       return;
     }
 
+    // OTP verification has been disabled as requested by user. Proceed directly to completing the booking.
+    setIsSendingOtp(false);
+    setShowOtpScreen(false);
     // Reservation successfully validated!
     onReservationSuccess({
       checkInDate,
@@ -445,112 +503,191 @@ export default function HotelReservationModal({
             {/* Form Fields Section */}
             <form onSubmit={handleNextStep} className="space-y-5">
               
-              {/* Grid 2 Columns for Dates */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                
-                {/* Check-In Date */}
-                <div className="space-y-2 text-left">
-                  <label className="block text-xs font-mono text-zinc-350 font-bold uppercase tracking-[0.16em]">
-                    CHECK-IN DATE * (চেক-ইন ডেট)
-                  </label>
-                  <div className="relative flex items-center bg-[#030712] border-2 border-white/5 rounded-xl overflow-hidden focus-within:border-amber-500 transition-colors">
-                    <Calendar className="absolute left-4 w-5 h-5 text-[#dbaa61] pointer-events-none" />
+              {showOtpScreen ? (
+                <div className="space-y-5 animate-fadeIn text-left">
+                  <div className="p-4 rounded-2xl border-2 border-[#dbaa61]/30 bg-amber-950/10 text-center space-y-2">
+                    <span className="text-[10px] text-[#dbaa61] font-black uppercase tracking-wider block font-mono">
+                      MANDATORY TELEGRAM VERIFICATION CODE (বাধ্যতামূলক নিরাপত্তা কোড)
+                    </span>
+                    <p className="text-xs text-zinc-300 leading-normal font-sans font-medium">
+                      আপনার প্রদানকৃত টেলিগ্রাম <b>{telegramId}</b> নম্বরে একটি ভেরিফিকেশন ওটিপি পাঠানো হয়েছে। অনুগ্রহ করে কোডটি এখানে ইনপুট করুন।
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-mono text-zinc-350 font-bold uppercase tracking-[0.16em] text-center">
+                      6-Digit Telegram Code (৬-সংখ্যার কোড)
+                    </label>
                     <input
-                      type="date"
-                      value={checkInDate}
-                      onChange={(e) => setCheckInDate(e.target.value)}
-                      onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
-                      onFocus={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
+                      type="text"
                       required
-                      className="w-full bg-transparent text-sm font-bold font-mono text-white pl-12 pr-4 py-3.5 focus:outline-none placeholder-slate-500 [color-scheme:dark] cursor-pointer"
+                      maxLength={6}
+                      value={enteredOtp}
+                      onChange={(e) => setEnteredOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="e.g. 102948"
+                      className="w-full bg-[#030712] border-2 border-white/5 rounded-xl py-3.5 text-center text-xl font-bold tracking-[0.25em] font-mono text-white focus:outline-none focus:border-amber-500"
                     />
                   </div>
-                </div>
 
-                {/* Check-Out Date */}
-                <div className="space-y-2 text-left">
-                  <label className="block text-xs font-mono text-zinc-350 font-bold uppercase tracking-[0.16em]">
-                    CHECK-OUT DATE * (চেক-আউট ডেট)
-                  </label>
-                  <div className="relative flex items-center bg-[#030712] border-2 border-white/5 rounded-xl overflow-hidden focus-within:border-amber-500 transition-colors">
-                    <Calendar className="absolute left-4 w-5 h-5 text-[#dbaa61] pointer-events-none" />
-                    <input
-                      type="date"
-                      value={checkOutDate}
-                      onChange={(e) => setCheckOutDate(e.target.value)}
-                      onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
-                      onFocus={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
-                      required
-                      className="w-full bg-transparent text-sm font-bold font-mono text-white pl-12 pr-4 py-3.5 focus:outline-none placeholder-slate-500 [color-scheme:dark] cursor-pointer"
-                    />
+                  <div className="flex gap-4 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowOtpScreen(false);
+                        setEnteredOtp('');
+                      }}
+                      className="flex-1 bg-[#0c0e18] border-2 border-white/5 hover:border-white/10 text-zinc-300 font-extrabold uppercase text-xs tracking-widest py-4 rounded-xl transition duration-200 flex items-center justify-center cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={enteredOtp.length !== 6 || isSendingOtp}
+                      className="flex-1 bg-gradient-to-r from-emerald-600 to-indigo-500 hover:from-emerald-500 hover:to-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black uppercase text-xs tracking-widest py-4 rounded-xl transition duration-200 flex items-center justify-center shadow-lg cursor-pointer"
+                    >
+                      <span>{isSendingOtp ? 'SENDING...' : 'VERIFY & CONFIRM BOOKING'}</span>
+                    </button>
                   </div>
                 </div>
+              ) : (
+                <>
+                  {/* Grid 2 Columns for Dates */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    {/* Check-In Date */}
+                    <div className="space-y-2 text-left">
+                      <label className="block text-xs font-mono text-zinc-350 font-bold uppercase tracking-[0.16em]">
+                        CHECK-IN DATE * (চেক-ইন ডেট)
+                      </label>
+                      <div className="relative flex items-center bg-[#030712] border-2 border-white/5 rounded-xl overflow-hidden focus-within:border-amber-500 transition-colors">
+                        <Calendar className="absolute left-4 w-5 h-5 text-[#dbaa61] pointer-events-none" />
+                        <input
+                          type="date"
+                          value={checkInDate}
+                          onChange={(e) => setCheckInDate(e.target.value)}
+                          onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
+                          onFocus={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
+                          required
+                          className="w-full bg-transparent text-sm font-bold font-mono text-white pl-12 pr-4 py-3.5 focus:outline-none placeholder-slate-500 [color-scheme:dark] cursor-pointer"
+                        />
+                      </div>
+                    </div>
 
-              </div>
+                    {/* Check-Out Date */}
+                    <div className="space-y-2 text-left">
+                      <label className="block text-xs font-mono text-zinc-350 font-bold uppercase tracking-[0.16em]">
+                        CHECK-OUT DATE * (চেক-আউট ডেট)
+                      </label>
+                      <div className="relative flex items-center bg-[#030712] border-2 border-white/5 rounded-xl overflow-hidden focus-within:border-amber-500 transition-colors">
+                        <Calendar className="absolute left-4 w-5 h-5 text-[#dbaa61] pointer-events-none" />
+                        <input
+                          type="date"
+                          value={checkOutDate}
+                          onChange={(e) => setCheckOutDate(e.target.value)}
+                          onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
+                          onFocus={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
+                          required
+                          className="w-full bg-transparent text-sm font-bold font-mono text-white pl-12 pr-4 py-3.5 focus:outline-none placeholder-slate-500 [color-scheme:dark] cursor-pointer"
+                        />
+                      </div>
+                    </div>
 
-              {/* Emergency Contact */}
-              <div className="space-y-2 text-left">
-                <label className="block text-xs font-mono text-zinc-350 font-bold uppercase tracking-[0.16em]">
-                  EMERGENCY PHONE NUMBER * (জরুরী মোবাইল নম্বর)
-                </label>
-                <div className="relative flex items-center bg-[#030712] border-2 border-white/5 rounded-xl overflow-hidden focus-within:border-amber-500 transition-colors">
-                  <Phone className="absolute left-4 w-5 h-5 text-[#dbaa61] pointer-events-none" />
-                  <input
-                    type="tel"
-                    value={emergencyPhone}
-                    onChange={(e) => setEmergencyPhone(e.target.value)}
-                    placeholder="e.g. 017XXXXXXXX"
-                    required
-                    className="w-full bg-transparent text-sm font-black text-white pl-12 pr-4 py-4 focus:outline-none placeholder-slate-600 font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Wallet Information & Cancellation Info */}
-              <div className="bg-[#030712]/50 border border-amber-500/10 rounded-2xl p-4.5 space-y-3 text-left">
-                <div className="flex items-center justify-between text-base">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-emerald-400" />
-                    <span className="text-zinc-200 font-semibold">Wallet Balance (ওয়ালেট ব্যালেন্স):</span>
                   </div>
-                  <span className="text-white font-mono font-black text-right">
-                    ৳{walletBalance.toLocaleString()}
-                  </span>
-                </div>
 
-                <div className="flex items-center justify-between border-t border-white/5 pt-3 text-[#dbaa61] text-lg">
-                  <span className="font-extrabold">Total Stay Cost (মোট ভাড়া):</span>
-                  <span className="font-mono font-black text-xl">
-                    ৳{roomDetails.price.toLocaleString()}
-                  </span>
-                </div>
+                  {/* Emergency Contact */}
+                  <div className="space-y-2 text-left">
+                    <label className="block text-xs font-mono text-zinc-350 font-bold uppercase tracking-[0.16em]">
+                      EMERGENCY PHONE NUMBER * (জরুরী মোবাইল নম্বর)
+                    </label>
+                    <div className="relative flex items-center bg-[#030712] border-2 border-white/5 rounded-xl overflow-hidden focus-within:border-amber-500 transition-colors">
+                      <Phone className="absolute left-4 w-5 h-5 text-[#dbaa61] pointer-events-none" />
+                      <input
+                        type="tel"
+                        value={emergencyPhone}
+                        onChange={(e) => setEmergencyPhone(e.target.value)}
+                        placeholder="e.g. 017XXXXXXXX"
+                        required
+                        className="w-full bg-[#030712] border-2 border-white/5 rounded-xl overflow-hidden focus-within:border-amber-500 transition-colors bg-transparent text-sm font-black text-white pl-12 pr-4 py-4 focus:outline-none placeholder-slate-600 font-mono"
+                      />
+                    </div>
+                  </div>
 
-                {/* Big fully tap-friendly click container */}
-                <div 
-                  onClick={() => setAgreeToTerms(!agreeToTerms)}
-                  className="flex items-start gap-3 pt-3 border-t border-white/5 select-none cursor-pointer group"
-                >
-                  <input
-                    type="checkbox"
-                    id="agreeCheck"
-                    checked={agreeToTerms}
-                    onChange={(e) => e.stopPropagation()} // Click handled by parent div
-                    className="w-5.5 h-5.5 rounded border-2 border-zinc-700 bg-[#030712] checked:bg-amber-500 checked:border-amber-400 focus:ring-0 cursor-pointer accent-amber-500 shrink-0 mt-0.5"
-                  />
-                  <label htmlFor="agreeCheck" className="text-xs sm:text-sm text-zinc-200 font-semibold tracking-wide cursor-pointer select-none group-hover:text-white transition-colors duration-200">
-                    আমি বুকিং করার জন্য নিয়মাবলী ও সিকিউরিটি ডিসক্লেইমার মেনে নিয়েছি (I agree to all rules & guidelines).
-                  </label>
-                </div>
-              </div>
+                  {/* Telegram Username */}
+                  <div className="space-y-2 text-left">
+                    <label className="block text-xs font-mono text-zinc-350 font-bold uppercase tracking-[0.16em]">
+                      SECURE TELEGRAM ID / USERNAME * (বাধ্যতামূলক নিরাপত্তা টেলিগ্রাম)
+                    </label>
+                    <div className="relative flex items-center bg-[#030712] border-2 border-white/5 rounded-xl overflow-hidden focus-within:border-amber-500 transition-colors">
+                      <svg
+                        className="absolute left-4 w-5 h-5 text-[#dbaa61] pointer-events-none"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                      </svg>
+                      <input
+                        type="text"
+                        value={telegramId}
+                        onChange={(e) => setTelegramId(e.target.value)}
+                        placeholder="e.g. @username"
+                        required
+                        className="w-full bg-transparent text-sm font-black text-white pl-12 pr-4 py-4 focus:outline-none placeholder-slate-600 font-mono"
+                      />
+                    </div>
+                  </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                className="orange-grad-btn hover:brightness-110 active:scale-[0.99] text-black font-black text-sm uppercase tracking-[0.16em] py-4.5 px-6 w-full rounded-xl flex items-center justify-center space-x-2 shadow-2xl transition-all duration-200 cursor-pointer"
-              >
-                <span>CONFIRM & BOOK TIER (বুক করুন)</span>
-                <ArrowRight className="w-5 h-5 stroke-[3]" />
-              </button>
+                  {/* Wallet Information & Cancellation Info */}
+                  <div className="bg-[#030712]/50 border border-amber-500/10 rounded-2xl p-4.5 space-y-3 text-left">
+                    <div className="flex items-center justify-between text-base">
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-5 h-5 text-emerald-400" />
+                        <span className="text-zinc-200 font-semibold">Wallet Balance (ওয়ালেট ব্যালেন্স):</span>
+                      </div>
+                      <span className="text-white font-mono font-black text-right">
+                        ৳{walletBalance.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-white/5 pt-3 text-[#dbaa61] text-lg">
+                      <span className="font-extrabold">Total Stay Cost (মোট ভাড়া):</span>
+                      <span className="font-mono font-black text-xl">
+                        ৳{roomDetails.price.toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* Big fully tap-friendly click container */}
+                    <div 
+                      onClick={() => setAgreeToTerms(!agreeToTerms)}
+                      className="flex items-start gap-3 pt-3 border-t border-white/5 select-none cursor-pointer group"
+                    >
+                      <input
+                        type="checkbox"
+                        id="agreeCheck"
+                        checked={agreeToTerms}
+                        onChange={(e) => e.stopPropagation()} // Click handled by parent div
+                        className="w-5.5 h-5.5 rounded border-2 border-zinc-700 bg-[#030712] checked:bg-amber-500 checked:border-amber-400 focus:ring-0 cursor-pointer accent-amber-500 shrink-0 mt-0.5"
+                      />
+                      <label htmlFor="agreeCheck" className="text-xs sm:text-sm text-zinc-200 font-semibold tracking-wide cursor-pointer select-none group-hover:text-white transition-colors duration-200">
+                        আমি বুকিং করার জন্য নিয়মাবলী ও সিকিউরিটি ডিসক্লেইমার মেনে নিয়েছি (I agree to all rules & guidelines).
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    className="orange-grad-btn hover:brightness-110 active:scale-[0.99] text-black font-black text-sm uppercase tracking-[0.16em] py-4.5 px-6 w-full rounded-xl flex items-center justify-center space-x-2 shadow-2xl transition-all duration-200 cursor-pointer"
+                  >
+                    <span>CONFIRM & BOOK TIER (বুক করুন)</span>
+                    <ArrowRight className="w-5 h-5 stroke-[3]" />
+                  </button>
+                </>
+              )}
 
             </form>
           </motion.div>

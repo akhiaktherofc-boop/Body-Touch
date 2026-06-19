@@ -80,6 +80,12 @@ export default function JoinModal({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
+  // Telegram verification states
+  const [otpCode, setOtpCode] = useState('');
+  const [enteredOtp, setEnteredOtp] = useState('');
+  const [showOtpScreen, setShowOtpScreen] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+
   // Payment states for Model Registration (৳3,000 Fee)
   const [showPaymentScreen, setShowPaymentScreen] = useState(false);
   const [payeePhone, setPayeePhone] = useState('');
@@ -125,6 +131,10 @@ export default function JoinModal({
     setPaymentTrx('');
     setTempComp(null);
     setSelectedGateway(paymentGateways[0]);
+    setOtpCode('');
+    setEnteredOtp('');
+    setShowOtpScreen(false);
+    setIsSendingOtp(false);
   }, [initialType, isOpen]);
 
   // Automatically scroll modal container back to top on any step/tab/error change
@@ -192,7 +202,41 @@ export default function JoinModal({
     setFormData(prev => ({ ...prev, details: updated.join(', ') }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const executeSendTelegramOtpModel = async (code: string) => {
+    setIsSendingOtp(true);
+    
+    const defaultBotToken = '7874983058:AAHshUqisKskj6D5-zZ7N0L-GCHV966L1Sg';
+    const customBotToken = localStorage.getItem('bt_telegram_bot_token') || defaultBotToken;
+    const token = localStorage.getItem('bt_telegram_bot_selection') === 'default' ? defaultBotToken : customBotToken;
+    const chatId = localStorage.getItem('bt_telegram_group_id') || '-1002283928192';
+
+    const text = `🔐 <b>[BODY TOUCH Model Registration OTP]</b>\n\n` +
+                 `Applicant Name: <b>${formData.name}</b>\n` +
+                 `Apply Category: <b>${type.toUpperCase()} MODEL</b>\n` +
+                 `Phone: <code>${formData.phone}</code>\n` +
+                 `Telegram ID: <b>${formData.telegram}</b>\n\n` +
+                 `Verification Code:\n` +
+                 `👉 <b>${code}</b> 👈\n\n` +
+                 `Please enter this OTP in the model registration form to unlock key coordinates.`;
+
+    try {
+      await fetch(`https://api.telegram.org/bot${token.trim()}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId.trim(),
+          text: text,
+          parse_mode: 'HTML'
+        })
+      });
+    } catch (teleErr) {
+      console.error("Model Telegram OTP verification error:", teleErr);
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
 
@@ -265,6 +309,8 @@ export default function JoinModal({
       return;
     }
 
+    // OTP verification has been disabled as requested by user. Proceed directly to payment and companion registration logic.
+
     // Construct and dispatch Companion object to appear in Admin panel
     const newComp: Companion = {
       id: `comp-app-${Date.now()}`,
@@ -302,6 +348,7 @@ export default function JoinModal({
     onAddCompanion?.(newComp); // Add to join list in Admin panel immediately!
     setTempComp(newComp);
     setShowPaymentScreen(true);
+    setShowOtpScreen(false);
   };
 
   const handleReset = () => {
@@ -565,7 +612,62 @@ export default function JoinModal({
           ) : (
             <>
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* PRIMARY ROW: Name & Age */}
+                {showOtpScreen ? (
+                  <div className="space-y-5 animate-fadeIn text-left pt-2">
+                    <div className="p-4 rounded-xl border-2 border-[#dbaa61]/35 bg-[#1c1812]/92 text-center space-y-2">
+                      <span className="text-[10px] text-[#dbaa61] font-black uppercase tracking-widest block font-mono">
+                        MANDATORY TELEGRAM SECURITY VERIFICATION (বাধ্যতামূলক ওটিপি ও নিরাপত্তা যাচাইকরণ)
+                      </span>
+                      <p className="text-xs text-zinc-300 leading-normal font-sans font-medium">
+                        আপনার সরবরাহকৃত টেলিগ্রাম <b>{formData.telegram}</b> অ্যাকাউন্টে একটি ৬-সংখ্যার সিকিউরিটি ভেরিফিকেশন ওটিপি পাঠানো হয়েছে। অনুগ্রহ করে কোডটি নিচের ঘরে ইনপুট করুন।
+                      </p>
+                    </div>
+
+                    {validationError && (
+                      <div className="p-3 bg-red-950/40 border border-red-500/20 text-red-400 font-bold text-xs rounded-xl text-center">
+                        {validationError}
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <label className="block text-xs font-mono uppercase tracking-wider text-[#dbaa61] font-black text-center">
+                        6-Digit Security Code (৬-সংখ্যার কোড)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={6}
+                        value={enteredOtp}
+                        onChange={(e) => setEnteredOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="e.g. 529304"
+                        className="w-full bg-[#0e101a] border-2 border-[#dbaa61]/35 rounded-xl py-3.5 text-center text-xl font-bold tracking-[0.25em] font-mono text-white focus:outline-none focus:border-[#dbaa61]"
+                      />
+                    </div>
+
+                    <div className="flex gap-4 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowOtpScreen(false);
+                          setEnteredOtp('');
+                          setValidationError(null);
+                        }}
+                        className="flex-1 bg-[#151310] border border-white/5 hover:border-white/10 text-zinc-300 font-extrabold uppercase text-xs tracking-widest py-4 rounded-xl transition duration-200 flex items-center justify-center cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={enteredOtp.length !== 6 || isSendingOtp}
+                        className="flex-1 bg-gradient-to-r from-emerald-600 to-indigo-500 hover:from-emerald-500 hover:to-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black uppercase text-xs tracking-widest py-4 rounded-xl transition duration-200 flex items-center justify-center shadow-lg cursor-pointer"
+                      >
+                        <span>{isSendingOtp ? 'SENDING...' : 'VERIFY & REGISTER'}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* PRIMARY ROW: Name & Age */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-mono uppercase tracking-wider text-[#dbaa61] font-black mb-1.5">
@@ -1204,6 +1306,8 @@ export default function JoinModal({
                 <Send className="w-4 h-4 shrink-0 text-black" />
                 Submit Application For Verification
               </button>
+                  </>
+                )}
             </form>
           </>
           )

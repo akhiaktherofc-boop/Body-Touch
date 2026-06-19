@@ -1,16 +1,14 @@
-# Hostinger Root Redirection - transparently points all traffic to the built /dist folder
+# Hostinger SPA Routing - Serves React Router SPA from public_html root
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  RewriteBase /
 
-  # 1. If the request already starts with /dist/, do nothing and serve it
-  RewriteCond %{REQUEST_URI} ^/dist/ [NC]
+  # Do not do anything for existing files, directories, or symlinks
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # 2. If the requested asset exists inside the /dist folder, serve it from /dist
-  RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f [OR]
-  RewriteCond %{DOCUMENT_ROOT}/dist/$1 -d
-  RewriteRule ^(.*)$ dist/$1 [L]
-
-  # 3. Send all other requests (including root '/ ' and subpages) to /dist/index.html for React Router
-  RewriteRule ^(.*)$ dist/index.html [L]
+  # Fallback all other requests (like /about, /dashboard, etc.) to index.html for client-side React routing
+  RewriteRule ^ index.html [L]
 </IfModule>
+

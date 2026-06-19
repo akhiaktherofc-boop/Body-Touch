@@ -2381,6 +2381,19 @@ https://service.bodytouch.com
             >
               {username.charAt(0).toUpperCase()}
             </button>
+
+            {/* Disconnect Account Button */}
+            <button
+              onClick={handleClearSession}
+              className="w-9 h-9 rounded-full bg-[#110612] hover:bg-[#2c0816] border border-rose-500/20 hover:border-rose-500/50 flex items-center justify-center text-rose-500 shadow-md cursor-pointer transition-all active:scale-95"
+              title="Disconnect Account / লগ আউট"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
           </div>
         </div>
 
