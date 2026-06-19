@@ -100,6 +100,7 @@ jobs:
           set net:reconnect-interval-multiplier 2;
           set net:reconnect-interval-base 5;
           open -u '${{ steps.prep.outputs.username }}','${{ steps.prep.outputs.password }}' '${{ steps.prep.outputs.server }}';
-          mirror -R --delete --verbose=3 ./dist ./public_html;
+          lcd ./dist;
+          mirror -R --delete --verbose=3 . ./public_html;
           quit;
           "
