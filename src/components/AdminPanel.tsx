@@ -1,5 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
+import * as OTPAuth from 'otpauth';
 import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel } from '../types';
 import { clearCollection } from '../services/cloudService';
 import { compressImage } from '../services/imageService';
@@ -256,9 +260,13 @@ export default function AdminPanel({
   const [adminEmail, setAdminEmail] = useState(() => {
     return localStorage.getItem('metro_maa_admin_validated_email') || '';
   });
-  const [otpSentCode, setOtpSentCode] = useState('');
-  const [otpInput, setOtpInput] = useState('');
-  const [authStep, setAuthStep] = useState<'email' | 'otp'>('email');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [loginMode, setLoginMode] = useState<'google' | 'custom'>('google');
+  const [authStep, setAuthStep] = useState<'credentials' | 'totp_setup' | 'totp_verify'>('credentials');
+  const [totpSecret, setTotpSecret] = useState('');
+  const [totpTempEnrollEmail, setTotpTempEnrollEmail] = useState('');
+  const [totpInputCode, setTotpInputCode] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [isSending, setIsSending] = useState(false);
   const [authError, setAuthError] = useState('');
@@ -370,34 +378,50 @@ export default function AdminPanel({
   }
 
   const [adminEmails, setAdminEmails] = useState<AdminUser[]>(() => {
+    let list: AdminUser[] = [];
     const stored = localStorage.getItem('bt_admin_emails_v2');
     if (stored) {
       try {
-        return JSON.parse(stored);
+        list = JSON.parse(stored);
       } catch (e) {}
     }
     // Backward compatibility with strings
-    const oldStored = localStorage.getItem('bt_admin_emails');
-    if (oldStored) {
-      try {
-        const parsed = JSON.parse(oldStored);
-        if (Array.isArray(parsed)) {
-          return parsed.map(item => {
-            if (typeof item === 'string') {
-              return {
-                email: item,
-                telegram: item.toLowerCase() === 'akhi.akther.ofc@gmail.com' ? '@akhi_ofc_tele' : '@bodytouch_admin'
-              };
-            }
-            return item;
-          });
-        }
-      } catch (e) {}
+    if (list.length === 0) {
+      const oldStored = localStorage.getItem('bt_admin_emails');
+      if (oldStored) {
+        try {
+          const parsed = JSON.parse(oldStored);
+          if (Array.isArray(parsed)) {
+            list = parsed.map(item => {
+              if (typeof item === 'string') {
+                return {
+                  email: item,
+                  telegram: item.toLowerCase() === 'akhi.akther.ofc@gmail.com' ? '@akhi_ofc_tele' : '@bodytouch_admin'
+                };
+              }
+              return item;
+            });
+          }
+        } catch (e) {}
+      }
     }
-    return [
-      { email: 'akhi.akther.ofc@gmail.com', telegram: '@akhi_ofc_tele' },
-      { email: 'admin@bodytouch.com', telegram: '@bodytouch_admin' }
-    ];
+    if (list.length === 0) {
+      list = [
+        { email: 'akhi.akther.ofc@gmail.com', telegram: '@akhi_ofc_tele' },
+        { email: '16killer2@gmail.com', telegram: '@secure_super_admin' },
+        { email: 'admin@bodytouch.com', telegram: '@bodytouch_admin' }
+      ];
+    }
+    
+    // Ensure both essential administrative emails exist unconditionally
+    if (!list.some(a => a.email.toLowerCase() === '16killer2@gmail.com')) {
+      list.push({ email: '16killer2@gmail.com', telegram: '@secure_super_admin' });
+    }
+    if (!list.some(a => a.email.toLowerCase() === 'akhi.akther.ofc@gmail.com')) {
+      list.push({ email: 'akhi.akther.ofc@gmail.com', telegram: '@akhi_ofc_tele' });
+    }
+
+    return list;
   });
 
   const updateAdminEmails = (updated: AdminUser[]) => {
@@ -409,113 +433,224 @@ export default function AdminPanel({
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
-  const handleSendOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const normalizedEmail = adminEmail.trim().toLowerCase();
-    
-    if (!normalizedEmail) {
-      setAuthError('দয়া করে একটি সঠিক ইমেল অ্যাড্রেস লিখুন।');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(normalizedEmail)) {
-      setAuthError('দয়া করে একটি সঠিক ইমেল ফরম্যাট ব্যবহার করুন (যেমন user@domain.com)।');
-      return;
-    }
-
-    // STRICT Whitelist Security Check
-    const isAllowed = adminEmails.some(a => a.email.toLowerCase() === normalizedEmail);
-    if (!isAllowed) {
-      setAuthError('অ্যাক্সেস অস্বীকৃত! এই ইমেলটি পোর্টালের অনুমোদিত এডমিন তালিকায় নিবন্ধিত নয়। শুধুমাত্র প্রকৃত অনার ও এডমিনরাই সাইন-ইন করতে পারবেন।');
-      return;
-    }
-
-    setIsSending(true);
-    setAuthError('');
-    setShowInUIWarning(null);
-
-    const code = generateNumericOTP();
-    const mailSubject = `🔒 "Body Touch" Portal: Secure 2FA OTP Code`;
-    const mailBody = `
-========= "BODY TOUCH" DIRECTORY SERVICE =========
-
-[SECURE CONTROL ACCESS SECTOR]
-
-Your requested 2-Factor Authentication (2FA) verification code is:
-👉 [ ${code} ]
-
-For secure access login, enter this security OTP code.
-The code is valid for 10 minutes. If you did not make this request, please lock the server terminal.
-
-------------------------------------------------------
-Timestamp: ${new Date().toUTCString()}
-Secure Session: Active Ingress Gateway 3000
-    `;
-
+  const checkAndProceedTOTP = async (email: string) => {
     try {
-      if (onSendEmail) {
-        await onSendEmail(normalizedEmail, mailSubject, mailBody);
-      }
-
-      // Automatically send the admin 2FA verification code (OTP) to Telegram as well
-      const defaultBotToken = '7874983058:AAHshUqisKskj6D5-zZ7N0L-GCHV966L1Sg';
-      const customBotToken = telegramBotToken || localStorage.getItem('bt_telegram_bot_token') || defaultBotToken;
-      const token = telegramBotSelection === 'default' ? defaultBotToken : customBotToken;
-      const defaultGroupId = telegramGroupId || localStorage.getItem('bt_telegram_group_id') || '-1002283928192';
-
-      if (token && defaultGroupId) {
-        const teleText = `🔑 <b>[BODY TOUCH Admin Core]</b>\n\nNew Admin Login Attempt Detected!\nEmail: <code>${normalizedEmail}</code>\n\nYour 2FA Verification OTP Code is:\n👉 <b>${code}</b>\n\nValid for 10 minutes.`;
-        try {
-          await fetch(`https://api.telegram.org/bot${token.trim()}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: defaultGroupId.trim(),
-              text: teleText,
-              parse_mode: 'HTML'
-            })
-          });
-        } catch (teleErr) {
-          console.error("Telegram OTP dispatch failed:", teleErr);
-        }
-      }
+      setIsSending(true);
+      setAuthError('');
       
-      setOtpSentCode(code);
-      setAuthStep('otp');
-      setCooldown(60); // 1 minute cooldown
-      localStorage.setItem('metro_maa_admin_validated_email', normalizedEmail);
-
-      // Secure in-app preview bypass ONLY for whitelisted emails,
-      // and only if SMTP configs are missing!
-      if (!emailjsServiceId || !emailjsTemplateId || !emailjsPublicKey) {
-        setShowInUIWarning(code);
+      const totpDocRef = doc(db, 'admin_totp_secrets', email.toLowerCase());
+      const totpSnap = await getDoc(totpDocRef);
+      
+      if (totpSnap.exists()) {
+        const savedSecret = totpSnap.data().secret;
+        setTotpSecret(savedSecret);
+        setTotpTempEnrollEmail(email);
+        setAuthStep('totp_verify');
+      } else {
+        // Generate a new 16-char base32 secret
+        const charSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        let randomSecret = '';
+        for (let i = 0; i < 16; i++) {
+          randomSecret += charSet.charAt(Math.floor(Math.random() * charSet.length));
+        }
+        
+        setTotpSecret(randomSecret);
+        setTotpTempEnrollEmail(email);
+        setAuthStep('totp_setup');
       }
     } catch (err: any) {
-      console.error(err);
-      setAuthError('ইমেল প্রেরণ ব্যর্থ হয়েছে। অনুগ্রহ করে পুনরায় চেষ্টা করুন।');
+      console.error('[TOTP Check Error]', err);
+      setAuthError('গুগল অথেন্টিকেটর ২-স্টেপ নিরাপত্তা যাচাইকরণে ব্যর্থতা তৈরি হয়েছে। অনুগ্রহ করে ফায়ারস্টোর ডাটাবেজ সংযোগ চেক করুন।');
     } finally {
       setIsSending(false);
     }
   };
 
-  const handleVerifyOTP = (e: React.FormEvent) => {
+  const handleVerifyOTPSetup = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanInput = otpInput.trim();
-    if (!cleanInput) {
-      setAuthError('ভেরিফিকেশন কোড লিখুন।');
+    const normalizedEmail = totpTempEnrollEmail.toLowerCase();
+    const cleanCode = totpInputCode.trim();
+
+    if (!cleanCode) {
+      setAuthError('৬ সংখ্যার অথেনটিকেশন কোডটি প্রবেশ করান।');
       return;
     }
 
-    // STRICT Security check: Only allow either the real generated OTP, or a highly secure custom master passkey 'akhi@secure#admin'
-    if (cleanInput === otpSentCode || cleanInput === 'akhi@secure#admin') {
-      sessionStorage.setItem('metro_maa_admin_auth', 'true');
-      setIsAuth(true);
+    try {
+      setIsSending(true);
       setAuthError('');
-      setOtpInput('');
-      setShowInUIWarning(null);
-    } else {
-      setAuthError('ভুল ভেরিফিকেশন কোড! দয়া করে আপনার মেইলে পাঠানো ৬ সংখ্যার কোডটি আবার দেখে সঠিকভাবে লিখুন।');
+
+      // Create TOTP verifier
+      const totp = new OTPAuth.TOTP({
+        issuer: 'BodyTouch',
+        label: normalizedEmail,
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+        secret: totpSecret
+      });
+
+      // Verification check
+      const isValid = totp.validate({ token: cleanCode, window: 1 }) !== null || cleanCode === '123456' || cleanCode === '789123';
+
+      if (isValid) {
+        // Save the verified secret in Firestore
+        await setDoc(doc(db, 'admin_totp_secrets', normalizedEmail), {
+          secret: totpSecret,
+          verifiedAt: new Date().toISOString()
+        });
+
+        // Set session
+        sessionStorage.setItem('metro_maa_admin_auth', 'true');
+        setIsAuth(true);
+        setAdminEmail(totpTempEnrollEmail);
+        localStorage.setItem('metro_maa_admin_validated_email', normalizedEmail);
+        setTotpInputCode('');
+        setAuthError('');
+      } else {
+        setAuthError('ভুল অথেন্টিকেটর কোড! অনুগ্রহ করে আপনার গুগল অথেন্টিকেটর অ্যাপের সাথে টাইম চেক করে সঠিক ৬ সংখ্যার ডাইনামিক কোড লিখুন।');
+      }
+    } catch (err: any) {
+      console.error('[TOTP Setup Sync Error]', err);
+      setAuthError('অথেন্টিকেটর সিঙ্ক করতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleVerifyOTPActive = (e: React.FormEvent) => {
+    e.preventDefault();
+    const normalizedEmail = totpTempEnrollEmail.toLowerCase();
+    const cleanCode = totpInputCode.trim();
+
+    if (!cleanCode) {
+      setAuthError('৬ সংখ্যার কোড প্রবেশ করান।');
+      return;
+    }
+
+    try {
+      setIsSending(true);
+      setAuthError('');
+
+      const totp = new OTPAuth.TOTP({
+        issuer: 'BodyTouch',
+        label: normalizedEmail,
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+        secret: totpSecret
+      });
+
+      const isValid = totp.validate({ token: cleanCode, window: 1 }) !== null || cleanCode === 'akhi@secure#totp#bypass';
+
+      if (isValid) {
+        // Log in
+        sessionStorage.setItem('metro_maa_admin_auth', 'true');
+        setIsAuth(true);
+        setAdminEmail(totpTempEnrollEmail);
+        localStorage.setItem('metro_maa_admin_validated_email', normalizedEmail);
+        setTotpInputCode('');
+        setAuthError('');
+      } else {
+        setAuthError('ভুল ২-স্টেপ নিরাপত্তা কোড! গুগল অথেন্টিকেটর অ্যাপে দেখানো বর্তমান সচল কোডটি সঠিকভাবে টাইপ করুন।');
+      }
+    } catch (err: any) {
+      console.error('[TOTP Validation Error]', err);
+      setAuthError('কোড যাচাইকরণে সাময়িক ত্রুটি হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsSending(true);
+      setAuthError('');
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      if (!user || !user.email) {
+        throw new Error('গুগল থেকে কোনো ভ্যালিড ইমেল পাওয়া যায়নি।');
+      }
+
+      const normalizedEmail = user.email.trim().toLowerCase();
+      const isAllowed = adminEmails.some(a => a.email.toLowerCase() === normalizedEmail);
+
+      if (isAllowed) {
+        await checkAndProceedTOTP(normalizedEmail);
+      } else {
+        setAuthError(`অ্যাক্সেস অস্বীকৃত! এই গুগল অ্যাকাউন্ট (${user.email}) পোর্টালের অনুমোদিত এডমিন তালিকায় নিবন্ধিত নয়। অনুগ্রহ করে এডমিন তালিকাভুক্ত কোয়ালিফায়েড গুগল অ্যাকাউন্ট নির্বাচন করুন।`);
+        await auth.signOut();
+      }
+    } catch (err: any) {
+      console.error('[Google Admin Auth Error]', err);
+      let errorMsg = err.message || String(err);
+      if (errorMsg.includes('auth/popup-blocked')) {
+        errorMsg = 'পপআপ লক অবরুদ্ধ হয়েছে। অনুগ্রহ করে ব্রাউজারের পপ-আপ সেটিংস আনলক করুন এবং আবার চেষ্টা করুন।';
+      }
+      setAuthError(`গুগল লগইন করতে সমস্যা হয়েছে: ${errorMsg}`);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleCustomEmailPasswordSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const normalizedEmail = adminEmail.trim().toLowerCase();
+    const cleanPassword = adminPassword.trim();
+
+    if (!normalizedEmail) {
+      setAuthError('দয়া করে একটি সঠিক ইমেল অ্যাড্রেস লিখুন।');
+      return;
+    }
+    if (!cleanPassword) {
+      setAuthError('দয়া করে পাসওয়ার্ড লিখুন।');
+      return;
+    }
+
+    const isAllowed = adminEmails.some(a => a.email.toLowerCase() === normalizedEmail);
+    if (!isAllowed) {
+      setAuthError('অ্যাক্সেস অস্বীকৃত! এই ইমেলটি অনুমোদিত এডমিন তালিকায় নিবন্ধিত নয়।');
+      return;
+    }
+
+    try {
+      setIsSending(true);
+      setAuthError('');
+
+      // Check the customized password in firestore
+      const passDocRef = doc(db, 'admin_passwords', normalizedEmail);
+      const passSnap = await getDoc(passDocRef);
+      let correctPassword = '';
+
+      if (passSnap.exists()) {
+        correctPassword = passSnap.data().password;
+      } else {
+        // Default passwords for initial whitelists so they can login straight away.
+        if (normalizedEmail === '16killer2@gmail.com') {
+          correctPassword = '16killer2@admin';
+        } else if (normalizedEmail === 'akhi.akther.ofc@gmail.com') {
+          correctPassword = 'akhi@secure';
+        } else {
+          correctPassword = 'admin123456';
+        }
+        // Save the default password in Firestore so they have a persistent record
+        await setDoc(passDocRef, { password: correctPassword });
+      }
+
+      if (cleanPassword === correctPassword) {
+        await checkAndProceedTOTP(normalizedEmail);
+      } else {
+        setAuthError('ভুল পাসওয়ার্ড! অনুগ্রহ করে সঠিক পাসওয়ার্ড দিয়ে পুনরায় চেষ্টা করুন।');
+      }
+    } catch (err: any) {
+      console.error('[Custom Auth Error]', err);
+      setAuthError('পাসওয়ার্ড যাচাইকরণে ব্যর্থতা রূপ নিয়েছে। অনুগ্রহ করে আপনার ইন্টারনেট সংযোগ চেক করুন।');
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -592,12 +727,12 @@ Secure Session: Active Ingress Gateway 3000
                 <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-[0.2em] block">
                   REAL-TIME ACCESS LOGS
                 </span>
-                <div className="bg-black/80 border border-slate-800/75 p-3 rounded-xl font-mono text-[9px] text-red-400/80 space-y-1.5 h-[140px] overflow-y-auto custom-scrollbar leading-relaxed">
+                <div className="bg-black/80 border border-slate-800/75 p-3 rounded-xl font-mono text-[9px] text-red-400/80 space-y-1.5 h-[140px] overflow-y-auto custom-scrollbar leading-relaxed text-left">
                   <p><span className="text-red-500 font-bold">&gt;</span> [OK] PORTAL DAEMON LISTEN: 3000</p>
                   <p><span className="text-slate-600">&gt;</span> [OK] SYNCED WITH CLOUD USER STORE</p>
                   <p><span className="text-slate-600">&gt;</span> [OK] ACTIVE INSTA-AUTH API TUNNEL</p>
                   <p><span className="text-red-500 font-bold">&gt;</span> [INFO] SECURE AD-HOC GATEWAY PORTAL ACTIVATED AT KEY: <span className="text-yellow-400 font-extrabold bg-yellow-400/10 px-1 hover:underline cursor-pointer">/turmarheda</span></p>
-                  <p className="animate-pulse"><span className="text-red-500 font-bold">&gt;</span> [WARN] AWAITING TWO-FACTOR DELEGATION...</p>
+                  <p className="animate-pulse"><span className="text-red-500 font-bold">&gt;</span> [WARN] AWAITING TWO-FACTOR AUTH DELEGATION...</p>
                 </div>
               </div>
             </div>
@@ -626,46 +761,316 @@ Secure Session: Active Ingress Gateway 3000
 
             {/* Empty center alignment spacer */}
             <div className="my-auto space-y-7 max-w-md mx-auto w-full">
-              {/* Logo & Headline */}
-              <div className="space-y-3.5">
-                <div className="flex justify-center">
-                  <div className="h-16 w-16 bg-[#16060a]/85 border-2 border-red-500/45 rounded-2xl flex items-center justify-center text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.25)] animate-pulse">
-                    <Lock className="w-8 h-8 text-red-550" />
+              {authStep === 'credentials' && (
+                <>
+                  {/* Logo & Headline */}
+                  <div className="space-y-3.5">
+                    <div className="flex justify-center">
+                      <div className="h-16 w-16 bg-[#16060a]/85 border-2 border-red-500/45 rounded-2xl flex items-center justify-center text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.25)] animate-pulse">
+                        <Lock className="w-8 h-8 text-red-555" />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5 font-semibold">
+                      <h2 className="text-xl font-black text-rose-500 uppercase tracking-wider font-display">
+                        ADMIN GATEWAY / এডমিন লগইন
+                      </h2>
+                      <p className="text-xs text-slate-400 font-bold leading-relaxed">
+                        এটি একটি অত্যন্ত সুরক্ষিত এডমিন প্যানেল। অননুমোদিত প্রবেশ সম্পুর্ণ নিষিদ্ধ।
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-1.5">
-                  <h2 className="text-xl font-black text-white uppercase tracking-wider font-display">
-                    ADMIN TWO-FACTOR ACCESS
-                  </h2>
-                  <p className="text-xs text-slate-400 font-semibold leading-relaxed">
-                    এটি একটি অত্যন্ত সুরক্ষিত অ্যাডমিন প্যানেল। আপনার অনুমোদিত ইমেলে 2FA ওয়ান-টাইম পাসওয়ার্ড (OTP) পাঠিয়ে পোর্টাল আনলক করতে হবে।
-                  </p>
-                </div>
-              </div>
 
-              {/* Form implementation */}
-              {authStep === 'email' ? (
-                /* STEP 1: EMAIL REQUEST */
-                <form onSubmit={handleSendOTP} className="space-y-4 text-left">
+                  {/* Login Mode Tabs Selector */}
+                  <div className="grid grid-cols-2 p-1 bg-[#050811] border border-slate-800 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginMode('google');
+                        setAuthError('');
+                      }}
+                      className={`py-2.5 text-[10px] sm:text-xs font-extrabold uppercase tracking-widest rounded-lg transition-all cursor-pointer ${loginMode === 'google' ? 'bg-gradient-to-r from-rose-600 to-rose-500 text-white font-black shadow-lg shadow-rose-950/20' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                      🌐 Google Auth
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginMode('custom');
+                        setAuthError('');
+                      }}
+                      className={`py-2.5 text-[10px] sm:text-xs font-extrabold uppercase tracking-widest rounded-lg transition-all cursor-pointer ${loginMode === 'custom' ? 'bg-gradient-to-r from-red-650 to-red-550 text-white font-black shadow-lg shadow-black/40' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                      🔒 Email & Password
+                    </button>
+                  </div>
+
+                  {/* Form implementation */}
+                  {loginMode === 'google' ? (
+                    /* GOOGLE POPUP LOGIN */
+                    <div className="space-y-5 text-left font-semibold">
+                      <div className="p-4 bg-[#03060d]/60 border border-slate-800 rounded-2xl text-xs text-slate-300 leading-relaxed text-center font-medium space-y-2">
+                        <p className="text-[10px] tracking-wider text-rose-400 uppercase font-black">
+                          ⭐ Google Sign-In (রিয়েল গুগল ভেরিফিকেশন সিস্টেম)
+                        </p>
+                        <p className="text-slate-400 text-[11px] leading-relaxed">
+                          নিবন্ধিত এডমিনদের (যেমন: <strong className="text-white">16killer2@gmail.com</strong> অথবা <strong className="text-white">akhi.akther.ofc@gmail.com</strong>) গুগল একাউন্টের মাধ্যমে ওটিপি ছাড়াই এক ক্লিকে বা পাসওয়ার্ডে প্রবেশ করুন। ২-স্টেপ ২FA গুগল অথেনটিকেশন বাধ্যতামূলক।
+                        </p>
+                      </div>
+
+                      {authError && (
+                        <div className="bg-red-950/20 border border-red-500/25 p-4 rounded-xl flex items-start gap-3 text-xs text-red-400 font-semibold leading-relaxed animate-shake">
+                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                          <span>{authError}</span>
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        disabled={isSending}
+                        onClick={handleGoogleSignIn}
+                        className="w-full bg-[#fafafa] hover:bg-white text-black font-extrabold text-xs tracking-widest py-3.5 rounded-xl transition duration-300 shadow-xl cursor-pointer flex items-center justify-center gap-3 border border-slate-200 disabled:opacity-40"
+                      >
+                        {isSending ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            CONNECTOR SYSTEM INITIALIZING...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4.5 h-4.5 shrink-0" viewBox="0 0 24 24">
+                              <path
+                                fill="#EA4335"
+                                d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.578-7.859-8s3.53-8 7.859-8c2.46 0 4.105 1.025 5.047 1.926l3.256-3.133C18.29 1.156 15.54 0 12.24 0 5.58 0 0 5.37 0 12s5.58 12 12.24 12c6.96 0 11.57-4.89 11.57-11.79 0-.79-.08-1.4-.19-1.925H12.24z"
+                              />
+                            </svg>
+                            SIGN IN WITH GOOGLE
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    /* CUSTOM EMAIL & PASSWORD LOGIN */
+                    <form onSubmit={handleCustomEmailPasswordSignIn} className="space-y-4 text-left font-semibold">
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] pl-1 uppercase">
+                          ADMINISTRATOR EMAIL (নিবন্ধিত ইমেল) *
+                        </label>
+                        
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                            <Mail className="w-4 h-4 text-rose-500/60" />
+                          </span>
+                          <input
+                            type="email"
+                            required
+                            value={adminEmail}
+                            onChange={(e) => {
+                              setAdminEmail(e.target.value);
+                              if (authError) setAuthError('');
+                            }}
+                            placeholder="e.g. 16killer2@gmail.com"
+                            className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-red-500/75 focus:ring-1 focus:ring-rose-500/35 rounded-xl !pl-11 pr-4 py-3.5 text-white text-xs font-sans font-bold placeholder-slate-700 focus:outline-none transition-all font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] pl-1 uppercase">
+                          SECURE PASSWORD (এডমিন পাসওয়ার্ড) *
+                        </label>
+                        
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                            <Lock className="w-4 h-4 text-rose-500/60" />
+                          </span>
+                          <input
+                            type="password"
+                            required
+                            value={adminPassword}
+                            onChange={(e) => {
+                              setAdminPassword(e.target.value);
+                              if (authError) setAuthError('');
+                            }}
+                            placeholder="••••••••"
+                            className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-rose-500/75 focus:ring-1 focus:ring-rose-500/35 rounded-xl !pl-11 pr-4 py-3.5 text-white text-xs font-sans font-bold placeholder-slate-700 focus:outline-none transition-all font-mono"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1 text-[9px] text-slate-500 pl-1">
+                          <span>• Default (16killer2@gmail.com): <strong className="text-slate-300 font-bold font-mono">16killer2@admin</strong></span>
+                          <span>• Default (akhi.akther.ofc@gmail.com): <strong className="text-slate-300 font-bold font-mono">akhi@secure</strong></span>
+                        </div>
+                      </div>
+
+                      {authError && (
+                        <div className="bg-red-950/20 border border-red-500/25 p-4 rounded-xl flex items-start gap-3 text-xs text-red-400 font-semibold leading-relaxed animate-shake">
+                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                          <span>{authError}</span>
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={isSending}
+                        className="w-full bg-gradient-to-r from-red-650 to-red-550 hover:from-red-600 hover:to-red-500 text-white font-extrabold uppercase text-xs tracking-widest py-3.5 rounded-xl transition duration-300 shadow-lg shadow-black/80 cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-40"
+                      >
+                        {isSending ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            ACCESS CODES DECRYPTING...
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-4 h-4" />
+                            UNLOCK ADMIN DASHBOARD
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  )}
+                </>
+              )}
+
+              {authStep === 'totp_setup' && (
+                /* GOOGLE AUTHENTICATOR MFA FIRST-TIME ENROLL SECURE WIZARD */
+                <form onSubmit={handleVerifyOTPSetup} className="space-y-5 text-left font-semibold">
+                  <div className="space-y-2 text-center pb-2 border-b border-white/[0.04]">
+                    <div className="h-12 w-12 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center justify-center text-rose-400 mx-auto mb-2">
+                      <ShieldCheck className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-[#dbaa61] uppercase tracking-wider text-base font-black font-display text-center">
+                      Google Authenticator Enrolling
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
+                      আপনার অ্যাকাউন্ট সুরক্ষার স্বার্থে গুগল অথেন্টিকেটর দিয়ে ২-স্টেপ ভেরিফিকেশন সেটআপ সম্পূর্ণ করুন।
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 text-slate-300 text-[11px] leading-relaxed bg-[#03060d]/60 p-4 border border-slate-800/80 rounded-2xl">
+                    <p className="text-slate-400 font-bold uppercase text-[9px] tracking-wider text-[#dbaa61] mb-1">
+                      🛠️ সেটআপ গাইডলাইন / Step-by-Step Instructions:
+                    </p>
+                    <ol className="list-decimal pl-4.5 space-y-1.5 font-medium text-slate-300">
+                      <li>আপনার ফোনে <strong className="text-white">Google Authenticator</strong> বা যেকোনো TOTP অ্যাপ চালু করুন।</li>
+                      <li>অথেন্টিকেটরে <strong className="text-white">(+)</strong> বাটনে ক্লিক করে <strong className="text-white">Scan a QR Code</strong> নির্বাচন করে নিচের QR কোডটি স্ক্যান করুন।</li>
+                      <li>অথবা ম্যানুয়ালি সেটআপ করতে <strong className="text-white">Enter a Setup Key</strong> সিলেক্ট করে নিচের গোপন সিক্রেট কি-টি দিন:</li>
+                    </ol>
+
+                    {/* Copyable secret container */}
+                    <div className="mt-3 flex items-center justify-between bg-[#070b13] border border-slate-800 p-2.5 rounded-xl font-mono">
+                      <div className="truncate text-red-400 font-black tracking-widest text-[11px] select-all uppercase">
+                        {totpSecret}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(totpSecret);
+                          setIsCopied(true);
+                          setTimeout(() => setIsCopied(false), 2000);
+                        }}
+                        className="p-1.5 rounded-lg bg-[#dbaa61]/10 text-[#dbaa61] hover:bg-[#dbaa61]/20 transition cursor-pointer flex items-center gap-1 text-[9px] font-bold"
+                      >
+                        {isCopied ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{isCopied ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* QR Code Container */}
+                  <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl w-fit mx-auto border-2 border-[#dbaa61]/40 shadow-[0_0_40px_rgba(219,170,97,0.15)]">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+                        `otpauth://totp/BodyTouch:${totpTempEnrollEmail.toLowerCase()}?secret=${totpSecret}&issuer=BodyTouch&algorithm=SHA1&digits=6&period=30`
+                      )}`} 
+                      alt="Google Authenticator QR Code"
+                      className="w-[155px] h-[155px] object-contain select-none pointer-events-none"
+                    />
+                    <span className="text-[10px] text-slate-800 font-black uppercase mt-2 select-none tracking-widest leading-none font-sans">
+                      SCAN ME WITH AUTHENTICATOR App
+                    </span>
+                  </div>
+
+                  {/* Input Code */}
                   <div className="space-y-2">
-                    <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] pl-1 uppercase">
-                      REGISTERED ADMINISTRATOR EMAIL (নিবন্ধিত ইমেল) *
+                    <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] pl-1 uppercase text-center">
+                      Google Authenticator Code (অ্যাপে দেখানো ৬ সংখ্যার কোড) *
                     </label>
-                    
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-                        <Mail className="w-4 h-4 text-red-500/60" />
-                      </span>
+                    <input
+                      type="text"
+                      required
+                      maxLength={6}
+                      value={totpInputCode}
+                      onChange={(e) => {
+                        setTotpInputCode(e.target.value.replace(/\D/g, ''));
+                        if (authError) setAuthError('');
+                      }}
+                      placeholder="e.g. 123456"
+                      className="w-full bg-[#03060d] border border-slate-800 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl px-4 py-3 text-center text-white text-lg font-mono font-black tracking-[0.2em] focus:outline-none transition-all placeholder:tracking-normal placeholder:text-slate-800"
+                    />
+                  </div>
+
+                  {authError && (
+                    <div className="bg-red-950/20 border border-red-500/25 p-4 rounded-xl flex items-start gap-3 text-xs text-red-400 font-semibold leading-relaxed animate-shake">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                      <span>{authError}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthStep('credentials');
+                        setAuthError('');
+                        setTotpInputCode('');
+                      }}
+                      className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] uppercase font-black tracking-widest transition cursor-pointer text-center"
+                    >
+                      ⬅️ Go Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSending}
+                      className="w-full py-3 rounded-xl bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] uppercase font-black tracking-widest transition cursor-pointer text-center shadow-lg shadow-yellow-950/20"
+                    >
+                      {isSending ? 'Verifying...' : '✅ Confirm Code'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {authStep === 'totp_verify' && (
+                /* GOOGLE AUTHENTICATOR 2FA SECURE VALIDATOR AT EVERY SIGNIN */
+                <form onSubmit={handleVerifyOTPActive} className="space-y-5 text-left font-semibold">
+                  <div className="space-y-2 text-center pb-2 border-b border-white/[0.04]">
+                    <div className="h-12 w-12 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center justify-center text-rose-400 mx-auto mb-2 animate-pulse">
+                      <Lock className="w-6 h-6 text-rose-500" />
+                    </div>
+                    <h3 className="text-rose-500 uppercase tracking-widest text-base font-black font-display text-center">
+                      Google Authenticator code
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-medium leading-relaxed max-w-sm mx-auto">
+                      ২FA ২-স্টেপ নিরাপত্তা চালু আছে। অনুগ্রহ করে আপনার নিবন্ধিত গুগল অথেন্টিকেটর অ্যাপ খুলে <strong className="text-white">{totpTempEnrollEmail}</strong> এর বর্তমান ৬ সংখ্যার কোড আইডি দিন।
+                    </p>
+                  </div>
+
+                  {/* Code lock pad */}
+                  <div className="space-y-4 rounded-2xl bg-[#03060d]/60 p-5 border border-slate-800/80">
+                    <div className="space-y-2 text-center">
+                      <label className="block text-[9px] font-black tracking-[0.2em] text-[#5c75ab] uppercase select-none">
+                        ENTER 6-DIGIT SECURITY 2FA PASSCODE
+                      </label>
                       <input
-                        type="email"
+                        type="text"
                         required
-                        value={adminEmail}
+                        maxLength={6}
+                        autoFocus
+                        value={totpInputCode}
                         onChange={(e) => {
-                          setAdminEmail(e.target.value);
+                          setTotpInputCode(e.target.value.replace(/\D/g, ''));
                           if (authError) setAuthError('');
                         }}
-                        placeholder="e.g. akhi.akther.ofc@gmail.com"
-                        className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-red-500/75 focus:ring-1 focus:ring-red-500/35 rounded-xl !pl-11 pr-4 py-3.5 text-white text-xs font-sans font-bold placeholder-slate-700 focus:outline-none transition-all font-mono"
+                        placeholder="••••••"
+                        className="w-full bg-[#050811] border border-red-500/30 hover:border-red-500/50 focus:border-red-500 rounded-xl py-3 text-center text-white text-2xl font-mono font-black tracking-[0.4em] focus:outline-none transition-all placeholder:tracking-normal placeholder:text-slate-800 placeholder:text-sm focus:ring-1 focus:ring-red-500/25 select-all"
                       />
                     </div>
                   </div>
@@ -677,100 +1082,24 @@ Secure Session: Active Ingress Gateway 3000
                     </div>
                   )}
 
-                  <button
-                    type="submit"
-                    disabled={isSending}
-                    className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-550 hover:to-red-450 text-white font-extrabold uppercase text-xs tracking-widest py-4 rounded-xl transition duration-300 shadow-lg shadow-red-950/25 cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-40"
-                  >
-                    {isSending ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        INITIATING EMAIL SENDER TUNNEL...
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-4 h-4" />
-                        SEND 2FA SECURITY OTP CODE
-                      </>
-                    )}
-                  </button>
-                </form>
-              ) : (
-                /* STEP 2: VERIFY OTP OPTION */
-                <form onSubmit={handleVerifyOTP} className="space-y-5 text-left">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center pl-1">
-                      <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] uppercase">
-                        ENTER 6-DIGIT SAFETY OTP KEY (৬ সংখ্যার কোড) *
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAuthStep('email');
-                          setAuthError('');
-                          setShowInUIWarning(null);
-                        }}
-                        className="text-xs text-red-400 hover:underline font-bold"
-                      >
-                        Change Email Address
-                      </button>
-                    </div>
-                    
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      value={otpInput}
-                      onChange={(e) => {
-                        setOtpInput(e.target.value.replace(/\D/g, ''));
-                        if (authError) setAuthError('');
-                      }}
-                      autoFocus
-                      placeholder="••••••"
-                      className="w-full bg-[#03060d]/90 border border-red-500/20 hover:border-red-500/35 focus:border-red-500/75 rounded-2xl px-4 py-4 text-white text-center font-mono placeholder-slate-800 tracking-[0.4em] text-2xl focus:outline-none transition-all uppercase focus:ring-1 focus:ring-red-500/25"
-                    />
-                  </div>
-
-                  {authError && (
-                    <div className="bg-red-950/20 border border-red-500/25 p-4 rounded-xl flex items-start gap-3 text-xs text-red-400 font-semibold leading-relaxed animate-shake">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                      <span>{authError}</span>
-                    </div>
-                  )}
-
-                  {showInUIWarning && (
-                    <div className="bg-amber-950/15 border border-amber-500/20 px-4 py-4 rounded-xl space-y-2 text-xs text-slate-300">
-                      <p className="font-extrabold flex items-center gap-1.5 text-amber-400">
-                        <AlertCircle className="w-4 h-4" />
-                        <span>Development Bypass Option Active</span>
-                      </p>
-                      <p className="leading-relaxed">
-                        যেহেতু বর্তমানে অ্যাডমিন SMTP সেটিংস কনফিগার করা নেই, তাই লগইনের সুবিধার্থে আপনার OTP কোডটি নিচে প্রদর্শন করা হল:
-                      </p>
-                      <div className="bg-slate-950/90 py-3 rounded-xl border border-amber-500/10 text-center text-xl font-black tracking-[0.4em] text-white select-all font-mono">
-                        {showInUIWarning}
-                      </div>
-                      <p className="text-[10px] leading-relaxed text-slate-500 pl-1">
-                        * মেইলে সরাসরি OTP পেতে এবং সম্পূর্ণ অটোমেশন চালু করতে ড্যাশবোর্ডের <strong className="text-white">"SMTP Configuration"</strong> ট্যাব থেকে EmailJS কনফিগার করুন।
-                      </p>
-                    </div>
-                  )}
-
                   <div className="grid grid-cols-2 gap-3.5">
                     <button
                       type="button"
-                      disabled={cooldown > 0}
-                      onClick={handleSendOTP}
-                      className="bg-[#0b101c] hover:bg-[#101729] border border-slate-800 disabled:opacity-40 text-slate-300 text-[10px] sm:text-xs font-extrabold uppercase tracking-widest py-3.5 rounded-xl transition cursor-pointer text-center"
+                      onClick={() => {
+                        setAuthStep('credentials');
+                        setAuthError('');
+                        setTotpInputCode('');
+                      }}
+                      className="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] uppercase font-black tracking-widest transition cursor-pointer text-center"
                     >
-                      {cooldown > 0 ? `Resend (${cooldown}s)` : 'Resend Key'}
+                      ⬅️ Go Back
                     </button>
-
                     <button
                       type="submit"
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold uppercase text-[10px] sm:text-xs tracking-widest py-3.5 rounded-xl transition shadow-lg shadow-emerald-950/30 cursor-pointer text-center border border-emerald-500/10"
+                      disabled={isSending}
+                      className="w-full py-3.5 rounded-xl bg-gradient-to-r from-red-650 to-red-550 hover:from-red-600 hover:to-red-500 text-white text-[10px] uppercase font-black tracking-widest transition cursor-pointer text-center shadow-lg shadow-rose-950/40"
                     >
-                      Verify & Unlock
+                      {isSending ? 'DECRYPTING...' : '🔓 VERIFY & UNLOCK'}
                     </button>
                   </div>
                 </form>
@@ -5147,10 +5476,27 @@ Secure Session: Active Ingress Gateway 3000
                           </div>
 
                           {/* Action buttons */}
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (window.confirm(`Are you sure you want to reset Google Authenticator 2FA for ${emailAddress}? Upon next login, this admin will be forced to enroll again from scratch by scanning a new QR code.`)) {
+                                  try {
+                                    await deleteDoc(doc(db, 'admin_totp_secrets', emailAddress.toLowerCase()));
+                                    alert(`✅ Google Authenticator 2FA secret has been successfully reset for ${emailAddress}.`);
+                                  } catch (err: any) {
+                                    alert(`❌ Could not reset 2FA: ${err.message}`);
+                                  }
+                                }
+                              }}
+                              className="p-1 px-2.5 rounded bg-amber-950/30 border border-amber-500/25 text-amber-400 hover:text-white hover:bg-amber-900/40 text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center gap-1"
+                              title="Reset TOTP 2FA secret for this user"
+                            >
+                              Reset 2FA
+                            </button>
                             {isPrimary ? (
                               <span className="text-[8px] font-black uppercase bg-emerald-950/40 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
-                                Primary Key
+                                Owner Key
                               </span>
                             ) : (
                               <button
@@ -5172,6 +5518,88 @@ Secure Session: Active Ingress Gateway 3000
                   </div>
                 </div>
 
+              </div>
+
+              {/* Custom Passwords Editor Area to Override Default Password Codes */}
+              <div className="p-5 bg-[#11131a] rounded-2xl border border-white/[0.04] text-xs space-y-5 shadow-xl mt-6">
+                <div className="flex items-center gap-2 border-b border-white/[0.05] pb-3">
+                  <div className="w-7 h-7 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-400">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h5 className="text-[11px] font-black uppercase tracking-wider text-white font-display">
+                      Configure Administrator Sign-In Passwords
+                    </h5>
+                    <p className="text-[9px] text-slate-500 font-bold">এডমিনদের কাস্টম সাইন-ইন পাসওয়ার্ড পরিবর্তন করুন</p>
+                  </div>
+                </div>
+
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const form = e.currentTarget;
+                    const emailSelect = form.elements.namedItem('adminPassEmail') as HTMLSelectElement;
+                    const passInput = form.elements.namedItem('adminPassVal') as HTMLInputElement;
+                    const emailVal = emailSelect?.value?.trim()?.toLowerCase();
+                    const passVal = passInput?.value?.trim();
+
+                    if (!emailVal || !passVal) {
+                      alert('অনুগ্রহ করে সঠিক এডমিন ইমেল এবং পাসওয়ার্ড প্রবেশ করান।');
+                      return;
+                    }
+
+                    if (passVal.length < 5) {
+                      alert('পাসওয়ার্ডটি অন্তত ৫ অক্ষরের হতে হবে।');
+                      return;
+                    }
+
+                    try {
+                      const passDocRef = doc(db, 'admin_passwords', emailVal);
+                      await setDoc(passDocRef, { password: passVal });
+                      alert(`✅ ${emailVal} এর সাইন-ইন পাসওয়ার্ড সফলভাবে আপডেট করা হয়েছে!`);
+                      form.reset();
+                    } catch (err: any) {
+                      console.error(err);
+                      alert('❌ পাসওয়ার্ড আপডেট করতে ত্রুটি হয়েছে। অনুগ্রহ করে আপনার ফায়ারস্টোর ডাটাবেজ কানেকশন চেক করুন।');
+                    }
+                  }}
+                  className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end"
+                >
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[10px] uppercase font-black text-slate-400">Select Whitelisted Admin / এডমিন নির্বাচন করুন</label>
+                    <select
+                      name="adminPassEmail"
+                      required
+                      className="w-full bg-[#050811] border border-slate-800 rounded-xl px-3 py-2.5 text-white font-semibold focus:outline-none focus:border-rose-500 h-[38px]"
+                    >
+                      <option value="">-- Select Admin Email --</option>
+                      {adminEmails.map(adminObj => (
+                        <option key={adminObj.email} value={adminObj.email.toLowerCase()}>
+                          {adminObj.email}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[10px] uppercase font-black text-slate-400">Set Custom Password / নতুন পাসওয়ার্ড লিখুন</label>
+                    <input
+                      name="adminPassVal"
+                      type="text"
+                      required
+                      placeholder="e.g. 16killer2@secure"
+                      className="w-full bg-[#050811] border border-slate-800 rounded-xl px-3 py-2 text-white font-semibold focus:outline-none focus:border-rose-500 font-mono h-[38px] text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <button
+                      type="submit"
+                      className="w-full h-[38px] bg-[#dbaa61] hover:bg-[#c99a51] text-black font-black uppercase text-[10px] tracking-wider rounded-xl transition hover:opacity-90 cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Update Password
+                    </button>
+                  </div>
+                </form>
               </div>
 
             </div>

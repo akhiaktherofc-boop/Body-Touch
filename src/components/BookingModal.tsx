@@ -219,7 +219,7 @@ export default function BookingModal({
   const [commsChannel, setCommsChannel] = useState<'PHONE' | 'TELEGRAM'>('TELEGRAM');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
-  const [telegramId, setTelegramId] = useState('');
+  const [telegramId, setTelegramId] = useState('Guest');
   const [secretCode, setSecretCode] = useState<string>('');
   const [showThankyou, setShowThankyou] = useState<boolean>(false);
 
@@ -1740,24 +1740,7 @@ export default function BookingModal({
                           </div>
                         </div>
 
-                        {/* TELEGRAM ID */}
-                        <div className="space-y-1.5">
-                          <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-left flex justify-between">
-                            <span>SECURE TELEGRAM ID / USERNAME * (বাধ্যতামূলক)</span>
-                            <span className="text-amber-400 font-black">MANDATORY</span>
-                          </span>
-                          <div className="relative">
-                            <Send className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none" />
-                            <input
-                              type="text"
-                              required
-                              value={telegramId}
-                              onChange={(e) => setTelegramId(e.target.value)}
-                              placeholder="e.g. @username"
-                              className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-normal font-semibold font-mono placeholder:text-slate-600"
-                            />
-                          </div>
-                        </div>
+
                       </div>
 
                       {/* Integrated Deficit Payment Box */}

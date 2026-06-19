@@ -127,7 +127,7 @@ export default function HotelReservationModal({
   const [selectedRoom, setSelectedRoom] = useState<'room1' | 'room2'>('room1');
 
   // Telegram verification states
-  const [telegramId, setTelegramId] = useState('');
+  const [telegramId, setTelegramId] = useState('Guest');
   const [otpCode, setOtpCode] = useState('');
   const [enteredOtp, setEnteredOtp] = useState('');
   const [showOtpScreen, setShowOtpScreen] = useState(false);
@@ -260,10 +260,7 @@ export default function HotelReservationModal({
       return;
     }
 
-    if (!telegramId.trim()) {
-      triggerToast('Telegram username is required for mandatory security verification.', 'error');
-      return;
-    }
+
 
     if (!agreeToTerms) {
       triggerToast('You must agree to the terms to proceed.', 'error');
@@ -612,34 +609,7 @@ export default function HotelReservationModal({
                     </div>
                   </div>
 
-                  {/* Telegram Username */}
-                  <div className="space-y-2 text-left">
-                    <label className="block text-xs font-mono text-zinc-350 font-bold uppercase tracking-[0.16em]">
-                      SECURE TELEGRAM ID / USERNAME * (বাধ্যতামূলক নিরাপত্তা টেলিগ্রাম)
-                    </label>
-                    <div className="relative flex items-center bg-[#030712] border-2 border-white/5 rounded-xl overflow-hidden focus-within:border-amber-500 transition-colors">
-                      <svg
-                        className="absolute left-4 w-5 h-5 text-[#dbaa61] pointer-events-none"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <line x1="22" y1="2" x2="11" y2="13" />
-                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                      </svg>
-                      <input
-                        type="text"
-                        value={telegramId}
-                        onChange={(e) => setTelegramId(e.target.value)}
-                        placeholder="e.g. @username"
-                        required
-                        className="w-full bg-transparent text-sm font-black text-white pl-12 pr-4 py-4 focus:outline-none placeholder-slate-600 font-mono"
-                      />
-                    </div>
-                  </div>
+
 
                   {/* Wallet Information & Cancellation Info */}
                   <div className="bg-[#030712]/50 border border-amber-500/10 rounded-2xl p-4.5 space-y-3 text-left">

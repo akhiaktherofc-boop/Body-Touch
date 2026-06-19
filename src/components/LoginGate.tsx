@@ -1045,33 +1045,7 @@ export default function LoginGate({
               </div>
             </div>
 
-            {/* Conditional Telegram Chat ID field for signing in if required but not saved */}
-            {telegram2FAEnabled && telegramSendTarget === 'client' && (
-              <div className="space-y-1.5 text-left bg-[#0e172a]/40 border border-cyan-500/20 p-3 rounded-xl">
-                <div className="flex justify-between items-center pl-1">
-                  <label className="block text-[10px] font-black tracking-widest text-[#10b981] uppercase">
-                    Telegram Chat ID (টেলিগ্রাম চ্যাট আইডি)
-                  </label>
-                  <span className="text-[8px] text-slate-400 font-bold font-mono">Optional if already linked</span>
-                </div>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <Send className="w-4 h-4 text-cyan-500/50" />
-                  </div>
-                  <input
-                    type="text"
-                    value={signInTelegramId}
-                    onChange={(e) => setSignInTelegramId(e.target.value)}
-                    placeholder="e.g. 192837465"
-                    style={{ paddingLeft: '2.5rem' }}
-                    className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-cyan-500/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
-                  />
-                </div>
-                <p className="text-[8px] text-slate-400 leading-relaxed pl-1 pt-0.5">
-                  যদি পূর্বে আপনার অ্যাকাউন্টে চ্যাট আইডি যুক্ত না করে থাকেন, তবে টেলিগ্রামে <a href="https://t.me/userinfobot" target="_blank" rel="noopener() referrer" className="text-cyan-400 underline hover:text-[#10b981]">@userinfobot</a> এ মেসেজ পাঠিয়ে আপনার Chat ID টি এখানে লিখুন।
-                </p>
-              </div>
-            )}
+
 
             {/* Remember Me Checkbox */}
             <div className="flex items-center pl-1 pt-1 pb-1">
@@ -1202,7 +1176,7 @@ export default function LoginGate({
             </div>
 
             {/* Telegram Chat ID for Registration if 2FA client mode is active */}
-            {telegram2FAEnabled && telegramSendTarget === 'client' && (
+            {false && (
               <div className="space-y-1.5 text-left">
                 <label className="block text-[10px] font-black tracking-widest text-cyan-400 uppercase pl-1 flex justify-between items-center pr-1">
                   <span>Telegram Chat ID (টেলিগ্রাম চ্যাট আইডি)</span>
