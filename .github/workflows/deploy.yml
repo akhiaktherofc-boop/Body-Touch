@@ -83,17 +83,23 @@ jobs:
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
 
-      - name: Sync Files to Hostinger FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ steps.prep.outputs.server }}
-          username: ${{ steps.prep.outputs.username }}
-          password: ${{ steps.prep.outputs.password }}
-          local-dir: ./dist/
-          server-dir: ./public_html/
-          # Hostinger requires FTPS (FTP over Explicit TLS) on port 21.
-          # To prevent handshake timeouts due to self-signed or domain-mismatched certificates on Hostinger,
-          # we use 'security: loose' which instructs basic-ftp to bypass certificate host verification.
-          protocol: ftps
-          port: 21
-          security: loose
+      - name: Install LFTP
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lftp
+
+      - name: Sync Files to Hostinger FTP (Robust Mode)
+        run: |
+          lftp -c "
+          set ftp:ssl-allow yes;
+          set ftp:ssl-force yes;
+          set ssl:verify-certificate no;
+          set ftp:passive-mode true;
+          set net:timeout 20;
+          set net:max-retries 4;
+          set net:reconnect-interval-multiplier 2;
+          set net:reconnect-interval-base 5;
+          open -u '${{ steps.prep.outputs.username }}','${{ steps.prep.outputs.password }}' '${{ steps.prep.outputs.server }}';
+          mirror -R --delete --verbose=3 ./dist ./public_html;
+          quit;
+          "
