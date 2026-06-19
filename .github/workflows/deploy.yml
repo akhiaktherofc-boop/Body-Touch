@@ -90,10 +90,13 @@ jobs:
 
       - name: Sync Files to Hostinger FTP (Robust Mode)
         run: |
-          lftp -c "
+          lftp -d -c "
+          debug 10;
           set ftp:ssl-allow yes;
           set ftp:ssl-force no;
           set ssl:verify-certificate no;
+          set ssl:check-hostname no;
+          set dns:order \"inet inet6\";
           set ftp:passive-mode true;
           set net:timeout 20;
           set net:max-retries 4;
