@@ -6,6 +6,45 @@
     <title>bodyTOUCH - Discretion Guaranteed</title>
   </head>
   <body>
+    <!-- Runtime Diagnostic Error Overlay -->
+    <div id="error-diagnosis-box" style="display: none; padding: 24px; background: #080312; color: #ff3366; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; margin: 16px; border: 2px dashed #ff3366; border-radius: 12px; font-size: 14px; position: fixed; top: 16px; left: 16px; right: 16px; z-index: 999999; box-shadow: 0 10px 40px rgba(0,0,0,0.9);">
+      <strong style="font-size: 18px; color: #ffffff; display: block; margin-bottom: 8px;">⚠️ Application Diagnostic Alert (ক্র্যাশ ডায়াগনস্টিক)</strong>
+      <p style="margin: 8px 0; line-height: 1.5;" id="error-diagnosis-msg">Detecting initialization issue...</p>
+      <div style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11px; color: #ff8fa3; margin-top: 10px; overflow-x: auto; max-height: 150px;" id="error-diagnosis-stack">No traceback available</div>
+      <div style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+        <button onclick="localStorage.clear(); sessionStorage.clear(); window.location.hash = ''; window.location.reload();" style="background: #ff3366; color: #ffffff; border: none; padding: 10px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px;">Reset Memory Cache (ক্লিয়ার স্টোরেজ)</button>
+        <button onclick="window.location.reload();" style="background: rgba(255,255,255,0.1); color: #ffffff; border: 1px solid rgba(255,255,255,0.2); padding: 10px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px;">Reload Page (আবার চেষ্টা করুন)</button>
+      </div>
+    </div>
+    <script>
+      window.addEventListener('error', function(event) {
+        var box = document.getElementById('error-diagnosis-box');
+        var msg = document.getElementById('error-diagnosis-msg');
+        var stack = document.getElementById('error-diagnosis-stack');
+        if (box && msg) {
+          box.style.display = 'block';
+          msg.innerHTML = "<strong>Error occurred:</strong> " + (event.error ? event.error.message : event.message || 'Unknown startup error');
+          if (stack && event.error && event.error.stack) {
+            stack.textContent = event.error.stack.toString();
+          } else {
+            stack.textContent = "Location: " + event.filename + ":" + event.lineno + ":" + event.colno;
+          }
+        }
+      });
+      window.addEventListener('unhandledrejection', function(event) {
+        var box = document.getElementById('error-diagnosis-box');
+        var msg = document.getElementById('error-diagnosis-msg');
+        var stack = document.getElementById('error-diagnosis-stack');
+        if (box && msg) {
+          box.style.display = 'block';
+          msg.innerHTML = "<strong>Unhandled rejection in background thread:</strong> " + (event.reason ? event.reason.message || event.reason : 'Async process failed');
+          if (stack) {
+            stack.textContent = event.reason && event.reason.stack ? event.reason.stack.toString() : "No traceback available for async rejection.";
+          }
+        }
+      });
+    </script>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

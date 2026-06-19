@@ -123,12 +123,27 @@ export default function App() {
 
   const [bookings, setBookings] = useState<Booking[]>(() => {
     const saved = getStoredItem('bt_bookings');
-    return saved ? JSON.parse(saved) : [];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        console.error('Failed to parse bookings:', e);
+      }
+    }
+    return [];
   });
 
   const [reviews, setReviews] = useState<Review[]>(() => {
     const saved = getStoredItem('bt_reviews');
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        console.error('Failed to parse reviews:', e);
+      }
+    }
     return [
       {
         id: 'rev-1',
@@ -156,21 +171,42 @@ export default function App() {
 
   const [companions, setCompanions] = useState<Companion[]>(() => {
     const saved = getStoredItem('bt_companions');
-    return saved ? JSON.parse(saved) : COMPANIONS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        console.error('Failed to parse companions:', e);
+      }
+    }
+    return COMPANIONS;
   });
 
   const [locations, setLocations] = useState<HotelLocation[]>(() => {
     const saved = getStoredItem('bt_locations');
-    const parsed = saved ? JSON.parse(saved) : null;
-    if (parsed && Array.isArray(parsed) && parsed.length >= 5 && parsed[0].price !== undefined) {
-      return parsed;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed) && parsed.length >= 5 && parsed[0].price !== undefined) {
+          return parsed;
+        }
+      } catch (e) {
+        console.error('Failed to parse locations:', e);
+      }
     }
     return LOCATIONS;
   });
 
   const [payments, setPayments] = useState<PaymentRecord[]>(() => {
     const saved = getStoredItem('bt_payments');
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        console.error('Failed to parse payments:', e);
+      }
+    }
     return [
       {
         id: 'pay-initial',

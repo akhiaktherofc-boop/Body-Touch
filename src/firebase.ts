@@ -16,5 +16,13 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firebase Authentication
 export const auth = getAuth(app);
 
-// Initialize Firestore with our specific DatabaseId
-export const db = getFirestore(app, "ai-studio-f20e3546-34e4-4c22-94d8-d6353061fc07");
+// Initialize Firestore with our specific DatabaseId depending on standard sandbox vs production environments
+const dbId = (typeof window !== 'undefined' && (
+  window.location.hostname.includes('run.app') || 
+  window.location.hostname.includes('localhost') || 
+  window.location.hostname.includes('127.0.0.1')
+)) 
+  ? "ai-studio-f20e3546-34e4-4c22-94d8-d6353061fc07" 
+  : undefined;
+
+export const db = dbId ? getFirestore(app, dbId) : getFirestore(app);
