@@ -277,6 +277,25 @@ export default function AdminPanel({
   const [subAreaInputMap, setSubAreaInputMap] = useState<{[divisionId: string]: string}>({});
   const [citiesError, setCitiesError] = useState<string | null>(null);
 
+  const getSetupQRCodeUrl = () => {
+    try {
+      if (!totpSecret || !totpTempEnrollEmail) return '';
+      const totp = new OTPAuth.TOTP({
+        issuer: 'BodyTouch',
+        label: totpTempEnrollEmail.toLowerCase(),
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+        secret: OTPAuth.Secret.fromBase32(totpSecret)
+      });
+      const uri = totp.toString();
+      return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(uri)}&color=0-0-0&bgcolor=255-255-255`;
+    } catch (e) {
+      console.error(e);
+      return '';
+    }
+  };
+
   // Payment Gateway Forms State
   const [gwName, setGwName] = useState('');
   const [gwMethod, setGwMethod] = useState<'BKASH' | 'NAGAD' | 'ROCKET'>('BKASH');
@@ -515,8 +534,8 @@ export default function AdminPanel({
         secret: OTPAuth.Secret.fromBase32(totpSecret)
       });
 
-      // Verification check
-      const isValid = totp.validate({ token: cleanCode, window: 1 }) !== null || cleanCode === '123456' || cleanCode === '789123';
+      // Verification check - strictly validate using Google Authenticator, no bypass codes permitted
+      const isValid = totp.validate({ token: cleanCode, window: 1 }) !== null;
 
       if (isValid) {
         // Save the verified secret in Firestore
@@ -566,7 +585,8 @@ export default function AdminPanel({
         secret: OTPAuth.Secret.fromBase32(totpSecret)
       });
 
-      const isValid = totp.validate({ token: cleanCode, window: 1 }) !== null || cleanCode === '16killer2@secure#totp#bypass';
+      // Strictly validate using Google Authenticator token, no bypass codes permitted
+      const isValid = totp.validate({ token: cleanCode, window: 1 }) !== null;
 
       if (isValid) {
         // Log in
@@ -654,14 +674,16 @@ export default function AdminPanel({
       if (passSnap.exists()) {
         correctPassword = passSnap.data().password;
       } else {
-        // Default passwords for initial whitelists so they can login straight away.
-        if (normalizedEmail === '16killer2@gmail.com') {
+        // Fallback ONLY for primary super_admins
+        if (normalizedEmail === '16killer2@gmail.com' || normalizedEmail === 'akhi.akther.ofc@gmail.com') {
           correctPassword = '16killer2@admin';
+          await setDoc(passDocRef, { password: correctPassword });
         } else {
-          correctPassword = 'admin123456';
+          // Protect newly whitelisted admins from guessable fallback passwords
+          setAuthError('এই অ্যাকাউন্টে কোনো পাসওয়ার্ড কাস্টমাইজড বা সেটআপ করা হয়নি! অনুগ্রহ করে সুপার এডমিন দ্বারা এডমিন প্যানেল থেকে পাসওয়ার্ড সেট করিয়ে নিন।');
+          setIsSending(false);
+          return;
         }
-        // Save the default password in Firestore so they have a persistent record
-        await setDoc(passDocRef, { password: correctPassword });
       }
 
       if (cleanPassword === correctPassword) {
@@ -870,122 +892,139 @@ export default function AdminPanel({
               </>
             )}
 
-            {authStep === 'totp_setup' && (
-              /* GOOGLE AUTHENTICATOR MFA FIRST-TIME ENROLL SECURE WIZARD */
-              <form onSubmit={handleVerifyOTPSetup} className="space-y-4 text-center animate-fadeIn">
-                <div className="space-y-1 border-b border-white/[0.04] pb-3">
-                  <h3 className="text-[#dbaa61] uppercase tracking-wider text-sm font-bold">
-                    Two-Factor Setup Required
-                  </h3>
-                  <p className="text-[11px] text-slate-400 leading-relaxed max-w-xs mx-auto">
-                    This administrative account requires Google Authenticator validation. Please save this secret key.
-                  </p>
-                </div>
-
-                {/* Secret Key Container with Copy Button */}
-                <div className="bg-[#03060d]/60 border border-slate-800 rounded-2xl p-4 space-y-3.5">
-                  <div className="space-y-1 text-center">
-                    <span className="text-[9px] font-mono tracking-widest text-[#dbaa61] uppercase font-bold">Manual Entry Key</span>
-                    <div className="flex items-center justify-between bg-black/40 border border-slate-800/80 rounded-xl px-3.5 py-2.5 font-mono text-[11px] text-slate-300">
-                      <span className="select-all tracking-wider font-bold text-white">{totpSecret || 'ADMIN_TEMP_SECRET'}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(totpSecret || 'ADMIN_TEMP_SECRET');
-                          setIsCopied(true);
-                          setTimeout(() => setIsCopied(false), 2000);
-                        }}
-                        className="text-[#dbaa61] hover:text-[#cdaf55] transition p-1 rounded hover:bg-slate-900 cursor-pointer flex items-center justify-center"
-                        title="Copy to clipboard"
-                      >
-                        {isCopied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                      </button>
-                    </div>
+            {authStep === 'totp_setup' && (() => {
+              const qrUrl = getSetupQRCodeUrl();
+              return (
+                /* GOOGLE AUTHENTICATOR MFA FIRST-TIME ENROLL SECURE WIZARD */
+                <form onSubmit={handleVerifyOTPSetup} className="space-y-4 text-center animate-fadeIn">
+                  <div className="space-y-1 border-b border-white/[0.04] pb-3">
+                    <h3 className="text-[#dbaa61] uppercase tracking-wider text-xs font-bold">
+                      Google Authenticator Link / গুগল অথেন্টিকেটর লিঙ্ক
+                    </h3>
+                    <p className="text-[11px] text-slate-400 leading-relaxed max-w-xs mx-auto">
+                      আপনার গুগল অথেন্টিকেটর অ্যাপে নিচের কিউআর কোডটি (QR Code) স্ক্যান করুন অথবা কোডটি ম্যানুয়ালি যোগ করুন।
+                    </p>
                   </div>
 
-                  {/* Dynamic Help Text */}
-                  <div className="text-[10px] text-slate-500 leading-relaxed font-sans text-left bg-slate-950/40 p-2.5 rounded-xl border border-slate-900/60">
-                    <span className="font-bold text-[#dbaa61] block mb-0.5">Instructions:</span>
-                    1. Open the <strong className="text-white">Google Authenticator</strong> app on your mobile device.<br />
-                    2. Tap the plus icon and select <strong className="text-white">"Enter a setup key"</strong>.<br />
-                    3. Input the secret key shown above and enter your verification passcode.
-                  </div>
-                </div>
-
-                {/* Input Code Verification Pad */}
-                <div className="bg-[#03060d]/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-                  <div className="space-y-1 text-center">
-                    <label className="block text-[10px] font-semibold tracking-wider text-slate-400 uppercase font-mono">
-                      Enter Generated Code
-                    </label>
-
-                    {/* Segmented Digit UI Lock Pad */}
-                    <div className="relative flex justify-center py-1">
-                      <div className="flex gap-2.5 justify-center">
-                        {[0, 1, 2, 3, 4, 5].map((index) => {
-                          const val = totpInputCode[index] || '';
-                          const isCurrent = totpInputCode.length === index;
-                          return (
-                            <div 
-                              key={index} 
-                              className={`w-10 h-12 rounded-xl border flex items-center justify-center text-lg font-bold font-mono transition-all duration-300 ${
-                                val 
-                                  ? 'border-[#dbaa61] bg-[#dbaa61]/5 text-[#dbaa61] shadow-[0_0_12px_rgba(219,170,97,0.15)]' 
-                                  : isCurrent 
-                                    ? 'border-[#dbaa61]/70 bg-slate-900 ring-1 ring-[#dbaa61]/25 animate-pulse' 
-                                    : 'border-slate-800 bg-[#03060d]'
-                              }`}
-                            >
-                              {val || <span className="text-slate-700 font-sans">•</span>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <input
-                        type="text"
-                        required
-                        maxLength={6}
-                        autoFocus
-                        value={totpInputCode}
-                        onChange={(e) => {
-                          setTotpInputCode(e.target.value.replace(/\D/g, ''));
-                          if (authError) setAuthError('');
-                        }}
-                        className="absolute inset-0 opacity-0 cursor-text w-full h-[48px]"
+                  {/* QR Code Graphic element */}
+                  {qrUrl ? (
+                    <div className="bg-white p-2.5 rounded-2xl mx-auto w-40 h-40 flex items-center justify-center shadow-[0_4px_25px_rgba(255,255,255,0.06)] border border-slate-705 select-none animate-fadeIn">
+                      <img 
+                        src={qrUrl} 
+                        alt="Google Authenticator QR Code" 
+                        className="w-full h-full object-contain"
+                        referrerPolicy="no-referrer"
                       />
                     </div>
-                  </div>
-                </div>
+                  ) : (
+                    <div className="text-[10px] text-red-400">QR Code generation failed. Please use Manual Key instead.</div>
+                  )}
 
-                {authError && (
-                  <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-400 font-semibold leading-relaxed animate-shake text-left">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                    <span>{authError}</span>
-                  </div>
-                )}
+                  {/* Secret Key Container with Copy Button */}
+                  <div className="bg-[#03060d]/60 border border-slate-800 rounded-2xl p-4 space-y-3.5">
+                    <div className="space-y-1 text-center">
+                      <span className="text-[9px] font-mono tracking-widest text-[#dbaa61] uppercase font-black">Manual Entry Key / ম্যানুয়াল কী</span>
+                      <div className="flex items-center justify-between bg-black/40 border border-slate-800/80 rounded-xl px-3.5 py-2.5 font-mono text-[11px] text-slate-300">
+                        <span className="select-all tracking-wider font-bold text-white">{totpSecret || 'ADMIN_TEMP_SECRET'}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(totpSecret || 'ADMIN_TEMP_SECRET');
+                            setIsCopied(true);
+                            setTimeout(() => setIsCopied(false), 2000);
+                          }}
+                          className="text-[#dbaa61] hover:text-[#cdaf55] transition p-1 rounded hover:bg-slate-900 cursor-pointer flex items-center justify-center"
+                          title="Copy to clipboard"
+                        >
+                          {isCopied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthStep('credentials');
-                      setAuthError('');
-                      setTotpInputCode('');
-                    }}
-                    className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center"
-                  >
-                    Go Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSending}
-                    className="w-full py-3 rounded-xl bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center shadow-md font-bold disabled:opacity-40"
-                  >
-                    {isSending ? 'Registering...' : 'Confirm'}
-                  </button>
-                </div>
-              </form>
-            )}
+                    {/* Dynamic Help Text */}
+                    <div className="text-[10px] text-slate-400 leading-relaxed font-sans text-left bg-slate-950/40 p-3 rounded-xl border border-slate-900/60 space-y-1">
+                      <span className="font-bold text-[#dbaa61] block mb-0.5">লিঙ্ক করার নিয়ম:</span>
+                      <p>১. আপনার মোবাইলে <strong className="text-white">Google Authenticator</strong> অ্যাপ ওপেন করুন।</p>
+                      <p>২. নিচে ডান কোণায় প্লাস (+) আইকন চেপে <strong className="text-white">"Scan a QR code"</strong> সিলেক্ট করে কোডটি স্ক্যান করুন।</p>
+                      <p>৩. যদি স্ক্যান না করতে পারেন, তবে <strong className="text-white">"Enter a setup key"</strong> সিলেক্ট করে নাম "BodyTouch" এবং ওপরের "Manual Entry Key" টি বসিয়ে দিয়ে <strong className="text-white">Add</strong> চাপুন।</p>
+                    </div>
+                  </div>
+
+                  {/* Input Code Verification Pad */}
+                  <div className="bg-[#03060d]/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+                    <div className="space-y-1 text-center">
+                      <label className="block text-[10px] font-semibold tracking-wider text-slate-405 uppercase font-mono">
+                        Enter Generated Code (আপনার অ্যাপের কোডটি দিন)
+                      </label>
+
+                      {/* Segmented Digit UI Lock Pad */}
+                      <div className="relative flex justify-center py-1">
+                        <div className="flex gap-2.5 justify-center">
+                          {[0, 1, 2, 3, 4, 5].map((index) => {
+                            const val = totpInputCode[index] || '';
+                            const isCurrent = totpInputCode.length === index;
+                            return (
+                              <div 
+                                key={index} 
+                                className={`w-10 h-12 rounded-xl border flex items-center justify-center text-lg font-bold font-mono transition-all duration-300 ${
+                                  val 
+                                    ? 'border-[#dbaa61] bg-[#dbaa61]/5 text-[#dbaa61] shadow-[0_0_12px_rgba(219,170,97,0.15)]' 
+                                    : isCurrent 
+                                      ? 'border-[#dbaa61]/70 bg-slate-900 ring-1 ring-[#dbaa61]/25 animate-pulse' 
+                                      : 'border-slate-800 bg-[#03060d]'
+                                }`}
+                              >
+                                {val || <span className="text-slate-700 font-sans">•</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          autoFocus
+                          value={totpInputCode}
+                          onChange={(e) => {
+                            setTotpInputCode(e.target.value.replace(/\D/g, ''));
+                            if (authError) setAuthError('');
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-text w-full h-[48px]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {authError && (
+                    <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-100 font-semibold leading-relaxed animate-shake text-left">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                      <span>{authError}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthStep('credentials');
+                        setAuthError('');
+                        setTotpInputCode('');
+                      }}
+                      className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center"
+                    >
+                      Go Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSending}
+                      className="w-full py-3 rounded-xl bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center shadow-md font-bold disabled:opacity-40"
+                    >
+                      {isSending ? 'Registering...' : 'Confirm'}
+                    </button>
+                  </div>
+                </form>
+              );
+            })()}
 
             {authStep === 'totp_verify' && (
               /* GOOGLE AUTHENTICATOR 2FA SECURE VALIDATOR AT EVERY SIGNIN */
@@ -5343,21 +5382,33 @@ export default function AdminPanel({
                       </div>
                     </div>
 
-                    <form
-                      onSubmit={(e) => {
+                     <form
+                      onSubmit={async (e) => {
                         e.preventDefault();
                         const form = e.currentTarget;
                         const emailInput = form.elements.namedItem('newAdminEmail') as HTMLInputElement;
                         const telegramInput = form.elements.namedItem('newAdminTelegram') as HTMLInputElement;
                         const roleSelect = form.elements.namedItem('newAdminRole') as HTMLSelectElement;
+                        const passwordInput = form.elements.namedItem('newAdminPassword') as HTMLInputElement;
+                        
                         const emailVal = emailInput?.value?.trim()?.toLowerCase();
                         let telegramVal = telegramInput?.value?.trim();
                         const roleVal = (roleSelect?.value as 'super_admin' | 'admin' | 'moderator') || 'admin';
-                        if (!emailVal || !telegramVal) return;
+                        const passwordVal = passwordInput?.value?.trim();
+
+                        if (!emailVal || !telegramVal || !passwordVal) {
+                          alert('অনুগ্রহ করে সঠিক এডমিন ইমেল, টেলিগ্রাম এবং পাসওয়ার্ড লিখুন।');
+                          return;
+                        }
 
                         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                         if (!emailRegex.test(emailVal)) {
                           alert('দয়া করে একটি সঠিক ইমেল এড্রেস ব্যবহার করুন।');
+                          return;
+                        }
+
+                        if (passwordVal.length < 5) {
+                          alert('পাসওয়ার্ডটি অন্তত ৫ অক্ষরের হতে হবে।');
                           return;
                         }
 
@@ -5375,9 +5426,18 @@ export default function AdminPanel({
                           return;
                         }
 
-                        updateAdminEmails([...adminEmails, { email: emailVal, telegram: telegramVal, role: roleVal }]);
-                        form.reset();
-                        alert('✅ নতুন এডমিন সফলভাবে তালিকাভুক্ত করা হয়েছে!');
+                        try {
+                          // Securely save the password in firestore right now
+                          const passDocRef = doc(db, 'admin_passwords', emailVal);
+                          await setDoc(passDocRef, { password: passwordVal });
+
+                          updateAdminEmails([...adminEmails, { email: emailVal, telegram: telegramVal, role: roleVal }]);
+                          form.reset();
+                          alert('✅ নতুন এডমিন সফলভাবে পাসওয়ার্ডসহ তালিকাভুক্ত করা হয়েছে!');
+                        } catch (err: any) {
+                          console.error(err);
+                          alert('❌ ডাটাবেজে পাসওয়ার্ড সেট করতে ত্রুটি হয়েছে। অনুগ্রহ করে ইন্টারনেট কানেকশন চেক করুন।');
+                        }
                       }}
                       className="space-y-4"
                     >
@@ -5406,6 +5466,20 @@ export default function AdminPanel({
                           required
                           placeholder="e.g. @akhi_ofc (বা @ ছাড়া)"
                           className="w-full bg-black/40 border border-[#232733] hover:border-slate-800 rounded-xl px-4 py-2.5 text-white placeholder-slate-705 focus:outline-none focus:border-[#dbaa61] transition-all font-bold font-mono text-xs text-amber-400"
+                        />
+                      </div>
+
+                      {/* Assign Password Input */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#dbaa61]">
+                          Assign Secure Password / পাসওয়ার্ড সেট করুন *
+                        </label>
+                        <input
+                          type="text"
+                          name="newAdminPassword"
+                          required
+                          placeholder="At least 5 characters long"
+                          className="w-full bg-black/40 border border-[#232733] hover:border-slate-800 rounded-xl px-4 py-2.5 text-white placeholder-slate-705 focus:outline-none focus:border-[#dbaa61] transition-all font-bold font-mono text-xs"
                         />
                       </div>
 
