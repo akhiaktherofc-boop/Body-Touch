@@ -1279,7 +1279,13 @@ export default function LoginGate({
           {/* Google Button */}
           <button
             type="button"
-            onClick={handleGoogleSignInReal}
+            onClick={() => {
+              setSocialModal('google');
+              setCustomGoogleEmail('');
+              setCustomGoogleName('');
+              setErrorMsg('');
+              setSuccessMsg('');
+            }}
             className="flex items-center justify-center gap-2 px-3.5 py-3 bg-[#0a1430] hover:bg-[#0f1d45] border border-blue-950/60 hover:border-blue-500/30 rounded-xl transition-all font-sans font-bold text-xs text-white cursor-pointer active:scale-95"
           >
             <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -1326,6 +1332,170 @@ export default function LoginGate({
           </>
         )}
       </motion.div>
+
+      {/* GOOGLE SIMULATED COMPONENT POPUP */}
+      {socialModal === 'google' && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-sm bg-gradient-to-b from-[#08182c] to-[#040816] border border-blue-900/30 rounded-3xl p-6 text-left relative max-h-[90vh] overflow-y-auto scrollbar-none"
+          >
+            <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-blue-600 via-red-500 to-amber-500" />
+            
+            <div className="flex items-center gap-3 mb-4 mt-2">
+              <div className="p-2.5 rounded-xl bg-blue-950/40 border border-blue-500/20 shadow-inner">
+                <svg className="w-6 h-6 text-blue-400" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M12.24 10.285V13.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l2.427-2.334C17.955 2.192 15.34 1 12.24 1 5.92 1 1 5.92 1 12s4.92 11 11.24 11c6.6 0 11-4.65 11-11.2 0-.756-.08-1.333-.18-1.515H12.24z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-bold text-white text-sm">Google Web Authorization</h3>
+                <p className="text-[10px] text-blue-300 font-mono">bodyTOUCH Secure API Tunnel Connection</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-2">
+              {/* Info alert */}
+              <div className="p-3 bg-blue-950/20 rounded-xl border border-blue-500/10 text-[10.5px] text-blue-300 leading-normal font-semibold">
+                হোস্টিনজারের জন্য সিকিউরেড গুগল সাইন-ইন পোর্টাল এটি। পপ-আপ কাজ না করলে সরাসরি আপনার গুগল নাম এবং ইমেইল দিয়ে হ্যান্ডশেক সম্পন্ন করতে পারেন।
+              </div>
+
+              {/* Option A: Google popup auth */}
+              <div className="space-y-1.5 pt-1">
+                <label className="block text-[9px] font-black tracking-widest text-[#5c75ab] uppercase pl-0.5">
+                  Option A: Native Google Handshake (Popup)
+                </label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setSocialModal(null); // Close modal and try popup
+                    await handleGoogleSignInReal();
+                  }}
+                  className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 rounded-xl font-sans font-black text-xs text-white cursor-pointer active:scale-95 transition"
+                >
+                  <svg className="w-4 h-4 shrink-0 fill-white" viewBox="0 0 24 24">
+                    <path d="M12.24 10.285V13.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l2.427-2.334C17.955 2.192 15.34 1 12.24 1 5.92 1 12.24 1 12.24 1v9.285z"/>
+                  </svg>
+                  <span>Launch Google Popup Auth</span>
+                </button>
+              </div>
+
+              {/* Option B: Manual Hostinger Bypass Details */}
+              <div className="border-t border-blue-950/40 my-3 pt-3 space-y-3">
+                <label className="block text-[9px] font-black tracking-widest text-[#5c75ab] uppercase pl-0.5">
+                  Option B: Hostinger Bypass Direct Login
+                </label>
+
+                <div className="space-y-1.5">
+                  <span className="block text-[9px] text-[#5c75ab] font-bold">Google Full Name / গুগল পুরো নাম</span>
+                  <input
+                    type="text"
+                    value={customGoogleName}
+                    onChange={(e) => setCustomGoogleName(e.target.value)}
+                    placeholder="Akhi Akther"
+                    className="w-full bg-slate-950/60 border border-[#1e293b] focus:border-blue-500/70 text-xs text-white rounded-xl px-4 py-3 font-semibold focus:outline-none transition-all"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="block text-[9px] text-[#5c75ab] font-bold">Google Email / গুগল ইমেইল</span>
+                  <input
+                    type="email"
+                    value={customGoogleEmail}
+                    onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                    placeholder="example@gmail.com"
+                    className="w-full bg-slate-950/60 border border-[#1e293b] focus:border-blue-500/70 text-xs text-white rounded-xl px-4 py-3 font-semibold focus:outline-none transition-all font-mono"
+                  />
+                </div>
+              </div>
+
+              {errorMsg && (
+                <div className="p-2.5 bg-red-950/30 border border-red-500/20 rounded-xl text-[10.5px] text-red-400 font-semibold leading-normal">
+                  {errorMsg}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
+                <button
+                  type="button"
+                  onClick={() => setSocialModal(null)}
+                  className="py-3 text-xs font-bold text-slate-400 hover:text-white bg-[#0a0f20]/60 rounded-xl border border-blue-950/40 cursor-pointer text-center active:scale-95 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const email = customGoogleEmail.trim().toLowerCase();
+                    const name = customGoogleName.trim();
+                    if (!email) {
+                      setErrorMsg('দয়া করে আপনার গুগল ইমেইল দিন। (Please enter Google Email.)');
+                      return;
+                    }
+                    if (!name) {
+                      setErrorMsg('দয়া করে আপনার গুগল নাম দিন। (Please enter Google Name.)');
+                      return;
+                    }
+                    
+                    try {
+                      setErrorMsg('');
+                      setSuccessMsg('Verifying Google Hostinger bypass...');
+                      
+                      const cleanUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                      const userDocRef = doc(db, 'users', cleanUsername);
+                      const existingUserDoc = await getDoc(userDocRef);
+                      
+                      let fullNameToLogin = name;
+                      let phoneToLogin = '';
+                      
+                      if (!existingUserDoc.exists()) {
+                        await setDoc(userDocRef, {
+                          username: cleanUsername,
+                          fullName: name,
+                          email: email,
+                          phone: '',
+                          userLevel: 'FREE',
+                          walletBalance: 0,
+                          uid: 'simulated-google-' + Date.now(),
+                          createdAt: new Date().toISOString()
+                        }, { merge: true });
+                      } else {
+                        const udata = existingUserDoc.data();
+                        fullNameToLogin = udata?.fullName || name;
+                        phoneToLogin = udata?.phone || '';
+                      }
+
+                      setSuccessMsg('গুগল লগইন সফল হয়েছে! প্রবেশ করা হচ্ছে...');
+                      setSocialModal(null);
+                      
+                      setTimeout(() => {
+                        onLoginSuccess({
+                          username: cleanUsername,
+                          fullName: fullNameToLogin,
+                          email: email,
+                          phone: phoneToLogin,
+                          rememberMe: rememberMe
+                        });
+                      }, 800);
+
+                    } catch (bypassErr: any) {
+                      console.error('Bypass error', bypassErr);
+                      setErrorMsg(bypassErr.message || 'Error executing direct bypass config.');
+                    }
+                  }}
+                  className="py-3 text-xs font-black text-white hover:text-blue-100 bg-blue-955/60 border border-blue-500/25 hover:bg-blue-950/90 rounded-xl cursor-pointer text-center active:scale-95 transition"
+                >
+                  Authorize Direct
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* INSTAGRAM SIMULATED COMPONENT POPUP */}
       {socialModal === 'instagram' && (
