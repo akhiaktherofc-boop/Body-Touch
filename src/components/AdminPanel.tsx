@@ -699,360 +699,9 @@ export default function AdminPanel({
     }
   };
 
-  // Render High Security Portal Gate if not authenticated
-  if (!isAuth) {
-    return (
-      <div className="min-h-screen text-slate-100 bg-[#04060d] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans overflow-hidden relative selection:bg-[#dbaa61] selection:text-black w-full">
-        {/* Animated Background Grids and Orbs */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-10" />
-        <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] bg-[#dbaa61]/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-[#dbaa61]/5 rounded-full blur-3xl pointer-events-none" />
-        
-        {/* Immersive Glassmorphic Centered Container */}
-        <div className="w-full max-w-md bg-[#080d19]/90 border border-slate-800/80 rounded-3xl overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.85)] backdrop-blur-xl relative z-10 flex flex-col justify-between min-h-[560px] p-6 sm:p-10">
-          
-          {/* Direct Close/Return to Site Button */}
-          <button 
-            type="button"
-            onClick={onClose}
-            className="absolute top-5 right-5 w-8 h-8 rounded-full border border-slate-800/60 hover:border-[#dbaa61]/45 hover:text-[#dbaa61] flex items-center justify-center text-slate-500 hover:bg-slate-900/40 transition-all cursor-pointer shadow-sm z-20"
-            title="Return to Main Application"
-          >
-            <X className="w-4 h-4" />
-          </button>
-
-          <div className="my-auto space-y-6 w-full animate-fadeIn text-center">
-            {/* BRAND SIGNATURE */}
-            <div className="flex flex-col items-center justify-center space-y-2.5 mb-2">
-              <div className="h-14 w-14 bg-[#dbaa61]/10 border border-[#dbaa61]/40 rounded-2xl flex items-center justify-center text-[#dbaa61] shadow-[0_0_25px_rgba(219,170,97,0.15)] relative group transition-all duration-300">
-                <ShieldCheck className="w-7 h-7 text-[#dbaa61]" />
-              </div>
-              <div className="space-y-1">
-                <span className="font-mono text-[10px] font-black tracking-[0.25em] text-[#dbaa61] uppercase block">bodyTOUCH</span>
-                <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase font-mono block">ADMIN CONTROL PORTAL</span>
-              </div>
-            </div>
-
-            {authStep === 'credentials' && (
-              <>
-                <div className="space-y-1.5 mb-4">
-                  <h2 className="text-lg font-bold text-white tracking-tight">Admin Authentication / এডমিন অথেন্টিকেশন</h2>
-                  <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto">
-                    পাসওয়ার্ড এবং ২-স্টেপ সিকিউরিটি কোড বসিয়ে এডমিন প্যানেলে প্রবেশ করুন।
-                  </p>
-                </div>
-
-                {/* CUSTOM EMAIL & PASSWORD LOGIN */}
-                <form onSubmit={handleCustomEmailPasswordSignIn} className="space-y-4 text-left pt-2">
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-semibold text-slate-400 pl-1 uppercase tracking-wider font-mono">
-                      Email Address / এডমিন ইমেইল
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-                        <Mail className="w-4 h-4 text-[#dbaa61]/60" />
-                      </span>
-                      <input
-                        type="email"
-                        required
-                        value={adminEmail}
-                        onChange={(e) => {
-                          setAdminEmail(e.target.value);
-                          if (authError) setAuthError('');
-                        }}
-                        placeholder="admin@bodytouch.com"
-                        className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3 text-white text-xs placeholder-[#1e2333] focus:outline-none transition-all font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-semibold text-slate-400 pl-1 uppercase tracking-wider font-mono">
-                      Password / পাসওয়ার্ড
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-                        <Lock className="w-4 h-4 text-[#dbaa61]/60" />
-                      </span>
-                      <input
-                        type="password"
-                        required
-                        value={adminPassword}
-                        onChange={(e) => {
-                          setAdminPassword(e.target.value);
-                          if (authError) setAuthError('');
-                        }}
-                        placeholder="••••••••"
-                        className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3 text-white text-xs placeholder-[#1e2333] focus:outline-none transition-all font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  {authError && (
-                    <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-400 font-semibold leading-relaxed animate-shake text-left">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                      <span>{authError}</span>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={isSending}
-                    className="w-full bg-[#dbaa61] hover:bg-[#cdaf55] text-black font-bold uppercase text-xs tracking-wider py-3 rounded-xl transition duration-200 shadow-md flex items-center justify-center gap-2 mt-2 cursor-pointer disabled:opacity-40 font-bold"
-                  >
-                    {isSending ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin text-black" />
-                        Verifying... / যাচাই করা হচ্ছে...
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-4 h-4" />
-                        Verify Credentials / পরবর্তী ধাপ
-                      </>
-                    )}
-                  </button>
-                </form>
-              </>
-            )}
-
-            {authStep === 'totp_setup' && (() => {
-              const qrUrl = getSetupQRCodeUrl();
-              return (
-                /* GOOGLE AUTHENTICATOR MFA FIRST-TIME ENROLL SECURE WIZARD */
-                <form onSubmit={handleVerifyOTPSetup} className="space-y-4 text-center animate-fadeIn">
-                  <div className="space-y-1 border-b border-white/[0.04] pb-3">
-                    <h3 className="text-[#dbaa61] uppercase tracking-wider text-xs font-bold">
-                      Google Authenticator Link / গুগল অথেন্টিকেটর লিঙ্ক
-                    </h3>
-                    <p className="text-[11px] text-slate-400 leading-relaxed max-w-xs mx-auto">
-                      আপনার গুগল অথেন্টিকেটর অ্যাপে নিচের কিউআর কোডটি (QR Code) স্ক্যান করুন অথবা কোডটি ম্যানুয়ালি যোগ করুন।
-                    </p>
-                  </div>
-
-                  {/* QR Code Graphic element */}
-                  {qrUrl ? (
-                    <div className="bg-white p-2.5 rounded-2xl mx-auto w-40 h-40 flex items-center justify-center shadow-[0_4px_25px_rgba(255,255,255,0.06)] border border-slate-705 select-none animate-fadeIn">
-                      <img 
-                        src={qrUrl} 
-                        alt="Google Authenticator QR Code" 
-                        className="w-full h-full object-contain"
-                        referrerPolicy="no-referrer"
-                      />
-                    </div>
-                  ) : (
-                    <div className="text-[10px] text-red-400">QR Code generation failed. Please use Manual Key instead.</div>
-                  )}
-
-                  {/* Secret Key Container with Copy Button */}
-                  <div className="bg-[#03060d]/60 border border-slate-800 rounded-2xl p-4 space-y-3.5">
-                    <div className="space-y-1 text-center">
-                      <span className="text-[9px] font-mono tracking-widest text-[#dbaa61] uppercase font-black">Manual Entry Key / ম্যানুয়াল কী</span>
-                      <div className="flex items-center justify-between bg-black/40 border border-slate-800/80 rounded-xl px-3.5 py-2.5 font-mono text-[11px] text-slate-300">
-                        <span className="select-all tracking-wider font-bold text-white">{totpSecret || 'ADMIN_TEMP_SECRET'}</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(totpSecret || 'ADMIN_TEMP_SECRET');
-                            setIsCopied(true);
-                            setTimeout(() => setIsCopied(false), 2000);
-                          }}
-                          className="text-[#dbaa61] hover:text-[#cdaf55] transition p-1 rounded hover:bg-slate-900 cursor-pointer flex items-center justify-center"
-                          title="Copy to clipboard"
-                        >
-                          {isCopied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Dynamic Help Text */}
-                    <div className="text-[10px] text-slate-400 leading-relaxed font-sans text-left bg-slate-950/40 p-3 rounded-xl border border-slate-900/60 space-y-1">
-                      <span className="font-bold text-[#dbaa61] block mb-0.5">লিঙ্ক করার নিয়ম:</span>
-                      <p>১. আপনার মোবাইলে <strong className="text-white">Google Authenticator</strong> অ্যাপ ওপেন করুন।</p>
-                      <p>২. নিচে ডান কোণায় প্লাস (+) আইকন চেপে <strong className="text-white">"Scan a QR code"</strong> সিলেক্ট করে কোডটি স্ক্যান করুন।</p>
-                      <p>৩. যদি স্ক্যান না করতে পারেন, তবে <strong className="text-white">"Enter a setup key"</strong> সিলেক্ট করে নাম "BodyTouch" এবং ওপরের "Manual Entry Key" টি বসিয়ে দিয়ে <strong className="text-white">Add</strong> চাপুন।</p>
-                    </div>
-                  </div>
-
-                  {/* Input Code Verification Pad */}
-                  <div className="bg-[#03060d]/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-                    <div className="space-y-1 text-center">
-                      <label className="block text-[10px] font-semibold tracking-wider text-slate-405 uppercase font-mono">
-                        Enter Generated Code (আপনার অ্যাপের কোডটি দিন)
-                      </label>
-
-                      {/* Segmented Digit UI Lock Pad */}
-                      <div className="relative flex justify-center py-1">
-                        <div className="flex gap-2.5 justify-center">
-                          {[0, 1, 2, 3, 4, 5].map((index) => {
-                            const val = totpInputCode[index] || '';
-                            const isCurrent = totpInputCode.length === index;
-                            return (
-                              <div 
-                                key={index} 
-                                className={`w-10 h-12 rounded-xl border flex items-center justify-center text-lg font-bold font-mono transition-all duration-300 ${
-                                  val 
-                                    ? 'border-[#dbaa61] bg-[#dbaa61]/5 text-[#dbaa61] shadow-[0_0_12px_rgba(219,170,97,0.15)]' 
-                                    : isCurrent 
-                                      ? 'border-[#dbaa61]/70 bg-slate-900 ring-1 ring-[#dbaa61]/25 animate-pulse' 
-                                      : 'border-slate-800 bg-[#03060d]'
-                                }`}
-                              >
-                                {val || <span className="text-slate-700 font-sans">•</span>}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <input
-                          type="text"
-                          required
-                          maxLength={6}
-                          autoFocus
-                          value={totpInputCode}
-                          onChange={(e) => {
-                            setTotpInputCode(e.target.value.replace(/\D/g, ''));
-                            if (authError) setAuthError('');
-                          }}
-                          className="absolute inset-0 opacity-0 cursor-text w-full h-[48px]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {authError && (
-                    <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-100 font-semibold leading-relaxed animate-shake text-left">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                      <span>{authError}</span>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAuthStep('credentials');
-                        setAuthError('');
-                        setTotpInputCode('');
-                      }}
-                      className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center"
-                    >
-                      Go Back
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSending}
-                      className="w-full py-3 rounded-xl bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center shadow-md font-bold disabled:opacity-40"
-                    >
-                      {isSending ? 'Registering...' : 'Confirm'}
-                    </button>
-                  </div>
-                </form>
-              );
-            })()}
-
-            {authStep === 'totp_verify' && (
-              /* GOOGLE AUTHENTICATOR 2FA SECURE VALIDATOR AT EVERY SIGNIN */
-              <form onSubmit={handleVerifyOTPActive} className="space-y-4 text-center animate-fadeIn">
-                <div className="space-y-1 border-b border-white/[0.04] pb-3">
-                  <h3 className="text-[#dbaa61] uppercase tracking-wider text-sm font-bold">
-                    Two-Factor authentication
-                  </h3>
-                  <p className="text-[11px] text-slate-400 leading-relaxed max-w-xs mx-auto">
-                    Enter the 6-digit passcode token generated by Google Authenticator app for account <strong className="text-white">{totpTempEnrollEmail}</strong>.
-                  </p>
-                </div>
-
-                {/* Code lock pad */}
-                <div className="space-y-3 rounded-2xl bg-[#03060d]/60 p-4 border border-slate-800/80">
-                  <div className="space-y-1 text-center font-semibold">
-                    <label className="block text-[10px] font-semibold tracking-wider text-[#dbaa61] uppercase font-mono">
-                      Security Passcode
-                    </label>
-                    
-                    {/* Segmented Digit UI lock pad */}
-                    <div className="relative flex justify-center py-2">
-                      <div className="flex gap-2.5 justify-center">
-                        {[0, 1, 2, 3, 4, 5].map((index) => {
-                          const val = totpInputCode[index] || '';
-                          const isCurrent = totpInputCode.length === index;
-                          return (
-                            <div 
-                              key={index} 
-                              className={`w-10 h-12 rounded-xl border flex items-center justify-center text-lg font-bold font-mono transition-all duration-300 ${
-                                val 
-                                  ? 'border-[#dbaa61] bg-[#dbaa61]/5 text-[#dbaa61] shadow-[0_0_12px_rgba(219,170,97,0.15)]' 
-                                  : isCurrent 
-                                    ? 'border-[#dbaa61]/70 bg-slate-900 ring-1 ring-[#dbaa61]/25 animate-pulse' 
-                                    : 'border-slate-800 bg-[#03060d]'
-                              }`}
-                            >
-                              {val || <span className="text-slate-700 font-sans">•</span>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <input
-                        type="text"
-                        required
-                        maxLength={6}
-                        autoFocus
-                        value={totpInputCode}
-                        onChange={(e) => {
-                          setTotpInputCode(e.target.value.replace(/\D/g, ''));
-                          if (authError) setAuthError('');
-                        }}
-                        className="absolute inset-0 opacity-0 cursor-text w-full h-full text-center"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {authError && (
-                  <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-400 font-semibold leading-relaxed animate-shake text-left">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                    <span>{authError}</span>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthStep('credentials');
-                      setAuthError('');
-                      setTotpInputCode('');
-                    }}
-                    className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center"
-                  >
-                    Go Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSending}
-                    className="w-full py-3 rounded-xl bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center shadow-md"
-                  >
-                    {isSending ? 'Verifying...' : 'Unlock'}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-
-          {/* Clean footer info */}
-          <div className="pt-6 border-t border-slate-850/50 mt-6 flex flex-col justify-center items-center text-[10px] font-mono text-slate-500 gap-1">
-            <span className="flex items-center gap-1.5 font-bold uppercase text-[9px] text-[#dbaa61]/70 bg-[#dbaa61]/5 px-2 py-0.5 rounded border border-[#dbaa61]/15 leading-none">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              AUTHORIZED ENTRY
-            </span>
-            <span className="text-[9px] text-slate-600 font-bold tracking-wider font-mono">ADMIN PANEL MAIN GATEWAY</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Render High Security Portal Gate if not authenticated - MOVED BELOW HOOKS TO COMPLY WITH REACT HOOK RULES
 
   // Tabs configured to align with User's specific requirements
-  // Clint Management (payments), Partner Management (companions & career apps), Media (assets), Order (bookings)
   const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -1909,6 +1558,358 @@ export default function AdminPanel({
   };
 
   if (!isOpen) return null;
+
+  // Render High Security Portal Gate if not authenticated
+  if (!isAuth) {
+    return (
+      <div className="min-h-screen text-slate-100 bg-[#04060d] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans overflow-hidden relative selection:bg-[#dbaa61] selection:text-black w-full">
+        {/* Animated Background Grids and Orbs */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-10" />
+        <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] bg-[#dbaa61]/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-[#dbaa61]/5 rounded-full blur-3xl pointer-events-none" />
+        
+        {/* Immersive Glassmorphic Centered Container */}
+        <div className="w-full max-w-md bg-[#080d19]/90 border border-slate-800/80 rounded-3xl overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.85)] backdrop-blur-xl relative z-10 flex flex-col justify-between min-h-[560px] p-6 sm:p-10">
+          
+          {/* Direct Close/Return to Site Button */}
+          <button 
+            type="button"
+            onClick={onClose}
+            className="absolute top-5 right-5 w-8 h-8 rounded-full border border-slate-800/60 hover:border-[#dbaa61]/45 hover:text-[#dbaa61] flex items-center justify-center text-slate-500 hover:bg-slate-900/40 transition-all cursor-pointer shadow-sm z-20"
+            title="Return to Main Application"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          <div className="my-auto space-y-6 w-full animate-fadeIn text-center">
+            {/* BRAND SIGNATURE */}
+            <div className="flex flex-col items-center justify-center space-y-2.5 mb-2">
+              <div className="h-14 w-14 bg-[#dbaa61]/10 border border-[#dbaa61]/40 rounded-2xl flex items-center justify-center text-[#dbaa61] shadow-[0_0_25px_rgba(219,170,97,0.15)] relative group transition-all duration-300">
+                <ShieldCheck className="w-7 h-7 text-[#dbaa61]" />
+              </div>
+              <div className="space-y-1">
+                <span className="font-mono text-[10px] font-black tracking-[0.25em] text-[#dbaa61] uppercase block">bodyTOUCH</span>
+                <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase font-mono block">ADMIN CONTROL PORTAL</span>
+              </div>
+            </div>
+
+            {authStep === 'credentials' && (
+              <>
+                <div className="space-y-1.5 mb-4">
+                  <h2 className="text-lg font-bold text-white tracking-tight">Admin Authentication / এডমিন অথেন্টিকেশন</h2>
+                  <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto">
+                    পাসওয়ার্ড এবং ২-স্টেপ সিকিউরিটি কোড বসিয়ে এডমিন প্যানেলে প্রবেশ করুন।
+                  </p>
+                </div>
+
+                {/* CUSTOM EMAIL & PASSWORD LOGIN */}
+                <form onSubmit={handleCustomEmailPasswordSignIn} className="space-y-4 text-left pt-2">
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-semibold text-slate-400 pl-1 uppercase tracking-wider font-mono">
+                      Email Address / এডমিন ইমেইল
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                        <Mail className="w-4 h-4 text-[#dbaa61]/60" />
+                      </span>
+                      <input
+                        type="email"
+                        required
+                        value={adminEmail}
+                        onChange={(e) => {
+                          setAdminEmail(e.target.value);
+                          if (authError) setAuthError('');
+                        }}
+                        placeholder="admin@bodytouch.com"
+                        className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3 text-white text-xs placeholder-[#1e2333] focus:outline-none transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-semibold text-slate-400 pl-1 uppercase tracking-wider font-mono">
+                      Password / পাসওয়ার্ড
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                        <Lock className="w-4 h-4 text-[#dbaa61]/60" />
+                      </span>
+                      <input
+                        type="password"
+                        required
+                        value={adminPassword}
+                        onChange={(e) => {
+                          setAdminPassword(e.target.value);
+                          if (authError) setAuthError('');
+                        }}
+                        placeholder="••••••••"
+                        className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3 text-white text-xs placeholder-[#1e2333] focus:outline-none transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {authError && (
+                    <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-400 font-semibold leading-relaxed animate-shake text-left">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                      <span>{authError}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isSending}
+                    className="w-full bg-[#dbaa61] hover:bg-[#cdaf55] text-black font-bold uppercase text-xs tracking-wider py-3 rounded-xl transition duration-200 shadow-md flex items-center justify-center gap-2 mt-2 cursor-pointer disabled:opacity-40 font-bold"
+                  >
+                    {isSending ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin text-black" />
+                        Verifying... / যাচাই করা হচ্ছে...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        Verify Credentials / পরবর্তী ধাপ
+                      </>
+                    )}
+                  </button>
+                </form>
+              </>
+            )}
+
+            {authStep === 'totp_setup' && (() => {
+              const qrUrl = getSetupQRCodeUrl();
+              return (
+                /* GOOGLE AUTHENTICATOR MFA FIRST-TIME ENROLL SECURE WIZARD */
+                <form onSubmit={handleVerifyOTPSetup} className="space-y-4 text-center animate-fadeIn">
+                  <div className="space-y-1 border-b border-white/[0.04] pb-3">
+                    <h3 className="text-[#dbaa61] uppercase tracking-wider text-xs font-bold">
+                      Google Authenticator Link / গুগল অথেন্টিকেটর লিঙ্ক
+                    </h3>
+                    <p className="text-[11px] text-slate-400 leading-relaxed max-w-xs mx-auto">
+                      আপনার গুগল অথেন্টিকেটর অ্যাপে নিচের কিউআর কোডটি (QR Code) স্ক্যান করুন অথবা কোডটি ম্যানুয়ালি যোগ করুন।
+                    </p>
+                  </div>
+
+                  {/* QR Code Graphic element */}
+                  {qrUrl ? (
+                    <div className="bg-white p-2.5 rounded-2xl mx-auto w-40 h-40 flex items-center justify-center shadow-[0_4px_25px_rgba(255,255,255,0.06)] border border-slate-705 select-none animate-fadeIn">
+                      <img 
+                        src={qrUrl} 
+                        alt="Google Authenticator QR Code" 
+                        className="w-full h-full object-contain"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-red-400">QR Code generation failed. Please use Manual Key instead.</div>
+                  )}
+
+                  {/* Secret Key Container with Copy Button */}
+                  <div className="bg-[#03060d]/60 border border-slate-800 rounded-2xl p-4 space-y-3.5">
+                    <div className="space-y-1 text-center">
+                      <span className="text-[9px] font-mono tracking-widest text-[#dbaa61] uppercase font-black">Manual Entry Key / ম্যানুয়াল কী</span>
+                      <div className="flex items-center justify-between bg-black/40 border border-slate-800/80 rounded-xl px-3.5 py-2.5 font-mono text-[11px] text-slate-300">
+                        <span className="select-all tracking-wider font-bold text-white">{totpSecret || 'ADMIN_TEMP_SECRET'}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(totpSecret || 'ADMIN_TEMP_SECRET');
+                            setIsCopied(true);
+                            setTimeout(() => setIsCopied(false), 2000);
+                          }}
+                          className="text-[#dbaa61] hover:text-[#cdaf55] transition p-1 rounded hover:bg-slate-900 cursor-pointer flex items-center justify-center"
+                          title="Copy to clipboard"
+                        >
+                          {isCopied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Dynamic Help Text */}
+                    <div className="text-[10px] text-slate-400 leading-relaxed font-sans text-left bg-slate-950/40 p-3 rounded-xl border border-slate-900/60 space-y-1">
+                      <span className="font-bold text-[#dbaa61] block mb-0.5">লিঙ্ক করার নিয়ম:</span>
+                      <p>১. আপনার মোবাইলে <strong className="text-white">Google Authenticator</strong> অ্যাপ ওপেন করুন।</p>
+                      <p>২. নিচে ডান কোণায় প্লাস (+) আইকন চেপে <strong className="text-white">"Scan a QR code"</strong> সিলেক্ট করে কোডটি স্ক্যান করুন।</p>
+                      <p>৩. যদি স্ক্যান না করতে পারেন, তবে <strong className="text-white">"Enter a setup key"</strong> সিলেক্ট করে নাম "BodyTouch" এবং ওপরের "Manual Entry Key" টি বসিয়ে দিয়ে <strong className="text-white">Add</strong> চাপুন।</p>
+                    </div>
+                  </div>
+
+                  {/* Input Code Verification Pad */}
+                  <div className="bg-[#03060d]/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+                    <div className="space-y-1 text-center">
+                      <label className="block text-[10px] font-semibold tracking-wider text-slate-405 uppercase font-mono">
+                        Enter Generated Code (আপনার অ্যাপের কোডটি দিন)
+                      </label>
+
+                      {/* Segmented Digit UI Lock Pad */}
+                      <div className="relative flex justify-center py-1">
+                        <div className="flex gap-2.5 justify-center">
+                          {[0, 1, 2, 3, 4, 5].map((index) => {
+                            const val = totpInputCode[index] || '';
+                            const isCurrent = totpInputCode.length === index;
+                            return (
+                              <div 
+                                key={index} 
+                                className={`w-10 h-12 rounded-xl border flex items-center justify-center text-lg font-bold font-mono transition-all duration-300 ${
+                                  val 
+                                    ? 'border-[#dbaa61] bg-[#dbaa61]/5 text-[#dbaa61] shadow-[0_0_12px_rgba(219,170,97,0.15)]' 
+                                    : isCurrent 
+                                      ? 'border-[#dbaa61]/70 bg-slate-900 ring-1 ring-[#dbaa61]/25 animate-pulse' 
+                                      : 'border-slate-800 bg-[#03060d]'
+                                }`}
+                              >
+                                {val || <span className="text-slate-700 font-sans">•</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          autoFocus
+                          value={totpInputCode}
+                          onChange={(e) => {
+                            setTotpInputCode(e.target.value.replace(/\D/g, ''));
+                            if (authError) setAuthError('');
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-text w-full h-[48px]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {authError && (
+                    <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-100 font-semibold leading-relaxed animate-shake text-left">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                      <span>{authError}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthStep('credentials');
+                        setAuthError('');
+                        setTotpInputCode('');
+                      }}
+                      className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center"
+                    >
+                      Go Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSending}
+                      className="w-full py-3 rounded-xl bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center shadow-md font-bold disabled:opacity-40"
+                    >
+                      {isSending ? 'Registering...' : 'Confirm'}
+                    </button>
+                  </div>
+                </form>
+              );
+            })()}
+
+            {authStep === 'totp_verify' && (
+              /* GOOGLE AUTHENTICATOR 2FA SECURE VALIDATOR AT EVERY SIGNIN */
+              <form onSubmit={handleVerifyOTPActive} className="space-y-4 text-center animate-fadeIn">
+                <div className="space-y-1 border-b border-white/[0.04] pb-3">
+                  <h3 className="text-[#dbaa61] uppercase tracking-wider text-sm font-bold">
+                    Two-Factor authentication
+                  </h3>
+                  <p className="text-[11px] text-slate-400 leading-relaxed max-w-xs mx-auto">
+                    Enter the 6-digit passcode token generated by Google Authenticator app for account <strong className="text-white">{totpTempEnrollEmail}</strong>.
+                  </p>
+                </div>
+
+                {/* Code lock pad */}
+                <div className="space-y-3 rounded-2xl bg-[#03060d]/60 p-4 border border-slate-800/80">
+                  <div className="space-y-1 text-center font-semibold">
+                    <label className="block text-[10px] font-semibold tracking-wider text-[#dbaa61] uppercase font-mono">
+                      Security Passcode
+                    </label>
+                    
+                    {/* Segmented Digit UI lock pad */}
+                    <div className="relative flex justify-center py-2">
+                      <div className="flex gap-2.5 justify-center">
+                        {[0, 1, 2, 3, 4, 5].map((index) => {
+                          const val = totpInputCode[index] || '';
+                          const isCurrent = totpInputCode.length === index;
+                          return (
+                            <div 
+                              key={index} 
+                              className={`w-10 h-12 rounded-xl border flex items-center justify-center text-lg font-bold font-mono transition-all duration-300 ${
+                                val 
+                                  ? 'border-[#dbaa61] bg-[#dbaa61]/5 text-[#dbaa61] shadow-[0_0_12px_rgba(219,170,97,0.15)]' 
+                                  : isCurrent 
+                                    ? 'border-[#dbaa61]/70 bg-slate-900 ring-1 ring-[#dbaa61]/25 animate-pulse' 
+                                    : 'border-slate-800 bg-[#03060d]'
+                              }`}
+                            >
+                              {val || <span className="text-slate-700 font-sans">•</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        maxLength={6}
+                        autoFocus
+                        value={totpInputCode}
+                        onChange={(e) => {
+                          setTotpInputCode(e.target.value.replace(/\D/g, ''));
+                          if (authError) setAuthError('');
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-text w-full h-[48px] text-center"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {authError && (
+                  <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-400 font-semibold leading-relaxed animate-shake text-left">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                    <span>{authError}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthStep('credentials');
+                      setAuthError('');
+                      setTotpInputCode('');
+                    }}
+                    className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-855/80 text-slate-300 text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center"
+                  >
+                    Go Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSending}
+                    className="w-full py-3 rounded-xl bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center shadow-md"
+                  >
+                    {isSending ? 'Verifying...' : 'Unlock'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* Clean footer info */}
+          <div className="pt-6 border-t border-slate-850/50 mt-6 flex flex-col justify-center items-center text-[10px] font-mono text-slate-500 gap-1">
+            <span className="flex items-center gap-1.5 font-bold uppercase text-[9px] text-[#dbaa61]/70 bg-[#dbaa61]/5 px-2 py-0.5 rounded border border-[#dbaa61]/15 leading-none">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              AUTHORIZED ENTRY
+            </span>
+            <span className="text-[9px] text-slate-600 font-bold tracking-wider font-mono">ADMIN PANEL MAIN GATEWAY</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-h-screen bg-[#07080c] font-sans flex flex-col text-slate-100 animate-in fade-in duration-300 relative">
