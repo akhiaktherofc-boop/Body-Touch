@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, getDocFromServer } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import * as OTPAuth from 'otpauth';
 import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel } from '../types';
@@ -51,7 +51,8 @@ import {
   MessageSquare,
   Bot,
   Cpu,
-  Megaphone
+  Megaphone,
+  LogOut
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -387,12 +388,10 @@ export default function AdminPanel({
       } catch (e) {}
     }
     
-    // Ensure we fully filter out akhi.akther.ofc@gmail.com
-    list = list.filter(a => a.email.toLowerCase() !== 'akhi.akther.ofc@gmail.com');
-
     if (list.length === 0) {
       list = [
         { email: '16killer2@gmail.com', telegram: '@secure_super_admin', role: 'super_admin' },
+        { email: 'akhi.akther.ofc@gmail.com', telegram: '@developer_akhi', role: 'super_admin' },
         { email: 'admin@bodytouch.com', telegram: '@bodytouch_admin', role: 'admin' },
         { email: 'moderator@bodytouch.com', telegram: '@bodytouch_mod', role: 'moderator' }
       ];
@@ -406,10 +405,18 @@ export default function AdminPanel({
       list[superAdminIndex].role = 'super_admin';
     }
 
+    // Ensure akhi.akther.ofc@gmail.com exists unconditionally as super_admin
+    const akhiAdminIndex = list.findIndex(a => a.email.toLowerCase() === 'akhi.akther.ofc@gmail.com');
+    if (akhiAdminIndex === -1) {
+      list.push({ email: 'akhi.akther.ofc@gmail.com', telegram: '@developer_akhi', role: 'super_admin' });
+    } else {
+      list[akhiAdminIndex].role = 'super_admin';
+    }
+
     // Ensure everyone has a role, fallback is admin
     list = list.map(item => {
       if (!item.role) {
-        if (item.email.toLowerCase() === '16killer2@gmail.com') {
+        if (item.email.toLowerCase() === '16killer2@gmail.com' || item.email.toLowerCase() === 'akhi.akther.ofc@gmail.com') {
           item.role = 'super_admin';
         } else {
           item.role = 'admin';
@@ -422,9 +429,8 @@ export default function AdminPanel({
   });
 
   const updateAdminEmails = (updated: AdminUser[]) => {
-    const filtered = updated.filter(a => a.email.toLowerCase() !== 'akhi.akther.ofc@gmail.com');
-    setAdminEmails(filtered);
-    localStorage.setItem('bt_admin_emails_v3', JSON.stringify(filtered));
+    setAdminEmails(updated);
+    localStorage.setItem('bt_admin_emails_v3', JSON.stringify(updated));
   };
 
   const loggedInAdminRole = useMemo(() => {
@@ -451,13 +457,19 @@ export default function AdminPanel({
       setIsSending(true);
       setAuthError('');
       
-      const totpDocRef = doc(db, 'admin_totp_secrets', email.toLowerCase());
-      const totpSnap = await getDoc(totpDocRef);
+      const totpDocRef = doc(db, 'admin_totp_secrets', email.trim().toLowerCase());
+      let totpSnap;
+      try {
+        totpSnap = await getDocFromServer(totpDocRef);
+      } catch (getFreshErr) {
+        console.warn('[TOTP getDocFromServer fallback]', getFreshErr);
+        totpSnap = await getDoc(totpDocRef);
+      }
       
       if (totpSnap.exists()) {
         const savedSecret = totpSnap.data().secret;
         setTotpSecret(savedSecret);
-        setTotpTempEnrollEmail(email);
+        setTotpTempEnrollEmail(email.trim());
         setAuthStep('totp_verify');
       } else {
         // Generate a new 16-char base32 secret
@@ -468,7 +480,7 @@ export default function AdminPanel({
         }
         
         setTotpSecret(randomSecret);
-        setTotpTempEnrollEmail(email);
+        setTotpTempEnrollEmail(email.trim());
         setAuthStep('totp_setup');
       }
     } catch (err: any) {
@@ -595,7 +607,7 @@ export default function AdminPanel({
       if (isAllowed) {
         await checkAndProceedTOTP(normalizedEmail);
       } else {
-        setAuthError(`অ্যাক্সেস অস্বীকৃত! এই গুগল অ্যাকাউন্ট (${user.email}) পোর্টালের অনুমোদিত এডমিন তালিকায় নিবন্ধিত নয়। অনুগ্রহ করে এডমিন তালিকাভুক্ত কোয়ালিফায়েড গুগল অ্যাকাউন্ট নির্বাচন করুন।`);
+        setAuthError(`অ্যাক্সেস অস্বীকৃত! এই গুগল অ্যাকাউন্ট (${user.email}) পোর্টালের অনুমোদিত এডমিন তালিকায় নিবন্ধিত নয়।`);
         await auth.signOut();
       }
     } catch (err: any) {
@@ -670,425 +682,265 @@ export default function AdminPanel({
     return (
       <div className="min-h-screen text-slate-100 bg-[#04060d] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans overflow-hidden relative selection:bg-[#dbaa61] selection:text-black w-full">
         {/* Animated Background Grids and Orbs */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-25 animate-pulse" />
-        <div className="absolute top-10 left-10 w-[200px] h-[200px] bg-[#dbaa61]/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-10 right-10 w-[250px] h-[250px] bg-[#dbaa61]/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-10" />
+        <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] bg-[#dbaa61]/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-[#dbaa61]/5 rounded-full blur-3xl pointer-events-none" />
         
-        {/* Immersive Glassmorphic Dual Panel Dashboard Container */}
-        <div className="w-full max-w-5xl bg-[#080d19]/90 border border-slate-800/80 rounded-3xl overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.8)] backdrop-blur-xl relative z-10 grid grid-cols-1 md:grid-cols-12 min-h-[580px]">
+        {/* Immersive Glassmorphic Centered Container */}
+        <div className="w-full max-w-md bg-[#080d19]/90 border border-slate-800/80 rounded-3xl overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.85)] backdrop-blur-xl relative z-10 flex flex-col justify-between min-h-[560px] p-6 sm:p-10">
           
-          {/* LEFT TELEMETRY DASHBOARD PANEL (Hidden/Collapsed on Mobile) */}
-          <div className="hidden md:flex md:col-span-5 bg-[#050811]/95 p-6 border-r border-slate-800/60 flex-col justify-between text-left">
-            <div className="space-y-6">
-              {/* BRAND HEADER */}
-              <div className="space-y-1">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-6.5 h-6.5 rounded bg-[#dbaa61]/15 border border-[#dbaa61]/40 flex items-center justify-center text-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.2)]">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="font-mono text-[11px] font-black tracking-[0.25em] text-[#dbaa61] uppercase">bodyTOUCH SECURITY</span>
-                </div>
-                <h1 className="text-sm font-mono text-slate-400 pl-9 font-semibold">OPS CENTER PORTAL</h1>
+          {/* Direct Close/Return to Site Button */}
+          <button 
+            type="button"
+            onClick={onClose}
+            className="absolute top-5 right-5 w-8 h-8 rounded-full border border-slate-800/60 hover:border-[#dbaa61]/45 hover:text-[#dbaa61] flex items-center justify-center text-slate-500 hover:bg-slate-900/40 transition-all cursor-pointer shadow-sm z-20"
+            title="Return to Main Application"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          <div className="my-auto space-y-6 w-full animate-fadeIn text-center">
+            {/* BRAND SIGNATURE */}
+            <div className="flex flex-col items-center justify-center space-y-2.5 mb-2">
+              <div className="h-14 w-14 bg-[#dbaa61]/10 border border-[#dbaa61]/40 rounded-2xl flex items-center justify-center text-[#dbaa61] shadow-[0_0_25px_rgba(219,170,97,0.15)] relative group transition-all duration-300">
+                <ShieldCheck className="w-7 h-7 text-[#dbaa61]" />
               </div>
+              <div className="space-y-1">
+                <span className="font-mono text-[10px] font-black tracking-[0.25em] text-[#dbaa61] uppercase block">bodyTOUCH</span>
+                <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase font-mono block">ADMIN CONTROL PORTAL</span>
+              </div>
+            </div>
 
-              {/* CORE METRICS & TELEMETRY */}
-              <div className="space-y-4">
-                <span className="text-[9px] text-slate-500 font-extrabold pb-1 border-b border-slate-800/40 uppercase tracking-[0.2em] block">
-                  NETWORK DIAGNOSTICS & SYSTEM STATES
-                </span>
-
-                {/* Firewall metric item */}
-                <div className="bg-[#090e1a] border border-slate-800/45 p-3 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                    <div>
-                      <h4 className="text-[10px] font-black text-slate-300 uppercase font-mono">FIREWALL SHIELD</h4>
-                      <p className="text-[10px] text-slate-500 font-medium">Auto-filtering attacks</p>
-                    </div>
-                  </div>
-                  <span className="text-[9px] font-mono text-emerald-400 font-extrabold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/25">ACTIVE</span>
-                </div>
-
-                {/* DB connection item */}
-                <div className="bg-[#090e1a] border border-slate-800/45 p-3 rounded-xl space-y-1">
-                  <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-400">
-                    <span className="flex items-center gap-2"><Server className="w-3.5 h-3.5 text-[#dbaa61]" /> SECURE DATABASE</span>
-                    <span className="text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">CONNECTED</span>
-                  </div>
-                  <p className="text-[9px] font-mono text-slate-500 font-bold truncate">
-                    ID: f20e3546-34e4-4c22-94d8-d6353061fc07
+            {authStep === 'credentials' && (
+              <>
+                <div className="space-y-1.5 mb-4">
+                  <h2 className="text-lg font-bold text-white tracking-tight">Admin Authentication</h2>
+                  <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto">
+                    Sign in with registered admin account to access the control panel.
                   </p>
                 </div>
 
-                {/* Workspace Services platform state */}
-                <div className="bg-[#090e1a] border border-slate-800/45 p-3 rounded-xl space-y-1 text-slate-400">
-                  <div className="flex justify-between items-center text-[10px] font-mono font-bold">
-                    <span className="flex items-center gap-2">🌐 WORKSPACE SERVICES</span>
-                    <span className="text-emerald-400">ONLINE</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[9px] font-mono text-slate-500">
-                    <span>HOST PORT: 3000</span>
-                    <span>SSL/TLS ENCRYPTION</span>
-                  </div>
+                {/* Login Mode Tabs Selector */}
+                <div className="grid grid-cols-2 p-1 bg-[#03060d] border border-slate-800/80 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginMode('google');
+                      setAuthError('');
+                    }}
+                    className={`py-2 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                      loginMode === 'google' 
+                        ? 'bg-[#dbaa61] text-black shadow-md' 
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    🌐 Google Auth
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginMode('custom');
+                      setAuthError('');
+                    }}
+                    className={`py-2 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                      loginMode === 'custom' 
+                        ? 'bg-[#dbaa61] text-black shadow-md' 
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    🔒 Password
+                  </button>
                 </div>
-              </div>
 
-              {/* REAL-TIME DIAGNOSTIC LOGS */}
-              <div className="space-y-2">
-                <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-[0.2em] block">
-                  REAL-TIME ACCESS LOGS
-                </span>
-                <div className="bg-black/80 border border-slate-800/75 p-3 rounded-xl font-mono text-[9px] text-[#dbaa61]/80 space-y-1.5 h-[140px] overflow-y-auto custom-scrollbar leading-relaxed text-left">
-                  <p><span className="text-[#dbaa61] font-bold">&gt;</span> [OK] PORTAL DAEMON LISTEN: 3000</p>
-                  <p><span className="text-[#dbaa61]">&gt;</span> [OK] SYNCED WITH CLOUD USER STORE</p>
-                  <p><span className="text-[#dbaa61]">&gt;</span> [OK] ACTIVE INSTA-AUTH API TUNNEL</p>
-                  <p><span className="text-amber-500 font-bold">&gt;</span> [INFO] SECURE GATEWAY PORTAL ACTIVATED AT KEY: <span className="text-[#dbaa61] hover:underline cursor-pointer">/admin</span></p>
-                  <p className="animate-pulse"><span className="text-red-500 font-bold">&gt;</span> [WARN] AWAITING TWO-FACTOR AUTH DELEGATION...</p>
-                </div>
-              </div>
-            </div>
-
-            {/* TIMESTAMP AND STAFF TRACKER */}
-            <div className="border-t border-slate-800/50 pt-4 flex flex-col gap-1.5 text-left text-[10px] font-mono text-slate-500">
-              <div className="flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-[#dbaa61]" />
-                <span>UTC TIMESTAMP: {new Date().toUTCString()}</span>
-              </div>
-              <p className="pl-5">© bodyTOUCH VIP MANAGEMENT PYLON</p>
-            </div>
-          </div>
-
-          {/* RIGHT LOGIN SECURITY GATE PANEL */}
-          <div className="col-span-1 md:col-span-7 p-6 sm:p-10 lg:p-12 flex flex-col justify-between bg-gradient-to-b from-[#090f1f] to-[#04060c] text-center relative">
-            {/* Direct Close/Return to Site Button */}
-            <button 
-              type="button"
-              onClick={onClose}
-              className="absolute top-5 right-5 w-8 h-8 rounded-full border border-slate-800/60 hover:border-[#dbaa61]/45 hover:text-[#dbaa61] flex items-center justify-center text-slate-500 hover:bg-slate-900/40 transition-all cursor-pointer shadow-sm z-20"
-              title="Return to Main Application"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            {/* Empty center alignment spacer */}
-            <div className="my-auto space-y-7 max-w-md mx-auto w-full animate-fadeIn">
-              {authStep === 'credentials' && (
-                <>
-                  {/* Logo & Headline */}
-                  <div className="space-y-4">
-                    <div className="flex justify-center">
-                      <div className="h-16 w-16 bg-[#dbaa61]/10 border-2 border-[#dbaa61]/45 rounded-2xl flex items-center justify-center text-[#dbaa61] shadow-[0_0_30px_rgba(219,170,97,0.25)] relative group transition-all duration-300 hover:scale-105">
-                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-[#dbaa61]/20 to-transparent blur opacity-40 group-hover:opacity-75 transition-opacity" />
-                        <Lock className="w-8 h-8 text-[#dbaa61]" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <h2 className="text-xl font-black text-[#dbaa61] tracking-wider uppercase font-sans">
-                        ADMIN GATEWAY / এডমিন লগইন
-                      </h2>
-                      <p className="text-xs text-slate-400 font-bold leading-relaxed max-w-sm mx-auto">
-                        এটি একটি অত্যন্ত সুরক্ষিত এডমিন কন্ট্রোল সেন্টার। অননুমোদিত প্রবেশ সম্পুর্ণ নিষিদ্ধ এবং শাস্তিযোগ্য অপরাধ।
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Login Mode Tabs Selector */}
-                  <div className="grid grid-cols-2 p-1.5 bg-[#03060d] border border-slate-800/80 rounded-2xl shadow-inner">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLoginMode('google');
-                        setAuthError('');
-                      }}
-                      className={`py-2.5 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-250 cursor-pointer ${loginMode === 'google' ? 'bg-gradient-to-r from-[#dbaa61] to-[#b1894b] text-black shadow-lg shadow-yellow-950/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'}`}
-                    >
-                      🌐 Google Auth
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLoginMode('custom');
-                        setAuthError('');
-                      }}
-                      className={`py-2.5 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-250 cursor-pointer ${loginMode === 'custom' ? 'bg-gradient-to-r from-[#dbaa61] to-[#b1894b] text-black shadow-lg shadow-yellow-950/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'}`}
-                    >
-                      🔒 Email & Password
-                    </button>
-                  </div>
-
-                  {/* Form implementation */}
-                  {loginMode === 'google' ? (
-                    /* GOOGLE POPUP LOGIN */
-                    <div className="space-y-5 text-left">
-                      <div className="p-4 bg-[#03060d]/60 border border-slate-800/80 rounded-2xl text-xs text-slate-300 leading-relaxed font-semibold space-y-3">
-                        <div className="flex items-center gap-1.5 text-rose-400 font-black tracking-wide text-[10px] uppercase">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
-                          ⭐ Google Sign-In (সরাসরি গুগল যাচাইকরণ)
-                        </div>
-                        <p className="text-slate-400 text-[11px] leading-relaxed">
-                          নিবন্ধিত এডমিনদের (যেমন: <strong className="text-slate-200">16killer2@gmail.com</strong>) গুগল একাউন্ট ব্যবহার করে ওয়ান-ক্লিক লগইন। নিরাপত্তার জন্য ২-স্টেপ ২FA গুগল অথেন্টিকেটর ওটিপি কোড লাগবে।
-                        </p>
-                        
-                        {/* Domain issue alert explanation helper */}
-                        <div className="p-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl text-[10.5px] text-amber-500/90 leading-relaxed font-medium">
-                          <strong className="text-amber-400">⚠️ ডোমেন সীমাবদ্ধতা নোটিশ:</strong><br />
-                          যদি আপনি গুগল লগইনে <code className="bg-black/50 px-1 py-0.5 rounded text-rose-400 font-mono text-[9px]">auth/unauthorized-domain</code> ইরর পান, তবে এর অর্থ আপনার লোকালহোস্ট/কাস্টম ডোমেনটি ফায়ারবেসে রেজিস্টার্ড নেই। এই ক্ষেত্রে অনুগ্রহ করে উপরে <strong className="text-[#dbaa61]">🔒 Email & Password</strong> ট্যাব ক্লিক করে ঝটপট পাসওয়ার্ড ও ওটিপি দিয়ে নিরাপদে সাইন-ইন সম্পন্ন করুন।
-                        </div>
-                      </div>
-
-                      {authError && (
-                        <div className="bg-red-950/20 border border-red-500/25 p-4 rounded-xl flex items-start gap-3 text-xs text-red-100 font-semibold leading-relaxed animate-shake">
-                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                          <div className="space-y-1">
-                            <span>{authError}</span>
-                            {authError.includes('unauthorized-domain') && (
-                              <p className="text-[10px] text-amber-400 mt-1">
-                                💡 সমাধান: পাশে থাকা <strong>"Email & Password"</strong> ট্যাব সিলেক্ট করে পাসওয়ার্ড দিয়ে ২FA লগইন করুন।
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        disabled={isSending}
-                        onClick={handleGoogleSignIn}
-                        className="w-full bg-[#fafafa] hover:bg-white text-black font-extrabold text-[11px] tracking-widest py-3.5 rounded-xl transition duration-300 shadow-xl cursor-pointer flex items-center justify-center gap-3 border border-slate-200 disabled:opacity-40"
-                      >
-                        {isSending ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 animate-spin text-black" />
-                            CONNECTOR SYSTEM INITIALIZING...
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                              <path
-                                fill="#EA4335"
-                                d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.578-7.859-8s3.53-8 7.859-8c2.46 0 4.105 1.025 5.047 1.926l3.256-3.133C18.29 1.156 15.54 0 12.24 0 5.58 0 0 5.37 0 12s5.58 12 12.24 12c6.96 0 11.57-4.89 11.57-11.79 0-.79-.08-1.4-.19-1.925H12.24z"
-                              />
-                            </svg>
-                            SIGN IN WITH GOOGLE
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  ) : (
-                    /* CUSTOM EMAIL & PASSWORD LOGIN */
-                    <form onSubmit={handleCustomEmailPasswordSignIn} className="space-y-4 text-left">
-                      <div className="space-y-2">
-                        <label className="block text-[10px] font-black tracking-widest text-slate-400 pl-1 uppercase font-mono">
-                          ADMINISTRATOR EMAIL / নিবন্ধিত ইমেল
-                        </label>
-                        
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-                            <Mail className="w-4 h-4 text-[#dbaa61]/60" />
-                          </span>
-                          <input
-                            type="email"
-                            required
-                            value={adminEmail}
-                            onChange={(e) => {
-                              setAdminEmail(e.target.value);
-                              if (authError) setAuthError('');
-                            }}
-                            placeholder="e.g. 16killer2@gmail.com"
-                            className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3.5 text-white text-xs font-sans font-bold placeholder-slate-700 focus:outline-none transition-all font-mono"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-[10px] font-black tracking-widest text-slate-400 pl-1 uppercase font-mono">
-                          SECURE PASSWORD / এডমিন পাসওয়ার্ড
-                        </label>
-                        
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-                            <Lock className="w-4 h-4 text-[#dbaa61]/60" />
-                          </span>
-                          <input
-                            type="password"
-                            required
-                            value={adminPassword}
-                            onChange={(e) => {
-                              setAdminPassword(e.target.value);
-                              if (authError) setAuthError('');
-                            }}
-                            placeholder="••••••••"
-                            className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3.5 text-white text-xs font-sans font-bold placeholder-slate-700 focus:outline-none transition-all font-mono"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1 text-[9.5px] text-[#dbaa61]/80 max-w-sm bg-[#dbaa61]/5 border border-[#dbaa61]/10 p-2.5 rounded-xl pl-3 font-semibold mt-1">
-                          <div className="flex items-center gap-1.5 font-bold mb-0.5 text-[#dbaa61]">
-                            <span className="w-1 h-1 rounded-full bg-[#dbaa61]" />
-                            মাস্টার এডমিন ডিফল্ট ক্রেডেনশিয়াল (Default Staff):
-                          </div>
-                          <span>• Email: <strong className="text-white font-mono">16killer2@gmail.com</strong></span>
-                          <span>• Password: <strong className="text-white font-mono">16killer2@admin</strong></span>
-                        </div>
-                      </div>
-
-                      {authError && (
-                        <div className="bg-red-950/20 border border-red-500/25 p-4 rounded-xl flex items-start gap-3 text-xs text-red-400 font-semibold leading-relaxed animate-shake">
-                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                {/* Form implementation */}
+                {loginMode === 'google' ? (
+                  /* GOOGLE POPUP LOGIN */
+                  <div className="space-y-4 pt-2">
+                    {authError && (
+                      <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-100 font-semibold leading-relaxed animate-shake text-left">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                        <div className="space-y-1">
                           <span>{authError}</span>
+                          {authError.includes('unauthorized-domain') && (
+                            <p className="text-[10px] text-amber-400 mt-1">
+                              💡 Please use the Email & Password option to sign in.
+                            </p>
+                          )}
                         </div>
-                      )}
-
-                      <button
-                        type="submit"
-                        disabled={isSending}
-                        className="w-full bg-gradient-to-r from-[#dbaa61] to-[#b1894b] hover:brightness-110 text-black font-extrabold uppercase text-[11px] tracking-widest py-3.5 rounded-xl transition duration-300 shadow-lg shadow-yellow-950/10 cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-40"
-                      >
-                        {isSending ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 animate-spin text-black" />
-                            ACCESS CODES DECRYPTING...
-                          </>
-                        ) : (
-                          <>
-                            <ShieldCheck className="w-4 h-4" />
-                            UNLOCK SECURE GATEWAY
-                          </>
-                        )}
-                      </button>
-                    </form>
-                  )}
-                </>
-              )}
-
-              {authStep === 'totp_setup' && (
-                /* GOOGLE AUTHENTICATOR MFA FIRST-TIME ENROLL SECURE WIZARD */
-                <form onSubmit={handleVerifyOTPSetup} className="space-y-5 text-left font-semibold">
-                  <div className="space-y-2 text-center pb-2 border-b border-white/[0.04]">
-                    <div className="h-12 w-12 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center justify-center text-rose-400 mx-auto mb-2">
-                      <ShieldCheck className="w-6 h-6" />
-                    </div>
-                    <h3 className="text-[#dbaa61] uppercase tracking-wider text-base font-black font-display text-center">
-                      Google Authenticator Enrolling
-                    </h3>
-                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                      আপনার অ্যাকাউন্ট সুরক্ষার স্বার্থে গুগল অথেন্টিকেটর দিয়ে ২-স্টেপ ভেরিফিকেশন সেটআপ সম্পূর্ণ করুন।
-                    </p>
-                  </div>
-
-                  <div className="space-y-3 text-slate-300 text-[11px] leading-relaxed bg-[#03060d]/60 p-4 border border-slate-800/80 rounded-2xl">
-                    <p className="text-slate-400 font-bold uppercase text-[9px] tracking-wider text-[#dbaa61] mb-1">
-                      🛠️ সেটআপ গাইডলাইন / Step-by-Step Instructions:
-                    </p>
-                    <ol className="list-decimal pl-4.5 space-y-1.5 font-medium text-slate-300">
-                      <li>আপনার ফোনে <strong className="text-white">Google Authenticator</strong> বা যেকোনো TOTP অ্যাপ চালু করুন।</li>
-                      <li>অথেন্টিকেটরে <strong className="text-white">(+)</strong> বাটনে ক্লিক করে <strong className="text-white">Scan a QR Code</strong> নির্বাচন করে নিচের QR কোডটি স্ক্যান করুন।</li>
-                      <li>অথবা ম্যানুয়ালি সেটআপ করতে <strong className="text-white">Enter a Setup Key</strong> সিলেক্ট করে নিচের গোপন সিক্রেট কি-টি দিন:</li>
-                    </ol>
-
-                    {/* Copyable secret container */}
-                    <div className="mt-3 flex items-center justify-between bg-[#070b13] border border-slate-800 p-2.5 rounded-xl font-mono">
-                      <div className="truncate text-red-400 font-black tracking-widest text-[11px] select-all uppercase">
-                        {totpSecret}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(totpSecret);
-                          setIsCopied(true);
-                          setTimeout(() => setIsCopied(false), 2000);
-                        }}
-                        className="p-1.5 rounded-lg bg-[#dbaa61]/10 text-[#dbaa61] hover:bg-[#dbaa61]/20 transition cursor-pointer flex items-center gap-1 text-[9px] font-bold"
-                      >
-                        {isCopied ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{isCopied ? 'Copied' : 'Copy'}</span>
-                      </button>
-                    </div>
-                  </div>
+                    )}
 
-                  {/* QR Code Container */}
-                  <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl w-fit mx-auto border-2 border-[#dbaa61]/40 shadow-[0_0_40px_rgba(219,170,97,0.15)]">
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
-                        `otpauth://totp/BodyTouch:${totpTempEnrollEmail.toLowerCase()}?secret=${totpSecret}&issuer=BodyTouch&algorithm=SHA1&digits=6&period=30`
-                      )}`} 
-                      alt="Google Authenticator QR Code"
-                      className="w-[155px] h-[155px] object-contain select-none pointer-events-none"
-                    />
-                    <span className="text-[10px] text-slate-800 font-black uppercase mt-2 select-none tracking-widest leading-none font-sans">
-                      SCAN ME WITH AUTHENTICATOR App
-                    </span>
-                  </div>
-
-                  {/* Input Code */}
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] pl-1 uppercase text-center">
-                      Google Authenticator Code (অ্যাপে দেখানো ৬ সংখ্যার কোড) *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      value={totpInputCode}
-                      onChange={(e) => {
-                        setTotpInputCode(e.target.value.replace(/\D/g, ''));
-                        if (authError) setAuthError('');
-                      }}
-                      placeholder="e.g. 123456"
-                      className="w-full bg-[#03060d] border border-slate-800 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl px-4 py-3 text-center text-white text-lg font-mono font-black tracking-[0.2em] focus:outline-none transition-all placeholder:tracking-normal placeholder:text-slate-800"
-                    />
-                  </div>
-
-                  {authError && (
-                    <div className="bg-red-950/20 border border-red-500/25 p-4 rounded-xl flex items-start gap-3 text-xs text-red-400 font-semibold leading-relaxed animate-shake">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                      <span>{authError}</span>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3.5">
                     <button
                       type="button"
-                      onClick={() => {
-                        setAuthStep('credentials');
-                        setAuthError('');
-                        setTotpInputCode('');
-                      }}
-                      className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] uppercase font-black tracking-widest transition cursor-pointer text-center"
+                      disabled={isSending}
+                      onClick={handleGoogleSignIn}
+                      className="w-full bg-[#fafafa] hover:bg-white text-black font-bold text-xs py-3.5 rounded-xl transition duration-200 shadow-md cursor-pointer flex items-center justify-center gap-3 border border-slate-200 disabled:opacity-40"
                     >
-                      ⬅️ Go Back
+                      {isSending ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin text-black" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                            <path
+                              fill="#EA4335"
+                              d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.578-7.859-8s3.53-8 7.859-8c2.46 0 4.105 1.025 5.047 1.926l3.256-3.133C18.29 1.156 15.54 0 12.24 0 5.58 0 0 5.37 0 12s5.58 12 12.24 12c6.96 0 11.57-4.89 11.57-11.79 0-.79-.08-1.4-.19-1.925H12.24z"
+                            />
+                          </svg>
+                          Sign In with Google
+                        </>
+                      )}
                     </button>
+                  </div>
+                ) : (
+                  /* CUSTOM EMAIL & PASSWORD LOGIN */
+                  <form onSubmit={handleCustomEmailPasswordSignIn} className="space-y-4 text-left pt-2">
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-semibold text-slate-400 pl-1 uppercase tracking-wider font-mono">
+                        Email Address
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                          <Mail className="w-4 h-4 text-[#dbaa61]/60" />
+                        </span>
+                        <input
+                          type="email"
+                          required
+                          value={adminEmail}
+                          onChange={(e) => {
+                            setAdminEmail(e.target.value);
+                            if (authError) setAuthError('');
+                          }}
+                          placeholder="admin@bodytouch.com"
+                          className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3 text-white text-xs placeholder-slate-700/60 focus:outline-none transition-all font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-semibold text-slate-400 pl-1 uppercase tracking-wider font-mono">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                          <Lock className="w-4 h-4 text-[#dbaa61]/60" />
+                        </span>
+                        <input
+                          type="password"
+                          required
+                          value={adminPassword}
+                          onChange={(e) => {
+                            setAdminPassword(e.target.value);
+                            if (authError) setAuthError('');
+                          }}
+                          placeholder="••••••••"
+                          className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3 text-white text-xs placeholder-slate-700/60 focus:outline-none transition-all font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {authError && (
+                      <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-400 font-semibold leading-relaxed animate-shake text-left">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                        <span>{authError}</span>
+                      </div>
+                    )}
+
                     <button
                       type="submit"
                       disabled={isSending}
-                      className="w-full py-3 rounded-xl bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] uppercase font-black tracking-widest transition cursor-pointer text-center shadow-lg shadow-yellow-950/20"
+                      className="w-full bg-[#dbaa61] hover:bg-[#cdaf55] text-black font-bold uppercase text-xs tracking-wider py-3 rounded-xl transition duration-200 shadow-md flex items-center justify-center gap-2 mt-2 cursor-pointer disabled:opacity-40"
                     >
-                      {isSending ? 'Verifying...' : '✅ Confirm Code'}
+                      {isSending ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin text-black" />
+                          Unlocking...
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="w-4 h-4" />
+                          Verify Credentials
+                        </>
+                      )}
                     </button>
-                  </div>
-                </form>
-              )}
+                  </form>
+                )}
+              </>
+            )}
 
-              {authStep === 'totp_verify' && (
-                /* GOOGLE AUTHENTICATOR 2FA SECURE VALIDATOR AT EVERY SIGNIN */
-                <form onSubmit={handleVerifyOTPActive} className="space-y-5 text-left font-semibold">
-                  <div className="space-y-2 text-center pb-2 border-b border-white/[0.04]">
-                    <div className="h-12 w-12 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center justify-center text-rose-400 mx-auto mb-2 animate-pulse">
-                      <Lock className="w-6 h-6 text-rose-500" />
+            {authStep === 'totp_setup' && (
+              /* GOOGLE AUTHENTICATOR MFA FIRST-TIME ENROLL SECURE WIZARD */
+              <form onSubmit={handleVerifyOTPSetup} className="space-y-4 text-center animate-fadeIn">
+                <div className="space-y-1 border-b border-white/[0.04] pb-3">
+                  <h3 className="text-[#dbaa61] uppercase tracking-wider text-sm font-bold">
+                    Two-Factor Setup Required
+                  </h3>
+                  <p className="text-[11px] text-slate-400 leading-relaxed max-w-xs mx-auto">
+                    This administrative account requires Google Authenticator validation. Please save this secret key.
+                  </p>
+                </div>
+
+                {/* Secret Key Container with Copy Button */}
+                <div className="bg-[#03060d]/60 border border-slate-800 rounded-2xl p-4 space-y-3.5">
+                  <div className="space-y-1 text-center">
+                    <span className="text-[9px] font-mono tracking-widest text-[#dbaa61] uppercase font-bold">Manual Entry Key</span>
+                    <div className="flex items-center justify-between bg-black/40 border border-slate-800/80 rounded-xl px-3.5 py-2.5 font-mono text-[11px] text-slate-300">
+                      <span className="select-all tracking-wider font-bold text-white">{totpSecret || 'ADMIN_TEMP_SECRET'}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(totpSecret || 'ADMIN_TEMP_SECRET');
+                          setIsCopied(true);
+                          setTimeout(() => setIsCopied(false), 2000);
+                        }}
+                        className="text-[#dbaa61] hover:text-[#cdaf55] transition p-1 rounded hover:bg-slate-900 cursor-pointer flex items-center justify-center"
+                        title="Copy to clipboard"
+                      >
+                        {isCopied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      </button>
                     </div>
-                    <h3 className="text-rose-500 uppercase tracking-widest text-base font-black font-display text-center">
-                      Google Authenticator code
-                    </h3>
-                    <p className="text-[10px] text-slate-400 font-medium leading-relaxed max-w-sm mx-auto">
-                      ২FA ২-স্টেপ নিরাপত্তা চালু আছে। অনুগ্রহ করে আপনার নিবন্ধিত গুগল অথেন্টিকেটর অ্যাপ খুলে <strong className="text-white">{totpTempEnrollEmail}</strong> এর বর্তমান ৬ সংখ্যার কোড আইডি দিন।
-                    </p>
                   </div>
 
-                  {/* Code lock pad */}
-                  <div className="space-y-4 rounded-2xl bg-[#03060d]/60 p-5 border border-slate-800/80">
-                    <div className="space-y-2 text-center">
-                      <label className="block text-[9px] font-black tracking-[0.2em] text-[#5c75ab] uppercase select-none">
-                        ENTER 6-DIGIT SECURITY 2FA PASSCODE
-                      </label>
+                  {/* Dynamic Help Text */}
+                  <div className="text-[10px] text-slate-500 leading-relaxed font-sans text-left bg-slate-950/40 p-2.5 rounded-xl border border-slate-900/60">
+                    <span className="font-bold text-[#dbaa61] block mb-0.5">Instructions:</span>
+                    1. Open the <strong className="text-white">Google Authenticator</strong> app on your mobile device.<br />
+                    2. Tap the plus icon and select <strong className="text-white">"Enter a setup key"</strong>.<br />
+                    3. Input the secret key shown above and enter your verification passcode.
+                  </div>
+                </div>
+
+                {/* Input Code Verification Pad */}
+                <div className="bg-[#03060d]/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+                  <div className="space-y-1 text-center">
+                    <label className="block text-[10px] font-semibold tracking-wider text-slate-400 uppercase font-mono">
+                      Enter Generated Code
+                    </label>
+
+                    {/* Segmented Digit UI Lock Pad */}
+                    <div className="relative flex justify-center py-1">
+                      <div className="flex gap-2.5 justify-center">
+                        {[0, 1, 2, 3, 4, 5].map((index) => {
+                          const val = totpInputCode[index] || '';
+                          const isCurrent = totpInputCode.length === index;
+                          return (
+                            <div 
+                              key={index} 
+                              className={`w-10 h-12 rounded-xl border flex items-center justify-center text-lg font-bold font-mono transition-all duration-300 ${
+                                val 
+                                  ? 'border-[#dbaa61] bg-[#dbaa61]/5 text-[#dbaa61] shadow-[0_0_12px_rgba(219,170,97,0.15)]' 
+                                  : isCurrent 
+                                    ? 'border-[#dbaa61]/70 bg-slate-900 ring-1 ring-[#dbaa61]/25 animate-pulse' 
+                                    : 'border-slate-800 bg-[#03060d]'
+                              }`}
+                            >
+                              {val || <span className="text-slate-700 font-sans">•</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
                       <input
                         type="text"
                         required
@@ -1099,51 +951,137 @@ export default function AdminPanel({
                           setTotpInputCode(e.target.value.replace(/\D/g, ''));
                           if (authError) setAuthError('');
                         }}
-                        placeholder="••••••"
-                        className="w-full bg-[#050811] border border-red-500/30 hover:border-red-500/50 focus:border-red-500 rounded-xl py-3 text-center text-white text-2xl font-mono font-black tracking-[0.4em] focus:outline-none transition-all placeholder:tracking-normal placeholder:text-slate-800 placeholder:text-sm focus:ring-1 focus:ring-red-500/25 select-all"
+                        className="absolute inset-0 opacity-0 cursor-text w-full h-[48px]"
                       />
                     </div>
                   </div>
+                </div>
 
-                  {authError && (
-                    <div className="bg-red-950/20 border border-red-500/25 p-4 rounded-xl flex items-start gap-3 text-xs text-red-400 font-semibold leading-relaxed animate-shake">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                      <span>{authError}</span>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAuthStep('credentials');
-                        setAuthError('');
-                        setTotpInputCode('');
-                      }}
-                      className="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] uppercase font-black tracking-widest transition cursor-pointer text-center"
-                    >
-                      ⬅️ Go Back
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSending}
-                      className="w-full py-3.5 rounded-xl bg-gradient-to-r from-red-650 to-red-550 hover:from-red-600 hover:to-red-500 text-white text-[10px] uppercase font-black tracking-widest transition cursor-pointer text-center shadow-lg shadow-rose-950/40"
-                    >
-                      {isSending ? 'DECRYPTING...' : '🔓 VERIFY & UNLOCK'}
-                    </button>
+                {authError && (
+                  <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-400 font-semibold leading-relaxed animate-shake text-left">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                    <span>{authError}</span>
                   </div>
-                </form>
-              )}
-            </div>
+                )}
 
-            {/* Dev Node Meta Specifications */}
-            <div className="pt-4 border-t border-slate-800/40 mt-6 flex flex-col sm:flex-row justify-between items-center text-[9px] font-mono text-slate-500 gap-2">
-              <span className="bg-slate-900/60 border border-slate-800 px-2 py-0.5 rounded flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                SECURE CONSOLE SYSTEM LIVE
-              </span>
-              <span>WHITELIST MEMBERS RESTRICTS ACTIVE</span>
-            </div>
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthStep('credentials');
+                      setAuthError('');
+                      setTotpInputCode('');
+                    }}
+                    className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center"
+                  >
+                    Go Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSending}
+                    className="w-full py-3 rounded-xl bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center shadow-md font-bold disabled:opacity-40"
+                  >
+                    {isSending ? 'Registering...' : 'Confirm'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {authStep === 'totp_verify' && (
+              /* GOOGLE AUTHENTICATOR 2FA SECURE VALIDATOR AT EVERY SIGNIN */
+              <form onSubmit={handleVerifyOTPActive} className="space-y-4 text-center animate-fadeIn">
+                <div className="space-y-1 border-b border-white/[0.04] pb-3">
+                  <h3 className="text-[#dbaa61] uppercase tracking-wider text-sm font-bold">
+                    Two-Factor authentication
+                  </h3>
+                  <p className="text-[11px] text-slate-400 leading-relaxed max-w-xs mx-auto">
+                    Enter the 6-digit passcode token generated by Google Authenticator app for account <strong className="text-white">{totpTempEnrollEmail}</strong>.
+                  </p>
+                </div>
+
+                {/* Code lock pad */}
+                <div className="space-y-3 rounded-2xl bg-[#03060d]/60 p-4 border border-slate-800/80">
+                  <div className="space-y-1 text-center font-semibold">
+                    <label className="block text-[10px] font-semibold tracking-wider text-[#dbaa61] uppercase font-mono">
+                      Security Passcode
+                    </label>
+                    
+                    {/* Segmented Digit UI lock pad */}
+                    <div className="relative flex justify-center py-2">
+                      <div className="flex gap-2.5 justify-center">
+                        {[0, 1, 2, 3, 4, 5].map((index) => {
+                          const val = totpInputCode[index] || '';
+                          const isCurrent = totpInputCode.length === index;
+                          return (
+                            <div 
+                              key={index} 
+                              className={`w-10 h-12 rounded-xl border flex items-center justify-center text-lg font-bold font-mono transition-all duration-300 ${
+                                val 
+                                  ? 'border-[#dbaa61] bg-[#dbaa61]/5 text-[#dbaa61] shadow-[0_0_12px_rgba(219,170,97,0.15)]' 
+                                  : isCurrent 
+                                    ? 'border-[#dbaa61]/70 bg-slate-900 ring-1 ring-[#dbaa61]/25 animate-pulse' 
+                                    : 'border-slate-800 bg-[#03060d]'
+                              }`}
+                            >
+                              {val || <span className="text-slate-700 font-sans">•</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        maxLength={6}
+                        autoFocus
+                        value={totpInputCode}
+                        onChange={(e) => {
+                          setTotpInputCode(e.target.value.replace(/\D/g, ''));
+                          if (authError) setAuthError('');
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-text w-full h-full text-center"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {authError && (
+                  <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-400 font-semibold leading-relaxed animate-shake text-left">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                    <span>{authError}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthStep('credentials');
+                      setAuthError('');
+                      setTotpInputCode('');
+                    }}
+                    className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center"
+                  >
+                    Go Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSending}
+                    className="w-full py-3 rounded-xl bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center shadow-md"
+                  >
+                    {isSending ? 'Verifying...' : 'Unlock'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* Clean footer info */}
+          <div className="pt-6 border-t border-slate-850/50 mt-6 flex flex-col justify-center items-center text-[10px] font-mono text-slate-500 gap-1">
+            <span className="flex items-center gap-1.5 font-bold uppercase text-[9px] text-[#dbaa61]/70 bg-[#dbaa61]/5 px-2 py-0.5 rounded border border-[#dbaa61]/15 leading-none">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              AUTHORIZED ENTRY
+            </span>
+            <span className="text-[9px] text-slate-600 font-bold tracking-wider font-mono">ADMIN PANEL MAIN GATEWAY</span>
           </div>
         </div>
       </div>
@@ -1712,7 +1650,7 @@ export default function AdminPanel({
           <div className="p-4 bg-gradient-to-r from-amber-950/15 to-transparent text-white flex items-center justify-between border-b border-[#161a24]">
             <div className="flex items-center gap-2.5 text-left font-semibold">
               <Server className="w-4 h-3.5 text-[#dbaa61]" />
-              <span className="font-black tracking-widest text-[10px] uppercase text-amber-200">CORE COMMAND CHANNELS</span>
+              <span className="font-black tracking-widest text-[10px] uppercase text-amber-200">ADMIN CONTROL PANEL</span>
             </div>
             {isMobile ? (
               <button 
@@ -1723,13 +1661,13 @@ export default function AdminPanel({
                 <X className="w-4 h-4" />
               </button>
             ) : (
-              <span className="text-[9px] bg-amber-500/10 text-[#dbaa61] font-mono font-bold px-1.5 py-0.5 rounded border border-[#dbaa61]/20">ACTIVE</span>
+              <span className="text-[9px] bg-amber-500/10 text-[#dbaa61] font-mono font-bold px-1.5 py-0.5 rounded border border-[#dbaa61]/20">ONLINE</span>
             )}
           </div>
 
           {/* Menu categories */}
           <div className="p-3 border-b border-[#131722] bg-black/10 text-left">
-            <span className="text-[9px] text-[#5c6985] font-black uppercase tracking-[0.2em] block px-1">OPS COMMAND SECTIONS</span>
+            <span className="text-[9px] text-[#5c6985] font-black uppercase tracking-[0.2em] block px-1">CONSOLE NAVIGATION</span>
           </div>
 
           <nav className="p-2.5 space-y-1 text-slate-300">
@@ -1971,23 +1909,37 @@ export default function AdminPanel({
           </nav>
         </div>
 
-        <div className="p-4 bg-[#0a0b10] border-t border-[#131722] text-[10px] text-slate-500 space-y-1.5 text-left font-mono">
-          <p className="flex items-center justify-between">
-            <span>🛡️ Active Session: SECURE</span>
-            <button
-              type="button"
-              onClick={() => {
-                sessionStorage.removeItem('metro_maa_admin_auth');
-                setIsAuth(false);
-              }}
-              className="text-red-400 hover:text-red-300 font-extrabold hover:underline underline-offset-2 transition ml-1"
-              title="Lock admin session immediately"
-            >
-              [LOCK]
-            </button>
-          </p>
-          <p>🖥️ Port: 3000 Ingress</p>
-          <p>⚙️ Engine: Node.js CMS V1</p>
+        <div className="p-4 bg-[#08090d] border-t border-[#131722] text-[11px] text-slate-400 space-y-3 text-left">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-[#dbaa61]/10 border border-[#dbaa61]/35 flex items-center justify-center font-bold text-[#dbaa61] uppercase leading-none font-sans text-sm select-none">
+              {adminEmail ? adminEmail[0] : 'A'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-white truncate text-[11px]" title={adminEmail || 'admin@bodytouch.com'}>
+                {adminEmail || 'admin@bodytouch.com'}
+              </p>
+              <p className="text-[9px] font-mono text-[#dbaa61] uppercase font-bold tracking-wider leading-none mt-0.5">
+                {loggedInAdminRole === 'super_admin' ? 'Super Admin' : loggedInAdminRole === 'moderator' ? 'Moderator' : 'Administrator'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await auth.signOut();
+              } catch (e) {
+                console.warn("Firebase signout error:", e);
+              }
+              sessionStorage.removeItem('metro_maa_admin_auth');
+              setIsAuth(false);
+            }}
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-red-950/20 hover:bg-red-950/45 border border-red-500/20 text-red-400 hover:text-red-300 font-bold text-[10px] uppercase tracking-wider transition cursor-pointer active:scale-95"
+            title="Log out from administrative panel"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign Out</span>
+          </button>
         </div>
       </div>
     );
@@ -2022,7 +1974,7 @@ export default function AdminPanel({
         )}
       </AnimatePresence>
 
-      {/* Real-time Secure Core Ops Header */}
+      {/* Admin Panel Navbar */}
       <div className="bg-[#0b0c10] border-b border-[#161a24] py-3.5 px-4 sm:px-6 flex items-center justify-between text-xs text-slate-300 select-none">
         <div className="flex items-center gap-3 overflow-x-auto scrollbar-none max-w-[70%] lg:max-w-none">
           
@@ -2030,7 +1982,7 @@ export default function AdminPanel({
           <button
             onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
             className="lg:hidden text-slate-300 hover:text-white p-2 hover:bg-slate-800/20 active:bg-slate-800/40 rounded-xl border border-[#161a24] active:scale-95 transition-all outline-none"
-            title="Toggle Secure Operations Navigation"
+            title="Toggle Navigation"
           >
             <Menu className="w-4.5 h-4.5" />
           </button>
@@ -2040,10 +1992,10 @@ export default function AdminPanel({
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shadow-[0_0_15px_rgba(219,170,97,0.15)]">
               <ShieldCheck className="w-4.5 h-4.5" />
             </div>
-            <span className="tracking-widest uppercase text-xs font-black sm:text-sm text-gradient bg-gradient-to-r from-amber-200 to-[#dbaa61] bg-clip-text text-transparent">BODY TOUCH ADMIN CONTROL</span>
+            <span className="tracking-widest uppercase text-xs font-black sm:text-sm text-gradient bg-gradient-to-r from-amber-200 to-[#dbaa61] bg-clip-text text-transparent">BODY TOUCH CORESHEET</span>
             <span className="hidden sm:inline-flex bg-amber-500/10 border border-[#dbaa61]/20 text-[#dbaa61] text-[8px] font-black tracking-widest px-2 py-0.5 rounded-sm items-center gap-1">
-              <span className="w-1 h-1 rounded-full bg-amber-400 animate-ping" />
-              SECURE
+              <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
+              ONLINE
             </span>
           </div>
 
@@ -2051,11 +2003,11 @@ export default function AdminPanel({
 
           <div className="hidden lg:flex items-center gap-4.5 text-[11px] text-slate-400 font-medium">
             <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer">
-              🔴 BACKEND CONNECTION: ACTIVE
+              Database: Online
             </span>
             <span>•</span>
             <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer">
-              ✨ LUXURY CLOUD ENVIRONMENT
+              Staff Portal Console
             </span>
           </div>
         </div>
@@ -2063,7 +2015,7 @@ export default function AdminPanel({
         <div className="flex items-center gap-3">
           <span className="hidden sm:flex bg-[#0d0a05] border border-amber-500/15 text-[#dbaa61] text-[9.5px] font-mono px-3 py-1 rounded-md items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-            BODY TOUCH CORE ENGINE
+            Staff Portal
           </span>
           <button 
             onClick={onClose}
@@ -2090,34 +2042,34 @@ export default function AdminPanel({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1c2333] pb-5">
             <div className="text-left">
               <h1 className="text-2xl font-black text-white uppercase tracking-tight font-display flex items-center gap-2">
-                {activeTab === 'dashboard' && 'SYSTEM DASHBOARD'}
-                {activeTab === 'clients' && 'CLIENTS & MEMBERSHIP TRANSACTION LEDGER'}
-                {activeTab === 'partners' && 'PARTNER & MODEL PROFILE MANAGEMENT'}
-                {activeTab === 'media' && 'MEDIA LIBRARY & ASSETS STORAGE'}
-                {activeTab === 'orders' && 'ORDER MANAGEMENT & DISPATCH QUEUE'}
-                {activeTab === 'hotels' && 'HOTEL SANCTUARY DATABASE'}
-                {activeTab === 'cities' && 'CITIES & OPERATIONAL AREA DIRECTORY'}
-                {activeTab === 'gateways' && 'PAYMENT GATEWAYS AND LIMITS'}
-                {activeTab === 'verification' && 'MODEL APPLICATIONS VERIFICATION (মডেল যাচাইকরণ)'}
-                {activeTab === 'admins' && 'ADMINISTRATIVE TEAM DIRECTORY'}
-                {activeTab === 'smtp' && 'TELEGRAM INTEGRATION & SITE BRANDING SETTINGS'}
-                {activeTab === 'shortlinks' && 'REGISTRATION SHORT LINKS DIRECTORY'}
-                {activeTab === 'referrals' && 'AFILLIATE REFERRALS & PAYOUTS LEDGER'}
+                {activeTab === 'dashboard' && 'Dashboard Overview'}
+                {activeTab === 'clients' && 'Client Accounts & VIP Requests'}
+                {activeTab === 'partners' && 'Escort & Models Catalog'}
+                {activeTab === 'media' && 'Media & Presets Bank'}
+                {activeTab === 'orders' && 'Active Bookings & Orders'}
+                {activeTab === 'hotels' && 'Recommended Hotels'}
+                {activeTab === 'cities' && 'Operational Cities'}
+                {activeTab === 'gateways' && 'Payment Gateway Settings'}
+                {activeTab === 'verification' && 'Model Verifications (মডেল যাচাইকরণ)'}
+                {activeTab === 'admins' && 'Administrative Team'}
+                {activeTab === 'smtp' && 'System & Telegram Settings'}
+                {activeTab === 'shortlinks' && 'Quick Registration Links'}
+                {activeTab === 'referrals' && 'Affiliate Referrals Ledger'}
               </h1>
               <p className="text-xs text-slate-400 font-medium mt-1">
                 {activeTab === 'shortlinks' && 'View, test, and copy user registration and application forms for different model types.'}
-                {activeTab === 'dashboard' && 'Global system overview, telemetry statistics, and quick-action shortcuts.'}
-                {activeTab === 'clients' && 'Review manual transaction tickets submitted by clients to activate VIP badges.'}
-                {activeTab === 'partners' && 'Manage model dispatch statuses, review talent applications, register profile criteria.'}
-                {activeTab === 'media' && 'Store and retrieve high-fidelity portal assets. Quick click copies secure URLs.'}
-                {activeTab === 'orders' && 'Process active VIP client bookings, authorize dispatch, sync notifications.'}
-                {activeTab === 'hotels' && 'Configure designated private hotels and luxury safehouses.'}
-                {activeTab === 'cities' && 'Manage urban locations and regional dispatch boundaries. Add or remove operational areas.'}
-                {activeTab === 'gateways' && 'Add or change active payment gateways, set wallet roles (Personal, Agent, Merchant), and write custom instructions.'}
-                {activeTab === 'verification' && 'Review, edit, reject, or verify and approve incoming Model or Companion applications.'}
-                {activeTab === 'admins' && 'Add or change authorized administrator emails to control secure 2FA dashboard entry.'}
-                {activeTab === 'smtp' && 'Configure Telegram bot parameters, chat room channels, custom helpline identifiers, and emergency notices.'}
-                {activeTab === 'referrals' && 'Audit affiliate registration chains, track downline user levels, manage payout commissions, and process bKash/Nagad withdrawals.'}
+                {activeTab === 'dashboard' && 'Overall platform performance metrics and active system overview.'}
+                {activeTab === 'clients' && 'Verify and process client transaction tickets to activate VIP memberships.'}
+                {activeTab === 'partners' && 'Add, update, or remove companion profile criteria and catalog attributes.'}
+                {activeTab === 'media' && 'Manage image preset libraries used in pages and profile listings.'}
+                {activeTab === 'orders' && 'Review client dispatch bookings and adjust order completion metrics.'}
+                {activeTab === 'hotels' && 'Setup hotel sanctuaries and luxury private safehouses.'}
+                {activeTab === 'cities' && 'Define operational divisions, cities, and specific dispatch zones.'}
+                {activeTab === 'gateways' && 'Add or change mobile banking wallet routes and user transfer instructions.'}
+                {activeTab === 'verification' && 'Inspect and approve new talent signups and companion signups.'}
+                {activeTab === 'admins' && 'Set and control authorized staff emails and edit secondary validation metrics.'}
+                {activeTab === 'smtp' && 'Synchronize order dispatches with Telegram notification bots and helplines.'}
+                {activeTab === 'referrals' && 'Track commission balances, affiliate tiers, and process withdrawal requests.'}
               </p>
             </div>
 
@@ -2128,13 +2080,13 @@ export default function AdminPanel({
                   <span className="absolute inset-0 rounded-full bg-amber-400 animate-ping opacity-75" />
                 </div>
                 <div className="text-left border-l border-white/[0.08] pl-3.5">
-                  <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">SYSTEM LIVE (BST)</span>
+                  <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">CURRENT TIME (BST)</span>
                   <span className="block text-xs font-black font-mono text-[#dbaa61] mt-1.5 leading-none">
                     {liveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
                   </span>
                 </div>
                 <div className="hidden md:block text-left border-l border-white/[0.08] pl-3.5">
-                  <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">SECTOR DATA TIMESTAMP</span>
+                  <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">CURRENT DATE</span>
                   <span className="block text-[10px] font-extrabold text-slate-300 mt-1.5 leading-none">
                     {liveTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
@@ -2230,22 +2182,22 @@ export default function AdminPanel({
                   <div className="absolute right-0 top-0 translate-x-6 -translate-y-6 w-36 h-36 bg-[#dbaa61]/[0.03] blur-3xl pointer-events-none rounded-full" />
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="bg-amber-400/10 text-[#dbaa61] border border-[#dbaa61]/20 text-[8.5px] font-mono tracking-widest px-2.5 py-0.5 rounded font-black uppercase">CORE SYSTEM CENTRALIZED</span>
+                      <span className="bg-amber-400/10 text-[#dbaa61] border border-[#dbaa61]/20 text-[8.5px] font-mono tracking-widest px-2.5 py-0.5 rounded font-black uppercase">ADMIN CONSOLE</span>
                       <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/15 text-[8.5px] font-mono tracking-widest px-2.5 py-0.5 rounded font-black uppercase flex items-center gap-1">
-                        <span className="w-1 h-1 rounded-full bg-emerald-400 animate-ping" />
-                        SECURED CONNECTION ENABLED
+                        <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                        SECURED STAFF SESSION
                       </span>
                     </div>
-                    <h3 className="text-xl font-extrabold text-gradient bg-gradient-to-r from-amber-200 via-[#dbaa61] to-amber-250 bg-clip-text text-transparent mt-3.5 leading-tight select-none">
-                      স্বাগতম, দ্য বডি টাচ অ্যাডমিন গেটওয়ে!
+                    <h3 className="text-xl font-extrabold text-[#dbaa61] mt-3.5 leading-tight select-none">
+                      স্বাগতম, দ্য বডি টাচ অ্যাডমিন প্যানেল!
                     </h3>
                     <p className="text-xs text-slate-300 leading-relaxed font-semibold mt-2.5">
                       এই সেন্ট্রাল অ্যাডমিন ড্যাশবোর্ড থেকে আপনি গ্রাহক অ্যাকাউন্ট (VIP Clients), পার্টনার প্রফাইল (Companions & Models), মিডিয়া ব্যাংক, এবং বুকিং অর্ডার ও টেলিগ্রাম ইন্টিগ্রেশন সেটিংস নিখুঁতভাবে নিয়ন্ত্রণ করতে পারবেন। কোনো পরিবর্তন করার সাথে সাথে তা ফ্রন্টএন্ডে রিয়েল-টাইমে আপডেট হয়ে যাবে।
                     </p>
                   </div>
                   <div className="pt-5 mt-4 border-t border-white/[0.05] flex items-center justify-between text-[10px] text-slate-500 font-mono">
-                    <span className="flex items-center gap-1.5">⚡ SYSTEM AUTOMATION DEPLOY: <strong className="text-white">ACTIVE</strong></span>
-                    <span className="text-[#dbaa61]">Secured HTTPS Node</span>
+                    <span className="flex items-center gap-1.5">⚡ PORTAL STATUS: <strong className="text-white">ONLINE</strong></span>
+                    <span className="text-[#dbaa61]">Staff Control Room</span>
                   </div>
                 </div>
 
@@ -2253,7 +2205,7 @@ export default function AdminPanel({
                 <div className="col-span-full lg:col-span-5 bg-[#0f1118] border border-white/[0.04] p-5 rounded-3xl space-y-4 shadow-xl">
                   <div className="flex items-center gap-2 border-b border-white/[0.04] pb-2.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                    <h4 className="text-[10.5px] font-black uppercase tracking-wider text-slate-400">⚡ EXECUTIVE HUB COMMANDS</h4>
+                    <h4 className="text-[10.5px] font-black uppercase tracking-wider text-slate-400">⚡ QUICK DASHBOARD SHORTCUTS</h4>
                   </div>
                   <div className="grid grid-cols-1 gap-2.5 text-xs">
                     
@@ -5527,15 +5479,15 @@ export default function AdminPanel({
                       return (
                         <div
                           key={emailAddress}
-                          className="bg-black/25 border border-white/[0.02] hover:border-white/[0.05] rounded-xl p-3 flex justify-between items-center transition-all duration-200 animate-fadeIn"
+                          className="bg-black/25 border border-white/[0.02] hover:border-white/[0.05] rounded-2xl p-3.5 flex flex-col gap-3 transition-all duration-200 animate-fadeIn"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-950/40 to-slate-900 border border-[#dbaa61]/20 flex items-center justify-center text-[#dbaa61] font-extrabold text-xs">
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-950/40 to-slate-900 border border-[#dbaa61]/25 flex items-center justify-center text-[#dbaa61] font-extrabold text-xs shrink-0 select-none">
                               {emailAddress.charAt(0).toUpperCase()}
                             </div>
-                            <div className="text-left font-semibold">
-                              <span className="text-xs font-bold text-slate-200 block font-mono">{emailAddress}</span>
-                              <div className="flex flex-wrap items-center gap-2 mt-1">
+                            <div className="text-left font-semibold min-w-0 flex-1">
+                              <span className="text-xs font-bold text-slate-200 block font-mono truncate" title={emailAddress}>{emailAddress}</span>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                 {loggedInAdminRole === 'super_admin' && !isMainSuperAdmin && !isCurrentlyLoggedInUser ? (
                                   <select
                                     value={userRole}
@@ -5574,23 +5526,24 @@ export default function AdminPanel({
                             </div>
                           </div>
 
-                          {/* Action buttons */}
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Actions footer inside card */}
+                          <div className="flex items-center gap-1.5 border-t border-white/[0.03] pt-2.5">
                             {/* Reset 2FA Button - Allowed only for Super Admin */}
                             {loggedInAdminRole === 'super_admin' && (
                               <button
                                 type="button"
                                 onClick={async () => {
+                                  const trimmedEmail = emailAddress.trim().toLowerCase();
                                   if (window.confirm(`Are you sure you want to reset Google Authenticator 2FA for ${emailAddress}? Upon next login, this admin will be forced to enroll again from scratch by scanning a new QR code.`)) {
                                     try {
-                                      await deleteDoc(doc(db, 'admin_totp_secrets', emailAddress.toLowerCase()));
+                                      await deleteDoc(doc(db, 'admin_totp_secrets', trimmedEmail));
                                       alert(`✅ Google Authenticator 2FA secret has been successfully reset for ${emailAddress}.`);
                                     } catch (err: any) {
                                       alert(`❌ Could not reset 2FA: ${err.message}`);
                                     }
                                   }
                                 }}
-                                className="p-1 px-2.5 rounded bg-amber-950/30 border border-amber-500/25 text-amber-400 hover:text-white hover:bg-amber-900/40 text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center gap-1"
+                                className="flex-1 py-1 px-2 rounded-lg bg-amber-950/30 hover:bg-amber-950/50 border border-amber-500/25 text-[#dbaa61] hover:text-white text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center justify-center gap-1 min-h-[28px]"
                                 title="Reset TOTP 2FA secret for this user"
                               >
                                 Reset 2FA
@@ -5598,22 +5551,25 @@ export default function AdminPanel({
                             )}
 
                             {isMainSuperAdmin ? (
-                              <span className="text-[8px] font-black uppercase bg-emerald-950/40 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                              <span className="flex-1 py-1 px-2.5 rounded-lg bg-emerald-950/40 text-emerald-400 border border-emerald-500/25 text-[8px] font-black uppercase tracking-wider text-center select-none min-h-[28px] flex items-center justify-center">
                                 Owner Key
                               </span>
                             ) : (
-                              /* Revoke button - Only Super Admins can revoke admins, and you cannot revoke yourself */
+                              /* Revoke/Delete button - Only Super Admins can revoke/delete admins, and you cannot revoke yourself */
                               loggedInAdminRole === 'super_admin' && !isCurrentlyLoggedInUser && (
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    if (window.confirm(`Are you sure you want to revoke Admin access for ${emailAddress}?`)) {
+                                    if (window.confirm(`Are you sure you want to permanently delete and remove Admin access for ${emailAddress}?`)) {
                                       updateAdminEmails(adminEmails.filter(e => e.email.toLowerCase() !== emailAddress.toLowerCase()));
+                                      alert(`✅ "${emailAddress}" এর এডমিন এক্সেস স্থায়ীভাবে বাতিল ও রিমুভ করা হয়েছে।`);
                                     }
                                   }}
-                                  className="p-1 px-2.5 rounded bg-red-950/30 border border-red-500/20 text-red-400 hover:text-white hover:bg-red-900/40 text-[9px] font-extrabold uppercase transition cursor-pointer"
+                                  className="flex-1 py-1 px-2 rounded-lg bg-red-950/30 hover:bg-red-900/40 border border-red-500/20 hover:border-red-500/40 text-red-400 hover:text-white text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center justify-center gap-1 min-h-[28px]"
+                                  title="Permanently remove admin ID from the directory"
                                 >
-                                  Revoke
+                                  <Trash2 className="w-3 h-3" />
+                                  Remove
                                 </button>
                               )
                             )}
