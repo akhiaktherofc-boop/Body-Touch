@@ -736,159 +736,83 @@ export default function AdminPanel({
             {authStep === 'credentials' && (
               <>
                 <div className="space-y-1.5 mb-4">
-                  <h2 className="text-lg font-bold text-white tracking-tight">Admin Authentication</h2>
+                  <h2 className="text-lg font-bold text-white tracking-tight">Admin Authentication / এডমিন অথেন্টিকেশন</h2>
                   <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto">
-                    Sign in with registered admin account to access the control panel.
+                    পাসওয়ার্ড এবং ২-স্টেপ সিকিউরিটি কোড বসিয়ে এডমিন প্যানেলে প্রবেশ করুন।
                   </p>
                 </div>
 
-                {/* Login Mode Tabs Selector */}
-                <div className="grid grid-cols-2 p-1 bg-[#03060d] border border-slate-800/80 rounded-xl">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLoginMode('google');
-                      setAuthError('');
-                    }}
-                    className={`py-2 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
-                      loginMode === 'google' 
-                        ? 'bg-[#dbaa61] text-black shadow-md' 
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    🌐 Google Auth
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLoginMode('custom');
-                      setAuthError('');
-                    }}
-                    className={`py-2 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
-                      loginMode === 'custom' 
-                        ? 'bg-[#dbaa61] text-black shadow-md' 
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    🔒 Password
-                  </button>
-                </div>
-
-                {/* Form implementation */}
-                {loginMode === 'google' ? (
-                  /* GOOGLE POPUP LOGIN */
-                  <div className="space-y-4 pt-2">
-                    {authError && (
-                      <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-100 font-semibold leading-relaxed animate-shake text-left">
-                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                        <div className="space-y-1">
-                          <span>{authError}</span>
-                          {authError.includes('unauthorized-domain') && (
-                            <p className="text-[10px] text-amber-400 mt-1">
-                              💡 Please use the Email & Password option to sign in.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      disabled={isSending}
-                      onClick={handleGoogleSignIn}
-                      className="w-full bg-[#fafafa] hover:bg-white text-black font-bold text-xs py-3.5 rounded-xl transition duration-200 shadow-md cursor-pointer flex items-center justify-center gap-3 border border-slate-200 disabled:opacity-40"
-                    >
-                      {isSending ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin text-black" />
-                          Connecting...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                            <path
-                              fill="#EA4335"
-                              d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.578-7.859-8s3.53-8 7.859-8c2.46 0 4.105 1.025 5.047 1.926l3.256-3.133C18.29 1.156 15.54 0 12.24 0 5.58 0 0 5.37 0 12s5.58 12 12.24 12c6.96 0 11.57-4.89 11.57-11.79 0-.79-.08-1.4-.19-1.925H12.24z"
-                            />
-                          </svg>
-                          Sign In with Google
-                        </>
-                      )}
-                    </button>
+                {/* CUSTOM EMAIL & PASSWORD LOGIN */}
+                <form onSubmit={handleCustomEmailPasswordSignIn} className="space-y-4 text-left pt-2">
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-semibold text-slate-400 pl-1 uppercase tracking-wider font-mono">
+                      Email Address / এডমিন ইমেইল
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                        <Mail className="w-4 h-4 text-[#dbaa61]/60" />
+                      </span>
+                      <input
+                        type="email"
+                        required
+                        value={adminEmail}
+                        onChange={(e) => {
+                          setAdminEmail(e.target.value);
+                          if (authError) setAuthError('');
+                        }}
+                        placeholder="admin@bodytouch.com"
+                        className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3 text-white text-xs placeholder-[#1e2333] focus:outline-none transition-all font-mono"
+                      />
+                    </div>
                   </div>
-                ) : (
-                  /* CUSTOM EMAIL & PASSWORD LOGIN */
-                  <form onSubmit={handleCustomEmailPasswordSignIn} className="space-y-4 text-left pt-2">
-                    <div className="space-y-1.5">
-                      <label className="block text-[10px] font-semibold text-slate-400 pl-1 uppercase tracking-wider font-mono">
-                        Email Address
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-                          <Mail className="w-4 h-4 text-[#dbaa61]/60" />
-                        </span>
-                        <input
-                          type="email"
-                          required
-                          value={adminEmail}
-                          onChange={(e) => {
-                            setAdminEmail(e.target.value);
-                            if (authError) setAuthError('');
-                          }}
-                          placeholder="admin@bodytouch.com"
-                          className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3 text-white text-xs placeholder-slate-700/60 focus:outline-none transition-all font-mono"
-                        />
-                      </div>
-                    </div>
 
-                    <div className="space-y-1.5">
-                      <label className="block text-[10px] font-semibold text-slate-400 pl-1 uppercase tracking-wider font-mono">
-                        Password
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-                          <Lock className="w-4 h-4 text-[#dbaa61]/60" />
-                        </span>
-                        <input
-                          type="password"
-                          required
-                          value={adminPassword}
-                          onChange={(e) => {
-                            setAdminPassword(e.target.value);
-                            if (authError) setAuthError('');
-                          }}
-                          placeholder="••••••••"
-                          className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3 text-white text-xs placeholder-slate-700/60 focus:outline-none transition-all font-mono"
-                        />
-                      </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-semibold text-slate-400 pl-1 uppercase tracking-wider font-mono">
+                      Password / পাসওয়ার্ড
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+                        <Lock className="w-4 h-4 text-[#dbaa61]/60" />
+                      </span>
+                      <input
+                        type="password"
+                        required
+                        value={adminPassword}
+                        onChange={(e) => {
+                          setAdminPassword(e.target.value);
+                          if (authError) setAuthError('');
+                        }}
+                        placeholder="••••••••"
+                        className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3 text-white text-xs placeholder-[#1e2333] focus:outline-none transition-all font-mono"
+                      />
                     </div>
+                  </div>
 
-                    {authError && (
-                      <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-400 font-semibold leading-relaxed animate-shake text-left">
-                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                        <span>{authError}</span>
-                      </div>
+                  {authError && (
+                    <div className="bg-red-950/20 border border-red-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-red-400 font-semibold leading-relaxed animate-shake text-left">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                      <span>{authError}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isSending}
+                    className="w-full bg-[#dbaa61] hover:bg-[#cdaf55] text-black font-bold uppercase text-xs tracking-wider py-3 rounded-xl transition duration-200 shadow-md flex items-center justify-center gap-2 mt-2 cursor-pointer disabled:opacity-40 font-bold"
+                  >
+                    {isSending ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin text-black" />
+                        Verifying... / যাচাই করা হচ্ছে...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        Verify Credentials / পরবর্তী ধাপ
+                      </>
                     )}
-
-                    <button
-                      type="submit"
-                      disabled={isSending}
-                      className="w-full bg-[#dbaa61] hover:bg-[#cdaf55] text-black font-bold uppercase text-xs tracking-wider py-3 rounded-xl transition duration-200 shadow-md flex items-center justify-center gap-2 mt-2 cursor-pointer disabled:opacity-40"
-                    >
-                      {isSending ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin text-black" />
-                          Unlocking...
-                        </>
-                      ) : (
-                        <>
-                          <ShieldCheck className="w-4 h-4" />
-                          Verify Credentials
-                        </>
-                      )}
-                    </button>
-                  </form>
-                )}
+                  </button>
+                </form>
               </>
             )}
 
