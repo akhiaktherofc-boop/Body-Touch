@@ -75,6 +75,29 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 }
 
 /**
+ * Recursively removes keys with `undefined` values from an object, 
+ * as Firestore does not accept `undefined` as a valid value.
+ */
+export function cleanUndefined(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanUndefined(item));
+  }
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        if (obj[key] !== undefined) {
+          cleaned[key] = cleanUndefined(obj[key]);
+        }
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
+/**
  * Bootstrap a collection if it sits completely blank in Firestore.
  */
 export async function bootstrapCollectionIfEmpty(collectionName: string, defaultData: any[]) {
@@ -86,7 +109,8 @@ export async function bootstrapCollectionIfEmpty(collectionName: string, default
       for (const item of defaultData) {
         const itemId = item.id || `boot-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
         const docRef = doc(db, collectionName, sanitizeId(itemId));
-        await setDoc(docRef, { ...item, id: itemId });
+        const cleanedItem = cleanUndefined({ ...item, id: itemId });
+        await setDoc(docRef, cleanedItem);
       }
     }
   } catch (error) {
@@ -117,7 +141,8 @@ export async function setCloudDocument(collectionName: string, docId: string, da
   const docPath = `${collectionName}/${docId}`;
   try {
     const docRef = doc(db, collectionName, sanitizeId(docId));
-    await setDoc(docRef, { ...data, id: docId }, { merge: true });
+    const cleanedData = cleanUndefined({ ...data, id: docId });
+    await setDoc(docRef, cleanedData, { merge: true });
     console.log(`[CloudDB] Document "${docId}" set in "${collectionName}"`);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, docPath);
@@ -168,7 +193,8 @@ export async function saveCloudUser(user: CloudUser) {
   const userPath = `users/${user.username}`;
   try {
     const docRef = doc(db, 'users', sanitizeId(user.username.toLowerCase()));
-    await setDoc(docRef, user, { merge: true });
+    const cleanedUser = cleanUndefined(user);
+    await setDoc(docRef, cleanedUser, { merge: true });
     console.log(`[CloudDB] User statistics saved for "@${user.username}"`);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, userPath);
