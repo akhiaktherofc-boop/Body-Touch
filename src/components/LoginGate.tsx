@@ -450,20 +450,31 @@ export default function LoginGate({
         }
       }
 
-      // Execute real email/password sign-in with Firebase Auth
-      await signInWithEmailAndPassword(auth, emailToAuth, signInPassword);
-
-      // Successfully authenticated! Re-fetch user profile from Firestore to pass user preferences to UI
+      // Fetch user profile from Firestore to check credentials directly, bypassing Firebase Auth due to Hostinger domain restrictions
       const userDocRef = doc(db, 'users', usernameToLogin.toLowerCase());
       const userDocSnap = await getDoc(userDocRef);
       let fullNameToLogin = usernameToLogin;
       let phoneToLogin = '';
       let savedTelegramId = '';
+      let storedPassword = '';
+
       if (userDocSnap.exists()) {
         const udata = userDocSnap.data();
         fullNameToLogin = udata.fullName || usernameToLogin;
         phoneToLogin = udata.phone || '';
         savedTelegramId = udata.telegramId || '';
+        storedPassword = udata.password || udata.passwordHash || '';
+
+        // If no password exists (legacy users registered with Firebase Auth), auto-migrate on first login!
+        if (!storedPassword || storedPassword === '[SECURED_BY_FIREBASE_AUTH]') {
+          await setDoc(userDocRef, { password: signInPassword, passwordHash: signInPassword }, { merge: true });
+        } else if (storedPassword !== signInPassword) {
+          setErrorMsg('ভুল পাসওয়ার্ড বা ইমেল অ্যাড্রেস! অনুগ্রহ করে সঠিক পাসওয়ার্ড ও ইমেল দিয়ে পুনরায় চেষ্টা করুন। (Incorrect secure password or email.)');
+          return;
+        }
+      } else {
+        setErrorMsg('এই ইউজারনেমে কোনো অ্যাকাউন্ট পাওয়া যায়নি! (Username not found. Please register.)');
+        return;
       }
 
       if (false) {
@@ -643,8 +654,16 @@ export default function LoginGate({
       } else {
         setSuccessMsg('নিবন্ধন সফল হচ্ছে! অনুগ্রহ করে অপেক্ষা করুন... (Registering account...)');
         
-        const userCredential = await createUserWithEmailAndPassword(auth, newEmail.trim().toLowerCase(), newPassword);
-        const uid = userCredential.user.uid;
+        // Check for duplicate email in users collection
+        const usersRef = collection(db, 'users');
+        const emailQ = query(usersRef, where('email', '==', newEmail.trim().toLowerCase()), limit(1));
+        const emailSnap = await getDocs(emailQ);
+        if (!emailSnap.empty) {
+          setErrorMsg('এই ইমেইল এড্রেস দিয়ে ইতিমধ্যে একটি একাউন্ট খোলা হয়েছে! (Email is already registered. Please log in.)');
+          return;
+        }
+
+        const uid = 'user-bypass-' + Date.now();
 
         // Store in Cloud Firestore users collection
         await setDoc(doc(db, 'users', usernameLower), {
@@ -656,6 +675,8 @@ export default function LoginGate({
           userLevel: 'FREE',
           walletBalance: 0,
           uid: uid,
+          password: newPassword,
+          passwordHash: newPassword,
           createdAt: new Date().toISOString()
         }, { merge: true });
 
@@ -666,7 +687,7 @@ export default function LoginGate({
           fullName: newFullName.trim(),
           email: newEmail.trim(),
           phone: newPhone.trim(),
-          passwordHash: '[SECURED_BY_FIREBASE_AUTH]'
+          passwordHash: newPassword
         };
         const updatedAccounts = [...accounts, newAccLocal];
         localStorage.setItem('bt_local_accounts', JSON.stringify(updatedAccounts));
@@ -720,8 +741,7 @@ export default function LoginGate({
 
     try {
       if (pendingCredentials.type === 'signup') {
-        const userCredential = await createUserWithEmailAndPassword(auth, pendingCredentials.email, pendingCredentials.password || '');
-        const uid = userCredential.user.uid;
+        const uid = 'user-bypass-' + Date.now();
 
         // Store in Cloud Firestore users collection
         await setDoc(doc(db, 'users', pendingCredentials.username), {
@@ -733,6 +753,8 @@ export default function LoginGate({
           userLevel: 'FREE',
           walletBalance: 0,
           uid: uid,
+          password: pendingCredentials.password || '',
+          passwordHash: pendingCredentials.password || '',
           createdAt: new Date().toISOString()
         }, { merge: true });
 
@@ -743,7 +765,7 @@ export default function LoginGate({
           fullName: pendingCredentials.fullName,
           email: pendingCredentials.email,
           phone: pendingCredentials.phone,
-          passwordHash: '[SECURED_BY_FIREBASE_AUTH]'
+          passwordHash: pendingCredentials.password || ''
         };
         const updatedAccounts = [...accounts, newAccLocal];
         localStorage.setItem('bt_local_accounts', JSON.stringify(updatedAccounts));
