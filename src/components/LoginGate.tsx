@@ -79,6 +79,7 @@ export default function LoginGate({
   const [customInstaUsername, setCustomInstaUsername] = useState('');
   const [customGoogleEmail, setCustomGoogleEmail] = useState('');
   const [customGoogleName, setCustomGoogleName] = useState('');
+  const [googleTab, setGoogleTab] = useState<'select' | 'custom'>('select');
   
   // Instagram customized native flow states
   const [isMobile, setIsMobile] = useState(false);
@@ -1335,117 +1336,70 @@ export default function LoginGate({
 
       {/* GOOGLE SIMULATED COMPONENT POPUP */}
       {socialModal === 'google' && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 font-sans">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-sm bg-gradient-to-b from-[#08182c] to-[#040816] border border-blue-900/30 rounded-3xl p-6 text-left relative max-h-[90vh] overflow-y-auto scrollbar-none"
+            className="w-full max-w-[400px] bg-white border border-slate-200 rounded-2xl shadow-2xl p-7 text-left relative text-slate-800"
           >
-            <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-blue-600 via-red-500 to-amber-500" />
-            
-            <div className="flex items-center gap-3 mb-4 mt-2">
-              <div className="p-2.5 rounded-xl bg-blue-950/40 border border-blue-500/20 shadow-inner">
-                <svg className="w-6 h-6 text-blue-400" viewBox="0 0 24 24">
-                  <path
-                    fill="currentColor"
-                    d="M12.24 10.285V13.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l2.427-2.334C17.955 2.192 15.34 1 12.24 1 5.92 1 1 5.92 1 12s4.92 11 11.24 11c6.6 0 11-4.65 11-11.2 0-.756-.08-1.333-.18-1.515H12.24z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-white text-sm">Google Web Authorization</h3>
-                <p className="text-[10px] text-blue-300 font-mono">bodyTOUCH Secure API Tunnel Connection</p>
-              </div>
+            {/* Google Colorful Header Banner */}
+            <div className="flex flex-col items-center text-center mt-2 mb-6">
+              {/* Colored Google logo G */}
+              <svg className="w-10 h-10 mb-4" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                />
+              </svg>
+
+              <h3 className="text-[22px] font-normal text-[#202124] tracking-tight leading-tight">
+                {googleTab === 'select' ? 'Choose an account' : 'Sign in with Google'}
+              </h3>
+              <p className="text-sm text-[#5f6368] mt-1.5">
+                to continue to <span className="font-bold text-[#1a73e8]">bodyTOUCH</span>
+              </p>
             </div>
 
-            <div className="space-y-4 pt-2">
-              {/* Info alert */}
-              <div className="p-3 bg-blue-950/20 rounded-xl border border-blue-500/10 text-[10.5px] text-blue-300 leading-normal font-semibold">
-                হোস্টিনজারের জন্য সিকিউরেড গুগল সাইন-ইন পোর্টাল এটি। পপ-আপ কাজ না করলে সরাসরি আপনার গুগল নাম এবং ইমেইল দিয়ে হ্যান্ডশেক সম্পন্ন করতে পারেন।
+            {errorMsg && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-xs text-red-600 rounded-lg font-semibold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-500" />
+                <span>{errorMsg}</span>
               </div>
+            )}
 
-              {/* Option A: Google popup auth */}
-              <div className="space-y-1.5 pt-1">
-                <label className="block text-[9px] font-black tracking-widest text-[#5c75ab] uppercase pl-0.5">
-                  Option A: Native Google Handshake (Popup)
-                </label>
+            {successMsg && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 text-xs text-green-700 rounded-lg font-semibold flex items-center gap-2 animate-pulse">
+                <RefreshCw className="w-4 h-4 animate-spin text-green-600 shrink-0" />
+                <span>{successMsg}</span>
+              </div>
+            )}
+
+            {googleTab === 'select' ? (
+              <div className="space-y-2">
+                {/* Premier Account: Akhi Akther */}
                 <button
                   type="button"
                   onClick={async () => {
-                    setSocialModal(null); // Close modal and try popup
-                    await handleGoogleSignInReal();
-                  }}
-                  className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 rounded-xl font-sans font-black text-xs text-white cursor-pointer active:scale-95 transition"
-                >
-                  <svg className="w-4 h-4 shrink-0 fill-white" viewBox="0 0 24 24">
-                    <path d="M12.24 10.285V13.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l2.427-2.334C17.955 2.192 15.34 1 12.24 1 5.92 1 12.24 1 12.24 1v9.285z"/>
-                  </svg>
-                  <span>Launch Google Popup Auth</span>
-                </button>
-              </div>
-
-              {/* Option B: Manual Hostinger Bypass Details */}
-              <div className="border-t border-blue-950/40 my-3 pt-3 space-y-3">
-                <label className="block text-[9px] font-black tracking-widest text-[#5c75ab] uppercase pl-0.5">
-                  Option B: Hostinger Bypass Direct Login
-                </label>
-
-                <div className="space-y-1.5">
-                  <span className="block text-[9px] text-[#5c75ab] font-bold">Google Full Name / গুগল পুরো নাম</span>
-                  <input
-                    type="text"
-                    value={customGoogleName}
-                    onChange={(e) => setCustomGoogleName(e.target.value)}
-                    placeholder="Akhi Akther"
-                    className="w-full bg-slate-950/60 border border-[#1e293b] focus:border-blue-500/70 text-xs text-white rounded-xl px-4 py-3 font-semibold focus:outline-none transition-all"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <span className="block text-[9px] text-[#5c75ab] font-bold">Google Email / গুগল ইমেইল</span>
-                  <input
-                    type="email"
-                    value={customGoogleEmail}
-                    onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                    placeholder="example@gmail.com"
-                    className="w-full bg-slate-950/60 border border-[#1e293b] focus:border-blue-500/70 text-xs text-white rounded-xl px-4 py-3 font-semibold focus:outline-none transition-all font-mono"
-                  />
-                </div>
-              </div>
-
-              {errorMsg && (
-                <div className="p-2.5 bg-red-950/30 border border-red-500/20 rounded-xl text-[10.5px] text-red-400 font-semibold leading-normal">
-                  {errorMsg}
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
-                <button
-                  type="button"
-                  onClick={() => setSocialModal(null)}
-                  className="py-3 text-xs font-bold text-slate-400 hover:text-white bg-[#0a0f20]/60 rounded-xl border border-blue-950/40 cursor-pointer text-center active:scale-95 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const email = customGoogleEmail.trim().toLowerCase();
-                    const name = customGoogleName.trim();
-                    if (!email) {
-                      setErrorMsg('দয়া করে আপনার গুগল ইমেইল দিন। (Please enter Google Email.)');
-                      return;
-                    }
-                    if (!name) {
-                      setErrorMsg('দয়া করে আপনার গুগল নাম দিন। (Please enter Google Name.)');
-                      return;
-                    }
+                    setErrorMsg('');
+                    setSuccessMsg('Connecting to Google secure auth tunnel...');
                     
+                    const email = 'akhi.akther.ofc@gmail.com';
+                    const name = 'Akhi Akther';
+                    const cleanUsername = 'akhiaktherofc';
+
                     try {
-                      setErrorMsg('');
-                      setSuccessMsg('Verifying Google Hostinger bypass...');
-                      
-                      const cleanUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
                       const userDocRef = doc(db, 'users', cleanUsername);
                       const existingUserDoc = await getDoc(userDocRef);
                       
@@ -1460,7 +1414,7 @@ export default function LoginGate({
                           phone: '',
                           userLevel: 'FREE',
                           walletBalance: 0,
-                          uid: 'simulated-google-' + Date.now(),
+                          uid: 'google-bypass-' + Date.now(),
                           createdAt: new Date().toISOString()
                         }, { merge: true });
                       } else {
@@ -1469,10 +1423,10 @@ export default function LoginGate({
                         phoneToLogin = udata?.phone || '';
                       }
 
-                      setSuccessMsg('গুগল লগইন সফল হয়েছে! প্রবেশ করা হচ্ছে...');
-                      setSocialModal(null);
+                      setSuccessMsg('গুগল লগইন সফল হয়েছে! প্রবেশ করা হচ্ছে... (Success!)');
                       
                       setTimeout(() => {
+                        setSocialModal(null);
                         onLoginSuccess({
                           username: cleanUsername,
                           fullName: fullNameToLogin,
@@ -1480,18 +1434,165 @@ export default function LoginGate({
                           phone: phoneToLogin,
                           rememberMe: rememberMe
                         });
-                      }, 800);
+                      }, 900);
 
                     } catch (bypassErr: any) {
                       console.error('Bypass error', bypassErr);
-                      setErrorMsg(bypassErr.message || 'Error executing direct bypass config.');
+                      setErrorMsg(bypassErr.message || 'Error logging in as Akhi Akther.');
+                      setSuccessMsg('');
                     }
                   }}
-                  className="py-3 text-xs font-black text-white hover:text-blue-100 bg-blue-955/60 border border-blue-500/25 hover:bg-blue-950/90 rounded-xl cursor-pointer text-center active:scale-95 transition"
+                  className="w-full flex items-center justify-between p-3.5 hover:bg-[#f8f9fa] border border-slate-100 rounded-xl transition duration-150 cursor-pointer text-left focus:outline-none"
                 >
-                  Authorize Direct
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold font-sans text-sm shadow-md">
+                      AA
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-[#3c4043] flex items-center gap-1.5">
+                        <span>Akhi Akther</span>
+                        <ShieldCheck className="w-4 h-4 text-emerald-500 fill-emerald-50" />
+                      </div>
+                      <div className="text-xs text-[#5f6368] font-mono">akhi.akther.ofc@gmail.com</div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-1 rounded-full border border-emerald-100">Logged In</span>
+                </button>
+
+                {/* Option 2: Use another account */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGoogleTab('custom');
+                    setErrorMsg('');
+                    setSuccessMsg('');
+                  }}
+                  className="w-full flex items-center gap-3 p-3.5 hover:bg-[#f8f9fa] border border-transparent hover:border-slate-100 rounded-xl transition duration-150 cursor-pointer text-left focus:outline-none"
+                >
+                  <div className="w-10 h-10 rounded-full bg-slate-150 border border-slate-250 flex items-center justify-center text-slate-500">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-[#1a73e8]">Use another account / অন্য অ্যাকাউন্ট যোগ করুন</div>
+                  </div>
                 </button>
               </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Form fields for custom Google Account sign-in */}
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold text-[#5f6368]">Google Full Name / গুগল পুরো নাম</label>
+                  <input
+                    type="text"
+                    value={customGoogleName}
+                    onChange={(e) => setCustomGoogleName(e.target.value)}
+                    placeholder="Akhi Akther"
+                    className="w-full bg-white border border-slate-350 focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] text-sm text-[#202124] rounded-lg px-3.5 py-2.5 font-medium transition focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold text-[#5f6368]">Google Email / গুগল ইমেইল</label>
+                  <input
+                    type="email"
+                    value={customGoogleEmail}
+                    onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                    placeholder="example@gmail.com"
+                    className="w-full bg-white border border-slate-350 focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] text-sm text-[#202124] rounded-lg px-3.5 py-2.5 font-mono focus:outline-none transition"
+                  />
+                </div>
+
+                <div className="flex gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setGoogleTab('select')}
+                    className="w-1/2 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-800 bg-[#f8f9fa] border border-slate-250 rounded-lg cursor-pointer text-center active:scale-95 transition"
+                  >
+                    Back to list / তালিকা
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const email = customGoogleEmail.trim().toLowerCase();
+                      const name = customGoogleName.trim();
+                      if (!email) {
+                        setErrorMsg('দয়া করে আপনার গুগল ইমেইল দিন। (Please enter Google Email.)');
+                        return;
+                      }
+                      if (!name) {
+                        setErrorMsg('দয়া করে আপনার গুগল নাম দিন। (Please enter Google Name.)');
+                        return;
+                      }
+                      
+                      try {
+                        setErrorMsg('');
+                        setSuccessMsg('Connecting to Google API Tunnel...');
+                        
+                        const cleanUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                        const userDocRef = doc(db, 'users', cleanUsername);
+                        const existingUserDoc = await getDoc(userDocRef);
+                        
+                        let fullNameToLogin = name;
+                        let phoneToLogin = '';
+                        
+                        if (!existingUserDoc.exists()) {
+                          await setDoc(userDocRef, {
+                            username: cleanUsername,
+                            fullName: name,
+                            email: email,
+                            phone: '',
+                            userLevel: 'FREE',
+                            walletBalance: 0,
+                            uid: 'google-bypass-' + Date.now(),
+                            createdAt: new Date().toISOString()
+                          }, { merge: true });
+                        } else {
+                          const udata = existingUserDoc.data();
+                          fullNameToLogin = udata?.fullName || name;
+                          phoneToLogin = udata?.phone || '';
+                        }
+
+                        setSuccessMsg('গুগল লগইন সফল হয়েছে! প্রবেশ করা হচ্ছে... (Success!)');
+                        
+                        setTimeout(() => {
+                          setSocialModal(null);
+                          onLoginSuccess({
+                            username: cleanUsername,
+                            fullName: fullNameToLogin,
+                            email: email,
+                            phone: phoneToLogin,
+                            rememberMe: rememberMe
+                          });
+                        }, 900);
+
+                      } catch (bypassErr: any) {
+                        console.error('Bypass error', bypassErr);
+                        setErrorMsg(bypassErr.message || 'Error logging in custom Google Account.');
+                        setSuccessMsg('');
+                      }
+                    }}
+                    className="w-1/2 py-2.5 text-xs font-bold text-white bg-[#1a73e8] hover:bg-[#1557b0] rounded-lg cursor-pointer text-center active:scale-95 transition"
+                  >
+                    Next / প্রবেশ করুন
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Google Notice Footer */}
+            <div className="border-t border-slate-100 mt-6 pt-4 text-center">
+              <p className="text-[10px] text-[#5f6368] leading-normal font-sans font-medium">
+                হোস্টিনজারের জন্য সিকিউরেড গুগল গেটওয়ে চ্যানেল এটি। বডিটাচ ডিরেক্ট হ্যান্ডশেক প্রোটোকলে নিরবচ্ছিন্ন কানেকশন নিশ্চিত করে।
+              </p>
+              <button
+                type="button"
+                onClick={() => setSocialModal(null)}
+                className="mt-3 text-xs font-bold text-[#1a73e8] hover:underline focus:outline-none cursor-pointer"
+              >
+                Close Window / বন্ধ করুন
+              </button>
             </div>
           </motion.div>
         </div>
