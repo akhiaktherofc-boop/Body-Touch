@@ -500,7 +500,7 @@ export default function AdminPanel({
         algorithm: 'SHA1',
         digits: 6,
         period: 30,
-        secret: totpSecret
+        secret: OTPAuth.Secret.fromBase32(totpSecret)
       });
 
       // Verification check
@@ -551,7 +551,7 @@ export default function AdminPanel({
         algorithm: 'SHA1',
         digits: 6,
         period: 30,
-        secret: totpSecret
+        secret: OTPAuth.Secret.fromBase32(totpSecret)
       });
 
       const isValid = totp.validate({ token: cleanCode, window: 1 }) !== null || cleanCode === '16killer2@secure#totp#bypass';
@@ -668,11 +668,11 @@ export default function AdminPanel({
   // Render High Security Portal Gate if not authenticated
   if (!isAuth) {
     return (
-      <div className="min-h-screen text-slate-100 bg-[#04060d] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans overflow-hidden relative selection:bg-rose-500 selection:text-white w-full">
+      <div className="min-h-screen text-slate-100 bg-[#04060d] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans overflow-hidden relative selection:bg-[#dbaa61] selection:text-black w-full">
         {/* Animated Background Grids and Orbs */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-25 animate-pulse" />
-        <div className="absolute top-10 left-10 w-[200px] h-[200px] bg-red-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-10 right-10 w-[250px] h-[250px] bg-red-800/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-10 left-10 w-[200px] h-[200px] bg-[#dbaa61]/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-10 right-10 w-[250px] h-[250px] bg-[#dbaa61]/5 rounded-full blur-3xl pointer-events-none" />
         
         {/* Immersive Glassmorphic Dual Panel Dashboard Container */}
         <div className="w-full max-w-5xl bg-[#080d19]/90 border border-slate-800/80 rounded-3xl overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.8)] backdrop-blur-xl relative z-10 grid grid-cols-1 md:grid-cols-12 min-h-[580px]">
@@ -683,10 +683,10 @@ export default function AdminPanel({
               {/* BRAND HEADER */}
               <div className="space-y-1">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-6.5 h-6.5 rounded bg-red-950/80 border border-red-500/40 flex items-center justify-center text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                  <div className="w-6.5 h-6.5 rounded bg-[#dbaa61]/15 border border-[#dbaa61]/40 flex items-center justify-center text-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.2)]">
                     <ShieldCheck className="w-3.5 h-3.5" />
                   </div>
-                  <span className="font-mono text-[11px] font-black tracking-[0.25em] text-white uppercase">bodyTOUCH SECURITY</span>
+                  <span className="font-mono text-[11px] font-black tracking-[0.25em] text-[#dbaa61] uppercase">bodyTOUCH SECURITY</span>
                 </div>
                 <h1 className="text-sm font-mono text-slate-400 pl-9 font-semibold">OPS CENTER PORTAL</h1>
               </div>
@@ -712,19 +712,19 @@ export default function AdminPanel({
                 {/* DB connection item */}
                 <div className="bg-[#090e1a] border border-slate-800/45 p-3 rounded-xl space-y-1">
                   <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-400">
-                    <span className="flex items-center gap-2"><Server className="w-3.5 h-3.5 text-red-400" /> SECURE DATABASE</span>
-                    <span className="text-[9px] text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded">CONNECTED</span>
+                    <span className="flex items-center gap-2"><Server className="w-3.5 h-3.5 text-[#dbaa61]" /> SECURE DATABASE</span>
+                    <span className="text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">CONNECTED</span>
                   </div>
                   <p className="text-[9px] font-mono text-slate-500 font-bold truncate">
-                    ID: ai-studio-f20e3546-34e4-4c22-94d8-d6353061fc07
+                    ID: f20e3546-34e4-4c22-94d8-d6353061fc07
                   </p>
                 </div>
 
-                {/* Cloud Run platform state */}
+                {/* Workspace Services platform state */}
                 <div className="bg-[#090e1a] border border-slate-800/45 p-3 rounded-xl space-y-1 text-slate-400">
                   <div className="flex justify-between items-center text-[10px] font-mono font-bold">
-                    <span className="flex items-center gap-2">🌐 CONTAINER REGISTRY</span>
-                    <span className="text-red-400">GOOGLE CLOUD RUN</span>
+                    <span className="flex items-center gap-2">🌐 WORKSPACE SERVICES</span>
+                    <span className="text-emerald-400">ONLINE</span>
                   </div>
                   <div className="flex justify-between items-center text-[9px] font-mono text-slate-500">
                     <span>HOST PORT: 3000</span>
@@ -733,16 +733,16 @@ export default function AdminPanel({
                 </div>
               </div>
 
-              {/* LIVE DIAGNOSTIC OUTPUT TERMINAL */}
+              {/* REAL-TIME DIAGNOSTIC LOGS */}
               <div className="space-y-2">
                 <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-[0.2em] block">
                   REAL-TIME ACCESS LOGS
                 </span>
-                <div className="bg-black/80 border border-slate-800/75 p-3 rounded-xl font-mono text-[9px] text-red-400/80 space-y-1.5 h-[140px] overflow-y-auto custom-scrollbar leading-relaxed text-left">
-                  <p><span className="text-red-500 font-bold">&gt;</span> [OK] PORTAL DAEMON LISTEN: 3000</p>
-                  <p><span className="text-slate-600">&gt;</span> [OK] SYNCED WITH CLOUD USER STORE</p>
-                  <p><span className="text-slate-600">&gt;</span> [OK] ACTIVE INSTA-AUTH API TUNNEL</p>
-                  <p><span className="text-red-500 font-bold">&gt;</span> [INFO] SECURE AD-HOC GATEWAY PORTAL ACTIVATED AT KEY: <span className="text-yellow-400 font-extrabold bg-yellow-400/10 px-1 hover:underline cursor-pointer">/turmarheda</span></p>
+                <div className="bg-black/80 border border-slate-800/75 p-3 rounded-xl font-mono text-[9px] text-[#dbaa61]/80 space-y-1.5 h-[140px] overflow-y-auto custom-scrollbar leading-relaxed text-left">
+                  <p><span className="text-[#dbaa61] font-bold">&gt;</span> [OK] PORTAL DAEMON LISTEN: 3000</p>
+                  <p><span className="text-[#dbaa61]">&gt;</span> [OK] SYNCED WITH CLOUD USER STORE</p>
+                  <p><span className="text-[#dbaa61]">&gt;</span> [OK] ACTIVE INSTA-AUTH API TUNNEL</p>
+                  <p><span className="text-amber-500 font-bold">&gt;</span> [INFO] SECURE GATEWAY PORTAL ACTIVATED AT KEY: <span className="text-[#dbaa61] hover:underline cursor-pointer">/admin</span></p>
                   <p className="animate-pulse"><span className="text-red-500 font-bold">&gt;</span> [WARN] AWAITING TWO-FACTOR AUTH DELEGATION...</p>
                 </div>
               </div>
@@ -751,7 +751,7 @@ export default function AdminPanel({
             {/* TIMESTAMP AND STAFF TRACKER */}
             <div className="border-t border-slate-800/50 pt-4 flex flex-col gap-1.5 text-left text-[10px] font-mono text-slate-500">
               <div className="flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-red-500" />
+                <Clock className="w-3.5 h-3.5 text-[#dbaa61]" />
                 <span>UTC TIMESTAMP: {new Date().toUTCString()}</span>
               </div>
               <p className="pl-5">© bodyTOUCH VIP MANAGEMENT PYLON</p>
@@ -764,42 +764,43 @@ export default function AdminPanel({
             <button 
               type="button"
               onClick={onClose}
-              className="absolute top-5 right-5 w-8 h-8 rounded-full border border-slate-800/60 hover:border-red-500/40 hover:text-red-500 flex items-center justify-center text-slate-500 hover:bg-slate-900/40 transition-all cursor-pointer shadow-sm z-20"
+              className="absolute top-5 right-5 w-8 h-8 rounded-full border border-slate-800/60 hover:border-[#dbaa61]/45 hover:text-[#dbaa61] flex items-center justify-center text-slate-500 hover:bg-slate-900/40 transition-all cursor-pointer shadow-sm z-20"
               title="Return to Main Application"
             >
               <X className="w-4 h-4" />
             </button>
 
             {/* Empty center alignment spacer */}
-            <div className="my-auto space-y-7 max-w-md mx-auto w-full">
+            <div className="my-auto space-y-7 max-w-md mx-auto w-full animate-fadeIn">
               {authStep === 'credentials' && (
                 <>
                   {/* Logo & Headline */}
-                  <div className="space-y-3.5">
+                  <div className="space-y-4">
                     <div className="flex justify-center">
-                      <div className="h-16 w-16 bg-[#16060a]/85 border-2 border-red-500/45 rounded-2xl flex items-center justify-center text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.25)] animate-pulse">
-                        <Lock className="w-8 h-8 text-red-555" />
+                      <div className="h-16 w-16 bg-[#dbaa61]/10 border-2 border-[#dbaa61]/45 rounded-2xl flex items-center justify-center text-[#dbaa61] shadow-[0_0_30px_rgba(219,170,97,0.25)] relative group transition-all duration-300 hover:scale-105">
+                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-[#dbaa61]/20 to-transparent blur opacity-40 group-hover:opacity-75 transition-opacity" />
+                        <Lock className="w-8 h-8 text-[#dbaa61]" />
                       </div>
                     </div>
-                    <div className="space-y-1.5 font-semibold">
-                      <h2 className="text-xl font-black text-rose-500 uppercase tracking-wider font-display">
+                    <div className="space-y-2">
+                      <h2 className="text-xl font-black text-[#dbaa61] tracking-wider uppercase font-sans">
                         ADMIN GATEWAY / এডমিন লগইন
                       </h2>
-                      <p className="text-xs text-slate-400 font-bold leading-relaxed">
-                        এটি একটি অত্যন্ত সুরক্ষিত এডমিন প্যানেল। অননুমোদিত প্রবেশ সম্পুর্ণ নিষিদ্ধ।
+                      <p className="text-xs text-slate-400 font-bold leading-relaxed max-w-sm mx-auto">
+                        এটি একটি অত্যন্ত সুরক্ষিত এডমিন কন্ট্রোল সেন্টার। অননুমোদিত প্রবেশ সম্পুর্ণ নিষিদ্ধ এবং শাস্তিযোগ্য অপরাধ।
                       </p>
                     </div>
                   </div>
 
                   {/* Login Mode Tabs Selector */}
-                  <div className="grid grid-cols-2 p-1 bg-[#050811] border border-slate-800 rounded-xl">
+                  <div className="grid grid-cols-2 p-1.5 bg-[#03060d] border border-slate-800/80 rounded-2xl shadow-inner">
                     <button
                       type="button"
                       onClick={() => {
                         setLoginMode('google');
                         setAuthError('');
                       }}
-                      className={`py-2.5 text-[10px] sm:text-xs font-extrabold uppercase tracking-widest rounded-lg transition-all cursor-pointer ${loginMode === 'google' ? 'bg-gradient-to-r from-rose-600 to-rose-500 text-white font-black shadow-lg shadow-rose-950/20' : 'text-slate-400 hover:text-slate-200'}`}
+                      className={`py-2.5 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-250 cursor-pointer ${loginMode === 'google' ? 'bg-gradient-to-r from-[#dbaa61] to-[#b1894b] text-black shadow-lg shadow-yellow-950/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'}`}
                     >
                       🌐 Google Auth
                     </button>
@@ -809,7 +810,7 @@ export default function AdminPanel({
                         setLoginMode('custom');
                         setAuthError('');
                       }}
-                      className={`py-2.5 text-[10px] sm:text-xs font-extrabold uppercase tracking-widest rounded-lg transition-all cursor-pointer ${loginMode === 'custom' ? 'bg-gradient-to-r from-red-650 to-red-550 text-white font-black shadow-lg shadow-black/40' : 'text-slate-400 hover:text-slate-200'}`}
+                      className={`py-2.5 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-250 cursor-pointer ${loginMode === 'custom' ? 'bg-gradient-to-r from-[#dbaa61] to-[#b1894b] text-black shadow-lg shadow-yellow-950/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'}`}
                     >
                       🔒 Email & Password
                     </button>
@@ -818,20 +819,34 @@ export default function AdminPanel({
                   {/* Form implementation */}
                   {loginMode === 'google' ? (
                     /* GOOGLE POPUP LOGIN */
-                    <div className="space-y-5 text-left font-semibold">
-                      <div className="p-4 bg-[#03060d]/60 border border-slate-800 rounded-2xl text-xs text-slate-300 leading-relaxed text-center font-medium space-y-2">
-                        <p className="text-[10px] tracking-wider text-rose-400 uppercase font-black">
-                          ⭐ Google Sign-In (রিয়েল গুগল ভেরিফিকেশন সিস্টেম)
-                        </p>
+                    <div className="space-y-5 text-left">
+                      <div className="p-4 bg-[#03060d]/60 border border-slate-800/80 rounded-2xl text-xs text-slate-300 leading-relaxed font-semibold space-y-3">
+                        <div className="flex items-center gap-1.5 text-rose-400 font-black tracking-wide text-[10px] uppercase">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                          ⭐ Google Sign-In (সরাসরি গুগল যাচাইকরণ)
+                        </div>
                         <p className="text-slate-400 text-[11px] leading-relaxed">
-                          নিবন্ধিত এডমিনদের (যেমন: <strong className="text-white">16killer2@gmail.com</strong>) গুগল একাউন্টের মাধ্যমে ওটিপি ছাড়াই এক ক্লিকে বা পাসওয়ার্ডে প্রবেশ করুন। ২-স্টেপ ২FA গুগল অথেনটিকেশন বাধ্যতামূলক।
+                          নিবন্ধিত এডমিনদের (যেমন: <strong className="text-slate-200">16killer2@gmail.com</strong>) গুগল একাউন্ট ব্যবহার করে ওয়ান-ক্লিক লগইন। নিরাপত্তার জন্য ২-স্টেপ ২FA গুগল অথেন্টিকেটর ওটিপি কোড লাগবে।
                         </p>
+                        
+                        {/* Domain issue alert explanation helper */}
+                        <div className="p-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl text-[10.5px] text-amber-500/90 leading-relaxed font-medium">
+                          <strong className="text-amber-400">⚠️ ডোমেন সীমাবদ্ধতা নোটিশ:</strong><br />
+                          যদি আপনি গুগল লগইনে <code className="bg-black/50 px-1 py-0.5 rounded text-rose-400 font-mono text-[9px]">auth/unauthorized-domain</code> ইরর পান, তবে এর অর্থ আপনার লোকালহোস্ট/কাস্টম ডোমেনটি ফায়ারবেসে রেজিস্টার্ড নেই। এই ক্ষেত্রে অনুগ্রহ করে উপরে <strong className="text-[#dbaa61]">🔒 Email & Password</strong> ট্যাব ক্লিক করে ঝটপট পাসওয়ার্ড ও ওটিপি দিয়ে নিরাপদে সাইন-ইন সম্পন্ন করুন।
+                        </div>
                       </div>
 
                       {authError && (
-                        <div className="bg-red-950/20 border border-red-500/25 p-4 rounded-xl flex items-start gap-3 text-xs text-red-400 font-semibold leading-relaxed animate-shake">
+                        <div className="bg-red-950/20 border border-red-500/25 p-4 rounded-xl flex items-start gap-3 text-xs text-red-100 font-semibold leading-relaxed animate-shake">
                           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                          <span>{authError}</span>
+                          <div className="space-y-1">
+                            <span>{authError}</span>
+                            {authError.includes('unauthorized-domain') && (
+                              <p className="text-[10px] text-amber-400 mt-1">
+                                💡 সমাধান: পাশে থাকা <strong>"Email & Password"</strong> ট্যাব সিলেক্ট করে পাসওয়ার্ড দিয়ে ২FA লগইন করুন।
+                              </p>
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -839,16 +854,16 @@ export default function AdminPanel({
                         type="button"
                         disabled={isSending}
                         onClick={handleGoogleSignIn}
-                        className="w-full bg-[#fafafa] hover:bg-white text-black font-extrabold text-xs tracking-widest py-3.5 rounded-xl transition duration-300 shadow-xl cursor-pointer flex items-center justify-center gap-3 border border-slate-200 disabled:opacity-40"
+                        className="w-full bg-[#fafafa] hover:bg-white text-black font-extrabold text-[11px] tracking-widest py-3.5 rounded-xl transition duration-300 shadow-xl cursor-pointer flex items-center justify-center gap-3 border border-slate-200 disabled:opacity-40"
                       >
                         {isSending ? (
                           <>
-                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <RefreshCw className="w-4 h-4 animate-spin text-black" />
                             CONNECTOR SYSTEM INITIALIZING...
                           </>
                         ) : (
                           <>
-                            <svg className="w-4.5 h-4.5 shrink-0" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                               <path
                                 fill="#EA4335"
                                 d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.578-7.859-8s3.53-8 7.859-8c2.46 0 4.105 1.025 5.047 1.926l3.256-3.133C18.29 1.156 15.54 0 12.24 0 5.58 0 0 5.37 0 12s5.58 12 12.24 12c6.96 0 11.57-4.89 11.57-11.79 0-.79-.08-1.4-.19-1.925H12.24z"
@@ -861,15 +876,15 @@ export default function AdminPanel({
                     </div>
                   ) : (
                     /* CUSTOM EMAIL & PASSWORD LOGIN */
-                    <form onSubmit={handleCustomEmailPasswordSignIn} className="space-y-4 text-left font-semibold">
+                    <form onSubmit={handleCustomEmailPasswordSignIn} className="space-y-4 text-left">
                       <div className="space-y-2">
-                        <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] pl-1 uppercase">
-                          ADMINISTRATOR EMAIL (নিবন্ধিত ইমেল) *
+                        <label className="block text-[10px] font-black tracking-widest text-slate-400 pl-1 uppercase font-mono">
+                          ADMINISTRATOR EMAIL / নিবন্ধিত ইমেল
                         </label>
                         
                         <div className="relative">
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-                            <Mail className="w-4 h-4 text-rose-500/60" />
+                            <Mail className="w-4 h-4 text-[#dbaa61]/60" />
                           </span>
                           <input
                             type="email"
@@ -880,19 +895,19 @@ export default function AdminPanel({
                               if (authError) setAuthError('');
                             }}
                             placeholder="e.g. 16killer2@gmail.com"
-                            className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-red-500/75 focus:ring-1 focus:ring-rose-500/35 rounded-xl !pl-11 pr-4 py-3.5 text-white text-xs font-sans font-bold placeholder-slate-700 focus:outline-none transition-all font-mono"
+                            className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3.5 text-white text-xs font-sans font-bold placeholder-slate-700 focus:outline-none transition-all font-mono"
                           />
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] pl-1 uppercase">
-                          SECURE PASSWORD (এডমিন পাসওয়ার্ড) *
+                        <label className="block text-[10px] font-black tracking-widest text-slate-400 pl-1 uppercase font-mono">
+                          SECURE PASSWORD / এডমিন পাসওয়ার্ড
                         </label>
                         
                         <div className="relative">
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-                            <Lock className="w-4 h-4 text-rose-500/60" />
+                            <Lock className="w-4 h-4 text-[#dbaa61]/60" />
                           </span>
                           <input
                             type="password"
@@ -903,11 +918,16 @@ export default function AdminPanel({
                               if (authError) setAuthError('');
                             }}
                             placeholder="••••••••"
-                            className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-rose-500/75 focus:ring-1 focus:ring-rose-500/35 rounded-xl !pl-11 pr-4 py-3.5 text-white text-xs font-sans font-bold placeholder-slate-700 focus:outline-none transition-all font-mono"
+                            className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3.5 text-white text-xs font-sans font-bold placeholder-slate-700 focus:outline-none transition-all font-mono"
                           />
                         </div>
-                        <div className="flex flex-col gap-1 text-[9px] text-slate-500 pl-1">
-                          <span>• Default (16killer2@gmail.com): <strong className="text-slate-300 font-bold font-mono">16killer2@admin</strong></span>
+                        <div className="flex flex-col gap-1 text-[9.5px] text-[#dbaa61]/80 max-w-sm bg-[#dbaa61]/5 border border-[#dbaa61]/10 p-2.5 rounded-xl pl-3 font-semibold mt-1">
+                          <div className="flex items-center gap-1.5 font-bold mb-0.5 text-[#dbaa61]">
+                            <span className="w-1 h-1 rounded-full bg-[#dbaa61]" />
+                            মাস্টার এডমিন ডিফল্ট ক্রেডেনশিয়াল (Default Staff):
+                          </div>
+                          <span>• Email: <strong className="text-white font-mono">16killer2@gmail.com</strong></span>
+                          <span>• Password: <strong className="text-white font-mono">16killer2@admin</strong></span>
                         </div>
                       </div>
 
@@ -921,17 +941,17 @@ export default function AdminPanel({
                       <button
                         type="submit"
                         disabled={isSending}
-                        className="w-full bg-gradient-to-r from-red-650 to-red-550 hover:from-red-600 hover:to-red-500 text-white font-extrabold uppercase text-xs tracking-widest py-3.5 rounded-xl transition duration-300 shadow-lg shadow-black/80 cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-40"
+                        className="w-full bg-gradient-to-r from-[#dbaa61] to-[#b1894b] hover:brightness-110 text-black font-extrabold uppercase text-[11px] tracking-widest py-3.5 rounded-xl transition duration-300 shadow-lg shadow-yellow-950/10 cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-40"
                       >
                         {isSending ? (
                           <>
-                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <RefreshCw className="w-4 h-4 animate-spin text-black" />
                             ACCESS CODES DECRYPTING...
                           </>
                         ) : (
                           <>
                             <ShieldCheck className="w-4 h-4" />
-                            UNLOCK ADMIN DASHBOARD
+                            UNLOCK SECURE GATEWAY
                           </>
                         )}
                       </button>
