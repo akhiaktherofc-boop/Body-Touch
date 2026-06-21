@@ -19,13 +19,7 @@ import {
   ArrowLeft,
   RefreshCw
 } from 'lucide-react';
-import { auth, db } from '../firebase';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup 
-} from 'firebase/auth';
+import { db } from '../firebase';
 import { 
   doc, 
   getDoc, 
@@ -180,106 +174,6 @@ export default function LoginGate({
     }
   };
 
-  const handleGoogleSignInReal = async () => {
-    setErrorMsg('');
-    setSuccessMsg('');
-
-    try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
-
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      if (!user.email) {
-        throw new Error('Google Account has no email address.');
-      }
-
-      const googleEmail = user.email;
-      const googleName = user.displayName || googleEmail.split('@')[0];
-      const cleanUsername = googleEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-
-      // Check if user document already exists in Firestore 'users' collection
-      const userDocRef = doc(db, 'users', cleanUsername);
-      const existingUserDoc = await getDoc(userDocRef);
-      let fullNameToLogin = googleName;
-      let phoneToLogin = '';
-      let savedTelegramId = '';
-
-      if (!existingUserDoc.exists()) {
-        // Create new user record
-        await setDoc(userDocRef, {
-          username: cleanUsername,
-          fullName: googleName,
-          email: googleEmail.toLowerCase(),
-          phone: '',
-          userLevel: 'FREE',
-          walletBalance: 0,
-          uid: user.uid,
-          createdAt: new Date().toISOString()
-        }, { merge: true });
-      } else {
-        const udata = existingUserDoc.data();
-        fullNameToLogin = udata.fullName || googleName;
-        phoneToLogin = udata.phone || '';
-        savedTelegramId = udata.telegramId || '';
-      }
-
-      if (false) {
-        if (telegramSendTarget === 'client' && !savedTelegramId && !signInTelegramId.trim()) {
-          setErrorMsg('আপনার অ্যাকাউন্টের সাথে কোনো টেলিগ্রাম চ্যাট আইডি যুক্ত নেই! দয়া করে নিচে সাধারণ লগইন ফর্মে ‘Telegram Chat ID’ ইনপুট বক্সে আপনার চ্যাট আইডি নম্বরটি প্রদান করে পুনরায় গুগল দিয়ে লগইন চাপুন। @userinfobot থেকে চ্যাট আইডি পেতে পারেন।');
-          return;
-        }
-
-        const activeTelegramId = signInTelegramId.trim() || savedTelegramId;
-
-        // If they provided a raw input, update profile to save it for future logins
-        if (signInTelegramId.trim() && existingUserDoc.exists()) {
-          await setDoc(userDocRef, { telegramId: signInTelegramId.trim() }, { merge: true });
-        }
-
-        setSuccessMsg('Google authentication successful! Verifying identity via Telegram... (গুগল সাইন-ইন সফল হয়েছে!)');
-
-        const code = generateNumericOTP();
-        setGeneratedOtp(code);
-        setPendingCredentials({
-          type: 'signin',
-          username: cleanUsername,
-          fullName: fullNameToLogin,
-          email: googleEmail,
-          phone: phoneToLogin || 'N/A',
-          telegramId: activeTelegramId,
-          rememberMe: rememberMe
-        });
-        setShowOtpScreen(true);
-        await executeSendTelegramOtp(`GOOGLE SIGNIN (${cleanUsername})`, code, phoneToLogin || 'N/A', activeTelegramId);
-      } else {
-        setSuccessMsg('গুগল সাইন-ইন সফল হয়েছে! প্রবেশ করা হচ্ছে... (Google authentication successful! Redirecting...)');
-
-        setTimeout(() => {
-          onLoginSuccess({
-            username: cleanUsername,
-            fullName: fullNameToLogin,
-            email: googleEmail,
-            phone: phoneToLogin,
-            rememberMe: rememberMe
-          });
-        }, 1200);
-      }
-
-    } catch (err: any) {
-      console.error('[Google Auth Error]', err);
-      if (err.code === 'auth/popup-closed-by-user') {
-        setErrorMsg('আপনি গুগল অথরাইজেশন উইন্ডোটি বন্ধ করে দিয়েছেন। (Sign-in popup closed by user.)');
-      } else if (err.code === 'auth/cancelled-popup-request') {
-        setErrorMsg('পূর্ববর্তী গুগল প্রমাণীকরণ চেষ্টা বাতিল করা হয়েছে। (Previous popup sign-in request cancelled.)');
-      } else {
-        setErrorMsg(err.message || 'গুগল সাইন-ইন করতে একটি ত্রুটি ঘটেছে! (An error occurred during Google Sign-In.)');
-      }
-    }
-  };
 
   const handleInstagramSignInExact = async (instaUser: string, fromAppLaunch: boolean = false) => {
     setErrorMsg('');

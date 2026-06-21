@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc, getDocFromServer } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { db } from '../firebase';
 import * as OTPAuth from 'otpauth';
 import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel } from '../types';
 import { clearCollection } from '../services/cloudService';
@@ -606,42 +605,6 @@ export default function AdminPanel({
       setIsSending(false);
     }
   };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      setIsSending(true);
-      setAuthError('');
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
-      
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      
-      if (!user || !user.email) {
-        throw new Error('গুগল থেকে কোনো ভ্যালিড ইমেল পাওয়া যায়নি।');
-      }
-
-      const normalizedEmail = user.email.trim().toLowerCase();
-      const isAllowed = adminEmails.some(a => a.email.toLowerCase() === normalizedEmail);
-
-      if (isAllowed) {
-        await checkAndProceedTOTP(normalizedEmail);
-      } else {
-        setAuthError(`অ্যাক্সেস অস্বীকৃত! এই গুগল অ্যাকাউন্ট (${user.email}) পোর্টালের অনুমোদিত এডমিন তালিকায় নিবন্ধিত নয়।`);
-        await auth.signOut();
-      }
-    } catch (err: any) {
-      console.error('[Google Admin Auth Error]', err);
-      let errorMsg = err.message || String(err);
-      if (errorMsg.includes('auth/popup-blocked')) {
-        errorMsg = 'পপআপ লক অবরুদ্ধ হয়েছে। অনুগ্রহ করে ব্রাউজারের পপ-আপ সেটিংস আনলক করুন এবং আবার চেষ্টা করুন।';
-      }
-      setAuthError(`গুগল লগইন করতে সমস্যা হয়েছে: ${errorMsg}`);
-    } finally {
-      setIsSending(false);
-    }
-  };
-
   const handleCustomEmailPasswordSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     const normalizedEmail = adminEmail.trim().toLowerCase();
@@ -1537,12 +1500,7 @@ export default function AdminPanel({
           </div>
           <button
             type="button"
-            onClick={async () => {
-              try {
-                await auth.signOut();
-              } catch (e) {
-                console.warn("Firebase signout error:", e);
-              }
+            onClick={() => {
               sessionStorage.removeItem('metro_maa_admin_auth');
               setIsAuth(false);
             }}
