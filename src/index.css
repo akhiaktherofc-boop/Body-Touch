@@ -442,4 +442,13 @@ input:focus, textarea:focus, select:focus {
   animation-play-state: paused !important;
 }
 
+/* Beautiful Premium Golden Shimmering Border Animation matching other app gold animations */
+.golden-animated-border {
+  position: relative;
+  border: 1.5px solid rgba(255, 166, 0, 0.5) !important;
+  box-shadow: 0 25px 65px rgba(0, 0, 0, 0.99), 0px 0px 14px rgba(255, 166, 0, 0.22);
+  animation: borderPulseGold 3.5s infinite ease-in-out !important;
+}
+
+
 

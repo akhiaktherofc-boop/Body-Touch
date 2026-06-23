@@ -103,6 +103,7 @@ export interface EmailLog {
 export interface PaymentRecord {
   id: string;
   username: string;
+  email?: string;
   tierName: string;
   price: string;
   method: string; // Changed from 'BKASH' | 'NAGAD' | 'ROCKET' | 'System Init' to string for dynamic support
@@ -160,4 +161,15 @@ export interface WithdrawalRecord {
   date: string;
   status: 'Pending' | 'Approved' | 'Rejected';
 }
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string; // ISO String
+  type: 'info' | 'success' | 'alert' | 'booking' | 'system';
+  isRead?: boolean;
+  username?: string; // Target specific user, or empty for global
+}
+
 

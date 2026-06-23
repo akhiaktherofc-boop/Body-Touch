@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { doc, getDoc, setDoc, deleteDoc, getDocFromServer } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, getDocFromServer, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import * as OTPAuth from 'otpauth';
 import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel } from '../types';
@@ -230,11 +230,247 @@ export default function AdminPanel({
 
   const [editableNotice, setEditableNotice] = useState(emergencyNotice);
 
+  // SMTP Settings States
+  const [smtpHost, setSmtpHost] = useState('smtp.gmail.com');
+  const [smtpPort, setSmtpPort] = useState('587');
+  const [smtpUser, setSmtpUser] = useState('');
+  const [smtpPass, setSmtpPass] = useState('');
+  const [smtpSecure, setSmtpSecure] = useState(false);
+  const [smtpFromEmail, setSmtpFromEmail] = useState('');
+  const [smtpSaveSuccess, setSmtpSaveSuccess] = useState(false);
+  const [smtpSaveError, setSmtpSaveError] = useState('');
+
+  useEffect(() => {
+    const fetchSmtpSettings = async () => {
+      let loaded = false;
+      try {
+        const docSnap = await getDoc(doc(db, 'settings', 'smtp_settings'));
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.host) setSmtpHost(data.host);
+          if (data.port) setSmtpPort(data.port);
+          if (data.user) setSmtpUser(data.user);
+          if (data.pass) setSmtpPass(data.pass);
+          if (data.secure !== undefined) setSmtpSecure(data.secure);
+          if (data.fromEmail) setSmtpFromEmail(data.fromEmail);
+          loaded = true;
+        }
+      } catch (e) {
+        console.warn('[AdminPanel] Failed to fetch SMTP settings from Firestore:', e);
+      }
+
+      if (!loaded) {
+        try {
+          const res = await fetch('/api/get-smtp-settings');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.host) setSmtpHost(data.host);
+            if (data.port) setSmtpPort(String(data.port));
+            if (data.user) setSmtpUser(data.user);
+            if (data.pass) setSmtpPass(data.pass);
+            if (data.secure !== undefined) setSmtpSecure(data.secure === true || data.secure === "true");
+            if (data.fromEmail) setSmtpFromEmail(data.fromEmail);
+          }
+        } catch (err) {
+          console.error('[AdminPanel] Fallback fetch from get-smtp-settings failed:', err);
+        }
+      }
+    };
+    fetchSmtpSettings();
+  }, []);
+
+  const handleSaveSmtpSettings = async () => {
+    setSmtpSaveError('');
+    setSmtpSaveSuccess(false);
+    if (!smtpUser.trim() || !smtpPass.trim()) {
+      setSmtpSaveError('ইমেইল এবং পাসওয়ার্ড অবশ্যই প্রদান করতে হবে! (Email and Password are required.)');
+      return;
+    }
+    try {
+      await setDoc(doc(db, 'settings', 'smtp_settings'), {
+        host: smtpHost.trim(),
+        port: smtpPort.trim(),
+        user: smtpUser.trim(),
+        pass: smtpPass.trim(),
+        secure: smtpSecure,
+        fromEmail: smtpFromEmail.trim() || smtpUser.trim(),
+        verificationForLogin: true,
+        verificationForRegister: true,
+      }, { merge: true });
+
+      // Synchronize with the backend local cache file
+      try {
+        await fetch('/api/save-smtp-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            host: smtpHost.trim(),
+            port: smtpPort.trim(),
+            user: smtpUser.trim(),
+            pass: smtpPass.trim(),
+            secure: smtpSecure,
+            fromEmail: smtpFromEmail.trim() || smtpUser.trim()
+          })
+        });
+      } catch (backErr) {
+        console.warn('Failed to sync SMTP settings to backend local file:', backErr);
+      }
+
+      setSmtpSaveSuccess(true);
+      setTimeout(() => setSmtpSaveSuccess(false), 3000);
+    } catch (e: any) {
+      setSmtpSaveError(e.message || 'সেভ করতে ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
+    }
+  };
+
   useEffect(() => {
     if (emergencyNotice) {
       setEditableNotice(emergencyNotice);
     }
   }, [emergencyNotice]);
+
+  // Hero Carousel Graphic Banner Manager States
+  const [sliderSlides, setSliderSlides] = useState<any[]>([]);
+  const [slideId, setSlideId] = useState<string | number>('');
+  const [slideTitle, setSlideTitle] = useState('');
+  const [slideSubtitle, setSlideSubtitle] = useState('');
+  const [slideBadge, setSlideBadge] = useState('');
+  const [slideBadgeColor, setSlideBadgeColor] = useState('from-pink-500 to-rose-600');
+  const [slideIconName, setSlideIconName] = useState('star');
+  const [slideImage, setSlideImage] = useState('');
+  const [isEditingSlide, setIsEditingSlide] = useState(false);
+  const [sliderStatusMsg, setSliderStatusMsg] = useState('');
+
+  // Subscribe to real-time hero slides configurations in Admin Panel
+  useEffect(() => {
+    const docRef = doc(db, 'settings', 'hero_slides');
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.slides && Array.isArray(data.slides)) {
+          setSliderSlides(data.slides);
+        } else {
+          setSliderSlides([]);
+        }
+      } else {
+        setSliderSlides([]);
+      }
+    }, (err) => {
+      console.warn('Real-time slides load issue inside Admin:', err);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSaveSlide = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!slideImage.trim()) {
+      alert("বাধ্যতামূলক: স্লাইড বা ব্যানারের একটি সঠিক ছবির লিঙ্ক (Photo URL) দিন।");
+      return;
+    }
+    if (!slideTitle.trim()) {
+      alert("বাধ্যতামূলক: স্লাইডের প্রধান লেখা বা টাইটেল (Title) দিন।");
+      return;
+    }
+
+    try {
+      setSliderStatusMsg('স্লাইড ডাটাবেজে আপডেট হচ্ছে...');
+      let updatedSlides = [...sliderSlides];
+
+      if (isEditingSlide) {
+        // Edit mode
+        updatedSlides = updatedSlides.map(s => {
+          if (s.id === slideId) {
+            return {
+              id: s.id,
+              image: slideImage.trim(),
+              title: slideTitle.trim(),
+              subtitle: slideSubtitle.trim(),
+              badge: slideBadge.trim() || 'PROMO',
+              badgeColor: slideBadgeColor,
+              iconName: slideIconName
+            };
+          }
+          return s;
+        });
+      } else {
+        // Add new mode
+        const newSlide = {
+          id: 'slide_' + Date.now(),
+          image: slideImage.trim(),
+          title: slideTitle.trim(),
+          subtitle: slideSubtitle.trim(),
+          badge: slideBadge.trim() || 'PROMO',
+          badgeColor: slideBadgeColor,
+          iconName: slideIconName
+        };
+        updatedSlides.push(newSlide);
+      }
+
+      // Save list to database document settings/hero_slides
+      await setDoc(doc(db, 'settings', 'hero_slides'), { slides: updatedSlides }, { merge: true });
+
+      // Clean form state
+      setSlideId('');
+      setSlideTitle('');
+      setSlideSubtitle('');
+      setSlideBadge('');
+      setSlideBadgeColor('from-pink-500 to-rose-600');
+      setSlideIconName('star');
+      setSlideImage('');
+      setIsEditingSlide(false);
+      setSliderStatusMsg('সফলভাবে স্লাইড তথ্যটি ডাটাবেজে সেভ হয়েছে!');
+      setTimeout(() => setSliderStatusMsg(''), 4000);
+    } catch (err: any) {
+      console.error(err);
+      alert('স্লাইড সেভ করতে সমস্যা হয়েছে: ' + err.message);
+      setSliderStatusMsg('');
+    }
+  };
+
+  const handleDeleteSlide = async (idToDelete: string | number) => {
+    const confirmDelete = window.confirm("আপনি কি নিশ্চিতভাবে এই ছবির স্লাইডটি ডিলিট করতে চান?");
+    if (!confirmDelete) return;
+
+    try {
+      setSliderStatusMsg('স্লাইড ডিলিট হচ্ছে...');
+      const updatedSlides = sliderSlides.filter(s => s.id !== idToDelete);
+      await setDoc(doc(db, 'settings', 'hero_slides'), { slides: updatedSlides }, { merge: true });
+      setSliderStatusMsg('সফলভাবে স্লাইডটি সরানো হয়েছে!');
+      setTimeout(() => setSliderStatusMsg(''), 4000);
+    } catch (err: any) {
+      console.error(err);
+      alert('ডিলিট ব্যর্থ হয়েছে: ' + err.message);
+      setSliderStatusMsg('');
+    }
+  };
+
+  const handleEditSlideClick = (slide: any) => {
+    // Scroll to form nicely
+    const element = document.getElementById('slide-form-anchor');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+    setSlideId(slide.id);
+    setSlideTitle(slide.title);
+    setSlideSubtitle(slide.subtitle);
+    setSlideBadge(slide.badge);
+    setSlideBadgeColor(slide.badgeColor);
+    setSlideIconName(slide.iconName || 'star');
+    setSlideImage(slide.image);
+    setIsEditingSlide(true);
+  };
+
+  const handleCancelSlideEdit = () => {
+    setSlideId('');
+    setSlideTitle('');
+    setSlideSubtitle('');
+    setSlideBadge('');
+    setSlideBadgeColor('from-pink-500 to-rose-600');
+    setSlideIconName('star');
+    setSlideImage('');
+    setIsEditingSlide(false);
+  };
+
 
   const handleClearClientAccounts = async () => {
     const confirmClear = window.confirm(
@@ -4380,9 +4616,7 @@ export default function AdminPanel({
                 </div>
               </div>
 
-              {/* Telegram Notification Engine replaces SMTP/Email system */}
-
-              {/* Input forms for Telegram Notification Bot */}
+              {/* Telegram Notification Bot Card */}
               <div className="p-4.5 bg-[#14151e] rounded-2xl border border-indigo-500/10 space-y-4">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-black uppercase text-indigo-400 flex items-center gap-2">
@@ -4391,7 +4625,7 @@ export default function AdminPanel({
                   </h4>
                 </div>
                 <p className="text-slate-400 text-xs leading-relaxed">
-                  Configure your primary Telegram Bot credentials, Admin Group Chat ID, and the support Helpline handle below. In case of lost/damaged accounts, you can instantly add/save or remove credentials to keep system notification channels secure and completely organized.
+                  Configure your primary Telegram Bot credentials, Admin Group Chat ID, and the support Helpline handle below. In case of lost/damaged accounts, you can instantly add/save or remove credentials to keep system notification channels secure and completely organized. (OTP Verification is completely handled by the Email SMS Gateway).
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold">
@@ -4437,148 +4671,6 @@ export default function AdminPanel({
                     />
                   </div>
                 </div>
-
-                {/* 2FA Telegram Toggle Section */}
-                <div className="bg-[#0b1022] border border-[#1b254b]/60 rounded-2xl p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-1">
-                  <div className="space-y-1">
-                    <h5 className="text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 font-mono">
-                      <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                      2-Step Telegram OTP Verification (২-স্টেপ ভেরিফিকেশন সিস্টেম)
-                    </h5>
-                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                      যখন এটি সক্রিয় (ENABLED) থাকবে, ব্যবহারকারীদের লগইন এবং অ্যাকাউন্ট খোলার জন্য অবশ্যই টেলিগ্রাম বটের মাধ্যমে পাওয়া ৬ সংখ্যার ওটিপি কোড দিয়ে ভেরিফাই করতে হবে। নিষ্ক্রিয় (DISABLED) থাকলে এটি সরাসরি বাইপাস হয়ে যাবে।
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg border ${telegram2FAEnabled ? 'bg-cyan-950/40 text-cyan-400 border-cyan-550/30' : 'bg-slate-900 text-slate-500 border-slate-800'}`}>
-                      {telegram2FAEnabled ? 'ACTIVE (সক্রিয়)' : 'DISABLED (বন্ধ)'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onSetTelegram2FAEnabled?.(!telegram2FAEnabled)}
-                      className={`relative inline-flex h-6.5 w-12 items-center rounded-full transition-colors duration-200 cursor-pointer focus:outline-none ${
-                        telegram2FAEnabled ? 'bg-gradient-to-r from-cyan-500 to-blue-500' : 'bg-slate-800'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4.5 w-4.5 transform rounded-full bg-white transition-transform duration-200 ${
-                          telegram2FAEnabled ? 'translate-x-[22px]' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                {/* OTP Dispatch Destination Selection */}
-                {telegram2FAEnabled && (
-                  <div className="space-y-4">
-                    {/* Bot Selector */}
-                    <div className="bg-[#0b1022] border border-[#1b254b]/60 rounded-2xl p-4.5 space-y-3.5 text-left">
-                      <div className="space-y-1">
-                        <h5 className="text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 font-mono animate-fade-in">
-                          <Bot className="w-4 h-4 text-indigo-400" />
-                          Verification Sender Bot (কোড প্রেরক বট নির্ধারণ)
-                        </h5>
-                        <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                          লগইন এবং রেজিস্ট্রেশন ভেরিফিকেশন করার জন্য কোন বট থেকে ওটিপি কোডটি পাঠানো হবে তা নির্বাচন করুন।
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-                        {/* Option 1: Built-in Default Bot */}
-                        <button
-                          type="button"
-                          onClick={() => onSetTelegramBotSelection?.('default')}
-                          className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
-                            telegramBotSelection === 'default'
-                              ? 'bg-gradient-to-r from-indigo-950/40 to-blue-950/40 border-indigo-500/50 text-white shadow-lg shadow-indigo-500/10'
-                              : 'bg-black/30 border-[#1f2642] text-slate-400 hover:text-white hover:border-[#2f3961]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <Bot className={`w-4 h-4 ${telegramBotSelection === 'default' ? 'text-indigo-400' : 'text-slate-500'}`} />
-                            <span className="text-xs font-black uppercase tracking-wider font-mono">Default Body Touch Bot</span>
-                          </div>
-                          <p className="text-[9px] text-slate-400 font-bold mt-1.5 leading-normal">
-                            ডিসপ্যাচের জন্য সিস্টেমের আগে থেকে সেট করা অফিশিয়াল সিকিউরিটি চ্যাট বট ব্যবহার করা হবে। (আপনাকে নিজস্ব টোকেন দিতে হবে না)
-                          </p>
-                        </button>
-
-                        {/* Option 2: Custom Bot */}
-                        <button
-                          type="button"
-                          onClick={() => onSetTelegramBotSelection?.('custom')}
-                          className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
-                            telegramBotSelection === 'custom'
-                              ? 'bg-gradient-to-r from-cyan-950/40 to-teal-950/40 border-cyan-500/50 text-white shadow-lg shadow-cyan-500/10'
-                              : 'bg-black/30 border-[#1f2642] text-slate-400 hover:text-white hover:border-[#2f3961]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <Cpu className={`w-4 h-4 ${telegramBotSelection === 'custom' ? 'text-cyan-400' : 'text-slate-500'}`} />
-                            <span className="text-xs font-black uppercase tracking-wider font-mono">My Custom Bot</span>
-                          </div>
-                          <p className="text-[9px] text-slate-400 font-bold mt-1.5 leading-normal">
-                            উপরে আপনার দেওয়া 'Telegram Bot Token' চ্যাট বটটি দিয়ে ওটিপি পাঠানো হবে। (আপনার নিজস্ব ব্যক্তিগত ব্র্যান্ডিং বট)
-                          </p>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Dispatch Destination Selection */}
-                    <div className="bg-[#0b1022] border border-[#1b254b]/60 rounded-2xl p-4.5 space-y-3.5 text-left">
-                      <div className="space-y-1">
-                        <h5 className="text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 font-mono animate-fade-in">
-                          <Send className="w-4 h-4 text-cyan-400" />
-                          OTP Dispatch Target (কোড কোথায় পাঠানো হবে)
-                        </h5>
-                        <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                          ব্যবহারকারী যখন লগইন বা রেজিস্ট্রেশন করতে যাবে, কোডটি কি এডমিনের নির্দিষ্ট গ্রুপে যাবে নাকি সরাসরি গ্রাহকের টেলিগ্রাম আইডিতে পাঠানো হবে?
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-                        {/* Option 1: Admin Group */}
-                        <button
-                          type="button"
-                          onClick={() => onSetTelegramSendTarget?.('group')}
-                          className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
-                            telegramSendTarget === 'group'
-                              ? 'bg-gradient-to-r from-blue-950/40 to-indigo-950/40 border-blue-500/50 text-white'
-                              : 'bg-black/30 border-[#1f2642] text-slate-400 hover:text-white hover:border-[#2f3961]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <Users className={`w-4 h-4 ${telegramSendTarget === 'group' ? 'text-blue-400' : 'text-slate-500'}`} />
-                            <span className="text-xs font-black uppercase tracking-wider font-mono">Admin Group (গ্রুপে কোড যাবে)</span>
-                          </div>
-                          <p className="text-[9px] text-slate-400 font-bold mt-1.5 leading-normal">
-                            কোডটি আপনার উপরে দেওয়া নির্দিষ্ট 'Telegram Group Chat ID' তে পাঠানো হবে। গ্রাহক সেখান থেকে জেনে নিবে। (Default)
-                          </p>
-                        </button>
-
-                        {/* Option 2: Client Direct Chat */}
-                        <button
-                          type="button"
-                          onClick={() => onSetTelegramSendTarget?.('client')}
-                          className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
-                            telegramSendTarget === 'client'
-                              ? 'bg-gradient-to-r from-cyan-950/40 to-teal-950/40 border-cyan-500/50 text-white'
-                              : 'bg-black/30 border-[#1f2642] text-slate-400 hover:text-white hover:border-[#2f3961]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <MessageSquare className={`w-4 h-4 ${telegramSendTarget === 'client' ? 'text-cyan-400' : 'text-slate-500'}`} />
-                            <span className="text-xs font-black uppercase tracking-wider font-mono">Client Private Chat (গ্রাহকের নিজস্ব চ্যাটে)</span>
-                          </div>
-                          <p className="text-[9px] text-slate-400 font-bold mt-1.5 leading-normal">
-                            গ্রাহকের নিজস্ব টেলিগ্রাম চ্যাট আইডিতে (Chat ID) কোড পাঠানো হবে। গ্রাহককে রেজিস্ট্রেশনের সময় চ্যাট আইডি অবশ্যই প্রদান করতে হবে।
-                          </p>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* BOT & HELPLINE ADD/REMOVE CONTROL BUTTONS */}
                 <div className="flex flex-wrap gap-2.5 pt-1">
@@ -4629,11 +4721,196 @@ export default function AdminPanel({
                   <p>
                     ৩. কোনো মডেল বুকিং রিকোয়েস্ট দিলে কাস্টমার ডিটেইলস সহ নোটিফিকেশন স্বয়ংক্রিয়ভাবে উক্ত এডমিন গ্রুপে চলে যাবে।
                   </p>
+                </div>
+              </div>
+
+              {/* SMTP Email SMS Gateway Settings */}
+              <div className="p-4.5 bg-[#14151e] rounded-2xl border border-teal-500/10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase text-teal-400 flex items-center gap-2">
+                    <Mail className="w-4 h-4 animate-pulse" />
+                    SMTP / Email SMS Gateway Settings (এসএমএস ও ইমেইল ভেরিফিকেশন গেটওয়ে)
+                  </h4>
+                  {smtpSaveSuccess && (
+                    <motion.span
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider font-mono flex items-center gap-1"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Saved & Synced!
+                    </motion.span>
+                  )}
+                </div>
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  Configure your primary SMTP Server credentials to send secure verification OTP emails (SMS equivalents) to users during login and registration. Verification is locked to <strong className="text-teal-400">MUST (বাধ্যতামূলক)</strong> for absolute portal security.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold">
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
+                      SMTP Host (ইমেইল হোস্ট)
+                    </label>
+                    <input
+                      type="text"
+                      value={smtpHost}
+                      onChange={(e) => setSmtpHost(e.target.value)}
+                      placeholder="e.g. smtp.gmail.com"
+                      className="w-full bg-black/40 border border-[#232733] focus:border-teal-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
+                      SMTP Port (ইমেইল পোর্ট)
+                    </label>
+                    <input
+                      type="text"
+                      value={smtpPort}
+                      onChange={(e) => setSmtpPort(e.target.value)}
+                      placeholder="e.g. 587"
+                      className="w-full bg-black/40 border border-[#232733] focus:border-teal-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
+                      Sender Name (প্রেরকের নাম)
+                    </label>
+                    <input
+                      type="text"
+                      value={smtpFromEmail}
+                      onChange={(e) => setSmtpFromEmail(e.target.value)}
+                      placeholder="e.g. BODY TOUCH Security"
+                      className="w-full bg-black/40 border border-[#232733] focus:border-teal-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono text-cyan-400">
+                      <Lock className="w-3.5 h-3.5 text-cyan-500" />
+                      SMTP User Email (ইউজার ইমেইল)
+                    </label>
+                    <input
+                      type="email"
+                      value={smtpUser}
+                      onChange={(e) => setSmtpUser(e.target.value)}
+                      placeholder="e.g. yoursecuregmail@gmail.com"
+                      className="w-full bg-black/40 border border-[#232733] focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono text-cyan-400">
+                      <Lock className="w-3.5 h-3.5 text-cyan-500" />
+                      SMTP App Password (সিকিউর পাসওয়ার্ড)
+                    </label>
+                    <input
+                      type="password"
+                      value={smtpPass}
+                      onChange={(e) => setSmtpPass(e.target.value)}
+                      placeholder="e.g. abcd efgh ijkl mnop"
+                      className="w-full bg-black/40 border border-[#232733] focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 bg-[#0b1022] border border-[#1b254b]/60 rounded-2xl p-4.5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                    <span>Login & Registration Email Verifications: <b>ENFORCED / MUST (বাধ্যতামূলক সক্রিয়)</b></span>
+                  </div>
+                </div>
+
+                {smtpSaveError && (
+                  <div className="text-xs text-rose-450 font-semibold bg-rose-950/20 border border-rose-500/20 p-3 rounded-xl">
+                    ⚠️ {smtpSaveError}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleSaveSmtpSettings}
+                    className="bg-[#0f766e] hover:bg-[#0d9488] text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg active:scale-98"
+                  >
+                    <Save className="w-4 h-4 text-white" />
+                    Save SMTP Configuration (গেটওয়ে সেভ করুন)
+                  </button>
+                </div>
+
+                <div className="p-3 bg-[#0a0c14] border border-blue-500/5 rounded-xl text-[10px] text-slate-400 leading-relaxed font-sans font-medium space-y-1">
                   <p>
-                    ৪. কোনো কাস্টমার পোর্টালে সাবস্ক্রিপশন নিলে বা কোনো মডেল জয়েন হলে সরাসরি হেল্পলাইন বাটনটি দেখতে পাবেন।
+                    ⚠️ <b>জিমেইল (Gmail) এসএমএস ওটিপি গেটওয়ে নির্দেশাবলী:</b>
+                  </p>
+                  <p>
+                    ১. আপনার জিমেইল অ্যাকাউন্টে প্রবেশ করে <b>2-Step Verification</b> চালু করুন।
+                  </p>
+                  <p>
+                    ২. 2-Step Verification পেজের নিচের অংশে <b>App Passwords</b> এ গিয়ে একটি নতুন অ্যাপ পাসওয়ার্ড জেনারেট করুন।
+                  </p>
+                  <p>
+                    ৩. সেখান থেকে প্রাপ্ত ১৬ অক্ষরের সিকিউর কোডটি উপরে <b>SMTP App Password</b> এর ঘরে বসিয়ে দিয়ে সেভ করুন।
                   </p>
                 </div>
               </div>
+
+
+              {/* SMTP Email Queue Logs Panel */}
+              <div className="p-4.5 bg-[#14151e] rounded-2xl border border-blue-500/10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase text-blue-400 flex items-center gap-2 font-mono">
+                    <Mail className="w-4 h-4 text-blue-500" />
+                    SMTP Live Email Queue Logs (সিস্টেম ইমেইল লগ)
+                  </h4>
+                  {emailLogs.length > 0 && (
+                    <button
+                      onClick={onClearEmailLogs}
+                      className="text-[10px] font-bold uppercase tracking-wider text-rose-500 hover:text-rose-400 flex items-center gap-1 bg-rose-500/10 hover:bg-rose-500/15 border border-rose-550/20 px-2.5 py-1 rounded-lg transition-all duration-200 cursor-pointer"
+                    >
+                      Clear Logs (মুছে ফেলুন)
+                    </button>
+                  )}
+                </div>
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  The system dispatches live emails for user verification (OTP), booking alerts, membership billing, and wallet updates. You can audit all outgoing notifications and delivery states here in real-time.
+                </p>
+
+                {emailLogs.length === 0 ? (
+                  <div className="text-center py-8 bg-black/20 rounded-xl border border-dashed border-slate-800">
+                    <p className="text-slate-500 text-xs font-mono">No email queue dispatches recorded yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                    {emailLogs.map((log) => (
+                      <div key={log.id} className="p-3.5 bg-black/30 rounded-xl border border-[#232733] hover:border-slate-800 transition-all duration-250 text-xs space-y-2">
+                        <div className="flex items-start justify-between gap-2 flex-wrap sm:flex-nowrap">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-slate-200">{log.to}</span>
+                              <span className={`text-[8.5px] font-mono px-1.5 py-0.5 rounded border ${
+                                log.status === 'Delivered' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                log.status === 'Pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse' :
+                                'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                              }`}>
+                                {log.status === 'Delivered' ? '🟢 DELIVERED' : log.status === 'Pending' ? '⏳ PENDING' : '🔴 FAILED'}
+                              </span>
+                            </div>
+                            <p className="text-slate-400 font-medium text-[11px]">{log.subject}</p>
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-mono shrink-0">
+                            {new Date(log.sentAt).toLocaleString('en-US', { hour12: true, month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })}
+                          </span>
+                        </div>
+                        <div className="p-2.5 bg-black/40 rounded-lg text-[11px] text-slate-400 leading-relaxed font-mono whitespace-pre-wrap max-h-36 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 select-all border border-slate-900">
+                          {log.body}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
 
               {/* Emergency Booking Notice & Slider Text Control Panel */}
               <div className="p-4.5 bg-[#14151e] rounded-2xl border border-rose-500/10 space-y-4">
@@ -4667,22 +4944,260 @@ export default function AdminPanel({
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (onSaveEmergencyNotice) {
-                        await onSaveEmergencyNotice(editableNotice);
-                      } else {
-                        alert("✅ Temporary local update successful!");
-                      }
-                    }}
-                    className="bg-rose-600 hover:bg-rose-550 text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg shadow-rose-600/10 active:scale-98"
-                  >
-                    <Save className="w-4 h-4 text-white" />
-                    Save & Update Announcement Text
-                  </button>
+              </div>
+
+              {/* HIGH-FIDELITY DYNAMIC HERO CAROUSEL GRAPHIC MANAGER */}
+              <div className="p-4.5 bg-[#14151e] rounded-2xl border border-amber-500/10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase text-amber-500 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                    Manage Hero Slides & Graphics (হিরো স্লাইডার ও ব্যানার ম্যানেজার)
+                  </h4>
+                  <span className="text-[10px] bg-amber-500/10 border border-amber-500/20 text-amber-400 py-1 px-2.5 rounded-lg font-black font-mono">
+                    ACTIVE: {sliderSlides.length || 3} SLIDES
+                  </span>
                 </div>
+                
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  আপনার হোমপেজের গোল্ডেন অ্যানিমেটেড স্লাইডারের (Golden Border Slider) ব্যানার, ছবি, বড় টাইটেল এবং সব-টাইটেল এখান থেকে পরিবর্তন করুন। কোনো কাস্টম স্লাইড অ্যাড না থাকলে পূর্বনির্ধারিত ৩টি প্রিমিয়াম স্লাইড স্বয়ংক্রিয়ভাবে দেখাবে।
+                </p>
+
+                {sliderStatusMsg && (
+                  <div className="p-3 bg-emerald-900/30 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl font-medium animate-pulse flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>{sliderStatusMsg}</span>
+                  </div>
+                )}
+
+                {/* List of currently active slides */}
+                <div className="space-y-2.5 pt-1.5">
+                  <span className="block text-[10px] font-black uppercase text-slate-400 tracking-wider font-mono">
+                    📋 Active Banner Slides in Carousel ({sliderSlides.length === 0 ? "Default/পূর্বনির্ধারিত" : "Customized/কাস্টম"})
+                  </span>
+
+                  {sliderSlides.length === 0 ? (
+                    <div className="p-4 bg-black/40 border border-[#232733] border-dashed rounded-xl text-center text-slate-500 text-xs">
+                      বর্তমানে কোনো কাস্টম স্লাইড তৈরি করা নেই। সিস্টেমের ডিফল্ট ৩টি স্লাইডার ইমেজ ও জরুরি নোটিশ দেখাচ্ছে। নিচের ফর্ম থেকে আপনার কাস্টম স্লাইডার যুক্ত করুন।
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {sliderSlides.map((slide, index) => (
+                        <div 
+                          key={slide.id || index}
+                          className="flex items-start gap-3 p-3 bg-black/50 border border-[#232733] rounded-xl hover:border-amber-500/20 transition-all group"
+                        >
+                          {/* Slide Image thumbnail */}
+                          <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-slate-900 border border-slate-800">
+                            <img 
+                              src={slide.image} 
+                              alt="slide preview" 
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150';
+                              }}
+                            />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                              <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded text-white bg-gradient-to-r ${slide.badgeColor || 'from-pink-500 to-rose-600'}`}>
+                                {slide.badge}
+                              </span>
+                              <span className="text-[9px] text-slate-500 font-mono">#{index + 1}</span>
+                            </div>
+                            <h5 className="text-[11.5px] font-black text-white truncate">{slide.title}</h5>
+                            <p className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">{slide.subtitle}</p>
+                            
+                            {/* Actions bar */}
+                            <div className="flex items-center gap-2 mt-2 pt-1.5 border-t border-slate-900">
+                              <button
+                                type="button"
+                                onClick={() => handleEditSlideClick(slide)}
+                                className="text-[9px] font-black uppercase tracking-wider text-cyan-400 hover:text-cyan-300 flex items-center gap-1 bg-cyan-950/20 px-2 py-1 rounded border border-cyan-800/20 cursor-pointer"
+                              >
+                                <Edit className="w-2.5 h-2.5" />
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSlide(slide.id)}
+                                className="text-[9px] font-black uppercase tracking-wider text-rose-400 hover:text-rose-350 flex items-center gap-1 bg-rose-950/20 px-2 py-1 rounded border border-rose-800/20 cursor-pointer"
+                              >
+                                <Trash2 className="w-2.5 h-2.5" />
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div id="slide-form-anchor" className="h-[1px] bg-slate-900 my-1" />
+
+                {/* Form to Add or Edit Slides */}
+                <form onSubmit={handleSaveSlide} className="p-4 bg-black/40 border border-[#232733] rounded-xl space-y-3">
+                  <span className="block text-[10px] font-black uppercase text-amber-400 tracking-widest font-mono">
+                    {isEditingSlide ? "⚙️ Edit Selected Slide Properties (স্লাইড এডিট করুন)" : "➕ Add New Slide/Announcement Graphics (নতুন স্লাইড যোগ করুন)"}
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {/* Title input */}
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Slide Title Text (স্লাইডের টাইটেল) *</label>
+                      <input 
+                        type="text"
+                        required
+                        value={slideTitle}
+                        onChange={(e) => setSlideTitle(e.target.value)}
+                        placeholder="e.g. Premium Escorts & Models / ডল হসপিটাল অফারস"
+                        className="w-full bg-black/40 border border-[#2c3142] focus:border-amber-500 rounded-lg px-3 py-2 text-white font-sans text-xs focus:outline-none placeholder-slate-700"
+                      />
+                    </div>
+
+                    {/* Subtitle input */}
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Subtitle Detail Text (বিস্তারিত বা সবটাইটেল)</label>
+                      <input 
+                        type="text"
+                        value={slideSubtitle}
+                        onChange={(e) => setSlideSubtitle(e.target.value)}
+                        placeholder="e.g. Explore the finest elite model companionship services in Dhaka."
+                        className="w-full bg-black/40 border border-[#2c3142] focus:border-amber-500 rounded-lg px-3 py-2 text-white font-sans text-xs focus:outline-none placeholder-slate-700"
+                      />
+                    </div>
+
+                    {/* Badge text input */}
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Badge Label Text (ছোট ব্যানার লেখা)</label>
+                      <input 
+                        type="text"
+                        value={slideBadge}
+                        onChange={(e) => setSlideBadge(e.target.value)}
+                        placeholder="e.g. FEATURED DISPATCH / HOT DEAL / 100% SECURE"
+                        className="w-full bg-black/40 border border-[#2c3142] focus:border-amber-500 rounded-lg px-3 py-2 text-white font-sans text-xs focus:outline-none placeholder-slate-700"
+                      />
+                    </div>
+
+                    {/* Icon picker */}
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Icon representation (আইকন টাইপ)</label>
+                      <select
+                        value={slideIconName}
+                        onChange={(e) => setSlideIconName(e.target.value)}
+                        className="w-full bg-[#10121a] border border-[#2c3142] focus:border-amber-500 rounded-lg px-3 py-2 text-white font-sans text-xs focus:outline-none"
+                      >
+                        <option value="star">★ Golden Star (সোনালী তারা)</option>
+                        <option value="bell">🔔 Warning/Info Bell (ঘণ্টা - এনিমেশন)</option>
+                        <option value="shield">🛡️ Secure Shield (সিকিউরিটি শিল্ড)</option>
+                        <option value="heart">💖 Red Heart (লাভ আইকন - এনিমেশন)</option>
+                        <option value="users">👥 Companion Partners (ইউজার পার্টনারস)</option>
+                        <option value="trophy">🏆 Premium Elite Trophy (ট্রফি আইকন)</option>
+                      </select>
+                    </div>
+
+                    {/* Badge Color preset selection */}
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Badge Gradient Color (ব্যাজ কালার স্কিম)</label>
+                      <select
+                        value={slideBadgeColor}
+                        onChange={(e) => setSlideBadgeColor(e.target.value)}
+                        className="w-full bg-[#10121a] border border-[#2c3142] focus:border-amber-500 rounded-lg px-3 py-2 text-white font-sans text-xs focus:outline-none"
+                      >
+                        <option value="from-pink-500 to-rose-600">Rose/Pink (গোলাপী-লাল)</option>
+                        <option value="from-amber-400 to-red-650">Amber/Orange-Red (আগুনের মত কমলা)</option>
+                        <option value="from-cyan-500 to-blue-600">Ocean Cyan/Blue (নীল-আকাশী)</option>
+                        <option value="from-emerald-500 to-teal-700">Emerald/Teal Green (সবুজ)</option>
+                        <option value="from-purple-500 to-indigo-650">Cosmic Purple (বেগুনী)</option>
+                      </select>
+                    </div>
+
+                    {/* Image URL input */}
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Hero Photo Banner URL (ছবির ওয়েব লিংক) *</label>
+                      <input 
+                        type="url"
+                        required
+                        value={slideImage}
+                        onChange={(e) => setSlideImage(e.target.value)}
+                        placeholder="e.g. https://images.unsplash.com/... or paste link"
+                        className="w-full bg-black/40 border border-[#2c3142] focus:border-amber-500 rounded-lg px-3 py-2 text-white font-sans text-xs focus:outline-none placeholder-slate-700"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Highly supportive Premium Unsplash Image Presets for rapid UX */}
+                  <div className="bg-[#10121a] p-3 rounded-xl border border-slate-800/60 mt-1">
+                    <span className="block text-[9px] font-bold text-amber-500/90 uppercase tracking-wider mb-2 font-mono">
+                      ✨ Click one premium preset to instantly import Photo URL (প্রিমিয়াম ছবি সিলেক্ট করুন):
+                    </span>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSlideImage('https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=1000')}
+                        className="p-1 px-1.5 bg-black/50 border border-slate-800 hover:border-amber-500/40 text-left rounded-lg text-[9px] text-slate-400 hover:text-white truncate flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <span className="w-5 h-5 rounded overflow-hidden shrink-0 block bg-slate-900">
+                          <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=50" className="w-full h-full object-cover" />
+                        </span>
+                        Elite Asian Model
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSlideImage('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=1000')}
+                        className="p-1 px-1.5 bg-black/50 border border-slate-800 hover:border-amber-500/40 text-left rounded-lg text-[9px] text-slate-400 hover:text-white truncate flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <span className="w-5 h-5 rounded overflow-hidden shrink-0 block bg-slate-900">
+                          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50" className="w-full h-full object-cover" />
+                        </span>
+                        Aesthetic Close-Up
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSlideImage('https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=1000')}
+                        className="p-1 px-1.5 bg-black/50 border border-slate-800 hover:border-amber-500/40 text-left rounded-lg text-[9px] text-slate-400 hover:text-white truncate flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <span className="w-5 h-5 rounded overflow-hidden shrink-0 block bg-slate-900">
+                          <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=50" className="w-full h-full object-cover" />
+                        </span>
+                        Luxury Hotel Suite
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSlideImage('https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&q=80&w=1000')}
+                        className="p-1 px-1.5 bg-black/50 border border-slate-800 hover:border-amber-500/40 text-left rounded-lg text-[9px] text-slate-400 hover:text-white truncate flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <span className="w-5 h-5 rounded overflow-hidden shrink-0 block bg-slate-900">
+                          <img src="https://images.unsplash.com/photo-1582719508461-905c673771fd?w=50" className="w-full h-full object-cover" />
+                        </span>
+                        Royal Premium Bed
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="submit"
+                      className="bg-amber-500 hover:bg-amber-600 text-black text-[10px] font-black uppercase tracking-wider py-2.5 px-5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Save className="w-4 h-4 text-black" />
+                      {isEditingSlide ? "Update Banner Slide Properties" : "Add Slide to Homepage Collection"}
+                    </button>
+                    
+                    {isEditingSlide && (
+                      <button
+                        type="button"
+                        onClick={handleCancelSlideEdit}
+                        className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-black uppercase tracking-wider py-2.5 px-5 rounded-xl transition duration-150 cursor-pointer"
+                      >
+                        Cancel Edit
+                      </button>
+                    )}
+                  </div>
+                </form>
               </div>
 
 

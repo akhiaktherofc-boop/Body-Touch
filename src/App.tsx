@@ -34,6 +34,9 @@ import {
   Gift,
   ShieldAlert,
   Wallet,
+  Bell,
+  CheckCircle2,
+  Megaphone,
   Check,
   Gem,
   ArrowUp,
@@ -53,7 +56,7 @@ import {
 
 import emailjs from '@emailjs/browser';
 
-import { Companion, HotelLocation, Booking, PaymentRecord, MemberLevel, EmailLog, Review, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord } from './types';
+import { Companion, HotelLocation, Booking, PaymentRecord, MemberLevel, EmailLog, Review, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, AppNotification } from './types';
 import { COMPANIONS, LOCATIONS } from './data';
 import CompanionCard from './components/CompanionCard';
 import CompanionModal from './components/CompanionModal';
@@ -63,6 +66,7 @@ import HotelReservationModal from './components/HotelReservationModal';
 import BookingModal, { calculateBookingCost } from './components/BookingModal';
 import CheckoutModal from './components/CheckoutModal';
 import WalletModal from './components/WalletModal';
+import NotificationCenterModal from './components/NotificationCenterModal';
 import AdminPanel from './components/AdminPanel';
 import Toast from './components/Toast';
 import ImageSlider from './components/ImageSlider';
@@ -830,6 +834,17 @@ export default function App() {
     setBookings((prev) => [newBooking, ...prev]);
     setCloudDocument('bookings', newBooking.id, newBooking);
     
+    // Dispatch instant smart notification
+    const notifId = 'notif_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    setCloudDocument('notifications', notifId, {
+      id: notifId,
+      title: '🏨 Hotel Reservation Confirmed',
+      message: `Your reservation at ${selectedReserveHotel.name} was placed successfully! ৳${cost.toLocaleString()} allocated.`,
+      timestamp: new Date().toISOString(),
+      type: 'booking',
+      username: username
+    });
+    
     if (walletBalance >= cost) {
       const newBal = walletBalance - cost;
       setWalletBalance(newBal);
@@ -890,6 +905,10 @@ export default function App() {
   const [isAllocateOpen, setIsAllocateOpen] = useState(false);
   const [isLiquidateOpen, setIsLiquidateOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [isBannerExpanded, setIsBannerExpanded] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notificationPermissionGranted, setNotificationPermissionGranted] = useState(false);
   const [allocateAmount, setAllocateAmount] = useState('');
   const [allocateMethod, setAllocateMethod] = useState<'BKASH' | 'NAGAD' | 'ROCKET'>('BKASH');
   const [allocateTrx, setAllocateTrx] = useState('');
@@ -906,6 +925,23 @@ export default function App() {
     message: '',
     type: 'success'
   });
+
+  // Safely ask for browser native notification permissions (conforming to iframe limitations)
+  useEffect(() => {
+    try {
+      if ('Notification' in window) {
+        if (Notification.permission === 'default') {
+          Notification.requestPermission().then(perm => {
+            if (perm === 'granted') setNotificationPermissionGranted(true);
+          });
+        } else if (Notification.permission === 'granted') {
+          setNotificationPermissionGranted(true);
+        }
+      }
+    } catch (e) {
+      console.warn('[Sandbox Notification Center] Native prompt muted due to iframe container permissions.');
+    }
+  }, []);
 
   // Persist values to localStorage or sessionStorage based on rememberMe option
   useEffect(() => {
@@ -1140,6 +1176,44 @@ export default function App() {
       }
     }));
 
+    unsubscribers.push(syncCloudCollection('email_logs', (items) => {
+      if (items) {
+        const sorted = [...items].sort((a, b) => b.sentAt.localeCompare(a.sentAt));
+        setEmailLogs(sorted);
+      }
+    }));
+
+    unsubscribers.push(syncCloudCollection('notifications', (items) => {
+      if (items) {
+        const sorted = [...items]
+          .filter(n => !n.username || n.username.toLowerCase() === username.toLowerCase())
+          .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+          
+        setNotifications((prev) => {
+          const prevIds = new Set(prev.map(p => p.id));
+          const newNotifications = sorted.filter(n => !prevIds.has(n.id));
+          
+          if (newNotifications.length > 0 && prev.length > 0) {
+            newNotifications.forEach(notif => {
+              try {
+                if (window.Notification && Notification.permission === 'granted') {
+                  const title = notif.title || 'Body Touch Client Alert';
+                  const options = {
+                    body: notif.message || 'নতুন একটি নোটিফিকেশন এসেছে।',
+                    icon: '/favicon.ico'
+                  };
+                  new Notification(title, options);
+                }
+              } catch (err) {
+                console.warn('Native notification permission blocked by standard container constraints:', err);
+              }
+            });
+          }
+          return sorted;
+        });
+      }
+    }));
+
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
@@ -1274,6 +1348,42 @@ export default function App() {
     setBookings((prev) => [newBooking, ...prev]);
     setCloudDocument('bookings', newBooking.id, newBooking);
 
+    // Send initial status confirmation email
+    const initMailSubject = `⏳ Body Touch: Booking Received - Awaiting Dispatch`;
+    const initMailBody = `
+Dear ${data.clientName || 'Client'},
+
+Thank you! Your companion booking inquiry has been RECEIVED and is now status: AWAITING DISPATCH by the Body Touch Concierge.
+
+--- SERVICE RECORD INQUIRY ---
+🎫 Booking ID: ${newBooking.id}
+👩🏼 Companion Name: ${bookingCompanion.name} (Verified Class ${bookingCompanion.tag})
+📍 Location Hotel: ${data.location}
+📅 Scheduled Date: ${data.date}
+⏰ Scheduled Time: ${data.time}
+⏳ Service Duration: ${data.duration}
+💰 Cost: ৳${data.cost.toLocaleString()} BDT
+🔐 Privacy Passphrase: ${data.secretCode || 'DISCRETION_SECURED'}
+
+Our operators are currently verifying your credentials and scheduling logistics. You will receive another notification email once your booking is officially approved and dispatched.
+
+Greetings,
+Body Touch VIP Administrator Hub
+Website: https://bodytouch.com
+    `;
+    sendAutoEmail(data.clientEmail || email || 'code@bodytouch.com', initMailSubject, initMailBody);
+
+    // Dispatch instant smart notification
+    const notifId = 'notif_' + Date.now();
+    setCloudDocument('notifications', notifId, {
+      id: notifId,
+      title: '💖 Booking Registered Successfully',
+      message: `${newBooking.modelName} companion booking submitted. Awaiting admin dispatch. ID: ${newBooking.id}`,
+      timestamp: new Date().toISOString(),
+      type: 'booking',
+      username: username
+    });
+
     // Persist updated details to profile states and local storage
     if (data.clientName) {
       setFullName(data.clientName);
@@ -1297,6 +1407,7 @@ export default function App() {
       const newDeficitPayment: PaymentRecord = {
         id: 'pay-' + Date.now(),
         username: username,
+        email: data.clientEmail || email || 'code@bodytouch.com',
         tierName: `Booking Shortfall: ${bookingCompanion.name}`,
         price: data.deficitPay.amount.toLocaleString('en-US'),
         method: data.deficitPay.method,
@@ -1355,6 +1466,7 @@ export default function App() {
     const newPaymentLog: PaymentRecord = {
       id: 'pay-' + Date.now(),
       username: username,
+      email: email || 'code@bodytouch.com',
       tierName: checkoutTier.name,
       price: checkoutTier.price,
       method: data.method,
@@ -1365,6 +1477,28 @@ export default function App() {
 
     setPayments((prev) => [newPaymentLog, ...prev]);
     setCloudDocument('payments', newPaymentLog.id, newPaymentLog);
+
+    // Send Initial Membership Registration Email
+    const subMailSubject = `💎 Body Touch: Membership Payment Received - Awaiting Verification`;
+    const subMailBody = `
+Dear ${fullName || username || 'Client'},
+
+Thank you! Your transaction for the ${checkoutTier.name} membership level has been REGISTERED and is now status: PENDING VERIFICATION.
+
+--- TRANSACTION LEDGER ---
+🎫 Receipt ID: ${newPaymentLog.id}
+💎 Account Allocation: ${newPaymentLog.tierName}
+💰 Transacted Value: ৳${newPaymentLog.price}
+💳 Medium: ${newPaymentLog.method}
+🔐 TrxID Hash: ${newPaymentLog.trxId}
+
+Our financial billing division is matching this Transaction ID with our payment gateway's ledger. This verification process typically takes up to 10-30 minutes. Once manual or automated matching confirms the transaction, your premium portal privileges will immediately update.
+
+Greetings,
+Body Touch Billing Logistics
+Website: https://bodytouch.com
+    `;
+    sendAutoEmail(email || 'code@bodytouch.com', subMailSubject, subMailBody);
 
     // Send Telegram Notification
     const text = `💳 <b>নতুন মেম্বারশিপ পেমেন্ট সাবমিট হয়েছে!</b>\n\n` +
@@ -1396,6 +1530,7 @@ export default function App() {
     const newPaymentLog: PaymentRecord = {
       id: 'pay-' + Date.now(),
       username: username,
+      email: email || 'code@bodytouch.com',
       tierName: 'Wallet Deposit',
       price: amount.toLocaleString('en-US'),
       method: allocateMethod,
@@ -1406,6 +1541,28 @@ export default function App() {
 
     setPayments((prev) => [newPaymentLog, ...prev]);
     setCloudDocument('payments', newPaymentLog.id, newPaymentLog);
+
+    // Send Initial Wallet Deposit Email
+    const depMailSubject = `💰 Body Touch: Wallet Deposit Received - Awaiting Verification`;
+    const depMailBody = `
+Dear ${fullName || username || 'Client'},
+
+Thank you! Your transaction for a Wallet Deposit of ৳${amount.toLocaleString()} has been REGISTERED and is now status: PENDING VERIFICATION.
+
+--- TRANSACTION LEDGER ---
+🎫 Receipt ID: ${newPaymentLog.id}
+💎 Account Allocation: ${newPaymentLog.tierName}
+💰 Transacted Value: ৳${newPaymentLog.price}
+💳 Medium: ${newPaymentLog.method}
+🔐 TrxID Hash: ${newPaymentLog.trxId}
+
+Our backend operators will verify this Transaction ID and match it against our live incoming mobile banking ledger. Your wallet credit balance will update immediately after verification.
+
+Greetings,
+Body Touch Billing Logistics
+Website: https://bodytouch.com
+    `;
+    sendAutoEmail(email || 'code@bodytouch.com', depMailSubject, depMailBody);
 
     // Send Telegram Notification
     const text = `💰 <b>নতুন ওয়ালেট ডিপোজিট সাবমিট হয়েছে!</b>\n\n` +
@@ -1446,6 +1603,7 @@ export default function App() {
     const newPaymentLog: PaymentRecord = {
       id: 'pay-' + Date.now(),
       username: username,
+      email: email || 'code@bodytouch.com',
       tierName: 'Withdrawal',
       price: '-' + amount.toLocaleString('en-US'),
       method: liquidateMethod,
@@ -1456,6 +1614,26 @@ export default function App() {
 
     setPayments((prev) => [newPaymentLog, ...prev]);
     setCloudDocument('payments', newPaymentLog.id, newPaymentLog);
+
+    // Send Initial Wallet Withdrawal Email
+    const wdMailSubject = `💸 Body Touch: Wallet Withdrawal Request Dispatched`;
+    const wdMailBody = `
+Dear ${fullName || username || 'Client'},
+
+Your withdrawal request has been successfully processed!
+
+--- WITHDRAWAL RECORD ---
+🎫 Receipt ID: ${newPaymentLog.id}
+💎 Account Allocation: ${newPaymentLog.tierName}
+💰 Transacted Value: ৳${amount.toLocaleString()}
+💳 Medium: ${newPaymentLog.method}
+📱 Account Mobile Number: ${newPaymentLog.trxId}
+
+Greetings,
+Body Touch Financial Operations
+Website: https://bodytouch.com
+    `;
+    sendAutoEmail(email || 'code@bodytouch.com', wdMailSubject, wdMailBody);
 
     // Send Telegram Notification
     const text = `💸 <b>নতুন ওয়ালেট উইথড্রয়াল (উত্তোলন) রিকুয়েস্ট!</b>\n\n` +
@@ -1485,10 +1663,71 @@ export default function App() {
     setWalletBalance((prev) => prev + numericPrice);
   };
 
-  // Automated Email dispatch system (Email system is disabled as all alerts are routed via Telegram)
+  const handleMarkAllNotificationsAsRead = () => {
+    notifications.forEach((n) => {
+      if (!n.isRead) {
+        setCloudDocument('notifications', n.id, { ...n, isRead: true });
+      }
+    });
+    triggerToast('✅ All messages marked as read!', 'success');
+  };
+
+  const handleClearAllNotifications = () => {
+    notifications.forEach((n) => {
+      deleteCloudDocument('notifications', n.id);
+    });
+    triggerToast('🗑️ All notifications cleared!', 'success');
+  };
+
+  const handleDeleteNotification = (id: string) => {
+    deleteCloudDocument('notifications', id);
+    triggerToast('🗑️ Message deleted from center.', 'success');
+  };
+
+  // Automated Email dispatch system (Email system is fully active now)
   const sendAutoEmail = async (toEmail: string, subject: string, bodyText: string) => {
-    // Quietly log to the developer console to confirm execution path can run safely without side-effects
-    console.log(`[Email System Disabled] Quietly bypassed sending email to ${toEmail} with subject: ${subject}`);
+    const logId = 'mlog-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const newLog: EmailLog = {
+      id: logId,
+      to: toEmail,
+      subject: subject,
+      body: bodyText,
+      sentAt: new Date().toISOString(),
+      status: 'Pending'
+    };
+
+    // Save pending state first
+    setCloudDocument('email_logs', logId, newLog);
+
+    try {
+      const response = await fetch('/api/send-custom-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          toEmail,
+          subject,
+          bodyText,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const resData = await response.json();
+      if (resData.mocked) {
+        console.warn(`[SMTP Warning] SMTP is not configured. Email to ${toEmail} was mocked.`);
+        setCloudDocument('email_logs', logId, { ...newLog, status: 'Failed' });
+      } else {
+        console.log(`[Email Dispatched] Successfully sent email to ${toEmail}`);
+        setCloudDocument('email_logs', logId, { ...newLog, status: 'Delivered' });
+      }
+    } catch (err) {
+      console.error(`[Email Failed] Failed to send email to ${toEmail}:`, err);
+      setCloudDocument('email_logs', logId, { ...newLog, status: 'Failed' });
+    }
   };
 
   // Automated Telegram Group and Private Notification Endpoint
@@ -1731,7 +1970,7 @@ Greetings,
 Body Touch VIP Administrator Hub
 Website: https://bodytouch.com
           `;
-          sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
+          sendAutoEmail(b.clientEmail || email || 'code@bodytouch.com', mailSubject, mailBody);
           triggerToast(`✅ Booking approved for ${b.modelName}! Auto email sent!`, 'success');
 
           // Send Telegram Status Notification
@@ -1760,6 +1999,18 @@ Website: https://bodytouch.com
         if (b.id === bookingId) {
           const updated = { ...b, status: 'Declined' as const };
           setCloudDocument('bookings', b.id, updated);
+          
+          // Dispatch instant smart notification
+          const notifId = 'notif_' + Date.now() + '_dec';
+          setCloudDocument('notifications', notifId, {
+            id: notifId,
+            title: '❌ Service Inquiry Declined',
+            message: `Your booking service request for ${b.modelName} (ID: ${b.id}) has been declined by management. Your wallet has not been affected.`,
+            timestamp: new Date().toISOString(),
+            type: 'alert',
+            username: b.clientName || username
+          });
+
           const mailSubject = `❌ Body Touch Notification: Service Inquiry Declined`;
           const mailBody = `
 Dear ${fullName || 'Client'},
@@ -1771,7 +2022,7 @@ Your wallet balance has not been affected. Please select another active time slo
 Greetings,
 Body Touch VIP Concierge
           `;
-          sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
+          sendAutoEmail(b.clientEmail || email || 'code@bodytouch.com', mailSubject, mailBody);
           triggerToast(`❌ Booking declined for ${b.modelName}. Notification mail sent.`, 'error');
 
           const telText = `❌ <b>বুকিং ডিক্লাইন বা প্রত্যাখ্যান করা হয়েছে!</b>\n\n` +
@@ -1794,6 +2045,18 @@ Body Touch VIP Concierge
         if (b.id === bookingId) {
           const updated = { ...b, status: 'Outgoing' as const };
           setCloudDocument('bookings', b.id, updated);
+
+          // Dispatch instant smart notification
+          const notifId = 'notif_' + Date.now() + '_out';
+          setCloudDocument('notifications', notifId, {
+            id: notifId,
+            title: '🚀 Companion is Outgoing!',
+            message: `Your companion ${b.modelName} is now outgoing to your scheduled location: ${b.location}. Prepare verification code: ${b.secretCode || 'N/A'}.`,
+            timestamp: new Date().toISOString(),
+            type: 'info',
+            username: b.clientName || username
+          });
+
           const mailSubject = `🚀 Body Touch Notification: Companion is Outgoing!`;
           const mailBody = `
 Dear ${fullName || 'Client'},
@@ -1805,7 +2068,7 @@ Estimated arrival follows schedule. Please prepare to share your Private Verific
 Greetings,
 Body Touch VIP Concierge
           `;
-          sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
+          sendAutoEmail(b.clientEmail || email || 'code@bodytouch.com', mailSubject, mailBody);
           triggerToast(`🚀 Booking marked as Outgoing for ${b.modelName}. Email notification dispatched!`, 'success');
 
           const telText = `🚀 <b>মডেল বুকিংয়ে রওনা হয়েছে (Outgoing)!</b>\n\n` +
@@ -1829,6 +2092,18 @@ Body Touch VIP Concierge
         if (b.id === bookingId) {
           const updated = { ...b, status: 'Completed' as const };
           setCloudDocument('bookings', b.id, updated);
+
+          // Dispatch instant smart notification
+          const notifId = 'notif_' + Date.now() + '_cmp';
+          setCloudDocument('notifications', notifId, {
+            id: notifId,
+            title: '💖 Booking Service Completed',
+            message: `Your service session with ${b.modelName} (ID: ${b.id}) has completed safely. Please leave a review!`,
+            timestamp: new Date().toISOString(),
+            type: 'success',
+            username: b.clientName || username
+          });
+
           const mailSubject = `💖 Body Touch Notification: Service Completed!`;
           const mailBody = `
 Dear ${fullName || 'Client'},
@@ -1841,10 +2116,10 @@ Please take a moment to rate your companion on our portal and leave a review. Yo
 Greetings,
 Body Touch VIP Concierge
           `;
-          sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
+          sendAutoEmail(b.clientEmail || email || 'code@bodytouch.com', mailSubject, mailBody);
           triggerToast(`💖 Booking marked as Completed for ${b.modelName}. Feedback request notification sent!`, 'success');
 
-          const telText = `💖 <b>বুকিং সফলভাবে সম্পন্ন হয়েছে (Completed)!</b>\n\n` +
+          const telText = `💖 <b>বुकিং সফলভাবে সম্পন্ন হয়েছে (Completed)!</b>\n\n` +
             `🆔 বুকিং আইডি: <code>${b.id}</code>\n` +
             `👤 কাস্টমার: <b>${fullName || 'N/A'}</b>\n` +
             `👩🏼 মডেল: <b>${b.modelName}</b>\n` +
@@ -1911,9 +2186,21 @@ Sincerely,
 Body Touch VIP Automation Agent
 https://bodytouch.com
             `;
-            sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
+            sendAutoEmail(p.email || email || 'code@bodytouch.com', mailSubject, mailBody);
             const updated = { ...p, status: 'Approved' as const };
             setCloudDocument('payments', p.id, updated);
+
+            // Dispatch instant smart notification
+            const notifId = 'notif_' + Date.now() + '_auto_p';
+            setCloudDocument('notifications', notifId, {
+              id: notifId,
+              title: '🎉 Payment Verified Automatically',
+              message: `Your deposit of ৳${p.price} (TrxID: ${p.trxId}) has been verified automatically. Your wallet ledger balance is updated!`,
+              timestamp: new Date().toISOString(),
+              type: 'success',
+              username: p.username || username
+            });
+
             return updated;
           }
           return p;
@@ -1957,9 +2244,23 @@ Sincerely,
 Body Touch support operator
 https://bodytouch.com
           `;
-          sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
+          sendAutoEmail(p.email || email || 'code@bodytouch.com', mailSubject, mailBody);
           const updated = { ...p, status: 'Approved' as const };
           setCloudDocument('payments', p.id, updated);
+
+          // Dispatch instant smart notification
+          const notifId = 'notif_' + Date.now() + '_man_p';
+          setCloudDocument('notifications', notifId, {
+            id: notifId,
+            title: '🎉 Payment Approved Manually',
+            message: tNameU === 'REGULAR' || tNameU === 'PREMIUM' || tNameU === 'ELITE'
+              ? `Your account tier is manually upgraded to ${p.tierName}! All premium entries are unlocked.`
+              : `Your manual deposit of ৳${p.price} has been approved by admin. Balance added to wallet account!`,
+            timestamp: new Date().toISOString(),
+            type: 'success',
+            username: p.username || username
+          });
+
           return updated;
         }
         return p;
@@ -1985,9 +2286,21 @@ Reason: The TrxID could not be automated nor located on manual merchant ledger q
 Sincerely,
 Body Touch Security Core
           `;
-          sendAutoEmail(email || 'code@bodytouch.com', mailSubject, mailBody);
+          sendAutoEmail(p.email || email || 'code@bodytouch.com', mailSubject, mailBody);
           const updated = { ...p, status: 'Rejected' as const };
           setCloudDocument('payments', p.id, updated);
+
+          // Dispatch instant smart notification
+          const notifId = 'notif_' + Date.now() + '_rej_p';
+          setCloudDocument('notifications', notifId, {
+            id: notifId,
+            title: '⚠️ Deposit Ticket Rejected',
+            message: `The registered deposit of ৳${p.price} with TrxID ${p.trxId} was rejected by auditing. Please check your spelling and retry.`,
+            timestamp: new Date().toISOString(),
+            type: 'alert',
+            username: p.username || username
+          });
+
           return updated;
         }
         return p;
@@ -2271,7 +2584,10 @@ https://service.bodytouch.com
           onMarkOutgoingBooking={handleAdminMarkOutgoingBooking}
           onMarkCompletedBooking={handleAdminMarkCompletedBooking}
           emailLogs={emailLogs}
-          onClearEmailLogs={() => setEmailLogs([])}
+          onClearEmailLogs={() => {
+            emailLogs.forEach(log => deleteCloudDocument('email_logs', log.id));
+            setEmailLogs([]);
+          }}
           emailjsServiceId={emailjsServiceId}
           onSetEmailjsServiceId={setEmailjsServiceId}
           emailjsTemplateId={emailjsTemplateId}
@@ -2375,6 +2691,21 @@ https://service.bodytouch.com
               <span className="text-white font-extrabold">{walletBalance.toLocaleString('bn-BD')}</span>
             </button>
 
+            {/* Smart Notification Bell */}
+            <button
+              onClick={() => setIsNotificationsOpen(true)}
+              className="relative bg-[#05112e] hover:bg-[#0a1e4d] border border-blue-500/20 rounded-full w-9 h-9 flex items-center justify-center text-blue-400 hover:text-amber-400 shadow-sm transition-all duration-200 cursor-pointer active:scale-95 animate-pulse"
+              title="Inbox / মেসেজ বক্স"
+            >
+              <Bell className="w-4 h-4" />
+              {notifications.filter(n => !n.isRead).length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-rose-500 border border-[#030816] rounded-full animate-ping" />
+              )}
+              {notifications.filter(n => !n.isRead).length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-rose-500 border border-[#030816] rounded-full" />
+              )}
+            </button>
+
             {/* Profile Letter Circle */}
             <button
               onClick={() => handleTabSwitch('profile')}
@@ -2399,34 +2730,25 @@ https://service.bodytouch.com
           </div>
         </div>
 
-        {/* Announcement Megaphone Banner */}
-        <AnimatePresence>
-          {bannerVisible && (
-            <motion.div
-              id="announcement-banner"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="bg-[#05112e]/95 border border-blue-500/20 text-blue-350 text-[11.5px] font-semibold py-2.5 px-4 rounded-2xl flex items-center justify-between shadow-lg shadow-black/40 backdrop-blur-md mb-5 text-left gap-2 gold-breathing-glow"
-            >
-              <div className="flex items-center gap-2 overflow-hidden w-full">
-                <span className="flex-shrink-0 text-blue-400 text-sm">📢</span>
-                <div className="whitespace-nowrap overflow-hidden relative w-full">
-                  <div className="animate-marquee-text">
-                    {emergencyNotice}
-                  </div>
+        {/* Announcement Megaphone Banner - Ultra Slim, Sliding, Sticky, Golden pulsing animated border */}
+        <div
+          id="announcement-banner"
+          className="sticky top-2 z-40 bg-[#05112e]/95 text-blue-350 rounded-full flex items-center shadow-lg shadow-black/80 backdrop-blur-md mb-6 text-left gap-2.5 golden-animated-border py-1.5 px-3.5 select-none"
+        >
+          <div className="flex items-center gap-2.5 w-full overflow-hidden">
+            <span className="flex-shrink-0 text-amber-400 text-sm animate-bounce">📢</span>
+            <span className="flex-shrink-0 text-[10px] uppercase font-black tracking-widest text-[#dfa320] font-mono border-r border-amber-500/25 pr-2.5">
+              NOTICE
+            </span>
+            <div className="flex-1 overflow-hidden relative">
+              <div className="whitespace-nowrap overflow-hidden relative w-full pt-0.5">
+                <div className="animate-marquee-text text-slate-200 text-[11px] sm:text-xs font-bold pr-24 inline-block tracking-wide">
+                  {emergencyNotice}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setBannerVisible(false)}
-                className="text-blue-500 hover:text-blue-300 font-bold text-xs focus:outline-none px-1 cursor-pointer"
-              >
-                ✕
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </div>
+        </div>
 
         {/* TAB VIEWS AREA */}
         <AnimatePresence mode="wait">
@@ -4402,6 +4724,15 @@ https://service.bodytouch.com
         username={username}
         onTriggerAllocate={() => setIsAllocateOpen(true)}
         onTriggerLiquidate={() => setIsLiquidateOpen(true)}
+      />
+
+      <NotificationCenterModal
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        notifications={notifications}
+        onMarkAllAsRead={handleMarkAllNotificationsAsRead}
+        onClearAll={handleClearAllNotifications}
+        onDeleteNotification={handleDeleteNotification}
       />
 
       {/* 5. Allocate deposit fund modal popup */}

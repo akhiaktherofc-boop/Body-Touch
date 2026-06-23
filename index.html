@@ -20,21 +20,57 @@
       </div>
     </div>
     <script>
-      window.addEventListener('error', function(event) {
+      window.onerror = function(message, source, lineno, colno, error) {
+        var errMsg = message || '';
+        var srcFile = source || '';
+        
+        // Suppress websocket or Vite HMR-related harmless errors
+        if (errMsg.indexOf('WebSocket') !== -1 || errMsg.indexOf('websocket') !== -1 || errMsg.indexOf('vite') !== -1 || errMsg.indexOf('HMR') !== -1) {
+          return true; // Ignore and suppress
+        }
+
+        // Completely mute and suppress cross-origin "Script error." or extension noise
+        if (errMsg === 'Script error.' || !srcFile || (srcFile.indexOf('index') === -1 && srcFile.indexOf('src') === -1 && srcFile.indexOf('main') === -1 && srcFile.indexOf('localhost') === -1)) {
+          console.warn('Muted cross-origin or extension warning:', errMsg, srcFile);
+          return true; // Prevent default browser handler and keep error from registering as unhandled
+        }
+
         var box = document.getElementById('error-diagnosis-box');
         var msg = document.getElementById('error-diagnosis-msg');
         var stack = document.getElementById('error-diagnosis-stack');
         if (box && msg) {
           box.style.display = 'block';
-          msg.innerHTML = "<strong>Error occurred:</strong> " + (event.error ? event.error.message : event.message || 'Unknown startup error');
-          if (stack && event.error && event.error.stack) {
-            stack.textContent = event.error.stack.toString();
+          msg.innerHTML = "<strong>Error occurred:</strong> " + (error ? error.message : errMsg);
+          if (stack && error && error.stack) {
+            stack.textContent = error.stack.toString();
           } else {
-            stack.textContent = "Location: " + event.filename + ":" + event.lineno + ":" + event.colno;
+            stack.textContent = "Location: " + srcFile + ":" + lineno + ":" + colno;
           }
         }
-      });
+        return false;
+      };
+
       window.addEventListener('unhandledrejection', function(event) {
+        var reasonObj = event.reason || {};
+        var errMsg = (reasonObj.message || reasonObj.toString || function() { return ''; })();
+        if (typeof reasonObj === 'string') {
+          errMsg = reasonObj;
+        }
+
+        // If the promise rejection originates from Firebase auth popups, canceled operations, or external extension blockages, suppress it
+        if (
+          errMsg.indexOf('auth/popup-closed-by-user') !== -1 || 
+          errMsg.indexOf('extension') !== -1 || 
+          errMsg.indexOf('cancelled') !== -1 ||
+          errMsg.indexOf('WebSocket') !== -1 ||
+          errMsg.indexOf('websocket') !== -1 ||
+          errMsg.indexOf('vite') !== -1 ||
+          errMsg.indexOf('HMR') !== -1
+        ) {
+          console.warn('Muted async background warning:', event.reason);
+          event.preventDefault(); // Suppress unhandled rejection warning of harmless nature
+          return;
+        }
         var box = document.getElementById('error-diagnosis-box');
         var msg = document.getElementById('error-diagnosis-msg');
         var stack = document.getElementById('error-diagnosis-stack');
