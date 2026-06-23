@@ -53,6 +53,8 @@ import {
   Megaphone,
   LogOut
 } from 'lucide-react';
+import { io, Socket } from 'socket.io-client';
+import AdminLiveChat from './AdminLiveChat';
 
 interface AdminPanelProps {
   payments: PaymentRecord[];
@@ -901,7 +903,7 @@ export default function AdminPanel({
   // Render High Security Portal Gate if not authenticated - MOVED BELOW HOOKS TO COMPLY WITH REACT HOOK RULES
 
   // Tabs configured to align with User's specific requirements
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // States for Referral and Withdrawal Tracking Tab
@@ -1717,6 +1719,24 @@ export default function AdminPanel({
                 {referrals.length} Joins
               </span>
             </button>
+
+            {/* Live Support Chat Tab */}
+            <button
+              onClick={() => handleNavItemClick('livechat')}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
+                activeTab === 'livechat'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
+                  : 'hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <MessageSquare className={`w-4 h-4 shrink-0 ${activeTab === 'livechat' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
+                <span>Live Support Chat</span>
+              </div>
+              <span className="text-[10px] bg-emerald-500/10 text-emerald-400 font-bold font-mono px-1.5 py-0.5 rounded border border-emerald-500/25">
+                Live
+              </span>
+            </button>
           </nav>
         </div>
 
@@ -2213,6 +2233,7 @@ export default function AdminPanel({
                 {activeTab === 'smtp' && 'System & Telegram Settings'}
                 {activeTab === 'shortlinks' && 'Quick Registration Links'}
                 {activeTab === 'referrals' && 'Affiliate Referrals Ledger'}
+                {activeTab === 'livechat' && 'Live Support Chat Console'}
               </h1>
               <p className="text-xs text-slate-400 font-medium mt-1">
                 {activeTab === 'shortlinks' && 'View, test, and copy user registration and application forms for different model types.'}
@@ -2228,6 +2249,7 @@ export default function AdminPanel({
                 {activeTab === 'admins' && 'Set and control authorized staff emails and edit secondary validation metrics.'}
                 {activeTab === 'smtp' && 'Synchronize order dispatches with Telegram notification bots and helplines.'}
                 {activeTab === 'referrals' && 'Track commission balances, affiliate tiers, and process withdrawal requests.'}
+                {activeTab === 'livechat' && 'Chat with premium and elite customers in real-time, answer questions, and assist in reservation booking.'}
               </p>
             </div>
 
@@ -7643,6 +7665,10 @@ export default function AdminPanel({
               </div>
 
             </div>
+          )}
+
+          {activeTab === 'livechat' && (
+            <AdminLiveChat />
           )}
 
         </div>

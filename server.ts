@@ -4,6 +4,8 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import http from "http";
+import { Server } from "socket.io";
 
 dotenv.config();
 
@@ -135,6 +137,118 @@ async function sendMailWithRetries(transporterConfig: any, mailOptions: any) {
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  const server = http.createServer(app);
+  const io = new Server(server, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    }
+  });
+
+  // Keep track of active chats and chat histories in memory
+  const activeChats: Record<string, {
+    username: string;
+    fullName: string;
+    userLevel: string;
+    avatarUrl: string;
+    lastMessageTime: number;
+    unreadCount: number;
+    phone?: string;
+  }> = {};
+
+  const chatHistories: Record<string, Array<{
+    id: string;
+    sender: 'user' | 'admin';
+    text: string;
+    timestamp: number;
+  }>> = {};
+
+  io.on("connection", (socket) => {
+    console.log(`[Socket.io Debug] Client connected: ${socket.id}`);
+
+    socket.on("join_room", (data: { username: string; role: 'user' | 'admin'; fullName?: string; userLevel?: string; avatarUrl?: string; phone?: string }) => {
+      const { username, role, fullName, userLevel, avatarUrl, phone } = data;
+      if (!username) return;
+
+      console.log(`[Socket.io Debug] Socket ${socket.id} joining as ${role} for user: ${username}`);
+
+      if (role === "admin") {
+        socket.join("admin_room");
+        socket.emit("active_chats_list", Object.values(activeChats));
+      } else {
+        socket.join(`room_${username}`);
+        if (!activeChats[username]) {
+          activeChats[username] = {
+            username,
+            fullName: fullName || username,
+            userLevel: userLevel || "FREE",
+            avatarUrl: avatarUrl || "",
+            lastMessageTime: Date.now(),
+            unreadCount: 0,
+            phone: phone || ""
+          };
+        } else {
+          activeChats[username].fullName = fullName || activeChats[username].fullName;
+          activeChats[username].userLevel = userLevel || activeChats[username].userLevel;
+          activeChats[username].avatarUrl = avatarUrl || activeChats[username].avatarUrl;
+          if (phone) activeChats[username].phone = phone;
+        }
+        io.to("admin_room").emit("active_chats_list", Object.values(activeChats));
+      }
+    });
+
+    socket.on("send_message", (data: { username: string; sender: 'user' | 'admin'; text: string }) => {
+      const { username, sender, text } = data;
+      if (!username || !text) return;
+
+      console.log(`[Socket.io Debug] Message from ${sender} in chat ${username}: ${text}`);
+
+      const message = {
+        id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        sender,
+        text,
+        timestamp: Date.now()
+      };
+
+      if (!chatHistories[username]) {
+        chatHistories[username] = [];
+      }
+      chatHistories[username].push(message);
+
+      if (activeChats[username]) {
+        activeChats[username].lastMessageTime = Date.now();
+        if (sender === "user") {
+          activeChats[username].unreadCount += 1;
+        }
+      }
+
+      io.to(`room_${username}`).emit("receive_message", message);
+      io.to("admin_room").emit("receive_message_admin", { username, message });
+      io.to("admin_room").emit("active_chats_list", Object.values(activeChats));
+    });
+
+    socket.on("get_chat_history", (data: { username: string }) => {
+      const { username } = data;
+      if (!username) return;
+      socket.emit("chat_history", {
+        username,
+        history: chatHistories[username] || []
+      });
+    });
+
+    socket.on("mark_as_read", (data: { username: string }) => {
+      const { username } = data;
+      if (!username) return;
+      if (activeChats[username]) {
+        activeChats[username].unreadCount = 0;
+        io.to("admin_room").emit("active_chats_list", Object.values(activeChats));
+      }
+    });
+
+    socket.on("disconnect", () => {
+      console.log(`[Socket.io Debug] Client disconnected: ${socket.id}`);
+    });
+  });
 
   app.use(express.json());
 
@@ -325,8 +439,8 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  server.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT} with Socket.io enabled`);
   });
 }
 

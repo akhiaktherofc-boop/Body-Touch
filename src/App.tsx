@@ -28,6 +28,7 @@ import {
   Star,
   Camera,
   Send,
+  MessageCircle,
   Info,
   RefreshCw,
   Sparkles,
@@ -72,6 +73,7 @@ import Toast from './components/Toast';
 import ImageSlider from './components/ImageSlider';
 import LoginGate from './components/LoginGate';
 import JoinModal from './components/JoinModal';
+import LiveChat from './components/LiveChat';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -237,7 +239,7 @@ export default function App() {
     ];
   });
 
-  const [activeTab, setActiveTab] = useState<'home' | 'membership' | 'assets' | 'network' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'membership' | 'assets' | 'network' | 'profile' | 'chat'>('home');
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(() => {
     const hash = window.location.hash.toLowerCase();
     const search = window.location.search.toLowerCase();
@@ -2525,7 +2527,7 @@ https://service.bodytouch.com
   };
 
   // Switch tab scroll to top helper
-  const handleTabSwitch = (tab: 'home' | 'membership' | 'assets' | 'network' | 'profile') => {
+  const handleTabSwitch = (tab: 'home' | 'membership' | 'assets' | 'network' | 'profile' | 'chat') => {
     setActiveTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -4975,6 +4977,36 @@ https://service.bodytouch.com
             </motion.div>
           </div>
         )}
+
+        {activeTab === 'chat' && (
+          <motion.div
+            key="chat"
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            exit="hidden"
+            className="max-w-xl mx-auto px-4 pb-28 pt-4"
+          >
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-black text-white uppercase tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
+                Live Chat Support
+              </h2>
+              <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 mt-1">
+                24/7 Premium Concierge Service
+              </p>
+            </div>
+
+            <LiveChat
+              isLoggedIn={isLoggedIn}
+              userLevel={userLevel}
+              username={username}
+              fullName={fullName}
+              avatarUrl={avatarUrl}
+              phone={phone}
+              onGoToMembership={() => handleTabSwitch('membership')}
+            />
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* PERSISTENT STICKY BOTTOM NAVIGATION BAR */}
@@ -5019,6 +5051,16 @@ https://service.bodytouch.com
           >
             <Share2 className="w-5 h-5" />
             <span className="text-[9px] font-black uppercase tracking-wider leading-none">NETWORK</span>
+          </button>
+
+          <button
+            onClick={() => handleTabSwitch('chat')}
+            className={`flex flex-col items-center justify-center space-y-1 transition-all cursor-pointer ${
+              activeTab === 'chat' ? 'text-blue-400 scale-105' : 'text-blue-300/40 hover:text-blue-300/70'
+            }`}
+          >
+            <MessageCircle className="w-5 h-5" />
+            <span className="text-[9px] font-black uppercase tracking-wider leading-none">CHAT</span>
           </button>
 
           <button
