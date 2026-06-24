@@ -141,6 +141,60 @@ export default function LoginGate({
     return otp;
   };
 
+  const sendOtpEmailPHP = async (email: string, username: string, code: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      console.log('[LoginGate] Attempting PHP fallback...');
+      const response = await fetch('/send-otp.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, username, code })
+      });
+      const text = await response.text();
+      try {
+        const resData = JSON.parse(text);
+        if (response.ok && resData.success) {
+          return { success: true };
+        } else {
+          return { success: false, error: resData.error || 'PHP mailer execution failed' };
+        }
+      } catch (jsonErr) {
+        return { success: false, error: 'PHP mailer returned non-JSON data' };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.message || 'PHP mailer connection error' };
+    }
+  };
+
+  const sendOtpEmailHelper = async (email: string, username: string, code: string): Promise<{ success: boolean; mocked?: boolean; error?: string }> => {
+    try {
+      const response = await fetch('/api/send-otp-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, username, code })
+      });
+
+      const text = await response.text();
+      try {
+        const resData = JSON.parse(text);
+        if (response.ok && resData.success) {
+          return { success: true, mocked: resData.mocked };
+        } else {
+          throw new Error(resData.error || resData.message || 'Node.js server error');
+        }
+      } catch (jsonErr: any) {
+        if (text.trim().startsWith('<') || text.includes('<!DOCTYPE html>') || text.includes('<!doctype html>')) {
+          console.warn('[LoginGate] Node.js endpoint returned HTML, switching to PHP fallback.');
+          const phpRes = await sendOtpEmailPHP(email, username, code);
+          return phpRes;
+        }
+        throw new Error(jsonErr.message || 'Failed to parse JSON response');
+      }
+    } catch (err: any) {
+      console.warn('[LoginGate] API request failed, trying PHP mailer fallback:', err);
+      return await sendOtpEmailPHP(email, username, code);
+    }
+  };
+
   const executeSendTelegramOtp = async (userDesc: string, code: string, userPhone: string, customChatId?: string) => {
     setIsSendingOtp(true);
     setOtpError('');
@@ -236,30 +290,20 @@ export default function LoginGate({
       let sentViaEmail = false;
       let mockInfo = '';
 
-      // Try sending via Email (Nodemailer)
+      // Try sending via Email (with PHP fallback)
       try {
         setSuccessMsg('ইমেইলের মাধ্যমে ভেরিফিকেশন কোড পাঠানো হচ্ছে... (Sending OTP to Email...)');
-        const response = await fetch('/api/send-otp-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: userEmail,
-            username: usernameLower,
-            code: code
-          })
-        });
-
-        const resData = await response.json();
-        if (response.ok && resData.success) {
+        const res = await sendOtpEmailHelper(userEmail, usernameLower, code);
+        if (res.success) {
           sentViaEmail = true;
-          if (resData.mocked) {
+          if (res.mocked) {
             mockInfo = ` (সিমুলেশন ওটিপি কোড: ${code})`;
           }
         } else {
-          mockInfo = resData.error || resData.message || '';
+          mockInfo = res.error || '';
         }
       } catch (mailErr: any) {
-        console.error('Nodemailer fetch error:', mailErr);
+        console.error('OTP delivery error:', mailErr);
         mockInfo = mailErr.message || '';
       }
 
@@ -544,29 +588,20 @@ export default function LoginGate({
           rememberMe: rememberMe
         });
 
-        // Send OTP via Email
+        // Send OTP via Email (with PHP fallback)
         let sentViaEmail = false;
         let mockInfo = '';
 
         try {
           setSuccessMsg('ইমেইলের মাধ্যমে ভেরিফিকেশন কোড পাঠানো হচ্ছে... (Sending OTP to Email...)');
-          const response = await fetch('/api/send-otp-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: emailToAuth,
-              username: usernameToLogin,
-              code: code
-            })
-          });
-          const resData = await response.json();
-          if (response.ok && resData.success) {
+          const res = await sendOtpEmailHelper(emailToAuth, usernameToLogin, code);
+          if (res.success) {
             sentViaEmail = true;
-            if (resData.mocked) {
+            if (res.mocked) {
               mockInfo = ` (সিমুলেশন ওটিপি কোড: ${code})`;
             }
           } else {
-            mockInfo = resData.error || resData.message || '';
+            mockInfo = res.error || '';
           }
         } catch (e: any) {
           console.error('Email send failed during login:', e);
@@ -736,30 +771,21 @@ export default function LoginGate({
           rememberMe: rememberMe
         });
 
-        // Send OTP via Email
+        // Send OTP via Email (with PHP fallback)
         let sentViaEmail = false;
         let mockInfo = '';
 
         if (newEmail.trim()) {
           try {
             setSuccessMsg('ইমেইলের মাধ্যমে ভেরিফিকেশন কোড পাঠানো হচ্ছে... (Sending OTP to Email...)');
-            const response = await fetch('/api/send-otp-email', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email: newEmail.trim().toLowerCase(),
-                username: usernameLower,
-                code: code
-              })
-            });
-            const resData = await response.json();
-            if (response.ok && resData.success) {
+            const res = await sendOtpEmailHelper(newEmail.trim().toLowerCase(), usernameLower, code);
+            if (res.success) {
               sentViaEmail = true;
-              if (resData.mocked) {
+              if (res.mocked) {
                 mockInfo = ` (সিমুলেশন ওটিপি কোড: ${code})`;
               }
             } else {
-              mockInfo = resData.error || resData.message || '';
+              mockInfo = res.error || '';
             }
           } catch (e: any) {
             console.error('Email send failed during registration:', e);
@@ -1027,21 +1053,12 @@ export default function LoginGate({
                       setOtpError('');
                       setOtpSuccess('');
                       try {
-                        const response = await fetch('/api/send-otp-email', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            email: pendingCredentials.email,
-                            username: pendingCredentials.username,
-                            code: code
-                          })
-                        });
-                        const resData = await response.json();
-                        if (response.ok && resData.success) {
-                          const mockSuffix = resData.mocked ? ` (সিমুলেশন ওটিপি কোড: ${code})` : '';
+                        const res = await sendOtpEmailHelper(pendingCredentials.email, pendingCredentials.username, code);
+                        if (res.success) {
+                          const mockSuffix = res.mocked ? ` (সিমুলেশন ওটিপি কোড: ${code})` : '';
                           setOtpSuccess(`নতুন ভেরিফিকেশন কোড আপনার ইমেইল (${pendingCredentials.email}) এ পাঠানো হয়েছে!${mockSuffix}`);
                         } else {
-                          const errorDetail = resData.error || resData.message || '';
+                          const errorDetail = res.error || '';
                           setOtpError(`কোড পুনরায় পাঠাতে ব্যর্থ হয়েছে। ${errorDetail ? `সার্ভার ত্রুটি: ${errorDetail}` : 'অনুগ্রহ করে আবার চেষ্টা করুন।'}`);
                         }
                       } catch (err: any) {
