@@ -143,24 +143,47 @@ export default function LoginGate({
 
   const sendOtpEmailPHP = async (email: string, username: string, code: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      console.log('[LoginGate] Attempting PHP fallback...');
+      console.log('[LoginGate] Fetching SMTP configurations from Firestore for secure direct PHP SMTP dispatch...');
+      let smtpSettings: any = null;
+      try {
+        const smtpDoc = await getDoc(doc(db, 'settings', 'smtp_settings'));
+        if (smtpDoc.exists()) {
+          smtpSettings = smtpDoc.data();
+          console.log('[LoginGate] Loaded custom SMTP settings from Firestore:', smtpSettings.host);
+        } else {
+          console.log('[LoginGate] No custom SMTP settings document found in Firestore settings/smtp_settings');
+        }
+      } catch (fsErr) {
+        console.warn('[LoginGate] Failed to load SMTP configurations from Firestore:', fsErr);
+      }
+
+      console.log('[LoginGate] Dispatching secure OTP email via PHP script...');
       const response = await fetch('/send-otp.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, username, code })
+        body: JSON.stringify({ 
+          email, 
+          username, 
+          code,
+          smtp: smtpSettings
+        })
       });
       const text = await response.text();
       try {
         const resData = JSON.parse(text);
         if (response.ok && resData.success) {
+          console.log('[LoginGate] OTP successfully sent via PHP handler. Method:', resData.method || 'unknown');
           return { success: true };
         } else {
-          return { success: false, error: resData.error || 'PHP mailer execution failed' };
+          console.error('[LoginGate] PHP handler returned failure:', resData.error || resData.message);
+          return { success: false, error: resData.error || resData.message || 'PHP mailer execution failed' };
         }
       } catch (jsonErr) {
+        console.error('[LoginGate] PHP response parse error. Raw response text:', text);
         return { success: false, error: 'PHP mailer returned non-JSON data' };
       }
     } catch (err: any) {
+      console.error('[LoginGate] sendOtpEmailPHP failed:', err);
       return { success: false, error: err.message || 'PHP mailer connection error' };
     }
   };

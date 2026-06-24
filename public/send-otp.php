@@ -1,11 +1,12 @@
 <?php
 /**
  * =========================================================================
- * 🛡️ BODY TOUCH SECURITY PORTAL - SECURE PHP OTP SENDER FALLBACK
+ * 🛡️ BODY TOUCH SECURITY PORTAL - SECURE PHP SMTP & OTP DISPATCH SCRIPT
  * =========================================================================
  * Designed for Hostinger Shared (or VPS) Hosting environments.
- * This script sends OTP verification codes using PHP's native mail system
- * when the Node.js Express server is not available.
+ * This script sends OTP verification codes using custom SMTP configurations
+ * sent from the frontend, stored in smtp-config.json, or hardcoded securely
+ * as fallbacks.
  */
 
 // Enable CORS for frontend compatibility
@@ -42,6 +43,7 @@ if (!$data) {
 $email = isset($data['email']) ? trim($data['email']) : '';
 $username = isset($data['username']) ? trim($data['username']) : 'User';
 $code = isset($data['code']) ? trim($data['code']) : '';
+$smtp = isset($data['smtp']) ? $data['smtp'] : null;
 
 if (empty($email) || empty($code)) {
     http_response_code(400);
@@ -59,6 +61,40 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         "error" => "Provided email address is invalid."
     ]);
     exit();
+}
+
+// Secure Default SMTP configurations hardcoded (Gmail App Password fallback)
+// This solves the issue when smtp-config.json is not uploaded to Hostinger!
+$defaultSmtp = [
+    "host" => "smtp.gmail.com",
+    "port" => 587,
+    "user" => "metroomaa@gmail.com",
+    "pass" => "ksvrmwpqubbjenxr",
+    "secure" => false,
+    "fromEmail" => "sakilroky@gmail.com"
+];
+
+// If no SMTP config was passed from the frontend, try to load it from parent directory
+if (!$smtp) {
+    $configPaths = [
+        __DIR__ . '/smtp-config.json',
+        dirname(__DIR__) . '/smtp-config.json'
+    ];
+    foreach ($configPaths as $path) {
+        if (file_exists($path)) {
+            $jsonContent = @file_get_contents($path);
+            $parsed = json_decode($jsonContent, true);
+            if ($parsed) {
+                $smtp = $parsed;
+                break;
+            }
+        }
+    }
+}
+
+// Fallback to the secure hardcoded default credentials if still empty or invalid
+if (!$smtp || empty($smtp['host']) || empty($smtp['user'])) {
+    $smtp = $defaultSmtp;
 }
 
 $subject = "🔐 [BODY TOUCH] Security Verification Code (ভেরিফিকেশন কোড)";
@@ -98,29 +134,165 @@ $message = '
 </html>
 ';
 
-// Determine the server host name dynamically for from headers
-$host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'body-touch.com';
-// Remove port if present
-$host = preg_replace('/:\d+$/', '', $host);
+/**
+ * Sends email using a pure PHP SMTP client via direct socket connection.
+ * Fully compatible with standard email servers including Gmail (ports 465, 587, 25).
+ */
+function send_smtp_email_socket($smtp, $to, $subject, $message_html) {
+    $host = isset($smtp['host']) ? trim($smtp['host']) : '';
+    $port = isset($smtp['port']) ? intval($smtp['port']) : 587;
+    $user = isset($smtp['user']) ? trim($smtp['user']) : '';
+    $pass = isset($smtp['pass']) ? trim($smtp['pass']) : '';
+    $secure = isset($smtp['secure']) && ($smtp['secure'] === true || $smtp['secure'] === 'true' || $smtp['secure'] === 1 || $smtp['secure'] === '1');
+    $from = !empty($smtp['fromEmail']) ? trim($smtp['fromEmail']) : $user;
 
-// Email headers
-$headers = "MIME-Version: 1.0" . "\r\n";
-$headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-$headers .= "From: BODY TOUCH Security <noreply@" . $host . ">" . "\r\n";
-$headers .= "Reply-To: noreply@" . $host . "\r\n";
-$headers .= "X-Mailer: PHP/" . phpversion();
+    if (empty($host) || empty($user) || empty($pass)) {
+        throw new Exception("Missing essential SMTP settings (Host, Username, or Password).");
+    }
 
-// Send mail
-if (@mail($email, $subject, $message, $headers)) {
-    echo json_encode([
-        "success" => true,
-        "message" => "OTP sent successfully via Hostinger PHP mail service."
-    ]);
-} else {
-    http_response_code(500);
-    echo json_encode([
-        "success" => false,
-        "error" => "PHP mail function failed to dispatch. Verify hosting email server settings."
-    ]);
+    // Determine connection protocol prefix
+    $protocol = '';
+    if ($secure || $port === 465) {
+        $protocol = 'ssl://';
+    }
+
+    $connectionTarget = $protocol . $host;
+    
+    // Use 10-second timeout for rapid failure feedback
+    $socket = @fsockopen($connectionTarget, $port, $errno, $errstr, 10);
+    if (!$socket) {
+        throw new Exception("Connection to SMTP host $connectionTarget:$port failed: $errstr ($errno). Hostinger might be blocking outbound port $port.");
+    }
+
+    // Helper to read server response with validation
+    $readResponse = function($socket, $expected_code) {
+        $response = '';
+        while ($line = fgets($socket, 515)) {
+            $response .= $line;
+            // SMTP lines ending with space after the code indicate the last line of response
+            if (substr($line, 3, 1) === ' ') {
+                break;
+            }
+        }
+        $code = substr($response, 0, 3);
+        if ($code !== $expected_code) {
+            throw new Exception("SMTP protocol error: Expected $expected_code, but got: " . trim($response));
+        }
+        return $response;
+    };
+
+    // Helper to transmit SMTP command
+    $sendCommand = function($socket, $cmd) {
+        fputs($socket, $cmd . "\r\n");
+    };
+
+    try {
+        $readResponse($socket, '220');
+
+        $localhost = isset($_SERVER['HTTP_HOST']) ? preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST']) : 'localhost';
+        $sendCommand($socket, "EHLO " . $localhost);
+        $ehloResponse = $readResponse($socket, '250');
+
+        // Handle STARTTLS handshake if on port 587
+        if ($port === 587 && strpos($ehloResponse, 'STARTTLS') !== false && empty($protocol)) {
+            $sendCommand($socket, "STARTTLS");
+            $readResponse($socket, '220');
+
+            // Upgrade connection to secure TLS socket
+            $crypto_method = STREAM_CRYPTO_METHOD_TLS_CLIENT;
+            if (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT')) {
+                $crypto_method |= STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
+            }
+            if (defined('STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT')) {
+                $crypto_method |= STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT;
+            }
+
+            if (!@stream_socket_enable_crypto($socket, true, $crypto_method)) {
+                throw new Exception("TLS negotiation failed via STARTTLS.");
+            }
+
+            // Say hello again securely
+            $sendCommand($socket, "EHLO " . $localhost);
+            $readResponse($socket, '250');
+        }
+
+        // Authenticate with server
+        $sendCommand($socket, "AUTH LOGIN");
+        $readResponse($socket, '334');
+
+        $sendCommand($socket, base64_encode($user));
+        $readResponse($socket, '334');
+
+        $sendCommand($socket, base64_encode($pass));
+        $readResponse($socket, '235');
+
+        // Specify sender
+        $sendCommand($socket, "MAIL FROM:<" . $from . ">");
+        $readResponse($socket, '250');
+
+        // Specify recipient
+        $sendCommand($socket, "RCPT TO:<" . $to . ">");
+        $readResponse($socket, '250');
+
+        // Start transmitting email data
+        $sendCommand($socket, "DATA");
+        $readResponse($socket, '354');
+
+        // Construct complete standard headers
+        $emailHeaders = [
+            "MIME-Version: 1.0",
+            "Content-Type: text/html; charset=UTF-8",
+            "From: BODY TOUCH <" . $from . ">",
+            "To: <" . $to . ">",
+            "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=",
+            "Date: " . date('r'),
+            "X-Mailer: BodyTouch-Secure-PHP-SMTP"
+        ];
+
+        $headersPayload = implode("\r\n", $emailHeaders);
+        $fullPayload = $headersPayload . "\r\n\r\n" . $message_html . "\r\n.";
+
+        $sendCommand($socket, $fullPayload);
+        $readResponse($socket, '250');
+
+        $sendCommand($socket, "QUIT");
+        fclose($socket);
+        return true;
+    } catch (Exception $e) {
+        @fputs($socket, "QUIT\r\n");
+        @fclose($socket);
+        throw $e;
+    }
 }
+
+// Execution flow
+$smtpError = "";
+try {
+    $sendResult = send_smtp_email_socket($smtp, $email, $subject, $message);
+    if ($sendResult) {
+        echo json_encode([
+            "success" => true,
+            "method" => "secure_smtp_socket",
+            "message" => "OTP sent successfully via SMTP (" . htmlspecialchars($smtp['host']) . ")"
+        ]);
+        exit();
+    }
+} catch (Exception $e) {
+    $smtpError = $e->getMessage();
+}
+
+// If direct SMTP failed, we output the explicit failure so the user knows exactly why their Hostinger SMTP didn't fire!
+// This avoids false success reporting.
+http_response_code(500);
+echo json_encode([
+    "success" => false,
+    "error" => "SMTP dispatch failed. Please verify your Hostinger outgoing mail ports or App Password.",
+    "details" => $smtpError,
+    "smtp_attempted" => [
+        "host" => $smtp['host'],
+        "port" => $smtp['port'],
+        "user" => $smtp['user']
+    ]
+]);
+exit();
 ?>
