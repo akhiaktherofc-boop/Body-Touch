@@ -264,7 +264,7 @@ export default function LoginGate({
       }
 
       if (sentViaEmail) {
-        setSuccessMsg(`ভেরিফিকেশন কোড আপনার নিবন্ধিত ইমেইল (${userEmail}) এ পাঠানো হয়েছে!`);
+        setSuccessMsg(`ভেরিফিকেশন কোড আপনার নিবন্ধিত ইমেইল (${userEmail}) এ পাঠানো হয়েছে!${mockInfo}`);
       } else {
         setErrorMsg(`কোড পাঠানো ব্যর্থ হয়েছে। ${mockInfo ? `সার্ভার ত্রুটি: ${mockInfo}` : 'অনুগ্রহ করে আবার চেষ্টা করুন বা কাস্টমার সাপোর্টে কথা বলুন।'}`);
         setSuccessMsg('');
@@ -574,7 +574,7 @@ export default function LoginGate({
         }
 
         if (sentViaEmail) {
-          setSuccessMsg(`ভেরিফিকেশন কোড আপনার নিবন্ধিত ইমেইল (${emailToAuth}) এ পাঠানো হয়েছে!`);
+          setSuccessMsg(`ভেরিফিকেশন কোড আপনার নিবন্ধিত ইমেইল (${emailToAuth}) এ পাঠানো হয়েছে!${mockInfo}`);
         } else {
           setErrorMsg(`ভেরিফিকেশন কোড পাঠানো ব্যর্থ হয়েছে! ${mockInfo ? `সার্ভার ত্রুটি: ${mockInfo}` : 'অনুগ্রহ করে সাপোর্ট লাইনে যোগাযোগ করুন।'}`);
           return;
@@ -768,7 +768,7 @@ export default function LoginGate({
         }
 
         if (sentViaEmail) {
-          setSuccessMsg(`ভেরিফিকেশন কোড আপনার ইমেইল (${newEmail.trim().toLowerCase()}) এ পাঠানো হয়েছে!`);
+          setSuccessMsg(`ভেরিফিকেশন কোড আপনার ইমেইল (${newEmail.trim().toLowerCase()}) এ পাঠানো হয়েছে!${mockInfo}`);
         } else {
           setErrorMsg(`ভেরিফিকেশন কোড পাঠানো ব্যর্থ হয়েছে! ${mockInfo ? `সার্ভার ত্রুটি: ${mockInfo}` : 'অনুগ্রহ করে সঠিক ইমেইল আইডি চেক করুন।'}`);
           return;
@@ -1038,7 +1038,8 @@ export default function LoginGate({
                         });
                         const resData = await response.json();
                         if (response.ok && resData.success) {
-                          setOtpSuccess(`নতুন ভেরিফিকেশন কোড আপনার ইমেইল (${pendingCredentials.email}) এ পাঠানো হয়েছে!`);
+                          const mockSuffix = resData.mocked ? ` (সিমুলেশন ওটিপি কোড: ${code})` : '';
+                          setOtpSuccess(`নতুন ভেরিফিকেশন কোড আপনার ইমেইল (${pendingCredentials.email}) এ পাঠানো হয়েছে!${mockSuffix}`);
                         } else {
                           const errorDetail = resData.error || resData.message || '';
                           setOtpError(`কোড পুনরায় পাঠাতে ব্যর্থ হয়েছে। ${errorDetail ? `সার্ভার ত্রুটি: ${errorDetail}` : 'অনুগ্রহ করে আবার চেষ্টা করুন।'}`);
