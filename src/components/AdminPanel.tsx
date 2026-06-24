@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { doc, getDoc, setDoc, deleteDoc, getDocFromServer, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, doc, getDoc, setDoc, deleteDoc, getDocFromServer, onSnapshot } from '../firebase';
 import * as OTPAuth from 'otpauth';
 import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel } from '../types';
 import { clearCollection } from '../services/cloudService';

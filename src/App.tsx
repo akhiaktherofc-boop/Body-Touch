@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { db } from './firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db, doc, getDoc, setDoc } from './firebase';
 import { 
   bootstrapCollectionIfEmpty, 
   syncCloudCollection, 

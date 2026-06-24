@@ -9,9 +9,9 @@ import {
   onSnapshot, 
   query, 
   where,
-  getDoc
-} from 'firebase/firestore';
-import { db } from '../firebase';
+  getDoc,
+  db
+} from '../firebase';
 
 // Helper to sanitize document identifiers (Firestore keys cannot have slash /)
 const sanitizeId = (id: string) => id.replace(/[\/\s?#]/g, '_');

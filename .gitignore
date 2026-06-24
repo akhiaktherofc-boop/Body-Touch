@@ -1,7 +1,10 @@
 node_modules/
+dist/
+server-dist/
 build/
 coverage/
 .DS_Store
 *.log
 .env*
 !.env.example
+smtp-config.json

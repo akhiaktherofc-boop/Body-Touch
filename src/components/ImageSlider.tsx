@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, ChevronRight, ShieldCheck, Star, Users, Bell, Heart, Trophy } from 'lucide-react';
-import { db } from '../firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { db, doc, onSnapshot } from '../firebase';
 
 interface Slide {
   id: number | string;

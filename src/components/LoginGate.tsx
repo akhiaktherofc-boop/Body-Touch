@@ -19,8 +19,9 @@ import {
   ArrowLeft,
   RefreshCw
 } from 'lucide-react';
-import { db, auth } from '../firebase';
 import { 
+  db, 
+  auth,
   doc, 
   getDoc, 
   setDoc, 
@@ -29,7 +30,7 @@ import {
   where, 
   getDocs, 
   limit 
-} from 'firebase/firestore';
+} from '../firebase';
 
 interface LoginGateProps {
   onLoginSuccess: (credentials: {
