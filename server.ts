@@ -160,8 +160,12 @@ async function startServer() {
     id: string;
     sender: 'user' | 'admin';
     text: string;
+    image?: string;
+    status?: 'sent' | 'delivered' | 'seen';
     timestamp: number;
   }>> = {};
+
+  const adminSockets = new Set<string>();
 
   io.on("connection", (socket) => {
     console.log(`[Socket.io Debug] Client connected: ${socket.id}`);
@@ -174,6 +178,22 @@ async function startServer() {
 
       if (role === "admin") {
         socket.join("admin_room");
+        adminSockets.add(socket.id);
+
+        // Upgrade any 'sent' messages to 'delivered' because admin is now connected
+        Object.keys(chatHistories).forEach(u => {
+          let updated = false;
+          chatHistories[u].forEach(msg => {
+            if (msg.sender === 'user' && (!msg.status || msg.status === 'sent')) {
+              msg.status = 'delivered';
+              updated = true;
+            }
+          });
+          if (updated) {
+            io.to(`room_${u}`).emit("chat_history", { username: u, history: chatHistories[u] });
+          }
+        });
+
         socket.emit("active_chats_list", Object.values(activeChats));
       } else {
         socket.join(`room_${username}`);
@@ -197,22 +217,27 @@ async function startServer() {
       }
     });
 
-    socket.on("send_message", (data: { username: string; sender: 'user' | 'admin'; text: string }) => {
-      const { username, sender, text } = data;
-      if (!username || !text) return;
+    socket.on("send_message", (data: { username: string; sender: 'user' | 'admin'; text: string; image?: string }) => {
+      const { username, sender, text, image } = data;
+      if (!username) return;
 
-      console.log(`[Socket.io Debug] Message from ${sender} in chat ${username}: ${text}`);
+      console.log(`[Socket.io Debug] Message from ${sender} in chat ${username}: ${text ? text.slice(0, 50) : "[Image]"}`);
 
       const message = {
         id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         sender,
         text,
+        image,
+        status: (sender === 'user' ? (adminSockets.size > 0 ? 'delivered' : 'sent') : undefined) as 'sent' | 'delivered' | 'seen' | undefined,
         timestamp: Date.now()
       };
 
       if (!chatHistories[username]) {
         chatHistories[username] = [];
       }
+
+      const isFirstMessage = !chatHistories[username].some(m => m.sender === 'admin');
+
       chatHistories[username].push(message);
 
       if (activeChats[username]) {
@@ -225,6 +250,25 @@ async function startServer() {
       io.to(`room_${username}`).emit("receive_message", message);
       io.to("admin_room").emit("receive_message_admin", { username, message });
       io.to("admin_room").emit("active_chats_list", Object.values(activeChats));
+
+      // Trigger automatic welcome reply if user sends their first message in chat
+      if (sender === "user" && isFirstMessage) {
+        setTimeout(() => {
+          const welcomeMessage = {
+            id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            sender: 'admin' as const,
+            text: "আমি bodyTOUCH থেকে আনিকা বলছি, আপনাকে কিভাবে সাহায্য করতে পারি?",
+            timestamp: Date.now()
+          };
+          if (!chatHistories[username]) {
+            chatHistories[username] = [];
+          }
+          chatHistories[username].push(welcomeMessage);
+          
+          io.to(`room_${username}`).emit("receive_message", welcomeMessage);
+          io.to("admin_room").emit("receive_message_admin", { username, message: welcomeMessage });
+        }, 1200);
+      }
     });
 
     socket.on("get_chat_history", (data: { username: string }) => {
@@ -243,10 +287,30 @@ async function startServer() {
         activeChats[username].unreadCount = 0;
         io.to("admin_room").emit("active_chats_list", Object.values(activeChats));
       }
+
+      // Mark all user messages as 'seen' because admin viewed them
+      if (chatHistories[username]) {
+        let updated = false;
+        chatHistories[username].forEach(msg => {
+          if (msg.sender === 'user' && msg.status !== 'seen') {
+            msg.status = 'seen';
+            updated = true;
+          }
+        });
+        if (updated) {
+          io.to(`room_${username}`).emit("chat_history", {
+            username,
+            history: chatHistories[username]
+          });
+        }
+      }
     });
 
     socket.on("disconnect", () => {
       console.log(`[Socket.io Debug] Client disconnected: ${socket.id}`);
+      if (adminSockets.has(socket.id)) {
+        adminSockets.delete(socket.id);
+      }
     });
   });
 
@@ -292,7 +356,7 @@ async function startServer() {
 
   // API Route to send verification email (OTP) via Nodemailer
   app.post("/api/send-otp-email", async (req, res) => {
-    const { email, username, code } = req.body;
+    const { email, username, code, smtp } = req.body;
 
     if (!email) {
       return res.status(400).json({ error: "Email is required." });
@@ -301,7 +365,13 @@ async function startServer() {
     const emailBody = `Hello ${username || 'User'},\n\nYour security OTP verification code is: ${code}\n\nThis code is valid for 15 minutes. Please do not share it with anyone.`;
     
     try {
-      const { host, port, secure, user, pass, fromEmail } = getSmtpConfig();
+      const localSmtp = getSmtpConfig();
+      const host = smtp?.host || localSmtp.host;
+      const port = smtp?.port ? parseInt(smtp.port) : localSmtp.port;
+      const secure = smtp?.secure !== undefined ? (smtp.secure === true || smtp.secure === "true") : localSmtp.secure;
+      const user = smtp?.user ? smtp.user.trim() : localSmtp.user;
+      const pass = smtp?.pass ? smtp.pass.trim() : localSmtp.pass;
+      const fromEmail = smtp?.fromEmail ? smtp.fromEmail.trim() : (smtp?.user ? smtp.user.trim() : localSmtp.fromEmail);
 
       if (!user || !pass) {
         console.warn("[SMTP Warning] SMTP is not configured. Returning simulated sandbox success.");
@@ -374,14 +444,20 @@ async function startServer() {
 
   // API Route to send custom notifications via Nodemailer
   app.post("/api/send-custom-email", async (req, res) => {
-    const { toEmail, subject, bodyText } = req.body;
+    const { toEmail, subject, bodyText, smtp } = req.body;
 
     if (!toEmail) {
       return res.status(400).json({ error: "Destination email (toEmail) is required." });
     }
 
     try {
-      const { host, port, secure, user, pass, fromEmail } = getSmtpConfig();
+      const localSmtp = getSmtpConfig();
+      const host = smtp?.host || localSmtp.host;
+      const port = smtp?.port ? parseInt(smtp.port) : localSmtp.port;
+      const secure = smtp?.secure !== undefined ? (smtp.secure === true || smtp.secure === "true") : localSmtp.secure;
+      const user = smtp?.user ? smtp.user.trim() : localSmtp.user;
+      const pass = smtp?.pass ? smtp.pass.trim() : localSmtp.pass;
+      const fromEmail = smtp?.fromEmail ? smtp.fromEmail.trim() : (smtp?.user ? smtp.user.trim() : localSmtp.fromEmail);
 
       if (!user || !pass) {
         console.warn("[SMTP Warning] SMTP is not configured for custom notifications. Returning simulated success.");

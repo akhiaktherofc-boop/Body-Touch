@@ -1,7 +1,7 @@
 import { Companion, PaymentGateway } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Calendar, Clock, Moon, MapPin, Sparkles, User, Video, Heart, Users, ArrowRight, ArrowLeft, Home, Car, ChevronDown, MessageSquare, Phone, Send, CheckCircle2, Copy, Check, Info, Camera, AlertTriangle } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import { X, Calendar, Clock, Moon, MapPin, Sparkles, User, Video, Heart, Users, ArrowRight, ArrowLeft, Home, Car, ChevronDown, MessageSquare, Phone, Send, CheckCircle2, Copy, Check, Info, Camera, AlertTriangle, Upload, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
 import { compressImage } from '../services/imageService';
 
 const PREDEFINED_SANCTUARIES = [
@@ -382,6 +382,22 @@ export default function BookingModal({
   const [deficitMethod, setDeficitMethod] = useState<string>('');
   const [deficitTrxId, setDeficitTrxId] = useState('');
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [deficitScreenshot, setDeficitScreenshot] = useState('');
+  const [deficitUploading, setDeficitUploading] = useState(false);
+  const deficitFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleDeficitFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setDeficitUploading(true);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setDeficitScreenshot(reader.result as string);
+        setDeficitUploading(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   useEffect(() => {
     if (isOpen && displayGateways.length > 0) {
@@ -580,7 +596,8 @@ export default function BookingModal({
       deficitPay: isDeficit ? {
         method: deficitMethod,
         trxId: deficitTrxId.trim().toUpperCase(),
-        amount: deficitAmount
+        amount: deficitAmount,
+        screenshot: deficitScreenshot || undefined
       } : undefined,
       firstTimeBooking,
       userPhoto: userPhoto || defaultClientPhoto || undefined,
@@ -613,6 +630,7 @@ export default function BookingModal({
     setIsAddressDropdownOpen(false);
     setSecretCode('');
     setDeficitTrxId('');
+    setDeficitScreenshot('');
     setShowThankyou(false);
     setFirstTimeBooking(false);
     setUserPhoto('');
@@ -628,6 +646,7 @@ export default function BookingModal({
     setShowThankyou(false);
     setSecretCode('');
     setDeficitTrxId('');
+    setDeficitScreenshot('');
     setFirstTimeBooking(false);
     setUserPhoto('');
     setNidFront('');
@@ -1834,6 +1853,57 @@ export default function BookingModal({
                               placeholder="e.g. 5TRX9A2C"
                               className="w-full bg-slate-950 border border-amber-500/25 text-white font-mono rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-amber-405 uppercase text-center tracking-widest font-bold"
                             />
+                          </div>
+
+                          {/* Remaining pay screenshot upload */}
+                          <div className="space-y-1">
+                            <label className="block text-[8px] text-amber-400 font-extrabold uppercase tracking-wider text-left flex justify-between">
+                              <span>Remaining Pay Screenshot (ঐচ্ছিক)</span>
+                              {deficitScreenshot && <span className="text-emerald-400 font-black">✓ LOADED</span>}
+                            </label>
+                            
+                            <input
+                              type="file"
+                              ref={deficitFileInputRef}
+                              accept="image/*"
+                              onChange={handleDeficitFileChange}
+                              className="hidden"
+                            />
+
+                            {deficitScreenshot ? (
+                              <div className="relative border border-emerald-500/30 rounded-xl overflow-hidden bg-slate-950 p-2 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <img 
+                                    src={deficitScreenshot} 
+                                    alt="Payment Screenshot Preview" 
+                                    className="w-8 h-8 object-cover rounded border border-white/5"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                  <div>
+                                    <p className="text-[9px] font-bold text-emerald-400">Screenshot Attached</p>
+                                    <p className="text-[7.5px] text-slate-500">Image successfully loaded</p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeficitScreenshot('')}
+                                  className="text-red-400 hover:text-red-300 p-1 bg-red-500/10 hover:bg-red-500/20 rounded transition cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => deficitFileInputRef.current?.click()}
+                                className="w-full bg-slate-950 border border-dashed border-amber-500/15 hover:border-amber-500/30 rounded-xl p-2 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-900/40 transition-all text-slate-400"
+                              >
+                                <Upload className="w-3.5 h-3.5 text-amber-400/80" />
+                                <span className="text-[9px] font-bold text-slate-350">
+                                  {deficitUploading ? 'Processing Screenshot...' : 'Upload Payment Screenshot'}
+                                </span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       ) : (

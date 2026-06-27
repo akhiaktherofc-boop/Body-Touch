@@ -1,0 +1,225 @@
+1812:                  <h2 className="text-lg font-bold text-white tracking-tight">Admin Authentication / এডমিন অথেন্টিকেশন</h2>
+1814:                    পাসওয়ার্ড এবং ২-স্টেপ সিকিউরিটি কোড বসিয়ে এডমিন প্যানেলে প্রবেশ করুন।
+1822:                      Email Address / এডমিন ইমেইল
+1844:                      Password / পাসওয়ার্ড
+1879:                        Verifying... / যাচাই করা হচ্ছে...
+1884:                        Verify Credentials / পরবর্তী ধাপ
+1899:                      Google Authenticator Link / গুগল অথেন্টিকেটর লিঙ্ক
+1902:                      আপনার গুগল অথেন্টিকেটর অ্যাপে নিচের কিউআর কোডটি (QR Code) স্ক্যান করুন অথবা কোডটি ম্যানুয়ালি যোগ করুন।
+1923:                      <span className="text-[9px] font-mono tracking-widest text-[#dbaa61] uppercase font-black">Manual Entry Key / ম্যানুয়াল কী</span>
+1943:                      <span className="font-bold text-[#dbaa61] block mb-0.5">লিঙ্ক করার নিয়ম:</span>
+1944:                      <p>১. আপনার মোবাইলে <strong className="text-white">Google Authenticator</strong> অ্যাপ ওপেন করুন।</p>
+1945:                      <p>২. নিচে ডান কোণায় প্লাস (+) আইকন চেপে <strong className="text-white">"Scan a QR code"</strong> সিলেক্ট করে কোডটি স্ক্যান করুন।</p>
+1946:                      <p>৩. যদি স্ক্যান না করতে পারেন, তবে <strong className="text-white">"Enter a setup key"</strong> সিলেক্ট করে নাম "BodyTouch" এবং ওপরের "Manual Entry Key" টি বসিয়ে দিয়ে <strong className="text-white">Add</strong> চাপুন।</p>
+1954:                        Enter Generated Code (আপনার অ্যাপের কোডটি দিন)
+2230:                {activeTab === 'verification' && 'Model Verifications (মডেল যাচাইকরণ)'}
+2371:                      স্বাগতম, দ্য বডি টাচ অ্যাডমিন প্যানেল!
+2374:                      এই সেন্ট্রাল অ্যাডমিন ড্যাশবোর্ড থেকে আপনি গ্রাহক অ্যাকাউন্ট (VIP Clients), পার্টনার প্রফাইল (Companions & Models), মিডিয়া ব্যাংক, এবং বুকিং অর্ডার ও টেলিগ্রাম ইন্টিগ্রেশন সেটিংস নিখুঁতভাবে নিয়ন্ত্রণ করতে পারবেন। কোনো পরিবর্তন করার সাথে সাথে তা ফ্রন্টএন্ডে রিয়েল-টাইমে আপডেট হয়ে যাবে।
+2443:                    সিস্টেমের পূর্বের সকল কাস্টমার অ্যাকাউন্ট (users), বুকিং হিস্ট্রি (bookings) এবং রিলেটেড ট্রানজেকশন ডাটা (payments) ফায়ারস্টোর ক্লাউড থেকে একদম মুছে ফ্রেশ টেস্ট করতে নিচের রিসেট বাটনে ক্লিক করুন।
+2476:                বডি টাচ গ্রাহকদের ট্রানজেকশন তালিকা নিচে দেওয়া হলো। অ্যাডমিন হিসেবে ট্রানজেকশন আইডি মিলিয়ে মেম্বার সেকশন 
+2477:                <strong className="text-emerald-400"> Approve </strong> (VIP এক্টিভেশন টিকিট) অথবা <strong className="text-rose-400"> Reject </strong> করুন।
+2566:                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab]">Registered Client Profiles Directory / গ্রাহক ডাটাবেজ</h4>
+2567:                    <p className="text-[9px] text-slate-500 font-medium">বুকিং করার সময় গ্রাহকদের থেকে সংগৃহীত বিস্তারিত তথ্যাদি</p>
+2650:                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">FULL NAME / গ্রাহকের নাম</span>
+2655:                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">PHONE NUMBER / মোবাইল নম্বর</span>
+2660:                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">EMAIL ADDRESS / ইমেইল</span>
+2667:                        <h4 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab]">Verification Documents / ভেরিফিকেশন ডকুমেন্ট</h4>
+2672:                            <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider pb-1.5">NID Card Front / সামনের অংশ</span>
+2689:                            <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider pb-1.5">NID Card Back / পেছনের অংশ</span>
+2866:                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase font-mono">Select Category * / ৩টি ক্যাটাগরি</label>
+2872:                        <option value="REGULAR">Regular Member (রেগুলার ক্যাটাগরি)</option>
+2873:                        <option value="PREMIUM">Premium Member (প্রিমিয়াম ক্যাটাগরি)</option>
+2874:                        <option value="ELITE">Elite Society (এলিট ক্যাটাগরি)</option>
+2875:                        <option value="DEMO">Demo Class (ডিমো ক্যাটাগরি)</option>
+2887:                        <option value="Female Model">Female Model (ফিমেল মডেল)</option>
+2888:                        <option value="Male Model">Male Model (মেল মডেল)</option>
+2889:                        <option value="Sperm Donor">Sperm Donor (স্পার্ম ডোনার)</option>
+2908:                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Height / উচ্চতা</label>
+2920:                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Body Color / Complexion / গায়ের রঙ</label>
+2932:                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Weight / ওজন</label>
+2944:                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Bust/Chest / স্তন/বুক (ইঞ্চি)</label>
+2956:                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Waist / কোমর (ইঞ্চি)</label>
+2968:                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Hip / নিতম্ব (ইঞ্চি)</label>
+2980:                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Operational City Area (শহর ও এলাকা)</label>
+2986:                        <option value="">Select Area / এলাকা সিলেক্ট করুন</option>
+3026:                        CUSTOM FEES PER SERVICE / কাস্টম সার্ভিস রেট (ঐচ্ছিক)
+3110:                        <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Partner Image / ছবি *</label>
+3145:                            Upload Image / ছবি আপলোড
+3326:                            <span className="text-slate-500 text-[8px] uppercase block font-mono font-bold">Height (উচ্চতা):</span>
+3334:                            <span className="text-slate-500 text-[8px] uppercase block font-mono font-bold">City (শহর):</span>
+3385:                মেডিয়া ফাইল কালেকশন ম্যানেজার। যেকোনো নতুন ছবি যুক্ত করতে নিচে URL পোস্ট করুন। মডেলে যুক্ত করার জন্য যেকোনো ছবির
+3386:                <strong className="text-blue-400"> Copy URL </strong> বাটন ক্লিক করলেই চমৎকারভাবে ছবির লিঙ্ক ক্লিপবোর্ডে কপি হয়ে যাবে! 
+3562:                  বডি টাচ মেম্বারদের এঙ্কোয়ারি রিকোয়েস্ট ও বুকিং লিস্ট। পার্টনারদের বুকিং <strong className="text-emerald-400"> Approve & Send Mail </strong> ক্লিক করে কনফার্ম করুন। এতে করে ক্রেতার ইমেল বক্সে সম্পূর্ণ ভাউচার কোড মেইল আকারে স্বয়ংক্রিয়ভাবে প্রেরিত হয়ে যাবে।
+3568:                    { value: 'ALL', en: 'All Orders', bn: 'সকল অর্ডার', count: bookings.length },
+3569:                    { value: 'REGULAR', en: 'Regular', bn: 'রেগুলার', count: regularOrdersCount },
+3570:                    { value: 'PREMIUM', en: 'Premium', bn: 'প্রিমিয়াম', count: premiumOrdersCount },
+3571:                    { value: 'ELITE', en: 'Elite', bn: 'এলিট', count: eliteOrdersCount }
+3660:                              <span className="text-slate-500 text-[8px] uppercase block font-mono">Date / তারিখ:</span>
+3664:                              <span className="text-slate-500 text-[8px] uppercase block font-mono">Duration (সময়কাল):</span>
+3683:                                🔒 FIRST-TIME CLIENT VERIFICATION / প্রথমবার বুকিং ভেরিফিকেশন
+3784:                                <span className="text-emerald-400 font-bold font-sans">Processed Voucher Mail (মেইল কনফার্মড)</span>
+3793:                                    🚀 Outgoing (আসছে)
+3799:                                    💖 Complete (সম্পন্ন)
+3813:                                    💖 Complete (সম্পন্ন)
+3841:                  ডিজাইনেড বিলাসবহুল সেফ হাউস এবং ফাইভ-স্টার স্যুইট তালিকা। সার্ভিস বুকিং করার জন্য ক্লায়েন্টদের রিল্যাক্স ম্যাপে স্যুইটগুলো প্রদর্শিত হয়।
+3888:                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase">Prestige stars rating / স্টার রেটিং</label>
+3907:                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Metropolis District area / এলাকা বা বিভাগ</label>
+3913:                        <option value="">Select Area / এলাকা সিলেক্ট করুন</option>
+3939:                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase">Sanctuary Charge / ভাড়া (৳) *</label>
+3952:                      <label className="block text-[10px] font-black tracking-widest text-[#2271b1] uppercase">Sanctuary Description & Privacy Guidelines / হোটেলের বিস্তারিত বিবরণ ও গোপনীয়তা নিয়মাবলী *</label>
+3958:                        placeholder="হোটেলের বিবরণ, সুযোগ সুবিধা এবং গোপনীয়তা সম্পর্কিত বিস্তারিত লিখুন। যেমন: Private elevator, 100% blind safety setups, elite room amenities..."
+4013:                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-400">🚨 Hotel Fine Specifications (জরুরী বিস্তারিত তথ্য)</span>
+4018:                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Distance string (দুরত্ব, e.g. 17.1 km from city center)</label>
+4030:                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Street Address (পূর্ণ ঠিকানা)</label>
+4042:                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono">Check-in Policy Time (চেক-ইন সময়)</label>
+4053:                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono">Check-out Policy Time (চেক-আউট সময়)</label>
+4065:                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono">Highlighted Facilities (কমা দিয়ে লিখুন - Comma separated)</label>
+4077:                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-500">🛏️ Room Option 1 Details (রুম অপশন ১ বিস্তারিত বিবরণ)</span>
+4081:                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Type Name (নাম)</label>
+4092:                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Bed Type (বেড টাইপ)</label>
+4103:                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Capacity (ধারণক্ষমতা)</label>
+4114:                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">View Type (ভিও টাইপ)</label>
+4125:                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Area (রুমের সাইজ)</label>
+4136:                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Price per night/room (ভাড়া)</label>
+4147:                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Benefits/Facilities (সুবিধাসমূহ, e.g. Breakfast Included, Non-Smoking room)</label>
+4159:                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-500">🛏️ Room Option 2 Details (রুম অপশন ২ বিস্তারিত বিবরণ)</span>
+4163:                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Type Name (নাম)</label>
+4174:                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Bed Type (বেড টাইপ)</label>
+4185:                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Capacity (ধারণক্ষমতা)</label>
+4196:                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">View Type (ভিও টাইপ)</label>
+4207:                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Area (রুমের সাইজ)</label>
+4218:                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Price per night/room (ভাড়া)</label>
+4229:                       <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Benefits/Facilities (সুবিধাসমূহ, e.g. Breakfast Included, Non-Smoking room)</label>
+4328:                      Brand Logo Uploader & Controller (ব্র্যান্ড লোগো আপলোডার)
+4342:                      Interactive Crop Circle (লোগো পজিশন করুন)
+4405:                          (ছবিটির ওপর মাউস বা আঙুল দিয়ে ড্র্যাগ করে বসান)
+4419:                        Upload Logo Image File (লোগো ছবি ফাইল সিলেক্ট করুন)
+4457:                          <span>Precise adjustment sliders (সূক্ষ্মভাবে সাইজ মেলানোর স্লাইডার)</span>
+4475:                            <span className="text-[9px] font-bold text-slate-400">🔍 Image Scale / Zoom (ছবি বড়/ছোট করুন)</span>
+4491:                            <span className="text-[9px] font-bold text-slate-400">↔️ Horizontal Shift (ডানে-বামে সরান)</span>
+4507:                            <span className="text-[9px] font-bold text-slate-400">↕️ Vertical Shift (উপরে-নিচে সরান)</span>
+4523:                            <span className="text-[9px] font-bold text-slate-400">🔄 Rotate Image (ঘোরান)</span>
+4551:                              Crop & Lock Logo (লোগো সাইজ ঠিক করে কাটুন)
+4561:                          Or Paste Logo Image URL (অথবা ডিরেক্ট ইমেজ লিংক দিন)
+4567:                              if (confirm("আপনি কি নিশ্চিত লোগোটি রিমুভ করে ডিফল্ট ডিজাইনে ফিরে যেতে চান?")) {
+4605:                        Apply & Save Logo (পরিবর্তন সেভ করুন)
+4611:                          if (confirm("আপনি কি নিশ্চিত যে আপনি কাস্টম লোগো মুছে দিয়ে পূর্বনির্ধারিত ডিফল্ট ভেক্টর লোগোতে ফিরে যেতে চান?")) {
+4622:                        Reset to Default (ডিফল্ট লোগো)
+4645:                    Telegram Notification Engine & Helpline (টেলিগ্রাম নোটিফিকেশন ও হেল্পলাইন)
+4656:                      Telegram Bot Token (টেলিগ্রাম বট টোকেন)
+4670:                      Telegram Group Chat ID (গ্রুপ চ্যাট আইডি)
+4684:                      Support Helpline Username (টেলিগ্রাম হেল্পলাইন)
+4734:                    ⚠️ <b>বট সেটিংস নির্দেশাবলি:</b>
+4737:                    ১. প্রথমে <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-white hover:underline">@BotFather</a> এর মাধ্যমে একটি নতুন টেলিগ্রাম বট তৈরি করে টোকেনটি এখানে বসান।
+4740:                    ২. আপনার অ্যাডমিন গ্রুপ চ্যাটে তৈরি করা বটটিকে যুক্ত করুন এবং গ্রুপ চ্যাট আইডি (Chat ID) উপরোক্ত বক্সে প্রদান করুন।
+4743:                    ৩. কোনো মডেল বুকিং রিকোয়েস্ট দিলে কাস্টমার ডিটেইলস সহ নোটিফিকেশন স্বয়ংক্রিয়ভাবে উক্ত এডমিন গ্রুপে চলে যাবে।
+4753:                    SMTP / Email SMS Gateway Settings (এসএমএস ও ইমেইল ভেরিফিকেশন গেটওয়ে)
+4767:                  Configure your primary SMTP Server credentials to send secure verification OTP emails (SMS equivalents) to users during login and registration. Verification is locked to <strong className="text-teal-400">MUST (বাধ্যতামূলক)</strong> for absolute portal security.
+4773:                      SMTP Host (ইমেইল হোস্ট)
+4786:                      SMTP Port (ইমেইল পোর্ট)
+4799:                      Sender Name (প্রেরকের নাম)
+4813:                      SMTP User Email (ইউজার ইমেইল)
+4827:                      SMTP App Password (সিকিউর পাসওয়ার্ড)
+4842:                    <span>Login & Registration Email Verifications: <b>ENFORCED / MUST (বাধ্যতামূলক সক্রিয়)</b></span>
+4859:                    Save SMTP Configuration (গেটওয়ে সেভ করুন)
+4865:                    ⚠️ <b>জিমেইল (Gmail) এসএমএস ওটিপি গেটওয়ে নির্দেশাবলী:</b>
+4868:                    ১. আপনার জিমেইল অ্যাকাউন্টে প্রবেশ করে <b>2-Step Verification</b> চালু করুন।
+4871:                    ২. 2-Step Verification পেজের নিচের অংশে <b>App Passwords</b> এ গিয়ে একটি নতুন অ্যাপ পাসওয়ার্ড জেনারেট করুন।
+4874:                    ৩. সেখান থেকে প্রাপ্ত ১৬ অক্ষরের সিকিউর কোডটি উপরে <b>SMTP App Password</b> এর ঘরে বসিয়ে দিয়ে সেভ করুন।
+4885:                    SMTP Live Email Queue Logs (সিস্টেম ইমেইল লগ)
+4892:                      Clear Logs (মুছে ফেলুন)
+4941:                    Emergency Notice & Slider Text Control (জরুরী নোটিশ ও স্লাইডার লেখা নিয়ন্ত্রণ)
+4945:                  হোমপেজের স্ক্রলিং নোটিশ বার এবং ছবি স্লাইডারের জরুরি নোটিশের লেখাটি এখান থেকে পরিবর্তন করতে পারেন। কাস্টমারদের স্ক্রিনে এটি রিয়েল-টাইমে আপডেট হয়ে যাবে।
+4950:                    🚨 Notice Text Content (জরুরী নোটিশ এর লেখা)
+4956:                    placeholder="সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যাম সার্ভিস বুকিং দিবেন না"
+4964:                    📢 {editableNotice || 'সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যাম সার্ভিস বুকিং দিবেন না'}
+4975:                    Manage Hero Slides & Graphics (হিরো স্লাইডার ও ব্যানার ম্যানেজার)
+4983:                  আপনার হোমপেজের গোল্ডেন অ্যানিমেটেড স্লাইডারের (Golden Border Slider) ব্যানার, ছবি, বড় টাইটেল এবং সব-টাইটেল এখান থেকে পরিবর্তন করুন। কোনো কাস্টম স্লাইড অ্যাড না থাকলে পূর্বনির্ধারিত ৩টি প্রিমিয়াম স্লাইড স্বয়ংক্রিয়ভাবে দেখাবে।
+4996:                    📋 Active Banner Slides in Carousel ({sliderSlides.length === 0 ? "Default/পূর্বনির্ধারিত" : "Customized/কাস্টম"})
+5001:                      বর্তমানে কোনো কাস্টম স্লাইড তৈরি করা নেই। সিস্টেমের ডিফল্ট ৩টি স্লাইডার ইমেজ ও জরুরি নোটিশ দেখাচ্ছে। নিচের ফর্ম থেকে আপনার কাস্টম স্লাইডার যুক্ত করুন।
+5064:                    {isEditingSlide ? "⚙️ Edit Selected Slide Properties (স্লাইড এডিট করুন)" : "➕ Add New Slide/Announcement Graphics (নতুন স্লাইড যোগ করুন)"}
+5070:                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Slide Title Text (স্লাইডের টাইটেল) *</label>
+5076:                        placeholder="e.g. Premium Escorts & Models / ডল হসপিটাল অফারস"
+5083:                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Subtitle Detail Text (বিস্তারিত বা সবটাইটেল)</label>
+5095:                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Badge Label Text (ছোট ব্যানার লেখা)</label>
+5107:                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Icon representation (আইকন টাইপ)</label>
+5113:                        <option value="star">★ Golden Star (সোনালী তারা)</option>
+5114:                        <option value="bell">🔔 Warning/Info Bell (ঘণ্টা - এনিমেশন)</option>
+5115:                        <option value="shield">🛡️ Secure Shield (সিকিউরিটি শিল্ড)</option>
+5116:                        <option value="heart">💖 Red Heart (লাভ আইকন - এনিমেশন)</option>
+5117:                        <option value="users">👥 Companion Partners (ইউজার পার্টনারস)</option>
+5118:                        <option value="trophy">🏆 Premium Elite Trophy (ট্রফি আইকন)</option>
+5124:                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Badge Gradient Color (ব্যাজ কালার স্কিম)</label>
+5130:                        <option value="from-pink-500 to-rose-600">Rose/Pink (গোলাপী-লাল)</option>
+5131:                        <option value="from-amber-400 to-red-650">Amber/Orange-Red (আগুনের মত কমলা)</option>
+5132:                        <option value="from-cyan-500 to-blue-600">Ocean Cyan/Blue (নীল-আকাশী)</option>
+5133:                        <option value="from-emerald-500 to-teal-700">Emerald/Teal Green (সবুজ)</option>
+5134:                        <option value="from-purple-500 to-indigo-650">Cosmic Purple (বেগুনী)</option>
+5140:                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Hero Photo Banner URL (ছবির ওয়েব লিংক) *</label>
+5155:                      ✨ Click one premium preset to instantly import Photo URL (প্রিমিয়াম ছবি সিলেক্ট করুন):
+5237:                  Metropolitan Area & Urban Locations Manager (শহর ও এলাকা ব্যবস্থাপনা)
+5256:                  1. ADD NEW DISTRICT / DIVISION HEADLINE (নতুন প্রধান জেলা বা শহর যোগ করুন)
+5307:                  2. MANAGE SUB-AREAS UNDER DISTRICTS (জেলাভিত্তিক উপ-এলাকা সমূহ)
+5426:                            placeholder={`Add zone under ${division.name} (যেমন: Gulshan)`}
+5453:                  Dynamic Payment Gateway Manager (পেমেন্ট গেটওয়ে কনফিগারেশন)
+5471:                  {editingGatewayId ? 'EDIT CONFIGURATION / গেটওয়ে সংশোধন করুন' : 'REGISTER NEW GATEWAY / নতুন গেটওয়ে যুক্ত করুন'}
+5566:                        <option value="Personal">Personal (সেন্ড মানি)</option>
+5567:                        <option value="Agent">Agent (ক্যাশ আউট)</option>
+5568:                        <option value="Merchant">Merchant (মার্চেন্ট পেমেন্ট)</option>
+5576:                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Wallet Number (মোবাইল নম্বর)</label>
+5589:                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Payment Step Directions (নির্দেশনা)</label>
+5595:                        placeholder="দয়া করে এই নম্বরে Send Money করার পর TrxID প্রদান করুন।"
+5766:                  CONFIDENTIAL ADMINISTRATION GATEWAY / এডমিন অ্যাক্সেস কন্ট্রোল
+5783:                        Access Restricted / সীমাবদ্ধ অ্যাক্সেস
+5786:                        শুধুমাত্র সুপার এডমিন (Super Admin) নতুন এডমিন অ্যাকাউন্ট নথিভুক্ত বা রোল বরাদ্দ করতে পারেন।
+5800:                        <p className="text-[9px] text-slate-500 font-bold">নতুন প্যানেল এডমিন অ্যাকাউন্ট যুক্ত করুন</p>
+5819:                          alert('অনুগ্রহ করে সঠিক এডমিন ইমেল, টেলিগ্রাম এবং পাসওয়ার্ড লিখুন।');
+5825:                          alert('দয়া করে একটি সঠিক ইমেল এড্রেস ব্যবহার করুন।');
+5830:                          alert('পাসওয়ার্ডটি অন্তত ৫ অক্ষরের হতে হবে।');
+5835:                          alert('এই ইমেইলটি ইতিমধ্যে এডমিন হিসেবে নিবন্ধিত আছে।');
+5844:                          alert('দয়া করে একটি সঠিক টেলিগ্রাম ইউজারনেম দিন (যেমন: @developer_akhi)।');
+5855:                          alert('✅ নতুন এডমিন সফলভাবে পাসওয়ার্ডসহ তালিকাভুক্ত করা হয়েছে!');
+5858:                          alert('❌ ডাটাবেজে পাসওয়ার্ড সেট করতে ত্রুটি হয়েছে। অনুগ্রহ করে ইন্টারনেট কানেকশন চেক করুন।');
+5866:                          Administrator Email / এডমিন ইমেল এড্রেস *
+5880:                          Telegram Username / টেলিগ্রাম ইউজারনেম *
+5886:                          placeholder="e.g. @akhi_ofc (বা @ ছাড়া)"
+5894:                          Assign Secure Password / পাসওয়ার্ড সেট করুন *
+5908:                          Assign Role / এডমিন ভুমিকা নির্বাচন করুন *
+5915:                          <option value="admin">DEFAULT ADMIN (এডমিন)</option>
+5916:                          <option value="moderator">MODERATOR (মডারেটর)</option>
+5917:                          <option value="super_admin">SUPER ADMIN (সুপার এডমিন)</option>
+5944:                        <p className="text-[9px] text-slate-500 font-bold">অনুমোদিত সক্রিয় এডমিন সদস্যদের তালিকা</p>
+5996:                                      alert(`✅ "${emailAddress}" এর রোল পরিবর্তন করে "${nextRole.toUpperCase()}" করা হয়েছে!`);
+6000:                                    <option value="admin">ADMIN (এডমিন)</option>
+6001:                                    <option value="moderator">MODERATOR (মডারেটর)</option>
+6002:                                    <option value="super_admin">SUPER ADMIN (সুপার এডমিন)</option>
+6058:                                      alert(`✅ "${emailAddress}" এর এডমিন এক্সেস স্থায়ীভাবে বাতিল ও রিমুভ করা হয়েছে।`);
+6088:                    <p className="text-[9px] text-slate-500 font-bold">এডমিনদের কাস্টম সাইন-ইন পাসওয়ার্ড পরিবর্তন করুন</p>
+6102:                      alert('অনুগ্রহ করে সঠিক এডমিন ইমেল এবং পাসওয়ার্ড প্রবেশ করান।');
+6107:                      alert('পাসওয়ার্ডটি অন্তত ৫ অক্ষরের হতে হবে।');
+6114:                      alert(`✅ ${emailVal} এর সাইন-ইন পাসওয়ার্ড সফলভাবে আপডেট করা হয়েছে!`);
+6118:                      alert('❌ পাসওয়ার্ড আপডেট করতে ত্রুটি হয়েছে। অনুগ্রহ করে আপনার ফায়ারস্টোর ডাটাবেজ কানেকশন চেক করুন।');
+6124:                    <label className="text-[10px] uppercase font-black text-slate-400">Select Whitelisted Admin / এডমিন নির্বাচন করুন</label>
+6139:                    <label className="text-[10px] uppercase font-black text-slate-400">Set Custom Password / নতুন পাসওয়ার্ড লিখুন</label>
+6164:              MODEL APPLICATIONS VERIFICATION (মডেল যাচাইকরণ) TAB
+6171:                  Model Applications Verification Suite (মডেল রেজিস্ট্রেশন যাচাইকরণ প্যানেল)
+6219:                    <option value="ALL">All Categories / সকল ক্যাটাগরি</option>
+6220:                    <option value="Female Model">Female Model / নারী মডেল</option>
+6221:                    <option value="Male Model">Male Model / পুরুষ মডেল</option>
+6222:                    <option value="Sperm Donor">Sperm Donor / স্পার্ম ডোনার</option>
+6233:                    <option value="ALL">All Cities / সকল শহর</option>
+6372:                                <span className="text-slate-550 text-[8px] font-black uppercase tracking-wider block font-mono">Self Summary / Intro (বায়োডাটা):</span>
+6374:                                  "{comp.specialty || 'ক্যারিয়ার হিসেবে পেশাদার রয়্যাল ক্যাটাগরি পোর্টালে যুক্ত হওয়ার চমৎকার অভিজ্ঞতা অর্জন করতে ইচ্ছুক।'}"
+6394:                                    🆔 Verification Documents / আইডি ও সেলফি ভেরিফিকেশন
+6400:                                        <span className="text-[7.5px] text-slate-400 uppercase font-mono tracking-tight block truncate w-full">Selfie / সেলফি</span>
+6414:                                        <span className="text-[7.5px] text-slate-400 uppercase font-mono tracking-tight block truncate w-full">NID Front / সামনে</span>
+6428:                                        <span className="text-[7.5px] text-slate-400 uppercase font-mono tracking-tight block truncate w-full">NID Back / পেছনে</span>
+6445:                                  ADMIN APPROVAL SETTINGS (অনুমোদন কনফিগারেশন)
+6449:                                  💡 <strong>Admin Guidelines / অ্যাডমিন নির্দেশিকা:</strong>
+6451:                                    রেজিস্ট্রেশন কমপ্লিট করার পর শুধু নিচে রেট (Taka) বসিয়ে দিন এবং ৩টি ক্যাটাগরির (Regular, Premium, Elite) যেকোনো একটি সিলেক্ট করে <span className="text-white underline font-extrabold uppercase font-mono">Verify & Deploy</span>-এ ক্লিক করে দিলেই সরাসরি পাবলিশ হয়ে যাবে।
+6458:                                    <label className="block text-[8.5px] text-slate-400 uppercase tracking-widest font-bold">Assign Society Rank (লেভেল)</label>
+6464:                                      <option value="REGULAR">Regular Member (রেগুলার ক্যাটাগরি)</option>
+6465:                                      <option value="PREMIUM">Premium Member (প্রিমিয়াম ক্যাটাগরি)</option>
+6466:                                      <option value="ELITE">Elite Society (এলিট ক্যাটাগরি)</option>
+6467:                                      <option value="DEMO">Demo Class (ডিমো ক্যাটাগরি)</option>
+7026:              {/* SECTION A: USER EARNINGS SUMMARY (কে কত টাকা আর্ন করলো) */}

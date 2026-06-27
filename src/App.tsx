@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { db, doc, getDoc, setDoc } from './firebase';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { db, doc, getDoc, setDoc, collection, query, where, getDocs } from './firebase';
 import { 
   bootstrapCollectionIfEmpty, 
   syncCloudCollection, 
@@ -43,6 +43,8 @@ import {
   ArrowDown,
   ClipboardList,
   X,
+  Upload,
+  Trash2,
   Copy,
   Link2,
   Percent,
@@ -51,7 +53,9 @@ import {
   Mail,
   Briefcase,
   Search,
-  MapPin
+  MapPin,
+  Database,
+  ExternalLink
 } from 'lucide-react';
 
 import emailjs from '@emailjs/browser';
@@ -730,6 +734,10 @@ export default function App() {
     return token ? 'custom' : 'default';
   });
 
+  const [googleSheetUrl, setGoogleSheetUrl] = useState<string>(() => {
+    return localStorage.getItem('bt_google_sheet_url') || 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS_g7vXJWhX_3gK-N5V7v6x_9o2vR6_0pYQ/pubhtml?widget=true&headers=false';
+  });
+
   const [emergencyNotice, setEmergencyNotice] = useState<string>(() => {
     return getStoredItem('bt_emergency_notice') || 'সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যাম সার্ভিস বুকিং দিবেন না';
   });
@@ -913,6 +921,9 @@ export default function App() {
   const [allocateAmount, setAllocateAmount] = useState('');
   const [allocateMethod, setAllocateMethod] = useState<'BKASH' | 'NAGAD' | 'ROCKET'>('BKASH');
   const [allocateTrx, setAllocateTrx] = useState('');
+  const [allocateScreenshot, setAllocateScreenshot] = useState('');
+  const [allocateUploading, setAllocateUploading] = useState(false);
+  const allocateFileInputRef = useRef<HTMLInputElement | null>(null);
   const [liquidateAmount, setLiquidateAmount] = useState('');
   const [liquidateMethod, setLiquidateMethod] = useState<'BKASH' | 'NAGAD' | 'ROCKET'>('BKASH');
   const [liquidateMobile, setLiquidateMobile] = useState('');
@@ -1116,6 +1127,17 @@ export default function App() {
         if (noticeSnap.exists()) {
           const data = noticeSnap.data();
           if (data.text !== undefined) setEmergencyNotice(data.text);
+        }
+
+        // 3. Fetch Google Sheet Url Setting
+        const gSheetRef = doc(db, 'settings', 'google_sheet_settings');
+        const gSheetSnap = await getDoc(gSheetRef);
+        if (gSheetSnap.exists()) {
+          const data = gSheetSnap.data();
+          if (data.url !== undefined) {
+            setGoogleSheetUrl(data.url);
+            localStorage.setItem('bt_google_sheet_url', data.url);
+          }
         }
       } catch (err) {
         console.warn('[CloudDB] Failed to load settings:', err);
@@ -1461,7 +1483,7 @@ Website: https://bodytouch.com
     setCheckoutTier({ name: tierName, price });
   };
 
-  const handleCheckoutSubmit = (data: { method: 'BKASH' | 'NAGAD' | 'ROCKET'; trxId: string }) => {
+  const handleCheckoutSubmit = (data: { method: string; trxId: string; screenshot?: string }) => {
     if (!checkoutTier) return;
 
     const newPaymentLog: PaymentRecord = {
@@ -1473,7 +1495,8 @@ Website: https://bodytouch.com
       method: data.method,
       trxId: data.trxId,
       status: 'Pending Verification',
-      date: new Date().toLocaleString()
+      date: new Date().toLocaleString(),
+      screenshot: data.screenshot
     };
 
     setPayments((prev) => [newPaymentLog, ...prev]);
@@ -1492,6 +1515,7 @@ Thank you! Your transaction for the ${checkoutTier.name} membership level has be
 💰 Transacted Value: ৳${newPaymentLog.price}
 💳 Medium: ${newPaymentLog.method}
 🔐 TrxID Hash: ${newPaymentLog.trxId}
+${newPaymentLog.screenshot ? '📸 Payment receipt screenshot attached successfully.' : ''}
 
 Our financial billing division is matching this Transaction ID with our payment gateway's ledger. This verification process typically takes up to 10-30 minutes. Once manual or automated matching confirms the transaction, your premium portal privileges will immediately update.
 
@@ -1507,12 +1531,26 @@ Website: https://bodytouch.com
       `💎 মেম্বারশিপ টায়ার: <b>${checkoutTier.name}</b>\n` +
       `💰 পেমেন্ট অ্যামাউন্ট: <b>৳${checkoutTier.price} BDT</b>\n` +
       `💳 পেমেন্ট গেটওয়ে: <b>${data.method}</b>\n` +
-      `🔐 ট্রানজেকশন আইডি (TrxID): <code>${data.trxId}</code>\n\n` +
+      `🔐 ট্রানজেকশন আইডি (TrxID): <code>${data.trxId}</code>\n` +
+      `${data.screenshot ? `📸 <b>পেমেন্ট স্ক্রিনশট আপলোড করা হয়েছে!</b>\n` : ''}\n` +
       `<i>পেমেন্টটি ম্যানুয়ালি ভেরিফাই বা এপ্রুভ করার জন্য এডমিন প্যানেল চেক করুন।</i>`;
     sendTelegramNotification(text);
 
     setActiveTab('assets');
     triggerToast('⏳ Payment trace registered! Awaiting manual/auto verification.', 'success');
+  };
+
+  const handleAllocateFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAllocateUploading(true);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAllocateScreenshot(reader.result as string);
+        setAllocateUploading(false);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleAllocateSubmit = (e: React.FormEvent) => {
@@ -1537,7 +1575,8 @@ Website: https://bodytouch.com
       method: allocateMethod,
       trxId: allocateTrx.trim().toUpperCase(),
       status: 'Pending Verification',
-      date: new Date().toLocaleString()
+      date: new Date().toLocaleString(),
+      screenshot: allocateScreenshot || undefined
     };
 
     setPayments((prev) => [newPaymentLog, ...prev]);
@@ -1556,6 +1595,7 @@ Thank you! Your transaction for a Wallet Deposit of ৳${amount.toLocaleString()
 💰 Transacted Value: ৳${newPaymentLog.price}
 💳 Medium: ${newPaymentLog.method}
 🔐 TrxID Hash: ${newPaymentLog.trxId}
+${newPaymentLog.screenshot ? '📸 Payment screenshot attachment matched.' : ''}
 
 Our backend operators will verify this Transaction ID and match it against our live incoming mobile banking ledger. Your wallet credit balance will update immediately after verification.
 
@@ -1571,13 +1611,15 @@ Website: https://bodytouch.com
       `💎 ক্যাটাগরি: <b>Wallet Deposit</b>\n` +
       `💵 ডিপোজিট অ্যামাউন্ট: <b>৳${amount.toLocaleString()} BDT</b>\n` +
       `💳 পেমেন্ট গেটওয়ে: <b>${allocateMethod}</b>\n` +
-      `🔐 ট্রানজেকশন আইডি (TrxID): <code>${allocateTrx.trim().toUpperCase()}</code>\n\n` +
+      `🔐 ট্রানজেকশন আইডি (TrxID): <code>${allocateTrx.trim().toUpperCase()}</code>\n` +
+      `${allocateScreenshot ? `📸 <b>পেমেন্ট স্ক্রিনশট আপলোড করা হয়েছে!</b>\n` : ''}\n` +
       `<i>ডিপোজিটটি ম্যানুয়ালি ভেরিফাই বা এপ্রুভ করার জন্য এডমিন প্যানেল চেক করুন।</i>`;
     sendTelegramNotification(text);
 
     setIsAllocateOpen(false);
     setAllocateAmount('');
     setAllocateTrx('');
+    setAllocateScreenshot('');
     triggerToast('⏳ Deposit registered! Awaiting manual/auto verification.', 'success');
   };
 
@@ -1589,17 +1631,20 @@ Website: https://bodytouch.com
       triggerToast('⚠️ Please enter a valid withdrawal amount.', 'error');
       return;
     }
+    
     if (amount > walletBalance) {
       triggerToast('❌ Insufficient wallet balance for withdrawal.', 'error');
       return;
     }
+
     if (!liquidateMobile || liquidateMobile.trim().length < 11) {
       triggerToast('⚠️ Please enter a valid Mobile Wallet number.', 'error');
       return;
     }
 
-    // Subtract immediately for instant feedback, then log transaction in approved state
-    setWalletBalance((prev) => prev - amount);
+    // Deduct immediately from local wallet and from user's account in cloud database
+    setWalletBalance((prev) => Math.max(0, prev - amount));
+    updateTargetUserWallet(username, -amount);
 
     const newPaymentLog: PaymentRecord = {
       id: 'pay-' + Date.now(),
@@ -1609,7 +1654,7 @@ Website: https://bodytouch.com
       price: '-' + amount.toLocaleString('en-US'),
       method: liquidateMethod,
       trxId: liquidateMobile.trim(),
-      status: 'Approved',
+      status: 'Pending Verification',
       date: new Date().toLocaleString()
     };
 
@@ -1617,11 +1662,11 @@ Website: https://bodytouch.com
     setCloudDocument('payments', newPaymentLog.id, newPaymentLog);
 
     // Send Initial Wallet Withdrawal Email
-    const wdMailSubject = `💸 Body Touch: Wallet Withdrawal Request Dispatched`;
+    const wdMailSubject = `💸 Body Touch: Wallet Withdrawal Request Received`;
     const wdMailBody = `
 Dear ${fullName || username || 'Client'},
 
-Your withdrawal request has been successfully processed!
+Your withdrawal request has been received and is now AWAITING OPERATOR VERIFICATION. Your wallet balance will be officially deducted upon admin approval.
 
 --- WITHDRAWAL RECORD ---
 🎫 Receipt ID: ${newPaymentLog.id}
@@ -1643,13 +1688,99 @@ Website: https://bodytouch.com
       `💵 উত্তোলিত অ্যামাউন্ট: <b>৳${amount.toLocaleString()} BDT</b>\n` +
       `💳 পেমেন্ট গেটওয়ে: <b>${liquidateMethod}</b>\n` +
       `📱 গেটওয়ে মোবাইল অ্যাকাউন্ট: <code>${liquidateMobile.trim()}</code>\n\n` +
-      `<i>উইথড্রয়াল ট্রানজেকশনটি সম্পূর্ণ করা হয়েছে।</i>`;
+      `<i>উইথড্রয়াল ট্রানজেকশনটি পেন্ডিং আছে। এডমিন প্যানেল থেকে এপ্রুভ করুন।</i>`;
     sendTelegramNotification(text);
 
     setIsLiquidateOpen(false);
     setLiquidateAmount('');
     setLiquidateMobile('');
-    triggerToast(`🎉 ৳${amount.toLocaleString()} withdrawn to ${liquidateMethod} wallet!`, 'success');
+    triggerToast(`⏳ Withdrawal request for ৳${amount.toLocaleString()} submitted! Awaiting admin approval.`, 'success');
+  };
+
+  const updateTargetUserWallet = async (targetUsername: string, amount: number) => {
+    try {
+      const clientUser = await getCloudUser(targetUsername);
+      if (clientUser) {
+        const newBalance = clientUser.walletBalance + amount;
+        await saveCloudUser({ ...clientUser, walletBalance: newBalance });
+        if (targetUsername.toLowerCase() === username.toLowerCase()) {
+          setWalletBalance(newBalance);
+        }
+        console.log(`[Wallet Synced] Updated user @${targetUsername} wallet by ${amount}. New: ${newBalance}`);
+      } else {
+        console.warn(`[Wallet Warning] User @${targetUsername} not found in cloud database.`);
+      }
+    } catch (err) {
+      console.error('[Wallet Error] Failed to update user wallet in cloud:', err);
+    }
+  };
+
+  const updateClientWalletByLookup = async (
+    clientEmail: string | undefined, 
+    clientPhone: string | undefined, 
+    clientUsername: string | undefined, 
+    amount: number,
+    tierName: string,
+    trxTypePrefix: string,
+    bookingId?: string
+  ) => {
+    try {
+      let targetUser: any = null;
+      // 1. Try by username
+      if (clientUsername && clientUsername !== 'admin') {
+        targetUser = await getCloudUser(clientUsername);
+      }
+      // 2. Lookup by email
+      if (!targetUser && clientEmail) {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('email', '==', clientEmail));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          targetUser = snapshot.docs[0].data();
+        }
+      }
+      // 3. Lookup by phone
+      if (!targetUser && clientPhone) {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('phone', '==', clientPhone));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          targetUser = snapshot.docs[0].data();
+        }
+      }
+
+      const finalUsername = targetUser ? targetUser.username : (clientUsername || 'code');
+      const finalEmail = targetUser ? targetUser.email : (clientEmail || 'code@bodytouch.com');
+
+      if (targetUser) {
+        const newBalance = targetUser.walletBalance + amount;
+        await saveCloudUser({ ...targetUser, walletBalance: newBalance });
+        if (targetUser.username.toLowerCase() === username.toLowerCase()) {
+          setWalletBalance(newBalance);
+        }
+        console.log(`[Wallet Synced] Updated user @${targetUser.username} by ${amount}. New: ${newBalance}`);
+      }
+
+      // Record a ledger log entry for this transaction
+      const newLedgerRecord: PaymentRecord = {
+        id: `pay-${trxTypePrefix}-` + Date.now(),
+        username: finalUsername,
+        email: finalEmail,
+        tierName: tierName,
+        price: `${amount > 0 ? '+' : ''}${amount}`,
+        method: 'System Init',
+        trxId: bookingId ? `DB-${bookingId.split('-').pop() || 'TX'}` : `TX-${Date.now().toString().slice(-6)}`,
+        status: 'Approved',
+        date: new Date().toLocaleString()
+      };
+      setPayments((prev) => [newLedgerRecord, ...prev]);
+      setCloudDocument('payments', newLedgerRecord.id, newLedgerRecord);
+
+      return { finalUsername, finalEmail };
+    } catch (err) {
+      console.error('[Wallet Lookup Error] Failed to update user wallet:', err);
+      return { finalUsername: clientUsername || 'code', finalEmail: clientEmail || 'code@bodytouch.com' };
+    }
   };
 
   // Immediate Simulated Merchant Gateway API
@@ -1701,6 +1832,18 @@ Website: https://bodytouch.com
     setCloudDocument('email_logs', logId, newLog);
 
     try {
+      // Load current SMTP configuration directly from Firestore database
+      let smtpSettings: any = null;
+      try {
+        const smtpDoc = await getDoc(doc(db, 'settings', 'smtp_settings'));
+        if (smtpDoc.exists()) {
+          smtpSettings = smtpDoc.data();
+          console.log('[sendAutoEmail] Loaded custom SMTP settings from Firestore:', smtpSettings.host);
+        }
+      } catch (fsErr) {
+        console.warn('[sendAutoEmail] Failed to load SMTP settings from Firestore, relying on server default:', fsErr);
+      }
+
       const response = await fetch('/api/send-custom-email', {
         method: 'POST',
         headers: {
@@ -1710,6 +1853,7 @@ Website: https://bodytouch.com
           toEmail,
           subject,
           bodyText,
+          smtp: smtpSettings
         }),
       });
 
@@ -1720,7 +1864,7 @@ Website: https://bodytouch.com
       const resData = await response.json();
       if (resData.mocked) {
         console.warn(`[SMTP Warning] SMTP is not configured. Email to ${toEmail} was mocked.`);
-        setCloudDocument('email_logs', logId, { ...newLog, status: 'Failed' });
+        setCloudDocument('email_logs', logId, { ...newLog, status: 'Delivered (Simulated)' });
       } else {
         console.log(`[Email Dispatched] Successfully sent email to ${toEmail}`);
         setCloudDocument('email_logs', logId, { ...newLog, status: 'Delivered' });
@@ -1729,6 +1873,26 @@ Website: https://bodytouch.com
       console.error(`[Email Failed] Failed to send email to ${toEmail}:`, err);
       setCloudDocument('email_logs', logId, { ...newLog, status: 'Failed' });
     }
+  };
+
+  // Helper to sanitize HTML for Telegram's strict parse_mode: 'HTML' requirement
+  const sanitizeHtmlForTelegram = (html: string): string => {
+    if (!html) return '';
+    const tagRegex = /(<\/?[a-zA-Z0-9]+(?:\s+[^>]*)?>)/g;
+    const parts = html.split(tagRegex);
+    const allowedTags = /^\s*<\/?(b|strong|i|em|u|ins|s|strike|del|code|pre|a|spoiler)(\s+[^>]*)?>\s*$/i;
+
+    return parts.map(part => {
+      if (part.startsWith('<') && part.endsWith('>')) {
+        if (allowedTags.test(part)) {
+          return part;
+        } else {
+          return part.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+      } else {
+        return part.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+    }).join('');
   };
 
   // Automated Telegram Group and Private Notification Endpoint
@@ -1752,6 +1916,8 @@ Website: https://bodytouch.com
         targetChatId = '@' + targetChatId;
       }
 
+      const sanitizedText = sanitizeHtmlForTelegram(htmlText);
+
       const response = await fetch(`https://api.telegram.org/bot${token.trim()}/sendMessage`, {
         method: 'POST',
         headers: {
@@ -1759,7 +1925,7 @@ Website: https://bodytouch.com
         },
         body: JSON.stringify({
           chat_id: targetChatId,
-          text: htmlText,
+          text: sanitizedText,
           parse_mode: 'HTML',
         }),
       });
@@ -1835,6 +2001,19 @@ Website: https://bodytouch.com
     } catch (err) {
       console.error(err);
       triggerToast("❌ Failed to update notice text: " + (err instanceof Error ? err.message : String(err)), "error");
+    }
+  };
+
+  const handleSaveGoogleSheetUrl = async (url: string) => {
+    try {
+      const docRef = doc(db, 'settings', 'google_sheet_settings');
+      await setDoc(docRef, { url, updatedAt: new Date().toISOString() }, { merge: true });
+      setGoogleSheetUrl(url);
+      localStorage.setItem('bt_google_sheet_url', url);
+      triggerToast("✅ Google Sheets synchronization settings updated successfully!", "success");
+    } catch (err) {
+      console.error(err);
+      triggerToast("❌ Failed to update Google Sheet settings: " + (err instanceof Error ? err.message : String(err)), "error");
     }
   };
 
@@ -1917,42 +2096,32 @@ bodyTOUCH Auditing Core
     );
   };
 
-  const handleAdminApproveBooking = (bookingId: string) => {
+  const handleAdminApproveBooking = async (bookingId: string) => {
     const targetBooking = bookings.find(b => b.id === bookingId);
     if (targetBooking) {
       const comp = companions.find(c => c.name.toLowerCase() === targetBooking.modelName.toLowerCase());
       const baseRate = comp ? comp.rate : 10000;
       const bookingCost = (targetBooking as any).cost || calculateBookingCost(baseRate, 'REAL', targetBooking.duration, comp);
 
-      // Deduct wallet balance directly
-      setWalletBalance((prevBal) => {
-        const nextBal = prevBal - bookingCost;
-        return nextBal >= 0 ? nextBal : 0;
-      });
+      // Deduct wallet balance from the correct target user, and record a debit ledger log
+      const { finalUsername, finalEmail } = await updateClientWalletByLookup(
+        targetBooking.clientEmail,
+        targetBooking.clientPhone,
+        undefined, // we'll look up by email/phone first
+        -bookingCost,
+        `Booking Approved: ${targetBooking.modelName}`,
+        'spend',
+        targetBooking.id
+      );
 
-      // Record a debit ledger log entry for this booking spend
-      const newSpendRecord: PaymentRecord = {
-        id: 'pay-spend-' + Date.now(),
-        username: username,
-        tierName: `Booking Approved: ${targetBooking.modelName}`,
-        price: `-${bookingCost}`,
-        method: 'System Init',
-        trxId: `DB-${targetBooking.id.split('-').pop() || 'TX'}`,
-        status: 'Approved',
-        date: new Date().toLocaleString()
-      };
-      setPayments((prev) => [newSpendRecord, ...prev]);
-      setCloudDocument('payments', newSpendRecord.id, newSpendRecord);
-    }
-
-    setBookings((prev) =>
-      prev.map((b) => {
-        if (b.id === bookingId) {
-          const updated = { ...b, status: 'Approved' as const };
-          setCloudDocument('bookings', b.id, updated);
-          const mailSubject = `✅ Body Touch: Booking Service Approved for ${b.modelName}`;
-          const mailBody = `
-Dear ${fullName || 'Client'},
+      setBookings((prev) =>
+        prev.map((b) => {
+          if (b.id === bookingId) {
+            const updated = { ...b, status: 'Approved' as const };
+            setCloudDocument('bookings', b.id, updated);
+            const mailSubject = `✅ Body Touch: Booking Service Approved for ${b.modelName}`;
+            const mailBody = `
+Dear ${b.clientName || 'Client'},
 
 Congratulations! Your companion booking inquiry has been APPROVED by Body Touch Concierge operators.
 
@@ -1970,28 +2139,29 @@ Our team ensures maximum discretion and punctuality. Please check your system st
 Greetings,
 Body Touch VIP Administrator Hub
 Website: https://bodytouch.com
-          `;
-          sendAutoEmail(b.clientEmail || email || 'code@bodytouch.com', mailSubject, mailBody);
-          triggerToast(`✅ Booking approved for ${b.modelName}! Auto email sent!`, 'success');
+            `;
+            sendAutoEmail(b.clientEmail || email || 'code@bodytouch.com', mailSubject, mailBody);
+            triggerToast(`✅ Booking approved for ${b.modelName}! Auto email sent!`, 'success');
 
-          // Send Telegram Status Notification
-          const telText = `✅ <b>বুকিং অ্যাপ্রুভ করা হয়েছে!</b>\n\n` +
-            `🆔 বুকিং আইডি: <code>${b.id}</code>\n` +
-            `👤 কাস্টমার: <b>${fullName || 'N/A'}</b>\n` +
-            `👩🏼 মডেল: <b>${b.modelName}</b>\n` +
-            `📍 ভেন্যু: <b>${b.location}</b>\n` +
-            `📅 তারিখ: <b>${b.date}</b>\n` +
-            `⏰ সময়: <b>${b.time}</b>\n` +
-            `⏱️ ডিউরেশন: <b>${b.duration}</b>\n` +
-            `💰 মোট খরচ: <b>৳${(b.cost || 0).toLocaleString()} BDT</b>\n` +
-            `🔐 সিক্রেট পাসফ্রেজ: <code>${b.secretCode || 'N/A'}</code>`;
-          sendTelegramNotification(telText);
+            // Send Telegram Status Notification
+            const telText = `✅ <b>বুকিং অ্যাপ্রুভ করা হয়েছে!</b>\n\n` +
+              `🆔 বুকিং আইডি: <code>${b.id}</code>\n` +
+              `👤 কাস্টমার: <b>${b.clientName || 'N/A'}</b>\n` +
+              `👩🏼 মডেল: <b>${b.modelName}</b>\n` +
+              `📍 ভেন্যু: <b>${b.location}</b>\n` +
+              `📅 তারিখ: <b>${b.date}</b>\n` +
+              `⏰ সময়: <b>${b.time}</b>\n` +
+              `⏱️ ডিউরেশন: <b>${b.duration}</b>\n` +
+              `💰 মোট খরচ: <b>৳${(b.cost || 0).toLocaleString()} BDT</b>\n` +
+              `🔐 সিক্রেট পাসফ্রেজ: <code>${b.secretCode || 'N/A'}</code>`;
+            sendTelegramNotification(telText);
 
-          return updated;
-        }
-        return b;
-      })
-    );
+            return updated;
+          }
+          return b;
+        })
+      );
+    }
   };
 
   const handleAdminDeclineBooking = (bookingId: string) => {
@@ -2217,18 +2387,49 @@ https://bodytouch.com
       prev.map((p) => {
         if (p.id === payId) {
           const tNameU = p.tierName.toUpperCase();
-          if (tNameU === 'REGULAR' || tNameU === 'PREMIUM' || tNameU === 'ELITE') {
-            setUserLevel(tNameU as MemberLevel);
-            triggerToast(`✅ Payment approved manually! Upgraded to ${p.tierName}.`, 'success');
+          const bnToEn: Record<string, string> = {
+            '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4',
+            '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9'
+          };
+          const rawPrice = p.price.replace(/[-৳,]/g, '');
+          const normalizedPrice = rawPrice.split('').map(c => bnToEn[c] || c).join('');
+          const numericPrice = parseInt(normalizedPrice) || 0;
+
+          const isWithdrawal = p.tierName === 'Withdrawal';
+
+          if (isWithdrawal) {
+            // No need to subtract again as it was deducted immediately during request submission
+            triggerToast(`✅ Withdrawal of ৳${numericPrice.toLocaleString()} approved for @${p.username}.`, 'success');
           } else {
-            triggerToast(`✅ Deposit of ৳${p.price} approved manually.`, 'success');
+            if (tNameU === 'REGULAR' || tNameU === 'PREMIUM' || tNameU === 'ELITE') {
+              setUserLevel(tNameU as MemberLevel);
+              triggerToast(`✅ Payment approved manually! Upgraded to ${p.tierName}.`, 'success');
+            } else {
+              triggerToast(`✅ Deposit of ৳${p.price} approved manually.`, 'success');
+            }
+            // Add deposit amount to target user wallet in cloud database
+            updateTargetUserWallet(p.username, numericPrice);
           }
-          addPriceToWallet(p.price);
           
           // Send manually approved payment notification email
-          const mailSubject = `🎉 Body Touch: Payment Approved by Administrator`;
-          const mailBody = `
-Dear ${fullName || 'Client'},
+          const mailSubject = isWithdrawal 
+            ? `💸 Body Touch: Withdrawal Request Approved`
+            : `🎉 Body Touch: Payment Approved by Administrator`;
+          const mailBody = isWithdrawal
+            ? `Dear ${p.username || 'Client'},
+
+Our finance team has audited and officially APPROVED your withdrawal transaction. The amount has been transferred to your mobile wallet.
+
+--- WITHDRAWAL RECORD SUMMARY ---
+🎫 Transaction ID: ${p.id}
+💰 Disbursed Value: ৳${numericPrice.toLocaleString()} BDT
+💳 Medium: ${p.method}
+📱 Account Number: ${p.trxId}
+
+Sincerely,
+Body Touch support operator
+https://bodytouch.com`
+            : `Dear Client,
 
 Our operator has verified and manually APPROVED your deposit voucher.
 
@@ -2243,8 +2444,8 @@ Your balance has been updated and premium portal entries are unlocked.
 
 Sincerely,
 Body Touch support operator
-https://bodytouch.com
-          `;
+https://bodytouch.com`;
+
           sendAutoEmail(p.email || email || 'code@bodytouch.com', mailSubject, mailBody);
           const updated = { ...p, status: 'Approved' as const };
           setCloudDocument('payments', p.id, updated);
@@ -2253,10 +2454,12 @@ https://bodytouch.com
           const notifId = 'notif_' + Date.now() + '_man_p';
           setCloudDocument('notifications', notifId, {
             id: notifId,
-            title: '🎉 Payment Approved Manually',
-            message: tNameU === 'REGULAR' || tNameU === 'PREMIUM' || tNameU === 'ELITE'
-              ? `Your account tier is manually upgraded to ${p.tierName}! All premium entries are unlocked.`
-              : `Your manual deposit of ৳${p.price} has been approved by admin. Balance added to wallet account!`,
+            title: isWithdrawal ? '💸 Withdrawal Approved' : '🎉 Payment Approved Manually',
+            message: isWithdrawal 
+              ? `Your withdrawal request of ৳${numericPrice.toLocaleString()} has been approved and sent to your ${p.method} wallet.`
+              : (tNameU === 'REGULAR' || tNameU === 'PREMIUM' || tNameU === 'ELITE'
+                ? `Your account tier is manually upgraded to ${p.tierName}! All premium entries are unlocked.`
+                : `Your manual deposit of ৳${p.price} has been approved by admin. Balance added to wallet account!`),
             timestamp: new Date().toISOString(),
             type: 'success',
             username: p.username || username
@@ -2273,11 +2476,53 @@ https://bodytouch.com
     setPayments((prev) =>
       prev.map((p) => {
         if (p.id === payId) {
-          triggerToast(`❌ Payment trace rejected by operator.`, 'error');
+          const isWithdrawal = p.tierName === 'Withdrawal';
           
-          // Send payment rejection notification email
-          const mailSubject = `⚠️ Body Touch Notification: Payment Log Rejected`;
-          const mailBody = `
+          if (isWithdrawal) {
+            const bnToEn: Record<string, string> = {
+              '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4',
+              '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9'
+            };
+            const rawPrice = p.price.replace(/[-৳,]/g, '');
+            const normalizedPrice = rawPrice.split('').map(c => bnToEn[c] || c).join('');
+            const numericPrice = parseInt(normalizedPrice) || 0;
+
+            // Refund the withdrawal amount back to user's wallet
+            updateTargetUserWallet(p.username, numericPrice);
+            triggerToast(`❌ Withdrawal of ৳${numericPrice.toLocaleString()} rejected by operator. Balance refunded to @${p.username}!`, 'error');
+
+            const mailSubject = `⚠️ Body Touch Notification: Withdrawal Request Rejected & Refunded`;
+            const mailBody = `Dear ${p.username || 'Client'},
+
+Our financial auditing team has REJECTED your withdrawal request of ৳${numericPrice.toLocaleString()} BDT.
+The amount has been fully REFUNDED to your Body Touch wallet balance.
+
+Reason: Verification of your Mobile Wallet number failed or manual operator audit flagged an issue. Please double-check your account details and retry.
+
+Sincerely,
+Body Touch Financial Core`;
+
+            sendAutoEmail(p.email || email || 'code@bodytouch.com', mailSubject, mailBody);
+            const updated = { ...p, status: 'Rejected' as const };
+            setCloudDocument('payments', p.id, updated);
+
+            const notifId = 'notif_' + Date.now() + '_rej_p';
+            setCloudDocument('notifications', notifId, {
+              id: notifId,
+              title: '⚠️ Withdrawal Request Rejected',
+              message: `Your withdrawal of ৳${numericPrice.toLocaleString()} was rejected by auditing. Balance has been refunded to your wallet account.`,
+              timestamp: new Date().toISOString(),
+              type: 'alert',
+              username: p.username || username
+            });
+
+            return updated;
+          } else {
+            triggerToast(`❌ Payment trace rejected by operator.`, 'error');
+            
+            // Send payment rejection notification email
+            const mailSubject = `⚠️ Body Touch Notification: Payment Log Rejected`;
+            const mailBody = `
 Dear ${fullName || 'Client'},
 
 Our financial auditing team has REJECTED the registered deposit ticket associated with TrxID: ${p.trxId}.
@@ -2286,23 +2531,24 @@ Reason: The TrxID could not be automated nor located on manual merchant ledger q
 
 Sincerely,
 Body Touch Security Core
-          `;
-          sendAutoEmail(p.email || email || 'code@bodytouch.com', mailSubject, mailBody);
-          const updated = { ...p, status: 'Rejected' as const };
-          setCloudDocument('payments', p.id, updated);
+            `;
+            sendAutoEmail(p.email || email || 'code@bodytouch.com', mailSubject, mailBody);
+            const updated = { ...p, status: 'Rejected' as const };
+            setCloudDocument('payments', p.id, updated);
 
-          // Dispatch instant smart notification
-          const notifId = 'notif_' + Date.now() + '_rej_p';
-          setCloudDocument('notifications', notifId, {
-            id: notifId,
-            title: '⚠️ Deposit Ticket Rejected',
-            message: `The registered deposit of ৳${p.price} with TrxID ${p.trxId} was rejected by auditing. Please check your spelling and retry.`,
-            timestamp: new Date().toISOString(),
-            type: 'alert',
-            username: p.username || username
-          });
+            // Dispatch instant smart notification
+            const notifId = 'notif_' + Date.now() + '_rej_p';
+            setCloudDocument('notifications', notifId, {
+              id: notifId,
+              title: '⚠️ Deposit Ticket Rejected',
+              message: `The registered deposit of ৳${p.price} with TrxID ${p.trxId} was rejected by auditing. Please check your spelling and retry.`,
+              timestamp: new Date().toISOString(),
+              type: 'alert',
+              username: p.username || username
+            });
 
-          return updated;
+            return updated;
+          }
         }
         return p;
       })
@@ -2628,6 +2874,8 @@ https://service.bodytouch.com
           onUpdateCategories={setCategories}
           emergencyNotice={emergencyNotice}
           onSaveEmergencyNotice={handleSaveEmergencyNotice}
+          googleSheetUrl={googleSheetUrl}
+          onSaveGoogleSheetUrl={handleSaveGoogleSheetUrl}
         />
       </div>
     );
@@ -4081,6 +4329,60 @@ https://service.bodytouch.com
                     </form>
                   </motion.div>
 
+                  {/* Google Sheets Live Database Embed */}
+                  <motion.div 
+                    variants={itemVariants} 
+                    className="bg-[#020716] border border-blue-900/30 rounded-3xl p-6 sm:p-8 space-y-5 shadow-[0_0_50px_rgba(30,58,138,0.15)] text-left"
+                  >
+                    <div className="flex items-center justify-between pb-3 border-b border-blue-900/10">
+                      <div className="flex items-center space-x-2.5 text-white">
+                        <Database className="text-emerald-400 w-5 h-5 animate-pulse" />
+                        <div>
+                          <h3 className="text-sm font-bold tracking-wide">Live Database & Ledger Sheet (গুগল শীট ডেটাবেস)</h3>
+                          <p className="text-[10px] text-slate-400 font-medium">Your live profiles and transactions synced in real-time</p>
+                        </div>
+                      </div>
+                      {googleSheetUrl && (
+                        <a 
+                          href={googleSheetUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[9.5px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-full border border-emerald-500/20 flex items-center gap-1 transition cursor-pointer"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Open Sheet
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl overflow-hidden border border-emerald-500/15 bg-black/40 h-80 relative group">
+                      {googleSheetUrl ? (
+                        <iframe 
+                          src={googleSheetUrl} 
+                          className="w-full h-full border-none opacity-90 group-hover:opacity-100 transition duration-150"
+                          title="Body Touch Sync Ledger"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-2">
+                          <Database className="w-8 h-8 text-slate-600" />
+                          <p className="text-xs text-slate-400 font-semibold leading-normal">
+                            কোনো একটিভ গুগল শীট ডেটাবেস সংযুক্ত করা নেই।
+                          </p>
+                          <p className="text-[10px] text-slate-500 leading-normal">
+                            অ্যাডমিন প্যানেল থেকে গুগল শীট লিঙ্কটি যুক্ত করলে এখানে লাইভ দেখা যাবে।
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-[10.5px] text-slate-400 font-medium leading-relaxed bg-emerald-950/10 border border-emerald-500/5 p-3 rounded-xl flex items-start gap-2">
+                      <span className="text-emerald-400 font-bold shrink-0">💡 Note:</span>
+                      <span>
+                        This interactive sheet lists secure audit trails, transaction records, and account allocation logs synchronized directly with our primary financial ledger. Use search or filter functions inside Google Sheets to audit your entries.
+                      </span>
+                    </div>
+                  </motion.div>
+
                   {/* Service History / বুকিং এবং সার্ভিস হিস্ট্রি */}
                   <motion.div 
                     variants={itemVariants}
@@ -4845,6 +5147,55 @@ https://service.bodytouch.com
                       className="w-full bg-[#030a1c] border border-blue-500/20 text-white font-mono rounded-xl py-3 px-4 focus:ring-1 focus:ring-blue-550 focus:outline-none text-xs uppercase placeholder:text-slate-600"
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-[9px] text-slate-400 font-extrabold uppercase tracking-wider mb-1 flex justify-between">
+                      <span>4. UPLOAD SCREENSHOT (ঐচ্ছিক)</span>
+                      {allocateScreenshot && <span className="text-emerald-450 font-black text-[9px]">✓ LOADED</span>}
+                    </label>
+                    <input
+                      type="file"
+                      ref={allocateFileInputRef}
+                      accept="image/*"
+                      onChange={handleAllocateFileChange}
+                      className="hidden"
+                    />
+
+                    {allocateScreenshot ? (
+                      <div className="relative border border-emerald-500/20 rounded-xl overflow-hidden bg-[#030a1c] p-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={allocateScreenshot}
+                            alt="Screenshot Preview"
+                            className="w-9 h-9 object-cover rounded border border-white/5"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div>
+                            <p className="text-[10px] font-bold text-emerald-450">Screenshot Attached</p>
+                            <p className="text-[8px] text-slate-500">Image is ready</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAllocateScreenshot('')}
+                          className="text-red-400 hover:text-red-300 p-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => allocateFileInputRef.current?.click()}
+                        className="w-full bg-[#030a1c] border border-dashed border-blue-500/15 hover:border-blue-500/30 rounded-xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all text-slate-400"
+                      >
+                        <Upload className="w-4 h-4 text-blue-400/80" />
+                        <span className="text-[10px] font-bold text-slate-300">
+                          {allocateUploading ? 'Processing Screenshot...' : 'Upload Payment Screenshot'}
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <button
@@ -5074,6 +5425,34 @@ https://service.bodytouch.com
 
         </div>
       </footer>
+
+      {/* FLOATING HIGHLIGHTED CHAT BUTTON (Bottom Right) */}
+      <div className="fixed bottom-20 md:bottom-6 right-6 z-50">
+        <button
+          onClick={() => handleTabSwitch('chat')}
+          className="relative flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-[0_4px_20px_rgba(249,115,22,0.4)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer group"
+          aria-label="Live Chat"
+        >
+          {/* Pulsing Outer Rings */}
+          <span className="absolute inset-0 rounded-full bg-orange-500/30 animate-ping opacity-75" />
+          <span className="absolute -inset-1 rounded-full border border-orange-500/20 animate-pulse" />
+
+          {/* Chat Icon matching user screenshot (orange circle with speech bubble) */}
+          <MessageCircle className="w-7 h-7 text-white fill-white/10 group-hover:rotate-12 transition-transform duration-300" />
+
+          {/* Highlight Badge */}
+          <span className="absolute -top-1 -right-1 flex h-4 w-4">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[9px] font-bold text-white items-center justify-center">1</span>
+          </span>
+
+          {/* Hover Tooltip */}
+          <div className="absolute right-16 bg-[#030a1c] border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
+            24/7 Live Support
+          </div>
+        </button>
+      </div>
+
     </div>
   );
 }

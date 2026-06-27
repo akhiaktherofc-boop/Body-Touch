@@ -190,10 +190,21 @@ export default function LoginGate({
 
   const sendOtpEmailHelper = async (email: string, username: string, code: string): Promise<{ success: boolean; mocked?: boolean; error?: string }> => {
     try {
+      let smtpSettings: any = null;
+      try {
+        const smtpDoc = await getDoc(doc(db, 'settings', 'smtp_settings'));
+        if (smtpDoc.exists()) {
+          smtpSettings = smtpDoc.data();
+          console.log('[LoginGate] Loaded custom SMTP settings from Firestore for send-otp-email:', smtpSettings.host);
+        }
+      } catch (fsErr) {
+        console.warn('[LoginGate] Failed to load SMTP configurations from Firestore for send-otp-email:', fsErr);
+      }
+
       const response = await fetch('/api/send-otp-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, username, code })
+        body: JSON.stringify({ email, username, code, smtp: smtpSettings })
       });
 
       const text = await response.text();

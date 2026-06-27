@@ -92,6 +92,9 @@ export default function JoinModal({
   const [payeePhone, setPayeePhone] = useState('');
   const [paymentTrx, setPaymentTrx] = useState('');
   const [paymentCopied, setPaymentCopied] = useState(false);
+  const [paymentScreenshot, setPaymentScreenshot] = useState('');
+  const [paymentUploading, setPaymentUploading] = useState(false);
+  const paymentFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [tempComp, setTempComp] = useState<Companion | null>(null);
 
   const paymentGateways = [
@@ -568,6 +571,68 @@ export default function JoinModal({
                 </div>
               </div>
 
+              {/* Screenshot Upload Option */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-mono uppercase tracking-widest text-[#dbaa61] font-black flex justify-between">
+                  <span>PAYMENT SCREENSHOT / স্ক্রিনশট (ঐচ্ছিক)</span>
+                  {paymentScreenshot && <span className="text-emerald-400 font-black">✓ LOADED</span>}
+                </label>
+                
+                <input
+                  type="file"
+                  ref={paymentFileInputRef}
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setPaymentUploading(true);
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setPaymentScreenshot(reader.result as string);
+                        setPaymentUploading(false);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+
+                {paymentScreenshot ? (
+                  <div className="relative border border-emerald-500/30 rounded-xl overflow-hidden bg-[#0d0e17] p-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <img 
+                        src={paymentScreenshot} 
+                        alt="Payment Screenshot Preview" 
+                        className="w-10 h-10 object-cover rounded border border-white/10"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div>
+                        <p className="text-[10px] font-bold text-emerald-400">Screenshot Attached</p>
+                        <p className="text-[8px] text-slate-450">Proof of payment loaded</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentScreenshot('')}
+                      className="text-red-400 hover:text-red-300 p-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => paymentFileInputRef.current?.click()}
+                    className="w-full bg-[#0d0e17] border border-dashed border-[#ac843c]/30 hover:border-[#dbaa61]/75 rounded-xl p-3 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-slate-900/20 transition-all text-slate-400 text-center"
+                  >
+                    <UploadCloud className="w-5 h-5 text-[#dbaa61]/70" />
+                    <span className="text-[10px] font-bold text-slate-300">
+                      {paymentUploading ? 'Processing Screenshot...' : 'Upload Payment Screenshot'}
+                    </span>
+                  </button>
+                )}
+              </div>
+
               {/* Payment Verification Buttons */}
               <div className="space-y-2 pt-2">
                 <button
@@ -587,7 +652,8 @@ export default function JoinModal({
                     if (tempComp && onAddCompanion) {
                       const paidComp: Companion = {
                         ...tempComp,
-                        specialty: `${tempComp.specialty}\n\n💳 [REGISTRATION FEE PAID]\nAmount: ৳${registrationFee.toLocaleString()} BDT\nGateway: ${selectedGateway.name}\nAccount: ${payeePhone}\nTrxID: ${paymentTrx.toUpperCase()}`
+                        specialty: `${tempComp.specialty}\n\n💳 [REGISTRATION FEE PAID]\nAmount: ৳${registrationFee.toLocaleString()} BDT\nGateway: ${selectedGateway.name}\nAccount: ${payeePhone}\nTrxID: ${paymentTrx.toUpperCase()}`,
+                        selfie: paymentScreenshot || tempComp.selfie // Use selfie field to store payment proof screenshot
                       };
                       onAddCompanion(paidComp);
                     }

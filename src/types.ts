@@ -89,6 +89,12 @@ export interface Booking {
   clientPhone?: string;
   clientEmail?: string;
   cost?: number;
+  deficitPay?: {
+    method: string;
+    trxId: string;
+    amount: number;
+    screenshot?: string;
+  };
 }
 
 export interface EmailLog {
@@ -110,6 +116,7 @@ export interface PaymentRecord {
   trxId: string;
   status: 'Pending Verification' | 'Approved' | 'Rejected';
   date: string;
+  screenshot?: string;
 }
 
 export interface PaymentGateway {

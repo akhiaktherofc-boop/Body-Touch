@@ -5,6 +5,9 @@ import {
   Send, 
   User, 
   Check, 
+  CheckCheck,
+  Image,
+  X,
   ShieldCheck, 
   Phone, 
   Sparkles, 
@@ -13,6 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { compressImage } from '../services/imageService';
 
 interface ActiveChatSession {
   username: string;
@@ -28,6 +32,8 @@ interface ChatMessage {
   id: string;
   sender: 'user' | 'admin';
   text: string;
+  image?: string;
+  status?: 'sent' | 'delivered' | 'seen';
   timestamp: number;
 }
 
@@ -36,11 +42,14 @@ export default function AdminLiveChat() {
   const [selectedUser, setSelectedUser] = useState<ActiveChatSession | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string>('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -138,15 +147,31 @@ export default function AdminLiveChat() {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim() || !selectedUser || !socketRef.current || !isConnected) return;
+    if ((!inputText.trim() && !selectedImage) || !selectedUser || !socketRef.current || !isConnected) return;
 
     socketRef.current.emit('send_message', {
       username: selectedUser.username,
       sender: 'admin',
-      text: inputText.trim()
+      text: inputText.trim(),
+      image: selectedImage || undefined
     });
 
     setInputText('');
+    setSelectedImage('');
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploadingImage(true);
+      const compressed = await compressImage(file, 800, 800, 0.7);
+      setSelectedImage(compressed);
+    } catch (err) {
+      console.error("Failed to compress admin chat image:", err);
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   // Filter users by search bar query
@@ -325,10 +350,32 @@ export default function AdminLiveChat() {
                                 : 'bg-[#121624] text-slate-200 border border-[#1d2338] rounded-tl-none'
                             }`}
                           >
-                            {msg.text}
+                            {msg.image && (
+                              <div className="mb-1.5 max-w-[240px] rounded-lg overflow-hidden border border-white/5 bg-black/20">
+                                <img
+                                  src={msg.image}
+                                  alt="Chat attachment"
+                                  className="max-h-52 w-full object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                  referrerPolicy="no-referrer"
+                                  onClick={() => window.open(msg.image, '_blank')}
+                                />
+                              </div>
+                            )}
+                            {msg.text && <p className="whitespace-pre-wrap break-words">{msg.text}</p>}
                           </div>
-                          <span className="text-[8px] text-slate-500 font-semibold mt-1 uppercase tracking-wider px-1">
+                          <span className="text-[8px] text-slate-500 font-semibold mt-1 uppercase tracking-wider px-1 flex items-center gap-1">
                             {isAdmin ? `Administrative Staff • ${timeStr}` : `${selectedUser.fullName} • ${timeStr}`}
+                            {!isAdmin && (
+                              <span className="flex items-center">
+                                {!msg.status || msg.status === "sent" ? (
+                                  <Check className="w-3 h-3 text-slate-500" />
+                                ) : msg.status === "delivered" ? (
+                                  <CheckCheck className="w-3 h-3 text-slate-400" />
+                                ) : (
+                                  <CheckCheck className="w-3 h-3 text-amber-500" />
+                                )}
+                              </span>
+                            )}
                           </span>
                         </div>
                       </div>
@@ -339,19 +386,60 @@ export default function AdminLiveChat() {
               )}
             </div>
 
+            {/* Selected Image Preview Bar */}
+            {selectedImage && (
+              <div className="px-4 py-2 bg-[#090b14] border-t border-[#1a1f30] flex items-center justify-between z-10">
+                <div className="flex items-center gap-2">
+                  <img
+                    src={selectedImage}
+                    alt="Preview"
+                    className="w-10 h-10 object-cover rounded border border-[#dbaa61]/30"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="text-[10px] text-slate-400 font-bold">Attachment ready to send...</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedImage("")}
+                  className="p-1 text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-full transition cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* Input Form Box */}
-            <form onSubmit={handleSendMessage} className="p-4 bg-[#07080f] border-t border-[#1a1f30] flex gap-2">
+            <form onSubmit={handleSendMessage} className="p-4 bg-[#07080f] border-t border-[#1a1f30] flex gap-2 items-center">
+              <input
+                type="file"
+                ref={imageInputRef}
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                disabled={isUploadingImage || !isConnected}
+                onClick={() => imageInputRef.current?.click()}
+                className="p-3 rounded-xl bg-[#0c0e18] border border-[#1c2235] text-slate-400 hover:text-white transition cursor-pointer flex items-center justify-center shrink-0 disabled:opacity-50"
+                title="Upload image attachment"
+              >
+                <Image className="w-4 h-4 text-[#dbaa61]" />
+              </button>
+
               <input
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder={`Type support response to ${selectedUser.fullName}...`}
+                placeholder={isUploadingImage ? "Compressing image..." : `Type support response to ${selectedUser.fullName}...`}
+                disabled={isUploadingImage}
                 className="flex-1 bg-[#0c0e18] border border-[#1c2235] focus:border-[#dbaa61]/50 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-600 focus:outline-none transition-all"
               />
               <button
                 type="submit"
-                disabled={!inputText.trim() || !isConnected}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-650 text-white font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-amber-950/15 disabled:opacity-50 flex items-center gap-1.5"
+                disabled={(!inputText.trim() && !selectedImage) || !isConnected || isUploadingImage}
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-650 text-white font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-amber-950/15 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shrink-0"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>Send</span>

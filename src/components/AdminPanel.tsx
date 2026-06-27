@@ -37,6 +37,7 @@ import {
   Search,
   ExternalLink,
   CreditCard,
+  Database,
   Menu,
   UserCheck,
   ShieldAlert,
@@ -47,6 +48,7 @@ import {
   HandCoins,
   Send,
   MessageSquare,
+  MessageCircle,
   Bot,
   Cpu,
   Megaphone,
@@ -119,6 +121,8 @@ interface AdminPanelProps {
   onUpdateCategories?: (updated: string[]) => void;
   emergencyNotice?: string;
   onSaveEmergencyNotice?: (text: string) => Promise<void>;
+  googleSheetUrl?: string;
+  onSaveGoogleSheetUrl?: (url: string) => void;
 }
 
 // Beautiful and elegant Unsplash placeholder images to select instantly
@@ -211,7 +215,9 @@ export default function AdminPanel({
   categories = ['Female Model', 'Male Model', 'Sperm Donor'],
   onUpdateCategories,
   emergencyNotice = 'সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যাম সার্ভিস বুকিং দিবেন না',
-  onSaveEmergencyNotice
+  onSaveEmergencyNotice,
+  googleSheetUrl,
+  onSaveGoogleSheetUrl
 }: AdminPanelProps) {
   
   // Security gate authentication using sessionStorage
@@ -230,6 +236,15 @@ export default function AdminPanel({
   }, []);
 
   const [editableNotice, setEditableNotice] = useState(emergencyNotice);
+
+  // Google Sheet URL State
+  const [smtpGoogleSheetUrl, setSmtpGoogleSheetUrl] = useState(googleSheetUrl || '');
+
+  useEffect(() => {
+    if (googleSheetUrl) {
+      setSmtpGoogleSheetUrl(googleSheetUrl);
+    }
+  }, [googleSheetUrl]);
 
   // SMTP Settings States
   const [smtpHost, setSmtpHost] = useState('smtp.gmail.com');
@@ -2516,6 +2531,28 @@ export default function AdminPanel({
                         </div>
                       </div>
 
+                      {pay.screenshot && (
+                        <div className="bg-black/40 p-3 rounded-xl border border-blue-550/10 text-[11px] space-y-2">
+                          <span className="text-slate-500 uppercase text-[9px] font-black tracking-wider block">📸 Payment Screenshot (স্ক্রিনশট):</span>
+                          <div className="relative group overflow-hidden rounded-lg">
+                            <img
+                              src={pay.screenshot}
+                              alt="Payment proof screenshot"
+                              className="max-h-48 w-full object-contain rounded-lg border border-white/5 bg-slate-950"
+                              referrerPolicy="no-referrer"
+                            />
+                            <a
+                              href={pay.screenshot}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-blue-400 font-extrabold transition-all rounded-lg cursor-pointer gap-1"
+                            >
+                              View Full Size Image ↗
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex gap-2.5 pt-1">
                         <button
                           onClick={() => onReject(pay.id)}
@@ -3674,6 +3711,48 @@ export default function AdminPanel({
                             <div className="bg-black/40 p-2.5 rounded-xl text-[10.5px] text-slate-400 border border-slate-900 flex flex-col gap-1 select-all font-semibold">
                               <span className="text-slate-500 text-[8.5px] uppercase block font-mono">Client Instructions Vows:</span>
                               <p className="text-slate-200 leading-normal italic">"{book.notes}"</p>
+                            </div>
+                          )}
+
+                          {book.deficitPay && (
+                            <div className="bg-[#0b0d19]/80 border border-amber-500/15 p-3 rounded-xl flex flex-col gap-2 font-sans text-xs">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[#facc15] text-[8.5px] font-black uppercase tracking-widest font-mono flex items-center gap-1">
+                                  💸 DEFICIT PAYMENT RECEIVED / ঘাটতি পেমেন্ট
+                                </span>
+                                <span className="text-amber-400 font-extrabold text-[10.5px]">৳{book.deficitPay.amount}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                                <div className="bg-slate-950/50 p-2 rounded border border-white/5">
+                                  <span className="text-slate-500 block text-[7.5px] uppercase">Gateway</span>
+                                  <span className="text-slate-300 font-extrabold">{book.deficitPay.method}</span>
+                                </div>
+                                <div className="bg-slate-950/50 p-2 rounded border border-white/5">
+                                  <span className="text-slate-500 block text-[7.5px] uppercase">Transaction ID</span>
+                                  <span className="text-emerald-400 font-extrabold select-all">{book.deficitPay.trxId}</span>
+                                </div>
+                              </div>
+                              {book.deficitPay.screenshot && (
+                                <div className="space-y-1 mt-1">
+                                  <span className="text-slate-500 text-[7.5px] uppercase font-mono block">Remaining Pay Screenshot:</span>
+                                  <div className="relative group overflow-hidden rounded-lg max-h-40 w-full bg-black border border-white/5">
+                                    <img
+                                      src={book.deficitPay.screenshot}
+                                      alt="Deficit Payment Screenshot"
+                                      className="w-full h-28 object-contain"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                    <a
+                                      href={book.deficitPay.screenshot}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[8.5px] text-amber-400 font-black tracking-wider transition"
+                                    >
+                                      OPEN FULL PROOF IMAGE ↗
+                                    </a>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -4873,6 +4952,72 @@ export default function AdminPanel({
                   <p>
                     ৩. সেখান থেকে প্রাপ্ত ১৬ অক্ষরের সিকিউর কোডটি উপরে <b>SMTP App Password</b> এর ঘরে বসিয়ে দিয়ে সেভ করুন।
                   </p>
+                </div>
+              </div>
+
+              {/* Google Sheets Integration Settings */}
+              <div className="p-4.5 bg-[#14151e] rounded-2xl border border-blue-500/10 space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                  <div className="flex items-center gap-2.5">
+                    <Database className="w-5 h-5 text-emerald-400" />
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400">
+                        Google Sheets Integration (গুগল শীট ইন্টিগ্রেশন)
+                      </h4>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        Synchronize client database profiles with real-time Google Sheets ledger spreadsheet.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
+                      <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+                      Google Sheets Web Publish Link / Embed URL (গুগল শীট পাবলিশ লিঙ্ক)
+                    </label>
+                    <input
+                      type="text"
+                      value={smtpGoogleSheetUrl}
+                      onChange={(e) => setSmtpGoogleSheetUrl(e.target.value)}
+                      placeholder="e.g. https://docs.google.com/spreadsheets/d/e/.../pubhtml"
+                      className="w-full bg-black/40 border border-[#232733] focus:border-emerald-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onSaveGoogleSheetUrl) {
+                          onSaveGoogleSheetUrl(smtpGoogleSheetUrl);
+                          alert("✅ Google Sheets synchronization URL successfully updated and saved in system database!");
+                        } else {
+                          alert("⚠️ Google Sheets save handler is not available.");
+                        }
+                      }}
+                      className="bg-[#0f766e] hover:bg-[#0d9488] text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg active:scale-98"
+                    >
+                      <Save className="w-4 h-4 text-white" />
+                      Save Google Sheet Link (শীট লিঙ্ক সেভ করুন)
+                    </button>
+                  </div>
+
+                  <div className="p-3 bg-[#0a0c14] border border-blue-500/5 rounded-xl text-[10px] text-slate-400 leading-relaxed font-sans font-medium space-y-1">
+                    <p>
+                      📊 <b>গুগল শীট সেটআপ নির্দেশাবলী:</b>
+                    </p>
+                    <p>
+                      ১. আপনার গুগল স্প্রেডশীটে (Google Sheet) গিয়ে ডানপাশের কোণায় <b>Share</b> এ ক্লিক করুন।
+                    </p>
+                    <p>
+                      ২. <b>File &gt; Share &gt; Publish to web</b> এ ক্লিক করে পুরো ডকুমেন্টটি "Web Page" হিসেবে পাবলিশ (Publish) করুন।
+                    </p>
+                    <p>
+                      ৩. পাবলিশ করার পর যে লিঙ্কটি পাবেন, সেটি কপি করে উপরের ঘরে বসিয়ে <b>Save Google Sheet Link</b> বাটনে ক্লিক করুন।
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -7672,6 +7817,33 @@ export default function AdminPanel({
 
         </div>
 
+      </div>
+
+      {/* FLOATING HIGHLIGHTED CHAT BUTTON (Bottom Right) */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <button
+          onClick={() => setActiveTab('livechat')}
+          className="relative flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-[0_4px_20px_rgba(249,115,22,0.4)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer group"
+          aria-label="Live Support Chat"
+        >
+          {/* Pulsing Outer Rings */}
+          <span className="absolute inset-0 rounded-full bg-orange-500/30 animate-ping opacity-75" />
+          <span className="absolute -inset-1 rounded-full border border-orange-500/20 animate-pulse" />
+
+          {/* Chat Icon matching user screenshot (orange circle with speech bubble) */}
+          <MessageCircle className="w-7 h-7 text-white fill-white/10 group-hover:rotate-12 transition-transform duration-300" />
+
+          {/* Dynamic Highlight badge */}
+          <span className="absolute -top-1 -right-1 flex h-4 w-4">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[9px] font-bold text-white items-center justify-center">!</span>
+          </span>
+
+          {/* Hover Tooltip/Label */}
+          <div className="absolute right-16 bg-[#0a0b10] border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
+            Live Support Console
+          </div>
+        </button>
       </div>
 
     </div>
