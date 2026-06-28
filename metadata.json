@@ -2,7 +2,8 @@
   "name": "The Body Touch",
   "description": "Premium Concierge Companion Services Portal",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
   ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

@@ -145,25 +145,37 @@ async function startServer() {
     }
   });
 
-  // Keep track of active chats and chat histories in memory
-  const activeChats: Record<string, {
-    username: string;
-    fullName: string;
-    userLevel: string;
-    avatarUrl: string;
-    lastMessageTime: number;
-    unreadCount: number;
-    phone?: string;
-  }> = {};
+  const CHAT_STORE_FILE = path.join(process.cwd(), "chat_store.json");
 
-  const chatHistories: Record<string, Array<{
-    id: string;
-    sender: 'user' | 'admin';
-    text: string;
-    image?: string;
-    status?: 'sent' | 'delivered' | 'seen';
-    timestamp: number;
-  }>> = {};
+  function loadChatStore() {
+    try {
+      if (fs.existsSync(CHAT_STORE_FILE)) {
+        const data = JSON.parse(fs.readFileSync(CHAT_STORE_FILE, "utf8"));
+        return {
+          activeChats: data.activeChats || {},
+          chatHistories: data.chatHistories || {}
+        };
+      }
+    } catch (err) {
+      console.error("Failed to load chat store:", err);
+    }
+    return { activeChats: {}, chatHistories: {} };
+  }
+
+  function saveChatStore(chats: any, histories: any) {
+    try {
+      fs.writeFileSync(
+        CHAT_STORE_FILE,
+        JSON.stringify({ activeChats: chats, chatHistories: histories }, null, 2),
+        "utf8"
+      );
+    } catch (err) {
+      console.error("Failed to save chat store:", err);
+    }
+  }
+
+  // Load persisted chats and histories or default to empty
+  const { activeChats, chatHistories } = loadChatStore();
 
   const adminSockets = new Set<string>();
 
@@ -194,6 +206,7 @@ async function startServer() {
           }
         });
 
+        saveChatStore(activeChats, chatHistories);
         socket.emit("active_chats_list", Object.values(activeChats));
       } else {
         socket.join(`room_${username}`);
@@ -213,21 +226,23 @@ async function startServer() {
           activeChats[username].avatarUrl = avatarUrl || activeChats[username].avatarUrl;
           if (phone) activeChats[username].phone = phone;
         }
+        saveChatStore(activeChats, chatHistories);
         io.to("admin_room").emit("active_chats_list", Object.values(activeChats));
       }
     });
 
-    socket.on("send_message", (data: { username: string; sender: 'user' | 'admin'; text: string; image?: string }) => {
-      const { username, sender, text, image } = data;
+    socket.on("send_message", (data: { username: string; sender: 'user' | 'admin'; text: string; image?: string; audio?: string }) => {
+      const { username, sender, text, image, audio } = data;
       if (!username) return;
 
-      console.log(`[Socket.io Debug] Message from ${sender} in chat ${username}: ${text ? text.slice(0, 50) : "[Image]"}`);
+      console.log(`[Socket.io Debug] Message from ${sender} in chat ${username}: ${text ? text.slice(0, 50) : (image ? "[Image]" : (audio ? "[Audio]" : ""))}`);
 
       const message = {
         id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         sender,
         text,
         image,
+        audio,
         status: (sender === 'user' ? (adminSockets.size > 0 ? 'delivered' : 'sent') : undefined) as 'sent' | 'delivered' | 'seen' | undefined,
         timestamp: Date.now()
       };
@@ -247,6 +262,8 @@ async function startServer() {
         }
       }
 
+      saveChatStore(activeChats, chatHistories);
+
       io.to(`room_${username}`).emit("receive_message", message);
       io.to("admin_room").emit("receive_message_admin", { username, message });
       io.to("admin_room").emit("active_chats_list", Object.values(activeChats));
@@ -264,6 +281,7 @@ async function startServer() {
             chatHistories[username] = [];
           }
           chatHistories[username].push(welcomeMessage);
+          saveChatStore(activeChats, chatHistories);
           
           io.to(`room_${username}`).emit("receive_message", welcomeMessage);
           io.to("admin_room").emit("receive_message_admin", { username, message: welcomeMessage });
@@ -304,6 +322,70 @@ async function startServer() {
           });
         }
       }
+      saveChatStore(activeChats, chatHistories);
+    });
+
+    socket.on("typing", (data: { username: string; sender: 'user' | 'admin'; isTyping: boolean }) => {
+      const { username, sender, isTyping } = data;
+      if (!username) return;
+      if (sender === 'user') {
+        io.to("admin_room").emit("user_typing", { username, isTyping });
+      } else {
+        io.to(`room_${username}`).emit("admin_typing", { username, isTyping });
+      }
+    });
+
+    // Support Call Signaling
+    socket.on("initiate_call", (data: { username: string; sender: 'user' | 'admin' }) => {
+      console.log(`[Socket.io Debug] Initiate call in chat ${data.username} by ${data.sender}`);
+      io.to(`room_${data.username}`).emit("call_initiated", data);
+      io.to("admin_room").emit("call_initiated_admin", data);
+    });
+
+    socket.on("accept_call", (data: { username: string; sender: 'user' | 'admin' }) => {
+      console.log(`[Socket.io Debug] Accept call in chat ${data.username} by ${data.sender}`);
+      io.to(`room_${data.username}`).emit("call_accepted", data);
+      io.to("admin_room").emit("call_accepted_admin", data);
+    });
+
+    socket.on("decline_call", (data: { username: string; sender: 'user' | 'admin' }) => {
+      console.log(`[Socket.io Debug] Decline call in chat ${data.username} by ${data.sender}`);
+      io.to(`room_${data.username}`).emit("call_declined", data);
+      io.to("admin_room").emit("call_declined_admin", data);
+    });
+
+    socket.on("end_call", (data: { username: string; sender: 'user' | 'admin' }) => {
+      console.log(`[Socket.io Debug] End call in chat ${data.username} by ${data.sender}`);
+      io.to(`room_${data.username}`).emit("call_ended", data);
+      io.to("admin_room").emit("call_ended_admin", data);
+    });
+
+    socket.on("clear_chat", (data: { username: string }) => {
+      const { username } = data;
+      if (!username) return;
+      chatHistories[username] = [];
+      if (activeChats[username]) {
+        activeChats[username].unreadCount = 0;
+      }
+      saveChatStore(activeChats, chatHistories);
+
+      io.to(`room_${username}`).emit("chat_history", { username, history: [] });
+      io.to("admin_room").emit("chat_history_cleared", { username });
+      io.to("admin_room").emit("active_chats_list", Object.values(activeChats));
+    });
+
+    socket.on("clear_all_chats", () => {
+      Object.keys(chatHistories).forEach(u => {
+        chatHistories[u] = [];
+        io.to(`room_${u}`).emit("chat_history", { username: u, history: [] });
+      });
+      Object.keys(activeChats).forEach(u => {
+        delete activeChats[u];
+      });
+      saveChatStore(activeChats, chatHistories);
+
+      io.to("admin_room").emit("all_chats_cleared");
+      io.to("admin_room").emit("active_chats_list", []);
     });
 
     socket.on("disconnect", () => {

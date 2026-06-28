@@ -382,6 +382,9 @@ export default function BookingModal({
   const [deficitMethod, setDeficitMethod] = useState<string>('');
   const [deficitTrxId, setDeficitTrxId] = useState('');
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [copiedAddress, setCopiedAddress] = useState(false);
+  const [sharingLocation, setSharingLocation] = useState(false);
+  const [shareError, setShareError] = useState('');
   const [deficitScreenshot, setDeficitScreenshot] = useState('');
   const [deficitUploading, setDeficitUploading] = useState(false);
   const deficitFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1202,6 +1205,40 @@ export default function BookingModal({
                                 <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                                 <span className="truncate">{specificAddress}</span>
                               </div>
+                              {specificAddress && (
+                                <div className="pt-2 flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(specificAddress);
+                                      setCopiedAddress(true);
+                                      setTimeout(() => setCopiedAddress(false), 2000);
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[9.5px] font-black uppercase tracking-wider transition cursor-pointer select-none"
+                                  >
+                                    {copiedAddress ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-blue-400" />}
+                                    {copiedAddress ? 'Copied!' : 'Copy Location (কপি করুন)'}
+                                  </button>
+                                  <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(specificAddress)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-950/40 border border-blue-500/20 text-blue-400 hover:text-blue-300 text-[9.5px] font-black uppercase tracking-wider transition cursor-pointer select-none"
+                                  >
+                                    <MapPin className="w-3.5 h-3.5" />
+                                    Map View (ম্যাপ)
+                                  </a>
+                                  <a
+                                    href={`https://wa.me/?text=${encodeURIComponent(`📍 Body Touch Sanctuary Location: ${specificAddress}\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(specificAddress)}`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/20 text-emerald-400 hover:text-emerald-300 text-[9.5px] font-black uppercase tracking-wider transition cursor-pointer select-none"
+                                  >
+                                    <Send className="w-3.5 h-3.5" />
+                                    WhatsApp Share
+                                  </a>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ) : (
@@ -1219,6 +1256,43 @@ export default function BookingModal({
                                 placeholder="Detailed coordinates..."
                                 className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-normal font-semibold placeholder:text-slate-600"
                               />
+                            </div>
+                            <div className="pt-1.5">
+                              <button
+                                type="button"
+                                disabled={sharingLocation}
+                                onClick={() => {
+                                  setSharingLocation(true);
+                                  setShareError('');
+                                  if (!navigator.geolocation) {
+                                    setShareError('Geolocation details are unsupported by your device / browser.');
+                                    setSharingLocation(false);
+                                    return;
+                                  }
+                                  navigator.geolocation.getCurrentPosition(
+                                    (pos) => {
+                                      const lat = pos.coords.latitude;
+                                      const lng = pos.coords.longitude;
+                                      const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+                                      setSpecificAddress(`Latitude: ${lat.toFixed(5)}, Longitude: ${lng.toFixed(5)} (${mapsUrl})`);
+                                      setSharingLocation(false);
+                                    },
+                                    (err) => {
+                                      console.error("GPS error:", err);
+                                      setShareError('GPS lookup failed. Please grant location permissions in your browser or type manually.');
+                                      setSharingLocation(false);
+                                    },
+                                    { enableHighAccuracy: true, timeout: 8000 }
+                                  );
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-950/20 border border-blue-500/15 text-blue-400 hover:text-blue-300 text-[10px] font-black uppercase tracking-wider transition cursor-pointer select-none disabled:opacity-50"
+                              >
+                                <MapPin className="w-3.5 h-3.5 animate-pulse" />
+                                {sharingLocation ? 'Fetching Live GPS...' : '📍 Share My Current GPS Location (আমার লোকেশন)'}
+                              </button>
+                              {shareError && (
+                                <p className="text-[9px] text-rose-400 mt-1 font-semibold">{shareError}</p>
+                              )}
                             </div>
                           </div>
                         )}

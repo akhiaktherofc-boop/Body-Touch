@@ -243,6 +243,28 @@ export default function App() {
   });
 
   const [activeTab, setActiveTab] = useState<'home' | 'membership' | 'assets' | 'network' | 'profile' | 'chat'>('home');
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 640 : false);
+  const [showAllActivity, setShowAllActivity] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (isChatOpen && isMobile) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isChatOpen, isMobile]);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(() => {
     const hash = window.location.hash.toLowerCase();
     const search = window.location.search.toLowerCase();
@@ -417,6 +439,13 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('bt_payment_gateways', JSON.stringify(paymentGateways));
   }, [paymentGateways]);
+
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      setActiveTab('home');
+      setIsChatOpen(true);
+    }
+  }, [activeTab]);
 
   // Pricing configuration for dynamic platform amounts
   const [pricingConfig, setPricingConfig] = useState(() => {
@@ -2773,8 +2802,12 @@ https://service.bodytouch.com
 
   // Switch tab scroll to top helper
   const handleTabSwitch = (tab: 'home' | 'membership' | 'assets' | 'network' | 'profile' | 'chat') => {
-    setActiveTab(tab);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (tab === 'chat') {
+      setIsChatOpen(true);
+    } else {
+      setActiveTab(tab);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   // Dynamic customized referral code generator based on username
@@ -2898,7 +2931,7 @@ https://service.bodytouch.com
   }
 
   return (
-    <div className="text-[#c4d1eb] min-h-screen flex flex-col justify-between selection:bg-blue-500 selection:text-white bg-[#020714] pb-24">
+    <div className="text-[#c4d1eb] min-h-screen flex flex-col justify-between selection:bg-blue-500 selection:text-white bg-[#020714] pb-24 overflow-x-hidden w-full max-w-full">
 
 
       {/* Dynamic Toast alerts */}
@@ -2914,7 +2947,11 @@ https://service.bodytouch.com
         
         {/* Nav Header branding */}
         <div className="flex items-center justify-between mb-6 px-1">
-          <div className="flex items-center space-x-2.5">
+          <button 
+            onClick={() => setActiveTab('home')}
+            className="flex items-center space-x-2.5 cursor-pointer hover:opacity-85 transition-all text-left focus:outline-none"
+            title="হোম পেজে যান (Go to Home Page)"
+          >
             {/* Elegant Brand Logo Image */}
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-400 p-0.5 shadow-lg shadow-blue-500/20 flex items-center justify-center">
               <BrandLogo size={36} className="border-0 shadow-inner" />
@@ -2925,7 +2962,7 @@ https://service.bodytouch.com
                 DISCRETION GUARANTEED
               </span>
             </div>
-          </div>
+          </button>
 
           {/* Right section: Wallet, User Avatar & Admin Trigger */}
           <div className="flex items-center space-x-2">
@@ -3270,42 +3307,58 @@ https://service.bodytouch.com
                       <p className="text-xs text-blue-300/40 font-semibold">No recent activity found.</p>
                     </div>
                   ) : (
-                    bookings.map((book) => (
-                      <div
-                        key={book.id}
-                        className="bg-[#030a1c] border border-blue-500/15 p-3 rounded-xl flex items-center justify-between gold-breathing-glow"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <img
-                            src={book.image}
-                            className="w-10 h-10 rounded-lg object-cover border border-blue-500/15"
-                            referrerPolicy="no-referrer"
-                          />
-                          <div>
-                            <p className="text-xs text-white font-bold">
-                              {book.modelName}{' '}
-                              <span className="text-[10px] text-blue-400 font-mono font-medium">
-                                {book.modelTag}
-                              </span>
-                            </p>
-                            <p className="text-[10px] text-blue-300/60 mt-0.5 font-semibold">
-                              {book.location} • {book.duration}
-                            </p>
-                            {book.secretCode && (
-                              <div className="mt-1 flex items-center gap-1.5">
-                                <span className="text-[10px] text-emerald-400 font-mono font-black tracking-wider bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded flex items-center gap-1 gold-breathing-glow">
-                                  🔑 Code: {book.secretCode}
+                    <>
+                      {(showAllActivity ? bookings : bookings.slice(0, 2)).map((book) => (
+                        <div
+                          key={book.id}
+                          className="bg-[#030a1c] border border-blue-500/15 p-3 rounded-xl flex items-center justify-between gold-breathing-glow animate-fadeIn"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <img
+                              src={book.image}
+                              className="w-10 h-10 rounded-lg object-cover border border-blue-500/15"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div>
+                              <p className="text-xs text-white font-bold">
+                                {book.modelName}{' '}
+                                <span className="text-[10px] text-blue-400 font-mono font-medium">
+                                  {book.modelTag}
                                 </span>
-                              </div>
-                            )}
+                              </p>
+                              <p className="text-[10px] text-blue-300/60 mt-0.5 font-semibold">
+                                {book.location} • {book.duration}
+                              </p>
+                              {book.secretCode && (
+                                <div className="mt-1 flex items-center gap-1.5">
+                                  <span className="text-[10px] text-emerald-400 font-mono font-black tracking-wider bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded flex items-center gap-1 gold-breathing-glow">
+                                    🔑 Code: {book.secretCode}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <span className="bg-amber-500/10 text-amber-400 text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border border-amber-500/20 animate-pulse gold-breathing-glow">
-                          {book.status}
-                        </span>
-                      </div>
-                    ))
+                          <span className="bg-amber-500/10 text-amber-400 text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border border-amber-500/20 animate-pulse gold-breathing-glow">
+                            {book.status}
+                          </span>
+                        </div>
+                      ))}
+
+                      {bookings.length > 2 && (
+                        <div className="flex justify-center pt-1.5">
+                          <button
+                            onClick={() => setShowAllActivity(!showAllActivity)}
+                            className="text-[10px] font-black uppercase tracking-widest text-[#ceff00] hover:text-white transition-all bg-[#ceff00]/10 hover:bg-[#ceff00]/20 px-4 py-2 rounded-xl border border-[#ceff00]/20 cursor-pointer flex items-center gap-1.5 select-none"
+                          >
+                            <span>{showAllActivity ? 'See Less' : 'See More'}</span>
+                            {!showAllActivity && (
+                              <span className="text-[9px] opacity-75 font-bold">({bookings.length - 2} more)</span>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </motion.div>
@@ -4328,61 +4381,6 @@ https://service.bodytouch.com
                       </div>
                     </form>
                   </motion.div>
-
-                  {/* Google Sheets Live Database Embed */}
-                  <motion.div 
-                    variants={itemVariants} 
-                    className="bg-[#020716] border border-blue-900/30 rounded-3xl p-6 sm:p-8 space-y-5 shadow-[0_0_50px_rgba(30,58,138,0.15)] text-left"
-                  >
-                    <div className="flex items-center justify-between pb-3 border-b border-blue-900/10">
-                      <div className="flex items-center space-x-2.5 text-white">
-                        <Database className="text-emerald-400 w-5 h-5 animate-pulse" />
-                        <div>
-                          <h3 className="text-sm font-bold tracking-wide">Live Database & Ledger Sheet (গুগল শীট ডেটাবেস)</h3>
-                          <p className="text-[10px] text-slate-400 font-medium">Your live profiles and transactions synced in real-time</p>
-                        </div>
-                      </div>
-                      {googleSheetUrl && (
-                        <a 
-                          href={googleSheetUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[9.5px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-full border border-emerald-500/20 flex items-center gap-1 transition cursor-pointer"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          Open Sheet
-                        </a>
-                      )}
-                    </div>
-
-                    <div className="rounded-2xl overflow-hidden border border-emerald-500/15 bg-black/40 h-80 relative group">
-                      {googleSheetUrl ? (
-                        <iframe 
-                          src={googleSheetUrl} 
-                          className="w-full h-full border-none opacity-90 group-hover:opacity-100 transition duration-150"
-                          title="Body Touch Sync Ledger"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-2">
-                          <Database className="w-8 h-8 text-slate-600" />
-                          <p className="text-xs text-slate-400 font-semibold leading-normal">
-                            কোনো একটিভ গুগল শীট ডেটাবেস সংযুক্ত করা নেই।
-                          </p>
-                          <p className="text-[10px] text-slate-500 leading-normal">
-                            অ্যাডমিন প্যানেল থেকে গুগল শীট লিঙ্কটি যুক্ত করলে এখানে লাইভ দেখা যাবে।
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-[10.5px] text-slate-400 font-medium leading-relaxed bg-emerald-950/10 border border-emerald-500/5 p-3 rounded-xl flex items-start gap-2">
-                      <span className="text-emerald-400 font-bold shrink-0">💡 Note:</span>
-                      <span>
-                        This interactive sheet lists secure audit trails, transaction records, and account allocation logs synchronized directly with our primary financial ledger. Use search or filter functions inside Google Sheets to audit your entries.
-                      </span>
-                    </div>
-                  </motion.div>
-
                   {/* Service History / বুকিং এবং সার্ভিস হিস্ট্রি */}
                   <motion.div 
                     variants={itemVariants}
@@ -5345,16 +5343,12 @@ https://service.bodytouch.com
                 24/7 Premium Concierge Service
               </p>
             </div>
-
-            <LiveChat
-              isLoggedIn={isLoggedIn}
-              userLevel={userLevel}
-              username={username}
-              fullName={fullName}
-              avatarUrl={avatarUrl}
-              phone={phone}
-              onGoToMembership={() => handleTabSwitch('membership')}
-            />
+            
+            <p className="text-slate-400 text-xs text-center leading-relaxed">
+              সাপোর্ট চ্যাট নিচের ডানদিকের ভাসমান লোগো থেকে যেকোনো পেইজে বসেই ব্যবহার করতে পারবেন। এটি এখন সম্পূর্ণ পোর্টেবল!
+              <br />
+              (Live Support Chat can now be accessed portably from the floating logo at the bottom right of any screen!)
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -5404,16 +5398,6 @@ https://service.bodytouch.com
           </button>
 
           <button
-            onClick={() => handleTabSwitch('chat')}
-            className={`flex flex-col items-center justify-center space-y-1 transition-all cursor-pointer ${
-              activeTab === 'chat' ? 'text-blue-400 scale-105' : 'text-blue-300/40 hover:text-blue-300/70'
-            }`}
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-[9px] font-black uppercase tracking-wider leading-none">CHAT</span>
-          </button>
-
-          <button
             onClick={() => handleTabSwitch('profile')}
             className={`flex flex-col items-center justify-center space-y-1 transition-all cursor-pointer ${
               activeTab === 'profile' ? 'text-blue-400 scale-105' : 'text-blue-300/40 hover:text-blue-300/70'
@@ -5426,32 +5410,84 @@ https://service.bodytouch.com
         </div>
       </footer>
 
-      {/* FLOATING HIGHLIGHTED CHAT BUTTON (Bottom Right) */}
-      <div className="fixed bottom-20 md:bottom-6 right-6 z-50">
-        <button
-          onClick={() => handleTabSwitch('chat')}
-          className="relative flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-[0_4px_20px_rgba(249,115,22,0.4)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer group"
-          aria-label="Live Chat"
-        >
-          {/* Pulsing Outer Rings */}
-          <span className="absolute inset-0 rounded-full bg-orange-500/30 animate-ping opacity-75" />
-          <span className="absolute -inset-1 rounded-full border border-orange-500/20 animate-pulse" />
+      {/* FLOATING HIGHLIGHTED CHAT BUTTON (Bottom Right - Logo Styled as the 2nd Picture) */}
+      <AnimatePresence>
+        {!isChatOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="fixed bottom-24 sm:bottom-6 right-4 sm:right-6 z-50"
+          >
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="relative flex flex-col items-center justify-center w-16 h-16 rounded-[22px] bg-gradient-to-tr from-[#c2f800] to-[#e4ff00] border-2 border-black/10 hover:scale-110 hover:rotate-2 active:scale-95 transition-all duration-300 cursor-pointer group shadow-[0_4px_24px_rgba(206,255,0,0.35)]"
+              aria-label="Live Chat"
+            >
+              {/* Pulsing Outer Rings */}
+              <span className="absolute inset-0 rounded-[22px] bg-[#ceff00]/25 animate-ping opacity-75 pointer-events-none" />
 
-          {/* Chat Icon matching user screenshot (orange circle with speech bubble) */}
-          <MessageCircle className="w-7 h-7 text-white fill-white/10 group-hover:rotate-12 transition-transform duration-300" />
+              {/* Exact winking smiley from image but smaller */}
+              <svg viewBox="0 0 100 100" className="w-9 h-9 select-none pointer-events-none transition-transform duration-300 group-hover:scale-110">
+                {/* Left eye */}
+                <circle cx="34" cy="36" r="7.5" fill="black" />
+                {/* Right eye (wink) */}
+                <rect x="52" y="32" width="18" height="6.5" rx="2" transform="rotate(-3 61 35)" fill="black" />
+                {/* Mouth loop tongue lick */}
+                <path 
+                  d="M 33 52 C 40 64, 53 64, 58 54 C 61 50, 63 43, 59 42 C 55 41, 53 48, 54 53 C 55 58, 59 58, 61 53" 
+                  stroke="black" 
+                  strokeWidth="6" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </svg>
 
-          {/* Highlight Badge */}
-          <span className="absolute -top-1 -right-1 flex h-4 w-4">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[9px] font-bold text-white items-center justify-center">1</span>
-          </span>
+              {/* Green Online status dot at bottom right */}
+              <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#020714] flex items-center justify-center shadow-lg">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              </span>
 
-          {/* Hover Tooltip */}
-          <div className="absolute right-16 bg-[#030a1c] border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
-            24/7 Live Support
-          </div>
-        </button>
-      </div>
+              {/* Hover Tooltip */}
+              <div className="absolute right-18 bg-[#020714]/95 backdrop-blur-md border border-[#ceff00]/30 text-[#ceff00] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
+                24/7 Live Support (অনলাইন)
+              </div>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* FLOATING DRAGGABLE LIVE CHAT SUPPORT OVERLAY (Display over system, placing anywhere) */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.div
+            drag={!isMobile}
+            dragMomentum={false}
+            dragElastic={0.05}
+            initial={isMobile ? { y: '100%', opacity: 1 } : { opacity: 0, scale: 0.9, y: 50 }}
+            animate={isMobile ? { y: 0, opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
+            exit={isMobile ? { y: '100%', opacity: 1 } : { opacity: 0, scale: 0.9, y: 50 }}
+            transition={{ type: "spring", damping: 30, stiffness: 350 }}
+            className="fixed inset-x-0 bottom-0 top-0 sm:top-auto sm:left-auto sm:right-6 sm:bottom-24 z-[100] w-full sm:w-[400px] h-full sm:h-[550px] shadow-2xl flex flex-col rounded-none sm:rounded-2xl overflow-hidden cursor-default pointer-events-auto bg-[#020714]"
+          >
+            <LiveChat
+              isLoggedIn={isLoggedIn}
+              userLevel={userLevel}
+              username={username}
+              fullName={fullName}
+              avatarUrl={avatarUrl}
+              phone={phone}
+              onGoToMembership={() => {
+                handleTabSwitch('membership');
+                setIsChatOpen(false);
+              }}
+              onClose={() => setIsChatOpen(false)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

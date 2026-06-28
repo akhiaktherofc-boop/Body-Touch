@@ -52,7 +52,9 @@ import {
   Bot,
   Cpu,
   Megaphone,
-  LogOut
+  LogOut,
+  Phone,
+  MapPin
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import AdminLiveChat from './AdminLiveChat';
@@ -245,6 +247,8 @@ export default function AdminPanel({
       setSmtpGoogleSheetUrl(googleSheetUrl);
     }
   }, [googleSheetUrl]);
+
+  const [copiedBookingId, setCopiedBookingId] = useState<string | null>(null);
 
   // SMTP Settings States
   const [smtpHost, setSmtpHost] = useState('smtp.gmail.com');
@@ -917,7 +921,7 @@ export default function AdminPanel({
   // Render High Security Portal Gate if not authenticated - MOVED BELOW HOOKS TO COMPLY WITH REACT HOOK RULES
 
   // Tabs configured to align with User's specific requirements
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'memberships' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // States for Referral and Withdrawal Tracking Tab
@@ -931,6 +935,17 @@ export default function AdminPanel({
   const [newRefPhone, setNewRefPhone] = useState('');
   const [newRefEmail, setNewRefEmail] = useState('');
   const [newRefTier, setNewRefTier] = useState<MemberLevel>('REGULAR');
+
+  // States for editing a referral
+  const [editingReferral, setEditingReferral] = useState<ReferralRecord | null>(null);
+  const [editRefReferrer, setEditRefReferrer] = useState('');
+  const [editRefUser, setEditRefUser] = useState('');
+  const [editRefFullName, setEditRefFullName] = useState('');
+  const [editRefPhone, setEditRefPhone] = useState('');
+  const [editRefEmail, setEditRefEmail] = useState('');
+  const [editRefTier, setEditRefTier] = useState<MemberLevel>('REGULAR');
+  const [editRefCommission, setEditRefCommission] = useState<number>(0);
+  const [editRefDate, setEditRefDate] = useState('');
 
   // States for manual withdrawal generator
   const [newWithdUser, setNewWithdUser] = useState('');
@@ -1134,7 +1149,8 @@ export default function AdminPanel({
   const [verifyCityFilter, setVerifyCityFilter] = useState('ALL');
   const [verifyEditingConfig, setVerifyEditingConfig] = useState<{ [id: string]: { badge: 'DEMO' | 'REGULAR' | 'PREMIUM' | 'ELITE', rate: number, rateReal?: number, rateCam?: number, rateLiveTogether?: number } }>({});
 
-  const pendingPaymentsList = payments.filter((p) => p.status === 'Pending Verification');
+  const pendingPaymentsList = payments.filter((p) => p.status === 'Pending Verification' && p.tierName === 'Wallet Deposit');
+  const pendingMembershipsList = payments.filter((p) => p.status === 'Pending Verification' && p.tierName !== 'Wallet Deposit' && p.tierName !== 'Withdrawal');
   const pendingApplicantsList = companions.filter(c => c.status === 'Pending');
   const pendingBookingsList = bookings.filter(b => b.status === 'Awaiting Dispatch');
 
@@ -1530,6 +1546,26 @@ export default function AdminPanel({
               {pendingPaymentsList.length > 0 &&
                 <span className="bg-[#dbaa61] text-black text-[9px] font-black px-1.5 py-0.5 rounded-md leading-none animate-pulse">
                   {pendingPaymentsList.length}
+                </span>
+              }
+            </button>
+
+            {/* Membership Requests */}
+            <button
+              onClick={() => handleNavItemClick('memberships')}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
+                activeTab === 'memberships'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
+                  : 'hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Layers className={`w-4 h-4 shrink-0 ${activeTab === 'memberships' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
+                <span>Membership Requests</span>
+              </div>
+              {pendingMembershipsList.length > 0 &&
+                <span className="bg-[#dbaa61] text-black text-[9px] font-black px-1.5 py-0.5 rounded-md leading-none animate-pulse">
+                  {pendingMembershipsList.length}
                 </span>
               }
             </button>
@@ -2235,7 +2271,8 @@ export default function AdminPanel({
             <div className="text-left">
               <h1 className="text-2xl font-black text-white uppercase tracking-tight font-display flex items-center gap-2">
                 {activeTab === 'dashboard' && 'Dashboard Overview'}
-                {activeTab === 'clients' && 'Client Accounts & VIP Requests'}
+                {activeTab === 'clients' && 'Client Accounts & Deposits'}
+                {activeTab === 'memberships' && 'Membership Upgrade Requests'}
                 {activeTab === 'partners' && 'Escort & Models Catalog'}
                 {activeTab === 'media' && 'Media & Presets Bank'}
                 {activeTab === 'orders' && 'Active Bookings & Orders'}
@@ -2252,7 +2289,8 @@ export default function AdminPanel({
               <p className="text-xs text-slate-400 font-medium mt-1">
                 {activeTab === 'shortlinks' && 'View, test, and copy user registration and application forms for different model types.'}
                 {activeTab === 'dashboard' && 'Overall platform performance metrics and active system overview.'}
-                {activeTab === 'clients' && 'Verify and process client transaction tickets to activate VIP memberships.'}
+                {activeTab === 'clients' && 'Verify and process client deposit tickets and manage user wallets.'}
+                {activeTab === 'memberships' && 'Verify and process client membership level upgrades (Regular, Premium, Elite).'}
                 {activeTab === 'partners' && 'Add, update, or remove companion profile criteria and catalog attributes.'}
                 {activeTab === 'media' && 'Manage image preset libraries used in pages and profile listings.'}
                 {activeTab === 'orders' && 'Review client dispatch bookings and adjust order completion metrics.'}
@@ -2411,7 +2449,20 @@ export default function AdminPanel({
                         <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/10 group-hover:bg-indigo-500/20">
                           <Users className="w-4 h-4" />
                         </div>
-                        <span>Process {pendingPaymentsList.length} Pending Clients</span>
+                        <span>Process {pendingPaymentsList.length} Pending Deposits</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-amber-200 transition-all" />
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab('memberships')}
+                      className="group bg-black/40 hover:bg-[#dbaa61]/10 border border-white/[0.03] hover:border-[#dbaa61]/40 py-3.5 px-4 rounded-xl text-left text-white hover:text-amber-200 font-semibold transition-all duration-200 flex items-center justify-between cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-pink-500/10 flex items-center justify-center text-pink-400 border border-pink-500/10 group-hover:bg-pink-500/20">
+                          <Layers className="w-4 h-4" />
+                        </div>
+                        <span>Process {pendingMembershipsList.length} Membership Upgrades</span>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-amber-200 transition-all" />
                     </button>
@@ -2780,6 +2831,133 @@ export default function AdminPanel({
                 )}
               </AnimatePresence>
 
+            </div>
+          )}
+
+          {/* =======================================================
+              MEMBERSHIP UPGRADE REQUESTS TAB
+             ======================================================= */}
+          {activeTab === 'memberships' && (
+            <div className="space-y-5 text-left">
+              <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+                গ্রাহকদের মেম্বারশিপ আপগ্রেড রিকোয়েস্ট তালিকা নিচে দেওয়া হলো। অ্যাডমিন হিসেবে গ্রাহকদের bKash/Nagad/Rocket ট্রানজেকশন আইডি মিলিয়ে মেম্বার সেকশন 
+                <strong className="text-emerald-400"> Approve </strong> (মেম্বারশিপ এক্টিভেশন) অথবা <strong className="text-rose-400"> Reject </strong> করুন।
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[480px] overflow-y-auto pr-1 scrollbar-none">
+                {pendingMembershipsList.length === 0 ? (
+                  <div className="col-span-full py-16 text-center text-[10.5px] text-blue-400/40 font-black uppercase tracking-widest bg-[#0b0c11] border border-dashed border-blue-500/10 rounded-2xl">
+                    🚀 NO PENDING MEMBERSHIP REQUESTS TO VERIFY
+                  </div>
+                ) : (
+                  pendingMembershipsList.map((pay) => (
+                    <div
+                      key={pay.id}
+                      className="bg-[#11131a] border border-amber-500/15 p-5 rounded-2xl flex flex-col justify-between space-y-4 hover:border-amber-500/30 transition-all font-sans"
+                    >
+                      <div className="flex justify-between items-start text-xs border-b border-white/5 pb-3">
+                        <div>
+                          <p className="text-white font-extrabold text-sm font-sans">
+                            Client: <span className="text-blue-400 font-mono font-bold select-all">{pay.username}</span>
+                          </p>
+                          <p className="text-[10px] text-amber-400 font-black tracking-normal uppercase mt-1">
+                            💳 REQUESTING {pay.tierName.toUpperCase()} MEMBERSHIP
+                          </p>
+                        </div>
+                        <span className="text-amber-400 font-black font-mono text-base bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/15">
+                          ৳ {pay.price}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono leading-tight">
+                        <div className="bg-black/45 p-2.5 rounded-xl border border-white/[0.03]">
+                          <span className="text-slate-500 block text-[8px] uppercase tracking-wider font-extrabold pb-0.5">Payment Method:</span>
+                          <span className="text-white font-bold">{pay.method}</span>
+                        </div>
+                        <div className="bg-black/45 p-2.5 rounded-xl border border-white/[0.03]">
+                          <span className="text-slate-500 block text-[8px] uppercase tracking-wider font-extrabold pb-0.5">Date Submitted:</span>
+                          <span className="text-slate-300 font-bold text-[9px]">{pay.date}</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-black/40 p-3 rounded-xl border border-amber-550/10 text-[11px] flex justify-between items-center font-mono">
+                        <span className="text-slate-500 uppercase text-[9px] font-black tracking-wider">Trx ID:</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-white font-extrabold tracking-normal select-all">{pay.trxId}</span>
+                          <button
+                            onClick={() => handleCopyToClipboard(pay.trxId, pay.id)}
+                            className="text-slate-500 hover:text-white transition"
+                            title="Copy TrxID"
+                          >
+                            {copiedId === pay.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {pay.screenshot && (
+                        <div className="bg-black/40 p-3 rounded-xl border border-blue-550/10 text-[11px] space-y-2">
+                          <span className="text-slate-500 uppercase text-[9px] font-black tracking-wider block">📸 Payment Screenshot (স্ক্রিনশট):</span>
+                          <div className="relative group overflow-hidden rounded-lg">
+                            <img
+                              src={pay.screenshot}
+                              alt="Payment proof screenshot"
+                              className="max-h-48 w-full object-contain rounded-lg border border-white/5 bg-slate-950"
+                              referrerPolicy="no-referrer"
+                            />
+                            <a
+                              href={pay.screenshot}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-blue-400 font-extrabold transition-all rounded-lg cursor-pointer gap-1"
+                            >
+                              View Full Size Image ↗
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2.5 pt-1">
+                        <button
+                          onClick={() => onReject(pay.id)}
+                          className="flex-1 bg-rose-955/30 hover:bg-rose-950/80 border border-rose-500/20 hover:border-rose-500/55 text-rose-400 text-[10.5px] font-black uppercase tracking-wider py-3 rounded-xl transition cursor-pointer"
+                        >
+                          Reject Request
+                        </button>
+                        <button
+                          onClick={() => onApprove(pay.id)}
+                          className="flex-1 bg-emerald-955/30 hover:bg-emerald-950/80 border border-emerald-500/20 hover:border-emerald-500/55 text-emerald-400 text-[10.5px] font-black uppercase tracking-wider py-3 rounded-xl transition cursor-pointer"
+                        >
+                          Approve Upgrade
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* History area of memberships */}
+              <div className="bg-[#11131a] border border-[#1b1e2a] p-4.5 rounded-2xl">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-[#dbaa61] mb-3">Verified Membership History logs</h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {payments.filter(p => p.status !== 'Pending Verification' && p.tierName !== 'Wallet Deposit' && p.tierName !== 'Withdrawal').length === 0 ? (
+                    <p className="text-[10px] text-slate-500 font-semibold italic text-center py-4">No verified records yet inside logs</p>
+                  ) : (
+                    payments.filter(p => p.status !== 'Pending Verification' && p.tierName !== 'Wallet Deposit' && p.tierName !== 'Withdrawal').map(pay => (
+                      <div key={pay.id} className="bg-black/25 p-2 px-3 rounded-xl flex items-center justify-between text-xs font-mono">
+                        <div className="flex items-center gap-2">
+                          <span className={pay.status === 'Approved' ? 'text-emerald-400' : 'text-rose-400'}>●</span>
+                          <span className="text-slate-300 font-bold">{pay.username}</span>
+                          <span className="text-slate-500 font-medium">({pay.tierName})</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-400">৳{pay.price}</span>
+                          <span className={`text-[9px] font-bold uppercase ${pay.status === 'Approved' ? 'text-emerald-500' : 'text-rose-500'}`}>{pay.status}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -3713,6 +3891,182 @@ export default function AdminPanel({
                               <p className="text-slate-200 leading-normal italic">"{book.notes}"</p>
                             </div>
                           )}
+
+                          {/* Client & Model Connection Hub */}
+                          {(() => {
+                            const modelComp = companions?.find(c => 
+                              c.name?.toLowerCase() === book.modelName?.toLowerCase() || 
+                              c.tag?.toLowerCase() === book.modelTag?.toLowerCase()
+                            );
+
+                            const modelPhone = modelComp?.phone || '';
+                            const modelTelegram = modelComp?.telegram || '';
+
+                            // Build the details message to share with model
+                            const shareMessage = `🔔 *নতুন সার্ভিস বুকিং ডিটেইলস!*
+━━━━━━━━━━━━━━━━━━
+👩🏼 *মডেল:* ${book.modelName} (${book.modelTag})
+👤 *ক্লায়েন্ট নাম:* ${book.clientName || 'Anonymous User'}
+📞 *ক্লায়েন্ট ফোন:* ${book.clientPhone || 'Not Provided'}
+📅 *তারিখ:* ${book.date}
+⏰ *সময়:* ${book.time} (${book.duration})
+📍 *ঠিকানা/লোকেশন:* ${book.location}
+🗺️ *গুগল ম্যাপস লিঙ্ক:* https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(book.location)}
+📝 *বিশেষ নির্দেশনা:* ${book.notes || 'N/A'}
+━━━━━━━━━━━━━━━━━━
+Body Touch Premium Network`;
+
+                            const formatWA = (num: string) => {
+                              let cleaned = num.replace(/[^\d]/g, '');
+                              if (cleaned.startsWith('0') && cleaned.length === 11) {
+                                cleaned = '880' + cleaned.substring(1);
+                              }
+                              return cleaned;
+                            };
+
+                            const handleCopyMessage = () => {
+                              navigator.clipboard.writeText(shareMessage);
+                              setCopiedBookingId(book.id);
+                              setTimeout(() => setCopiedBookingId(null), 2500);
+                            };
+
+                            const waLink = modelPhone 
+                              ? `https://wa.me/${formatWA(modelPhone)}?text=${encodeURIComponent(shareMessage)}`
+                              : null;
+
+                            const tgLink = modelTelegram 
+                              ? `https://t.me/${modelTelegram.replace('@', '')}`
+                              : null;
+
+                            return (
+                              <div className="bg-[#090b11] border border-blue-900/20 p-3.5 rounded-2xl space-y-3 font-sans text-xs">
+                                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-white/5 pb-1.5 flex justify-between items-center">
+                                  <span>📞 Coordination Hub (ক্লায়েন্ট ও মডেল যোগাযোগ)</span>
+                                  <span className="text-[9px] text-blue-400 lowercase font-mono">Live Sync Matcher</span>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                                  {/* Client Details Column */}
+                                  <div className="space-y-1.5">
+                                    <h6 className="text-[9px] font-black uppercase tracking-wider text-emerald-400">Client Details (ক্লায়েন্ট তথ্য)</h6>
+                                    <div className="space-y-1 text-[11px] text-slate-300">
+                                      <p className="flex justify-between">
+                                        <span className="text-slate-500">Name:</span>
+                                        <span className="font-bold text-white select-all">{book.clientName || 'Anonymous Client'}</span>
+                                      </p>
+                                      <p className="flex justify-between">
+                                        <span className="text-slate-500">Phone:</span>
+                                        <a href={`tel:${book.clientPhone}`} className="font-mono text-[#ceff00] font-bold hover:underline select-all">{book.clientPhone || 'Not Provided'}</a>
+                                      </p>
+                                      <p className="flex justify-between">
+                                        <span className="text-slate-500">Email:</span>
+                                        <span className="font-mono text-slate-400 select-all text-[10px]">{book.clientEmail || 'Not Provided'}</span>
+                                      </p>
+                                      <div className="flex items-start justify-between gap-1">
+                                        <span className="text-slate-500 shrink-0">Address:</span>
+                                        <span className="text-slate-300 font-bold text-right line-clamp-2 select-all flex items-center gap-1">
+                                          {book.location}
+                                          <a 
+                                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(book.location)}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            title="View address on Google Maps"
+                                            className="text-blue-400 hover:text-blue-300 inline-block p-0.5"
+                                          >
+                                            <MapPin className="w-3.5 h-3.5" />
+                                          </a>
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Model Details Column */}
+                                  <div className="space-y-1.5 border-t md:border-t-0 md:border-l border-slate-800/80 md:pt-0 md:pl-3.5 pt-2">
+                                    <h6 className="text-[9px] font-black uppercase tracking-wider text-[#ceff00]">Model Full Details (মডেল তথ্য)</h6>
+                                    {modelComp ? (
+                                      <div className="space-y-1 text-[11px] text-slate-300">
+                                        <p className="flex justify-between">
+                                          <span className="text-slate-500">Real Name:</span>
+                                          <span className="font-bold text-white select-all">{modelComp.name}</span>
+                                        </p>
+                                        <p className="flex justify-between">
+                                          <span className="text-slate-500">Phone/WhatsApp:</span>
+                                          <span className="font-mono font-bold select-all text-[#ceff00]">
+                                            {modelComp.phone || 'N/A'}
+                                          </span>
+                                        </p>
+                                        <p className="flex justify-between">
+                                          <span className="text-slate-500">Telegram Link:</span>
+                                          <span className="font-mono text-blue-400 select-all font-bold">
+                                            {modelComp.telegram || 'N/A'}
+                                          </span>
+                                        </p>
+                                        <p className="flex justify-between text-[10px] text-slate-400">
+                                          <span>Age: <strong className="text-slate-200">{modelComp.age}</strong></span>
+                                          <span>Height: <strong className="text-slate-200">{modelComp.height}</strong></span>
+                                          <span>Weight: <strong className="text-slate-200">{modelComp.weight || 'N/A'}</strong></span>
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <div className="py-2.5 px-3 rounded-lg bg-red-500/5 border border-red-500/10 text-[10px] text-rose-400 leading-normal italic">
+                                        ⚠️ প্রোফাইল ডাটাবেজে পাওয়া যায়নি! সম্ভবত নাম পরিবর্তন হয়েছে।
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Send Click Actions */}
+                                <div className="pt-2 border-t border-white/5 flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={handleCopyMessage}
+                                    className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-white font-black text-[9.5px] uppercase tracking-wider transition flex items-center gap-1 cursor-pointer select-none"
+                                  >
+                                    {copiedBookingId === book.id ? (
+                                      <>
+                                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                        Copied! (কপি হয়েছে)
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy className="w-3.5 h-3.5 text-slate-400" />
+                                        Copy Details (ডিটেইলস কপি)
+                                      </>
+                                    )}
+                                  </button>
+
+                                  {modelPhone && (
+                                    <a
+                                      href={waLink || '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-3 py-1.5 rounded-lg bg-emerald-600/15 hover:bg-emerald-600/30 border border-emerald-500/20 text-emerald-400 font-black text-[9.5px] uppercase tracking-wider transition flex items-center gap-1 cursor-pointer select-none"
+                                    >
+                                      <Phone className="w-3.5 h-3.5" />
+                                      WhatsApp (হোয়াটসঅ্যাপে পাঠান)
+                                    </a>
+                                  )}
+
+                                  {modelTelegram && (
+                                    <a
+                                      href={tgLink || '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={() => {
+                                        // Auto-copy details before opening telegram as standard convenience
+                                        navigator.clipboard.writeText(shareMessage);
+                                      }}
+                                      className="px-3 py-1.5 rounded-lg bg-blue-600/15 hover:bg-blue-600/30 border border-blue-500/20 text-blue-400 font-black text-[9.5px] uppercase tracking-wider transition flex items-center gap-1 cursor-pointer select-none"
+                                      title="Clicking will copy details and open Telegram"
+                                    >
+                                      <Send className="w-3.5 h-3.5" />
+                                      Telegram (টেলিগ্রামে পাঠান)
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
 
                           {book.deficitPay && (
                             <div className="bg-[#0b0d19]/80 border border-amber-500/15 p-3 rounded-xl flex flex-col gap-2 font-sans text-xs">
@@ -7386,7 +7740,25 @@ export default function AdminPanel({
                               <td className="py-3 px-3 text-right font-bold text-emerald-400 font-mono text-xs">
                                 ৳{ref.commission.toLocaleString()}
                               </td>
-                              <td className="py-3 px-3 text-center">
+                              <td className="py-3 px-3 text-center whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingReferral(ref);
+                                    setEditRefReferrer(ref.referrer);
+                                    setEditRefUser(ref.referredUser);
+                                    setEditRefFullName(ref.referredFullName || '');
+                                    setEditRefPhone(ref.referredPhone || '');
+                                    setEditRefEmail(ref.referredEmail || '');
+                                    setEditRefTier(ref.tier || 'REGULAR');
+                                    setEditRefCommission(ref.commission || 0);
+                                    setEditRefDate(ref.dateJoined || '');
+                                  }}
+                                  className="text-slate-400 hover:text-cyan-400 transition p-1 mr-1.5 cursor-pointer inline-block"
+                                  title="Edit relationship mapping"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -7399,7 +7771,7 @@ export default function AdminPanel({
                                       alert('Referral relationship deleted.');
                                     }
                                   }}
-                                  className="text-slate-400 hover:text-red-400 transition p-1 cursor-pointer"
+                                  className="text-slate-400 hover:text-red-400 transition p-1 cursor-pointer inline-block"
                                   title="Delete relationship mapping"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -7544,6 +7916,204 @@ export default function AdminPanel({
                   </form>
                 </div>
               </div>
+
+              {/* EDIT AFFILIATE REFERRAL MODAL */}
+              <AnimatePresence>
+                {editingReferral && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="bg-[#0b0c15] border border-cyan-500/20 rounded-2xl p-5 sm:p-6 w-full max-w-lg space-y-4 shadow-2xl relative text-left"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <div className="flex items-center gap-2">
+                          <Edit className="w-5 h-5 text-cyan-400" />
+                          <h3 className="text-sm font-black text-white uppercase tracking-wider font-sans">
+                            Edit Affiliate Referral Mapping
+                          </h3>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingReferral(null)}
+                          className="text-slate-400 hover:text-white transition p-1 cursor-pointer"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!editRefReferrer || !editRefUser) {
+                            alert('Required fields missing.');
+                            return;
+                          }
+
+                          const updated = referrals.map((r) => {
+                            if (r.id === editingReferral.id) {
+                              return {
+                                ...r,
+                                referrer: editRefReferrer.trim().toLowerCase(),
+                                referredUser: editRefUser.trim().toLowerCase(),
+                                referredFullName: editRefFullName.trim() || undefined,
+                                referredPhone: editRefPhone.trim() || undefined,
+                                referredEmail: editRefEmail.trim() || undefined,
+                                tier: editRefTier,
+                                commission: Number(editRefCommission),
+                                dateJoined: editRefDate,
+                              };
+                            }
+                            return r;
+                          });
+
+                          if (onUpdateReferrals) {
+                            onUpdateReferrals(updated);
+                            localStorage.setItem('bt_referrals', JSON.stringify(updated));
+                          }
+                          setEditingReferral(null);
+                          alert('Referral relationship updated successfully!');
+                        }}
+                        className="space-y-4 text-slate-300 text-xs font-semibold"
+                      >
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
+                              Upline Referrer Username *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={editRefReferrer}
+                              onChange={(e) => setEditRefReferrer(e.target.value)}
+                              className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
+                              Referred Candidate Username *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={editRefUser}
+                              onChange={(e) => setEditRefUser(e.target.value)}
+                              className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
+                              Full Name
+                            </label>
+                            <input
+                              type="text"
+                              value={editRefFullName}
+                              onChange={(e) => setEditRefFullName(e.target.value)}
+                              className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
+                              Phone Number
+                            </label>
+                            <input
+                              type="text"
+                              value={editRefPhone}
+                              onChange={(e) => setEditRefPhone(e.target.value)}
+                              className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
+                              Email Account
+                            </label>
+                            <input
+                              type="email"
+                              value={editRefEmail}
+                              onChange={(e) => setEditRefEmail(e.target.value)}
+                              className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
+                              Date Joined (YYYY-MM-DD)
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={editRefDate}
+                              onChange={(e) => setEditRefDate(e.target.value)}
+                              className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
+                              Activated Member Tier
+                            </label>
+                            <select
+                              value={editRefTier}
+                              onChange={(e) => {
+                                const newTier = e.target.value as MemberLevel;
+                                setEditRefTier(newTier);
+                                // Suggest default commission for new tier if user changes tier
+                                if (newTier === 'REGULAR') setEditRefCommission(1005);
+                                else if (newTier === 'PREMIUM') setEditRefCommission(1000);
+                                else if (newTier === 'ELITE') setEditRefCommission(5005);
+                                else if (newTier === 'FREE') setEditRefCommission(0);
+                              }}
+                              className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3 py-2 focus:outline-none focus:border-cyan-500 cursor-pointer"
+                            >
+                              <option value="FREE">FREE REGISTRATION</option>
+                              <option value="REGULAR">REGULAR PLAN</option>
+                              <option value="PREMIUM">PREMIUM PLAN</option>
+                              <option value="ELITE">ELITE PLAN</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
+                              Commission Amount (BDT)
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              value={editRefCommission}
+                              onChange={(e) => setEditRefCommission(Number(e.target.value))}
+                              className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-800">
+                          <button
+                            type="button"
+                            onClick={() => setEditingReferral(null)}
+                            className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Save className="w-4 h-4" />
+                            <span>SAVE CHANGES</span>
+                          </button>
+                        </div>
+                      </form>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
 
               {/* SECTION C: PAYOUTS & WITHDRAWAL AUDIT BLOCK (নিবন্ধিত উইথড্রয়ের হিসেব) */}
               <div className="bg-[#0b0c15] border border-blue-500/10 rounded-2xl p-5 sm:p-6 space-y-4">
@@ -7823,15 +8393,28 @@ export default function AdminPanel({
       <div className="fixed bottom-6 right-6 z-50">
         <button
           onClick={() => setActiveTab('livechat')}
-          className="relative flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-[0_4px_20px_rgba(249,115,22,0.4)] hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer group"
+          className="relative flex flex-col items-center justify-center w-16 h-16 rounded-[22px] bg-gradient-to-tr from-[#c2f800] to-[#e4ff00] border-2 border-black/10 hover:scale-110 hover:rotate-2 active:scale-95 transition-all duration-300 cursor-pointer group shadow-[0_4px_24px_rgba(206,255,0,0.35)]"
           aria-label="Live Support Chat"
         >
           {/* Pulsing Outer Rings */}
-          <span className="absolute inset-0 rounded-full bg-orange-500/30 animate-ping opacity-75" />
-          <span className="absolute -inset-1 rounded-full border border-orange-500/20 animate-pulse" />
+          <span className="absolute inset-0 rounded-[22px] bg-[#ceff00]/25 animate-ping opacity-75 pointer-events-none" />
 
-          {/* Chat Icon matching user screenshot (orange circle with speech bubble) */}
-          <MessageCircle className="w-7 h-7 text-white fill-white/10 group-hover:rotate-12 transition-transform duration-300" />
+          {/* Exact winking smiley from image but smaller */}
+          <svg viewBox="0 0 100 100" className="w-9 h-9 select-none pointer-events-none transition-transform duration-300 group-hover:scale-110">
+            {/* Left eye */}
+            <circle cx="34" cy="36" r="7.5" fill="black" />
+            {/* Right eye (wink) */}
+            <rect x="52" y="32" width="18" height="6.5" rx="2" transform="rotate(-3 61 35)" fill="black" />
+            {/* Mouth loop tongue lick */}
+            <path 
+              d="M 33 52 C 40 64, 53 64, 58 54 C 61 50, 63 43, 59 42 C 55 41, 53 48, 54 53 C 55 58, 59 58, 61 53" 
+              stroke="black" 
+              strokeWidth="6" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              fill="none"
+            />
+          </svg>
 
           {/* Dynamic Highlight badge */}
           <span className="absolute -top-1 -right-1 flex h-4 w-4">
@@ -7840,7 +8423,7 @@ export default function AdminPanel({
           </span>
 
           {/* Hover Tooltip/Label */}
-          <div className="absolute right-16 bg-[#0a0b10] border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
+          <div className="absolute right-18 bg-[#0a0b10]/95 backdrop-blur-md border border-[#ceff00]/30 text-[#ceff00] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
             Live Support Console
           </div>
         </button>
