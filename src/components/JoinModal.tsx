@@ -1044,8 +1044,8 @@ export default function JoinModal({
                               onChange={handleAddPicture}
                               className="hidden"
                             />
-                            <Camera className="w-5 h-5 text-[#dbaa61] mb-1 opacity-90" />
-                            <span className="text-[10px] text-[#dbaa61] font-mono font-bold leading-tight">
+                            <Camera className="w-4 h-4 min-[380px]:w-5 min-[380px]:h-5 text-[#dbaa61] mb-1 opacity-90" />
+                            <span className="text-[8px] min-[380px]:text-[10px] text-[#dbaa61] font-mono font-bold leading-tight">
                               Upload<br />Pic {slotIdx + 1}
                             </span>
                           </label>

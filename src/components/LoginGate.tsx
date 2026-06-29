@@ -585,6 +585,10 @@ export default function LoginGate({
 
       if (userDocSnap.exists()) {
         const udata = userDocSnap.data();
+        if (udata && udata.isBlocked) {
+          setErrorMsg('⛔ আপনার অ্যাকাউন্টটি অ্যাডমিন দ্বারা ব্লক করা হয়েছে! (Your account has been blocked by the Administrator.)');
+          return;
+        }
         fullNameToLogin = udata.fullName || usernameToLogin;
         phoneToLogin = udata.phone || '';
         savedTelegramId = udata.telegramId || '';

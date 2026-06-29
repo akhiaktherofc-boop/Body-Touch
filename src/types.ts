@@ -179,4 +179,15 @@ export interface AppNotification {
   username?: string; // Target specific user, or empty for global
 }
 
+export interface PromoCode {
+  id: string;
+  code: string;
+  discountPercent: number;
+  description: string;
+  isActive: boolean;
+  maxUses?: number;
+  usedCount: number;
+  createdAt: string;
+}
+
 

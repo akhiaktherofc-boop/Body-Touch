@@ -8,6 +8,7 @@ interface NotificationCenterModalProps {
   onClose: () => void;
   notifications: AppNotification[];
   onMarkAllAsRead: () => void;
+  onMarkAsRead?: (id: string) => void;
   onClearAll: () => void;
   onDeleteNotification: (id: string) => void;
 }
@@ -17,6 +18,7 @@ export default function NotificationCenterModal({
   onClose,
   notifications,
   onMarkAllAsRead,
+  onMarkAsRead,
   onClearAll,
   onDeleteNotification
 }: NotificationCenterModalProps) {
@@ -171,7 +173,8 @@ export default function NotificationCenterModal({
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`p-3.5 rounded-2xl transition duration-150 relative text-left group overflow-hidden ${getNotificationBg(notification)}`}
+                      onClick={() => !notification.isRead && onMarkAsRead && onMarkAsRead(notification.id)}
+                      className={`p-3.5 rounded-2xl transition duration-150 relative text-left group overflow-hidden cursor-pointer ${getNotificationBg(notification)}`}
                     >
                       {/* Read Indicator side tag */}
                       {!notification.isRead && (
@@ -189,7 +192,10 @@ export default function NotificationCenterModal({
                               {notification.title}
                             </h4>
                             <button
-                              onClick={() => onDeleteNotification(notification.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteNotification(notification.id);
+                              }}
                               className="text-slate-500 hover:text-rose-400 p-0.5 rounded opacity-0 group-hover:opacity-100 transition cursor-pointer"
                               title="Delete notification log"
                             >

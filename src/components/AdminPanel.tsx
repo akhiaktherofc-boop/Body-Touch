@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, doc, getDoc, setDoc, deleteDoc, getDocFromServer, onSnapshot } from '../firebase';
+import { db, doc, getDoc, setDoc, deleteDoc, getDocFromServer, onSnapshot, collection, addDoc, updateDoc } from '../firebase';
 import * as OTPAuth from 'otpauth';
-import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel } from '../types';
+import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel, PromoCode } from '../types';
 import { clearCollection } from '../services/cloudService';
 import { compressImage } from '../services/imageService';
 import { 
@@ -54,7 +54,9 @@ import {
   Megaphone,
   LogOut,
   Phone,
-  MapPin
+  MapPin,
+  Tag,
+  Percent
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import AdminLiveChat from './AdminLiveChat';
@@ -522,6 +524,13 @@ export default function AdminPanel({
   const [totpSecret, setTotpSecret] = useState('');
   const [totpTempEnrollEmail, setTotpTempEnrollEmail] = useState('');
   const [totpInputCode, setTotpInputCode] = useState('');
+  const [useBackupCode, setUseBackupCode] = useState(false);
+  const [backupInputCode, setBackupInputCode] = useState('');
+  const [confirm2FAResetEmail, setConfirm2FAResetEmail] = useState<string | null>(null);
+  const [confirmRemoveEmail, setConfirmRemoveEmail] = useState<string | null>(null);
+  const [viewingBackupCodesEmail, setViewingBackupCodesEmail] = useState<string | null>(null);
+  const [generatedBackupCodes, setGeneratedBackupCodes] = useState<string[]>([]);
+  const [isGeneratingBackupCodes, setIsGeneratingBackupCodes] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [isSending, setIsSending] = useState(false);
@@ -817,19 +826,53 @@ export default function AdminPanel({
     }
   };
 
-  const handleVerifyOTPActive = (e: React.FormEvent) => {
+  const handleVerifyOTPActive = async (e: React.FormEvent) => {
     e.preventDefault();
     const normalizedEmail = totpTempEnrollEmail.toLowerCase();
-    const cleanCode = totpInputCode.trim();
+    const cleanCode = useBackupCode ? backupInputCode.trim() : totpInputCode.trim();
 
     if (!cleanCode) {
-      setAuthError('৬ সংখ্যার কোড প্রবেশ করান।');
+      setAuthError(useBackupCode ? '৮ সংখ্যার ওয়ান-টাইম ব্যাকআপ কোড প্রবেশ করান।' : '৬ সংখ্যার কোড প্রবেশ করান।');
       return;
     }
 
     try {
       setIsSending(true);
       setAuthError('');
+
+      if (useBackupCode) {
+        const cleanBackup = cleanCode.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        if (cleanBackup.length !== 8) {
+          setAuthError('ভুল ব্যাকআপ কোড ফরম্যাট! কোডটি অবশ্যই ৮ সংখ্যার বা অক্ষরের হতে হবে।');
+          setIsSending(false);
+          return;
+        }
+
+        const backupDocRef = doc(db, 'admin_backup_codes', normalizedEmail);
+        const backupSnap = await getDoc(backupDocRef);
+        if (backupSnap.exists()) {
+          const codes: string[] = backupSnap.data().codes || [];
+          const codeIndex = codes.map(c => c.toUpperCase()).indexOf(cleanBackup);
+          if (codeIndex !== -1) {
+            const remainingCodes = codes.filter((_, idx) => idx !== codeIndex);
+            await setDoc(backupDocRef, { codes: remainingCodes, updatedAt: new Date().toISOString() });
+
+            sessionStorage.setItem('metro_maa_admin_auth', 'true');
+            setIsAuth(true);
+            setAdminEmail(totpTempEnrollEmail);
+            localStorage.setItem('metro_maa_admin_validated_email', normalizedEmail);
+            setTotpInputCode('');
+            setBackupInputCode('');
+            setUseBackupCode(false);
+            setAuthError('');
+            alert('✅ ব্যাকআপ কোড সফলভাবে যাচাই করা হয়েছে! কোডটি ওয়ান-টাইম ছিল এবং এখন এটি স্থায়ীভাবে বাতিল করা হয়েছে।');
+            return;
+          }
+        }
+        setAuthError('ভুল বা অব্যবহৃত ব্যাকআপ কোড! অনুগ্রহ করে আপনার কপি করা সঠিক ব্যাকআপ কোডটি প্রবেশ করান।');
+        setIsSending(false);
+        return;
+      }
 
       const totp = new OTPAuth.TOTP({
         issuer: 'BodyTouch',
@@ -921,7 +964,7 @@ export default function AdminPanel({
   // Render High Security Portal Gate if not authenticated - MOVED BELOW HOOKS TO COMPLY WITH REACT HOOK RULES
 
   // Tabs configured to align with User's specific requirements
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'memberships' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'memberships' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat' | 'promocodes'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // States for Referral and Withdrawal Tracking Tab
@@ -953,44 +996,172 @@ export default function AdminPanel({
   const [newWithdMethod, setNewWithdMethod] = useState('bKash Personal');
   const [newWithdAccount, setNewWithdAccount] = useState('');
 
+  // States for Promo Code tab
+  const [adminPromoCodes, setAdminPromoCodes] = useState<PromoCode[]>([]);
+  const [promoCodeName, setPromoCodeName] = useState('');
+  const [promoDiscount, setPromoDiscount] = useState<number>(35);
+  const [promoDesc, setPromoDesc] = useState('');
+  const [promoIsActive, setPromoIsActive] = useState<boolean>(true);
+  const [promoMaxUses, setPromoMaxUses] = useState<string>('');
+  const [promoCodeError, setPromoCodeError] = useState('');
+  const [promoCodeSuccess, setPromoCodeSuccess] = useState('');
+  const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
+
+  // Subscribe to promo codes collection in DB
+  useEffect(() => {
+    const colRef = collection(db, 'promo_codes');
+    const unsubscribe = onSnapshot(colRef, (snapshot) => {
+      const codes: PromoCode[] = [];
+      snapshot.forEach((doc: any) => {
+        codes.push({ id: doc.id, ...doc.data() });
+      });
+      // Sort by creation time or code name
+      codes.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      setAdminPromoCodes(codes);
+    }, (err) => {
+      console.warn("Error loading promo codes inside AdminPanel:", err);
+    });
+    return () => unsubscribe();
+  }, []);
+
   const [selectedClient, setSelectedClient] = useState<any | null>(null);
+  const [allRegisteredUsers, setAllRegisteredUsers] = useState<any[]>([]);
+
+  // Subscribe to users collection in DB to fetch registered accounts
+  useEffect(() => {
+    const colRef = collection(db, 'users');
+    const unsubscribe = onSnapshot(colRef, (snapshot) => {
+      const usersList: any[] = [];
+      snapshot.forEach((doc: any) => {
+        usersList.push({ id: doc.id, username: doc.id, ...doc.data() });
+      });
+      setAllRegisteredUsers(usersList);
+    }, (err) => {
+      console.warn("Error loading users inside AdminPanel:", err);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleBlockClient = async (client: any) => {
+    try {
+      const matchedUser = allRegisteredUsers.find(u => u.id === client.id || u.username === client.id);
+      if (matchedUser) {
+        const userDocRef = doc(db, 'users', matchedUser.id);
+        const nextBlockedStatus = !matchedUser.isBlocked;
+        await setDoc(userDocRef, { isBlocked: nextBlockedStatus }, { merge: true });
+        
+        setSelectedClient((prev: any) => prev ? { ...prev, isBlocked: nextBlockedStatus } : null);
+        alert(`গ্রাহক অ্যাকাউন্টটি সফলভাবে ${nextBlockedStatus ? 'ব্লক' : 'আনব্লক'} করা হয়েছে!`);
+      } else {
+        const clientDocId = (client.name || 'guest').toLowerCase().replace(/\s+/g, '');
+        const userDocRef = doc(db, 'users', clientDocId);
+        await setDoc(userDocRef, {
+          username: clientDocId,
+          fullName: client.name,
+          phone: client.phone,
+          email: client.email,
+          isBlocked: true
+        }, { merge: true });
+        setSelectedClient((prev: any) => prev ? { ...prev, isBlocked: true } : null);
+        alert(`গ্রাহক অ্যাকাউন্টটি সফলভাবে ব্লক করা হয়েছে!`);
+      }
+    } catch (err) {
+      console.error("Error blocking client:", err);
+      alert("Error updating client block status.");
+    }
+  };
+
+  const handleRemoveClient = async (client: any) => {
+    if (!window.confirm(`আপনি কি নিশ্চিতভাবে এই গ্রাহক অ্যাকাউন্টটি ("${client.name}") ডাটাবেজ থেকে সম্পূর্ণ মুছে ফেলতে চান?`)) {
+      return;
+    }
+    try {
+      const matchedUser = allRegisteredUsers.find(u => u.id === client.id || u.username === client.id);
+      if (matchedUser) {
+        const userDocRef = doc(db, 'users', matchedUser.id);
+        await deleteDoc(userDocRef);
+      }
+      setSelectedClient(null);
+      alert("গ্রাহক অ্যাকাউন্টটি ডাটাবেজ থেকে স্থায়ীভাবে মুছে ফেলা হয়েছে! (Client deleted successfully!)");
+    } catch (err) {
+      console.error("Error deleting client:", err);
+      alert("Error deleting client account.");
+    }
+  };
 
   const clientsList = useMemo(() => {
     const clientsMap: { [key: string]: any } = {};
 
-    // 1. Scan bookings to extract actual client profiles filled out during the checkout process
+    // 1. Populate from registered users first
+    allRegisteredUsers.forEach(u => {
+      const usernameLower = u.username.toLowerCase();
+      const key = usernameLower;
+      clientsMap[key] = {
+        id: u.id,
+        name: u.fullName || u.username,
+        phone: u.phone || '',
+        email: u.email || '',
+        userPhoto: u.userPhoto || u.avatarUrl || '',
+        nidFront: u.nidFront || '',
+        nidBack: u.nidBack || '',
+        isBlocked: u.isBlocked || false,
+        bookingsCount: 0,
+        bookings: []
+      };
+    });
+
+    // 2. Scan bookings to extract client profiles and match bookings to clients
     bookings.forEach(b => {
-      const name = b.clientName || 'Unnamed Client';
-      const phone = b.clientPhone || 'No Phone';
-      const email = b.clientEmail || 'No Email';
+      const bName = b.clientName || 'Unnamed Client';
+      const bPhone = b.clientPhone || 'No Phone';
+      const bEmail = b.clientEmail || 'No Email';
       const photo = b.userPhoto || '';
       const nidFront = b.nidFront || '';
       const nidBack = b.nidBack || '';
 
-      const key = `${name}-${phone}`.toLowerCase();
-      if (!clientsMap[key]) {
-        clientsMap[key] = {
-          id: b.id + '-client-profile',
-          name,
-          phone,
-          email,
-          userPhoto: photo,
-          nidFront,
-          nidBack,
-          bookingsCount: 0,
-          bookings: []
-        };
+      // Try matching to a registered user by phone, email, or name
+      const matchedUser = allRegisteredUsers.find(u => 
+        (bPhone && u.phone && u.phone.toLowerCase() === bPhone.toLowerCase()) ||
+        (bEmail && u.email && u.email.toLowerCase() === bEmail.toLowerCase()) ||
+        (bName && u.fullName && u.fullName.toLowerCase() === bName.toLowerCase())
+      );
+
+      let matchedKey = '';
+      if (matchedUser) {
+        matchedKey = matchedUser.username.toLowerCase();
+      } else {
+        // Fallback to name-phone matching for guests or manual bookings
+        const fallbackKey = `${bName}-${bPhone}`.toLowerCase();
+        if (clientsMap[fallbackKey]) {
+          matchedKey = fallbackKey;
+        } else {
+          // Create guest client
+          clientsMap[fallbackKey] = {
+            id: b.id + '-client-profile',
+            name: bName,
+            phone: bPhone,
+            email: bEmail,
+            userPhoto: photo,
+            nidFront,
+            nidBack,
+            isBlocked: false,
+            bookingsCount: 0,
+            bookings: []
+          };
+          matchedKey = fallbackKey;
+        }
       }
-      clientsMap[key].bookingsCount += 1;
-      clientsMap[key].bookings.push(b);
-      if (photo && !clientsMap[key].userPhoto) clientsMap[key].userPhoto = photo;
-      if (nidFront && !clientsMap[key].nidFront) clientsMap[key].nidFront = nidFront;
-      if (nidBack && !clientsMap[key].nidBack) clientsMap[key].nidBack = nidBack;
+
+      clientsMap[matchedKey].bookingsCount += 1;
+      clientsMap[matchedKey].bookings.push(b);
+      if (photo && !clientsMap[matchedKey].userPhoto) clientsMap[matchedKey].userPhoto = photo;
+      if (nidFront && !clientsMap[matchedKey].nidFront) clientsMap[matchedKey].nidFront = nidFront;
+      if (nidBack && !clientsMap[matchedKey].nidBack) clientsMap[matchedKey].nidBack = nidBack;
     });
 
-    // 2. Add realistic seed files if there are no bookings yet to make sure the app doesn't start completely blank!
+    // 3. Add realistic seed profiles if there are absolutely no profiles in the directory
     if (Object.keys(clientsMap).length === 0) {
-      clientsMap['akhi akther-01711223344'] = {
+      clientsMap['akhi akther'] = {
         id: 'client-1',
         name: 'Akhi Akther',
         phone: '+8801711223344',
@@ -998,10 +1169,11 @@ export default function AdminPanel({
         userPhoto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200',
         nidFront: 'https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?auto=format&fit=crop&q=80&w=600',
         nidBack: 'https://images.unsplash.com/photo-1589758438368-0ad531db3366?auto=format&fit=crop&q=80&w=600',
+        isBlocked: false,
         bookingsCount: 1,
         bookings: []
       };
-      clientsMap['tasnim ahmed-01723456789'] = {
+      clientsMap['tasnim ahmed'] = {
         id: 'client-2',
         name: 'Tasnim Ahmed',
         phone: '+8801723456789',
@@ -1009,13 +1181,14 @@ export default function AdminPanel({
         userPhoto: '',
         nidFront: '',
         nidBack: '',
+        isBlocked: false,
         bookingsCount: 0,
         bookings: []
       };
     }
 
     return Object.values(clientsMap);
-  }, [bookings]);
+  }, [allRegisteredUsers, bookings]);
 
   const [orderTierFilter, setOrderTierFilter] = useState<'ALL' | 'REGULAR' | 'PREMIUM' | 'ELITE'>('ALL');
 
@@ -1477,6 +1650,74 @@ export default function AdminPanel({
     m.category.toLowerCase().includes(mediaSearch.toLowerCase())
   );
 
+  const handleSavePromo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formattedCode = promoCodeName.trim().toUpperCase();
+    if (!formattedCode) {
+      setPromoCodeError('Promo code is required');
+      return;
+    }
+    if (promoDiscount <= 0 || promoDiscount > 100) {
+      setPromoCodeError('Discount must be between 1% and 100%');
+      return;
+    }
+
+    try {
+      setPromoCodeError('');
+      setPromoCodeSuccess('');
+      
+      const pDocId = editingPromo ? editingPromo.id : `promo_${formattedCode}`;
+      const docRef = doc(db, 'promo_codes', pDocId);
+
+      const promoData = {
+        code: formattedCode,
+        discountPercent: Number(promoDiscount),
+        description: promoDesc.trim() || `${promoDiscount}% Discount Promo`,
+        isActive: promoIsActive,
+        maxUses: promoMaxUses.trim() ? Number(promoMaxUses) : undefined,
+        usedCount: editingPromo ? editingPromo.usedCount : 0,
+        createdAt: editingPromo ? editingPromo.createdAt : new Date().toISOString()
+      };
+
+      await setDoc(docRef, promoData);
+
+      setPromoCodeSuccess(editingPromo ? 'Promo code updated successfully!' : 'Promo code created successfully!');
+      
+      // Reset form states
+      setPromoCodeName('');
+      setPromoDiscount(35);
+      setPromoDesc('');
+      setPromoIsActive(true);
+      setPromoMaxUses('');
+      setEditingPromo(null);
+    } catch (err: any) {
+      console.error('Error saving promo code:', err);
+      setPromoCodeError('Error occurred while saving promo code.');
+    }
+  };
+
+  const handleDeletePromo = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this promo code?')) return;
+    try {
+      await deleteDoc(doc(db, 'promo_codes', id));
+      setPromoCodeSuccess('Promo code deleted successfully!');
+    } catch (err) {
+      console.error('Error deleting promo code:', err);
+      setPromoCodeError('Error occurred while deleting promo code.');
+    }
+  };
+
+  const handleTogglePromoStatus = async (promo: PromoCode) => {
+    try {
+      const docRef = doc(db, 'promo_codes', promo.id);
+      await setDoc(docRef, { ...promo, isActive: !promo.isActive });
+      setPromoCodeSuccess(`Promo code ${!promo.isActive ? 'activated' : 'deactivated'} successfully!`);
+    } catch (err) {
+      console.error('Error toggling promo status:', err);
+      setPromoCodeError('Error occurred while toggling status.');
+    }
+  };
+
   // Helper to render the sidebar navigation content (shared between desktop and mobile drawer)
   const renderSidebarContent = (isMobile: boolean = false) => {
     const handleNavItemClick = (tab: typeof activeTab) => {
@@ -1767,6 +2008,24 @@ export default function AdminPanel({
               </div>
               <span className="text-[10px] bg-amber-500/10 text-[#dbaa61] font-bold font-mono px-1.5 py-0.5 rounded border border-[#dbaa61]/25">
                 {referrals.length} Joins
+              </span>
+            </button>
+
+            {/* Promo Codes Manager Tab */}
+            <button
+              onClick={() => handleNavItemClick('promocodes')}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
+                activeTab === 'promocodes'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
+                  : 'hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Tag className={`w-4 h-4 shrink-0 ${activeTab === 'promocodes' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
+                <span>Promo Codes (প্রোমো কোড)</span>
+              </div>
+              <span className="text-[10px] bg-red-500/10 text-red-400 font-bold font-mono px-1.5 py-0.5 rounded border border-red-500/25">
+                {adminPromoCodes.length} Codes
               </span>
             </button>
 
@@ -2082,7 +2341,11 @@ export default function AdminPanel({
                     Two-Factor authentication
                   </h3>
                   <p className="text-[11px] text-slate-400 leading-relaxed max-w-xs mx-auto">
-                    Enter the 6-digit passcode token generated by Google Authenticator app for account <strong className="text-white">{totpTempEnrollEmail}</strong>.
+                    {useBackupCode ? (
+                      <span>Enter your 8-character one-time backup code for account <strong className="text-white">{totpTempEnrollEmail}</strong>.</span>
+                    ) : (
+                      <span>Enter the 6-digit passcode token generated by Google Authenticator app for account <strong className="text-white">{totpTempEnrollEmail}</strong>.</span>
+                    )}
                   </p>
                 </div>
 
@@ -2090,45 +2353,77 @@ export default function AdminPanel({
                 <div className="space-y-3 rounded-2xl bg-[#03060d]/60 p-4 border border-slate-800/80">
                   <div className="space-y-1 text-center font-semibold">
                     <label className="block text-[10px] font-semibold tracking-wider text-[#dbaa61] uppercase font-mono">
-                      Security Passcode
+                      {useBackupCode ? 'One-Time Backup Code (ওয়ান-টাইম ব্যাকআপ কোড)' : 'Security Passcode'}
                     </label>
                     
-                    {/* Segmented Digit UI lock pad */}
-                    <div className="relative flex justify-center py-2">
-                      <div className="flex gap-2.5 justify-center">
-                        {[0, 1, 2, 3, 4, 5].map((index) => {
-                          const val = totpInputCode[index] || '';
-                          const isCurrent = totpInputCode.length === index;
-                          return (
-                            <div 
-                              key={index} 
-                              className={`w-10 h-12 rounded-xl border flex items-center justify-center text-lg font-bold font-mono transition-all duration-300 ${
-                                val 
-                                  ? 'border-[#dbaa61] bg-[#dbaa61]/5 text-[#dbaa61] shadow-[0_0_12px_rgba(219,170,97,0.15)]' 
-                                  : isCurrent 
-                                    ? 'border-[#dbaa61]/70 bg-slate-900 ring-1 ring-[#dbaa61]/25 animate-pulse' 
-                                    : 'border-slate-800 bg-[#03060d]'
-                              }`}
-                            >
-                              {val || <span className="text-slate-700 font-sans">•</span>}
-                            </div>
-                          );
-                        })}
+                    {useBackupCode ? (
+                      <div className="py-2">
+                        <input
+                          type="text"
+                          required
+                          maxLength={12}
+                          autoFocus
+                          placeholder="e.g. B4H2K9P1"
+                          value={backupInputCode}
+                          onChange={(e) => {
+                            setBackupInputCode(e.target.value.toUpperCase());
+                            if (authError) setAuthError('');
+                          }}
+                          className="w-full bg-[#0b0c10] border border-[#dbaa61]/30 focus:border-[#dbaa61] rounded-xl text-center text-sm font-bold font-mono tracking-widest text-[#dbaa61] py-3 uppercase focus:outline-none placeholder-slate-700 transition"
+                        />
                       </div>
-                      <input
-                        type="text"
-                        required
-                        maxLength={6}
-                        autoFocus
-                        value={totpInputCode}
-                        onChange={(e) => {
-                          setTotpInputCode(e.target.value.replace(/\D/g, ''));
-                          if (authError) setAuthError('');
-                        }}
-                        className="absolute inset-0 opacity-0 cursor-text w-full h-[48px] text-center"
-                      />
-                    </div>
+                    ) : (
+                      /* Segmented Digit UI lock pad */
+                      <div className="relative flex justify-center py-2">
+                        <div className="flex gap-2.5 justify-center">
+                          {[0, 1, 2, 3, 4, 5].map((index) => {
+                            const val = totpInputCode[index] || '';
+                            const isCurrent = totpInputCode.length === index;
+                            return (
+                              <div 
+                                key={index} 
+                                className={`w-10 h-12 rounded-xl border flex items-center justify-center text-lg font-bold font-mono transition-all duration-300 ${
+                                  val 
+                                    ? 'border-[#dbaa61] bg-[#dbaa61]/5 text-[#dbaa61] shadow-[0_0_12px_rgba(219,170,97,0.15)]' 
+                                    : isCurrent 
+                                      ? 'border-[#dbaa61]/70 bg-slate-900 ring-1 ring-[#dbaa61]/25 animate-pulse' 
+                                      : 'border-slate-800 bg-[#03060d]'
+                                }`}
+                              >
+                                {val || <span className="text-slate-700 font-sans">•</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          autoFocus
+                          value={totpInputCode}
+                          onChange={(e) => {
+                            setTotpInputCode(e.target.value.replace(/\D/g, ''));
+                            if (authError) setAuthError('');
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-text w-full h-[48px] text-center"
+                        />
+                      </div>
+                    )}
                   </div>
+                </div>
+
+                {/* Switch between TOTP and Backup code */}
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseBackupCode(!useBackupCode);
+                      setAuthError('');
+                    }}
+                    className="text-[10px] text-cyan-400 hover:text-cyan-300 hover:underline cursor-pointer transition"
+                  >
+                    {useBackupCode ? '← Use Authenticator App (অ্যাপ কোড ব্যবহার করুন)' : '🔑 Lost Access? Use Backup Code (ব্যাকআপ কোড ব্যবহার করুন)'}
+                  </button>
                 </div>
 
                 {authError && (
@@ -2145,15 +2440,17 @@ export default function AdminPanel({
                       setAuthStep('credentials');
                       setAuthError('');
                       setTotpInputCode('');
+                      setBackupInputCode('');
+                      setUseBackupCode(false);
                     }}
-                    className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-855/80 text-slate-300 text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center"
+                    className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center"
                   >
                     Go Back
                   </button>
                   <button
                     type="submit"
                     disabled={isSending}
-                    className="w-full py-3 rounded-xl bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center shadow-md"
+                    className="w-full py-3 rounded-xl bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center shadow-md font-bold disabled:opacity-40"
                   >
                     {isSending ? 'Verifying...' : 'Unlock'}
                   </button>
@@ -2284,6 +2581,7 @@ export default function AdminPanel({
                 {activeTab === 'smtp' && 'System & Telegram Settings'}
                 {activeTab === 'shortlinks' && 'Quick Registration Links'}
                 {activeTab === 'referrals' && 'Affiliate Referrals Ledger'}
+                {activeTab === 'promocodes' && 'Promo Codes Manager (প্রোমো কোড ম্যানেজার)'}
                 {activeTab === 'livechat' && 'Live Support Chat Console'}
               </h1>
               <p className="text-xs text-slate-400 font-medium mt-1">
@@ -2301,6 +2599,7 @@ export default function AdminPanel({
                 {activeTab === 'admins' && 'Set and control authorized staff emails and edit secondary validation metrics.'}
                 {activeTab === 'smtp' && 'Synchronize order dispatches with Telegram notification bots and helplines.'}
                 {activeTab === 'referrals' && 'Track commission balances, affiliate tiers, and process withdrawal requests.'}
+                {activeTab === 'promocodes' && 'Create, activate, deactivate, and track custom discount and acquisition promo codes.'}
                 {activeTab === 'livechat' && 'Chat with premium and elite customers in real-time, answer questions, and assist in reservation booking.'}
               </p>
             </div>
@@ -2661,27 +2960,48 @@ export default function AdminPanel({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-1">
                   {clientsList.map((client) => (
-                    <button
-                      type="button"
+                    <div
                       key={client.id}
-                      onClick={() => setSelectedClient(client)}
-                      className="bg-black/25 hover:bg-black/50 border border-blue-500/10 hover:border-blue-500/35 p-3.5 rounded-xl flex items-center gap-3 transition text-left w-full cursor-pointer group"
+                      className={`relative bg-black/25 hover:bg-black/35 border ${client.isBlocked ? 'border-rose-500/35 bg-rose-950/5' : 'border-blue-500/10 hover:border-blue-500/35'} p-3.5 rounded-xl flex items-center justify-between gap-3 transition text-left w-full group`}
                     >
-                      <div className="w-10 h-10 rounded-full bg-blue-500/5 border border-blue-500/20 flex items-center justify-center text-xs font-black text-blue-400 overflow-hidden shrink-0">
-                        {client.userPhoto ? (
-                          <img src={client.userPhoto} alt={client.name} className="w-full h-full object-cover" />
-                        ) : (
-                          client.name.charAt(0).toUpperCase()
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs text-white font-black group-hover:text-blue-400 transition truncate">{client.name}</p>
-                        <p className="text-[10px] text-slate-400 truncate font-mono">{client.phone}</p>
-                        <p className="text-[9px] text-[#5c75ab] font-bold uppercase tracking-wider mt-0.5">
-                          {client.bookingsCount} {client.bookingsCount === 1 ? 'Service' : 'Services'} booked
-                        </p>
-                      </div>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedClient(client)}
+                        className="flex-1 flex items-center gap-3 min-w-0 text-left cursor-pointer"
+                      >
+                        <div className={`w-10 h-10 rounded-full ${client.isBlocked ? 'bg-rose-500/5 border-rose-500/20 text-rose-400' : 'bg-blue-500/5 border-blue-500/20 text-blue-400'} border flex items-center justify-center text-xs font-black overflow-hidden shrink-0`}>
+                          {client.userPhoto ? (
+                            <img src={client.userPhoto} alt={client.name} className="w-full h-full object-cover" />
+                          ) : (
+                            client.name.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <p className={`text-xs font-black truncate ${client.isBlocked ? 'text-rose-400' : 'text-white group-hover:text-blue-400 transition'}`}>{client.name}</p>
+                            {client.isBlocked && (
+                              <span className="bg-rose-500/15 text-rose-400 border border-rose-500/25 text-[7px] font-black px-1 py-0.5 rounded uppercase tracking-wider shrink-0">Blocked</span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-400 truncate font-mono">{client.phone}</p>
+                          <p className="text-[9px] text-[#5c75ab] font-bold uppercase tracking-wider mt-0.5">
+                            {client.bookingsCount} {client.bookingsCount === 1 ? 'Service' : 'Services'} booked
+                          </p>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveClient(client);
+                        }}
+                        className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 rounded-lg transition-all cursor-pointer shrink-0"
+                        title="মুছে ফেলুন (Remove Client)"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -2720,9 +3040,16 @@ export default function AdminPanel({
                           )}
                         </div>
                         <div className="space-y-1 min-w-0">
-                          <span className="text-[9px] bg-blue-500/20 text-blue-300 font-extrabold uppercase px-2.5 py-0.5 rounded-full border border-blue-500/25 tracking-widest block w-fit">
-                            Client Profile
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] bg-blue-500/20 text-blue-300 font-extrabold uppercase px-2.5 py-0.5 rounded-full border border-blue-500/25 tracking-widest block w-fit">
+                              Client Profile
+                            </span>
+                            {selectedClient.isBlocked && (
+                              <span className="text-[9px] bg-rose-500/25 text-rose-400 font-extrabold uppercase px-2.5 py-0.5 rounded-full border border-rose-500/30 tracking-widest block w-fit animate-pulse">
+                                BANNED / BLOCKED
+                              </span>
+                            )}
+                          </div>
                           <h3 className="text-lg sm:text-xl font-black text-white leading-tight truncate mt-1">
                             {selectedClient.name}
                           </h3>
@@ -2817,11 +3144,33 @@ export default function AdminPanel({
                         </div>
                       </div>
 
-                      <div className="pt-2">
+                      <div className="pt-2 space-y-2">
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => handleBlockClient(selectedClient)}
+                            className={`flex-1 py-3 px-4 rounded-xl text-[10.5px] font-black uppercase tracking-wider border transition-all duration-200 cursor-pointer ${
+                              selectedClient.isBlocked
+                                ? 'bg-amber-500/15 text-amber-400 border-amber-500/20 hover:bg-amber-500/25'
+                                : 'bg-rose-500/15 text-rose-400 border-rose-500/20 hover:bg-rose-500/25'
+                            }`}
+                          >
+                            {selectedClient.isBlocked ? '🔓 Unblock Client' : '⛔ Block Client'}
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveClient(selectedClient)}
+                            className="flex-1 bg-rose-900/20 hover:bg-rose-900/25 text-rose-400 border border-rose-500/25 text-[10.5px] font-black uppercase tracking-wider py-3 px-4 rounded-xl transition-all duration-200 cursor-pointer"
+                          >
+                            🗑️ Delete Account
+                          </button>
+                        </div>
+
                         <button
                           type="button"
                           onClick={() => setSelectedClient(null)}
-                          className="w-full bg-blue-500/10 hover:bg-blue-500/15 text-blue-400 hover:text-blue-300 border border-blue-500/20 text-[10.5px] font-extrabold uppercase py-3.5 rounded-xl transition duration-200 cursor-pointer"
+                          className="w-full bg-blue-500/10 hover:bg-blue-500/15 text-blue-300 hover:text-white border border-blue-500/20 text-[10.5px] font-extrabold uppercase py-3 rounded-xl transition duration-200 cursor-pointer"
                         >
                           Close Detail View
                         </button>
@@ -6519,51 +6868,194 @@ Body Touch Premium Network`;
                           </div>
 
                           {/* Actions footer inside card */}
-                          <div className="flex items-center gap-1.5 border-t border-white/[0.03] pt-2.5">
-                            {/* Reset 2FA Button - Allowed only for Super Admin */}
-                            {loggedInAdminRole === 'super_admin' && (
+                          <div className="flex flex-col gap-2 border-t border-white/[0.03] pt-2.5">
+                            <div className="flex items-center gap-1.5">
+                              {/* Reset 2FA Button - Allowed only for Super Admin */}
+                              {loggedInAdminRole === 'super_admin' && (
+                                confirm2FAResetEmail === emailAddress ? (
+                                  <div className="flex-1 flex flex-col gap-1 p-1 bg-amber-955/20 border border-amber-500/25 rounded-lg text-center">
+                                    <span className="text-[8px] text-amber-300 font-bold uppercase">Reset 2FA?</span>
+                                    <div className="flex gap-1 justify-center">
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          const trimmedEmail = emailAddress.trim().toLowerCase();
+                                          try {
+                                            await deleteDoc(doc(db, 'admin_totp_secrets', trimmedEmail));
+                                            alert(`✅ Google Authenticator 2FA secret has been successfully reset for ${emailAddress}.`);
+                                          } catch (err: any) {
+                                            alert(`❌ Could not reset 2FA: ${err.message}`);
+                                          }
+                                          setConfirm2FAResetEmail(null);
+                                        }}
+                                        className="px-2 py-0.5 bg-amber-500 hover:bg-amber-400 text-black text-[8px] font-black rounded cursor-pointer transition-all"
+                                      >
+                                        Yes
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setConfirm2FAResetEmail(null)}
+                                        className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-white text-[8px] font-black rounded cursor-pointer transition-all"
+                                      >
+                                        No
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setConfirm2FAResetEmail(emailAddress);
+                                      setConfirmRemoveEmail(null);
+                                    }}
+                                    className="flex-1 py-1 px-2 rounded-lg bg-amber-950/30 hover:bg-amber-950/50 border border-amber-500/25 text-[#dbaa61] hover:text-white text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center justify-center gap-1 min-h-[28px]"
+                                    title="Reset TOTP 2FA secret for this user"
+                                  >
+                                    Reset 2FA
+                                  </button>
+                                )
+                              )}
+
+                              {isMainSuperAdmin ? (
+                                <span className="flex-1 py-1 px-2.5 rounded-lg bg-emerald-950/40 text-emerald-400 border border-emerald-500/25 text-[8px] font-black uppercase tracking-wider text-center select-none min-h-[28px] flex items-center justify-center">
+                                  Owner Key
+                                </span>
+                              ) : (
+                                /* Revoke/Delete button - Only Super Admins can revoke/delete admins, and you cannot revoke yourself */
+                                loggedInAdminRole === 'super_admin' && !isCurrentlyLoggedInUser && (
+                                  confirmRemoveEmail === emailAddress ? (
+                                    <div className="flex-1 flex flex-col gap-1 p-1 bg-red-955/20 border border-red-500/25 rounded-lg text-center">
+                                      <span className="text-[8px] text-red-300 font-bold uppercase">Remove Admin?</span>
+                                      <div className="flex gap-1 justify-center">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            updateAdminEmails(adminEmails.filter(e => e.email.toLowerCase() !== emailAddress.toLowerCase()));
+                                            alert(`✅ "${emailAddress}" এর এডমিন এক্সেস স্থায়ীভাবে বাতিল ও রিমুভ করা হয়েছে।`);
+                                            setConfirmRemoveEmail(null);
+                                          }}
+                                          className="px-2 py-0.5 bg-red-500 hover:bg-red-450 text-white text-[8px] font-black rounded cursor-pointer transition-all"
+                                        >
+                                          Yes
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setConfirmRemoveEmail(null)}
+                                          className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-white text-[8px] font-black rounded cursor-pointer transition-all"
+                                        >
+                                          No
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setConfirmRemoveEmail(emailAddress);
+                                        setConfirm2FAResetEmail(null);
+                                      }}
+                                      className="flex-1 py-1 px-2 rounded-lg bg-red-950/30 hover:bg-red-900/40 border border-red-500/20 hover:border-red-500/40 text-red-400 hover:text-white text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center justify-center gap-1 min-h-[28px]"
+                                      title="Permanently remove admin ID from the directory"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                      Remove
+                                    </button>
+                                  )
+                                )
+                              )}
+                            </div>
+
+                            {/* Backup codes generation block - Allowed only for super admin on a super admin */}
+                            {loggedInAdminRole === 'super_admin' && userRole === 'super_admin' && (
                               <button
                                 type="button"
+                                disabled={isGeneratingBackupCodes}
                                 onClick={async () => {
-                                  const trimmedEmail = emailAddress.trim().toLowerCase();
-                                  if (window.confirm(`Are you sure you want to reset Google Authenticator 2FA for ${emailAddress}? Upon next login, this admin will be forced to enroll again from scratch by scanning a new QR code.`)) {
-                                    try {
-                                      await deleteDoc(doc(db, 'admin_totp_secrets', trimmedEmail));
-                                      alert(`✅ Google Authenticator 2FA secret has been successfully reset for ${emailAddress}.`);
-                                    } catch (err: any) {
-                                      alert(`❌ Could not reset 2FA: ${err.message}`);
+                                  try {
+                                    setIsGeneratingBackupCodes(true);
+                                    const codes: string[] = [];
+                                    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                                    for (let i = 0; i < 5; i++) {
+                                      let code = '';
+                                      for (let j = 0; j < 8; j++) {
+                                        code += chars.charAt(Math.floor(Math.random() * chars.length));
+                                      }
+                                      codes.push(code);
                                     }
+
+                                    const trimmedEmail = emailAddress.trim().toLowerCase();
+                                    await setDoc(doc(db, 'admin_backup_codes', trimmedEmail), {
+                                      codes: codes,
+                                      generatedAt: new Date().toISOString()
+                                    });
+
+                                    setGeneratedBackupCodes(codes);
+                                    setViewingBackupCodesEmail(emailAddress);
+                                    alert(`✅ "${emailAddress}" এর জন্য ৫টি ওয়ান-টাইম ব্যাকআপ কোড সফলভাবে জেনারেট করা হয়েছে!`);
+                                  } catch (err: any) {
+                                    console.error('[Backup Codes Generation Error]', err);
+                                    alert('❌ ব্যাকআপ কোড জেনারেট করতে সমস্যা হয়েছে: ' + err.message);
+                                  } finally {
+                                    setIsGeneratingBackupCodes(false);
                                   }
                                 }}
-                                className="flex-1 py-1 px-2 rounded-lg bg-amber-950/30 hover:bg-amber-950/50 border border-amber-500/25 text-[#dbaa61] hover:text-white text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center justify-center gap-1 min-h-[28px]"
-                                title="Reset TOTP 2FA secret for this user"
+                                className="w-full py-1 px-2 rounded-lg bg-cyan-950/30 hover:bg-cyan-950/50 border border-cyan-500/20 hover:border-cyan-500/40 text-cyan-400 hover:text-white text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center justify-center gap-1 min-h-[28px]"
+                                title="Generate 5 secure one-time backup codes for Super Admin"
                               >
-                                Reset 2FA
+                                🔑 {isGeneratingBackupCodes ? 'Generating...' : 'Generate Backup Codes (ব্যাকআপ কোড তৈরি করুন)'}
                               </button>
                             )}
 
-                            {isMainSuperAdmin ? (
-                              <span className="flex-1 py-1 px-2.5 rounded-lg bg-emerald-950/40 text-emerald-400 border border-emerald-500/25 text-[8px] font-black uppercase tracking-wider text-center select-none min-h-[28px] flex items-center justify-center">
-                                Owner Key
-                              </span>
-                            ) : (
-                              /* Revoke/Delete button - Only Super Admins can revoke/delete admins, and you cannot revoke yourself */
-                              loggedInAdminRole === 'super_admin' && !isCurrentlyLoggedInUser && (
+                            {/* Backup codes viewer inside the card */}
+                            {viewingBackupCodesEmail === emailAddress && generatedBackupCodes.length > 0 && (
+                              <div className="p-3 bg-cyan-950/20 border border-cyan-500/25 rounded-xl space-y-2.5 animate-fadeIn">
+                                <div className="flex items-center justify-between border-b border-cyan-500/10 pb-1.5">
+                                  <span className="text-[9px] font-black text-cyan-400 uppercase tracking-wider">
+                                    🔑 Backup Codes (ব্যাকআপ কোড)
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setViewingBackupCodesEmail(null);
+                                      setGeneratedBackupCodes([]);
+                                    }}
+                                    className="text-[10px] text-slate-400 hover:text-white cursor-pointer font-bold"
+                                  >
+                                    ✕ Close
+                                  </button>
+                                </div>
+                                <p className="text-[8.5px] text-slate-300 font-bold leading-normal">
+                                  নিচের কোডগুলো অত্যন্ত সুরক্ষিত স্থানে কপি করে সংরক্ষণ করুন। প্রতিটি কোড মাত্র একবার ব্যবহার করা যাবে। প্যানেল বন্ধ করার পর এগুলো আর দেখা যাবে না!
+                                </p>
+                                <div className="grid grid-cols-1 gap-1 font-mono text-center">
+                                  {generatedBackupCodes.map((code, idx) => (
+                                    <div key={code} className="flex items-center justify-between bg-black/40 px-2.5 py-1 rounded border border-white/[0.03] text-white font-bold text-[10px]">
+                                      <span>{idx + 1}. <strong className="text-cyan-400 tracking-wider font-mono">{code}</strong></span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(code);
+                                          alert('✅ কোড কপি করা হয়েছে!');
+                                        }}
+                                        className="text-[8px] text-cyan-400 hover:underline cursor-pointer font-black"
+                                      >
+                                        Copy
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    if (window.confirm(`Are you sure you want to permanently delete and remove Admin access for ${emailAddress}?`)) {
-                                      updateAdminEmails(adminEmails.filter(e => e.email.toLowerCase() !== emailAddress.toLowerCase()));
-                                      alert(`✅ "${emailAddress}" এর এডমিন এক্সেস স্থায়ীভাবে বাতিল ও রিমুভ করা হয়েছে।`);
-                                    }
+                                    const textToCopy = generatedBackupCodes.join('\n');
+                                    navigator.clipboard.writeText(textToCopy);
+                                    alert('✅ সব কোড একসাথে কপি করা হয়েছে!');
                                   }}
-                                  className="flex-1 py-1 px-2 rounded-lg bg-red-950/30 hover:bg-red-900/40 border border-red-500/20 hover:border-red-500/40 text-red-400 hover:text-white text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center justify-center gap-1 min-h-[28px]"
-                                  title="Permanently remove admin ID from the directory"
+                                  className="w-full py-1.5 rounded bg-cyan-500 hover:bg-cyan-400 text-black text-[9px] font-black uppercase transition cursor-pointer text-center"
                                 >
-                                  <Trash2 className="w-3 h-3" />
-                                  Remove
+                                  Copy All Codes
                                 </button>
-                              )
+                              </div>
                             )}
                           </div>
                         </div>
@@ -8381,6 +8873,240 @@ Body Touch Premium Network`;
             </div>
           )}
 
+          {activeTab === 'promocodes' && (
+            <div className="space-y-8 animate-fadeIn text-left">
+              {/* Form & List Grid */}
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                {/* Promo Code Creator Card */}
+                <div className="xl:col-span-1 bg-[#0b0c13] border border-[#1e2333] p-6 rounded-2xl space-y-6">
+                  <div>
+                    <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2 font-display">
+                      <Tag className="w-4 h-4 text-[#dbaa61]" />
+                      <span>{editingPromo ? 'Edit Promo Code' : 'Create Promo Code'}</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                      Set up custom discounts that customers can apply on the acquisition invoice page.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleSavePromo} className="space-y-4">
+                    {/* Promo Code Name */}
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold tracking-wide mb-1.5 font-mono">
+                        Promo Code *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. VIP50"
+                        value={promoCodeName}
+                        onChange={(e) => setPromoCodeName(e.target.value.toUpperCase())}
+                        disabled={!!editingPromo}
+                        className="w-full bg-[#11131c] text-xs font-mono font-bold text-white border border-[#1e2333] rounded-xl px-4 py-3 focus:outline-none focus:border-[#dbaa61] disabled:opacity-50 uppercase tracking-widest"
+                      />
+                    </div>
+
+                    {/* Discount Percentage */}
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold tracking-wide mb-1.5 font-mono">
+                        Discount Percentage (%) *
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        max="100"
+                        placeholder="35"
+                        value={promoDiscount || ''}
+                        onChange={(e) => setPromoDiscount(Number(e.target.value))}
+                        className="w-full bg-[#11131c] text-xs font-mono font-bold text-white border border-[#1e2333] rounded-xl px-4 py-3 focus:outline-none focus:border-[#dbaa61]"
+                      />
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold tracking-wide mb-1.5 font-mono">
+                        Short Description *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. 35% Special VIP Discount"
+                        value={promoDesc}
+                        onChange={(e) => setPromoDesc(e.target.value)}
+                        className="w-full bg-[#11131c] text-xs text-white border border-[#1e2333] rounded-xl px-4 py-3 focus:outline-none focus:border-[#dbaa61]"
+                      />
+                    </div>
+
+                    {/* Max Uses (Optional) */}
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold tracking-wide mb-1.5 font-mono">
+                        Max Allowed Uses (Optional)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Unlimited if blank"
+                        value={promoMaxUses}
+                        onChange={(e) => setPromoMaxUses(e.target.value)}
+                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-[#1e2333] rounded-xl px-4 py-3 focus:outline-none focus:border-[#dbaa61]"
+                      />
+                    </div>
+
+                    {/* Is Active Status Switch */}
+                    <div className="flex items-center justify-between p-3 bg-[#11131c] rounded-xl border border-[#1e2333]">
+                      <div className="text-left">
+                        <span className="block text-[11px] font-bold text-white">Active Status</span>
+                        <span className="block text-[9.5px] text-slate-400 mt-0.5">Allow users to apply this code</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={promoIsActive}
+                        onChange={(e) => setPromoIsActive(e.target.checked)}
+                        className="w-4 h-4 text-[#dbaa61] bg-black border-[#1e2333] rounded focus:ring-0 cursor-pointer"
+                      />
+                    </div>
+
+                    {promoCodeError && (
+                      <p className="text-red-400 text-xs font-semibold bg-red-950/20 p-3 rounded-xl border border-red-500/20 leading-relaxed">
+                        {promoCodeError}
+                      </p>
+                    )}
+                    {promoCodeSuccess && (
+                      <p className="text-emerald-400 text-xs font-semibold bg-emerald-950/20 p-3 rounded-xl border border-emerald-500/20 leading-relaxed">
+                        {promoCodeSuccess}
+                      </p>
+                    )}
+
+                    <div className="flex gap-2.5 pt-2">
+                      {editingPromo && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingPromo(null);
+                            setPromoCodeName('');
+                            setPromoDiscount(35);
+                            setPromoDesc('');
+                            setPromoIsActive(true);
+                            setPromoMaxUses('');
+                            setPromoCodeError('');
+                            setPromoCodeSuccess('');
+                          }}
+                          className="flex-1 bg-transparent border border-[#1e2333] hover:border-slate-505 text-slate-300 font-bold text-xs py-3 rounded-xl transition cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      <button
+                        type="submit"
+                        className="flex-1 bg-gradient-to-r from-[#dbaa61] to-[#b38642] text-black font-black uppercase text-[10px] tracking-widest py-3 rounded-xl hover:brightness-110 transition duration-200 shadow-md shadow-[#dbaa61]/10 cursor-pointer"
+                      >
+                        {editingPromo ? 'UPDATE CODE' : 'CREATE CODE'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Promo Codes List Table */}
+                <div className="xl:col-span-2 bg-[#0b0c13] border border-[#1e2333] rounded-2xl overflow-hidden flex flex-col justify-between">
+                  <div>
+                    <div className="p-6 border-b border-[#1c2333] flex items-center justify-between">
+                      <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2 font-display">
+                        <Percent className="w-4 h-4 text-[#dbaa61]" />
+                        <span>Active Promo Codes Catalog</span>
+                      </h3>
+                      <span className="text-[10px] font-mono bg-red-500/10 text-red-400 font-bold px-2.5 py-1 rounded-full border border-red-500/20">
+                        {adminPromoCodes.length} Total Codes
+                      </span>
+                    </div>
+
+                    {adminPromoCodes.length === 0 ? (
+                      <div className="p-12 text-center text-slate-500 space-y-2">
+                        <Tag className="w-10 h-10 mx-auto text-slate-600 animate-pulse" />
+                        <p className="text-xs font-semibold">No dynamic promo codes found in database.</p>
+                        <p className="text-[10px] text-slate-600 max-w-xs mx-auto">
+                          Create your first promo code using the form to offer custom user acquisition discounts.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-[#11131c] text-slate-400 font-black uppercase text-[9.5px] tracking-wider border-b border-[#1c2333]">
+                              <th className="p-4 pl-6">Code Name</th>
+                              <th className="p-4">Discount</th>
+                              <th className="p-4">Description</th>
+                              <th className="p-4">Uses (Used/Max)</th>
+                              <th className="p-4 text-center">Status</th>
+                              <th className="p-4 pr-6 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#131722]">
+                            {adminPromoCodes.map((promo) => (
+                              <tr key={promo.id} className="hover:bg-white/[0.01] transition-colors">
+                                <td className="p-4 pl-6 font-mono font-bold text-white tracking-widest uppercase">
+                                  {promo.code}
+                                </td>
+                                <td className="p-4">
+                                  <span className="px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold font-mono">
+                                    {promo.discountPercent}% OFF
+                                  </span>
+                                </td>
+                                <td className="p-4 text-slate-300 max-w-[150px] truncate" title={promo.description}>
+                                  {promo.description}
+                                </td>
+                                <td className="p-4 font-mono text-slate-400 font-semibold">
+                                  {promo.usedCount} / {promo.maxUses !== undefined && promo.maxUses !== null ? promo.maxUses : '∞'}
+                                </td>
+                                <td className="p-4 text-center">
+                                  <button
+                                    onClick={() => handleTogglePromoStatus(promo)}
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase transition cursor-pointer ${
+                                      promo.isActive
+                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25'
+                                        : 'bg-red-500/10 text-red-400 border border-red-500/25'
+                                    }`}
+                                  >
+                                    {promo.isActive ? 'Active' : 'Inactive'}
+                                  </button>
+                                </td>
+                                <td className="p-4 pr-6 text-right space-x-2">
+                                  <button
+                                    onClick={() => {
+                                      setEditingPromo(promo);
+                                      setPromoCodeName(promo.code);
+                                      setPromoDiscount(promo.discountPercent);
+                                      setPromoDesc(promo.description);
+                                      setPromoIsActive(promo.isActive);
+                                      setPromoMaxUses(promo.maxUses !== undefined && promo.maxUses !== null ? String(promo.maxUses) : '');
+                                      setPromoCodeError('');
+                                      setPromoCodeSuccess('');
+                                    }}
+                                    className="p-1.5 bg-[#1e2333]/40 border border-[#1e2333] hover:border-slate-500 text-slate-300 rounded-lg hover:text-white transition cursor-pointer inline-flex items-center"
+                                    title="Edit Code"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeletePromo(promo.id)}
+                                    className="p-1.5 bg-red-950/20 border border-red-500/20 hover:border-red-500/50 text-red-400 rounded-lg transition cursor-pointer inline-flex items-center"
+                                    title="Delete Code"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'livechat' && (
             <AdminLiveChat />
           )}
@@ -8393,11 +9119,11 @@ Body Touch Premium Network`;
       <div className="fixed bottom-6 right-6 z-50">
         <button
           onClick={() => setActiveTab('livechat')}
-          className="relative flex flex-col items-center justify-center w-16 h-16 rounded-[22px] bg-gradient-to-tr from-[#c2f800] to-[#e4ff00] border-2 border-black/10 hover:scale-110 hover:rotate-2 active:scale-95 transition-all duration-300 cursor-pointer group shadow-[0_4px_24px_rgba(206,255,0,0.35)]"
+          className="relative flex flex-col items-center justify-center w-16 h-16 rounded-[22px] bg-gradient-to-tr from-[#a67c33] via-[#dbaa61] to-[#f1d087] border-2 border-black/10 hover:scale-110 hover:rotate-2 active:scale-95 transition-all duration-300 cursor-pointer group shadow-[0_4px_24px_rgba(219,170,97,0.35)]"
           aria-label="Live Support Chat"
         >
           {/* Pulsing Outer Rings */}
-          <span className="absolute inset-0 rounded-[22px] bg-[#ceff00]/25 animate-ping opacity-75 pointer-events-none" />
+          <span className="absolute inset-0 rounded-[22px] bg-[#dbaa61]/25 animate-ping opacity-75 pointer-events-none" />
 
           {/* Exact winking smiley from image but smaller */}
           <svg viewBox="0 0 100 100" className="w-9 h-9 select-none pointer-events-none transition-transform duration-300 group-hover:scale-110">
@@ -8423,7 +9149,7 @@ Body Touch Premium Network`;
           </span>
 
           {/* Hover Tooltip/Label */}
-          <div className="absolute right-18 bg-[#0a0b10]/95 backdrop-blur-md border border-[#ceff00]/30 text-[#ceff00] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
+          <div className="absolute right-18 bg-[#0a0b10]/95 backdrop-blur-md border border-[#dbaa61]/30 text-[#dbaa61] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
             Live Support Console
           </div>
         </button>

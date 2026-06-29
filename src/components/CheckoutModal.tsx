@@ -155,10 +155,10 @@ export default function CheckoutModal({
 
                   <div className="space-y-2">
                     <h2 className="text-lg font-black text-emerald-450 uppercase tracking-wider font-display">
-                      পেমেন্ট সাবমিট হয়েছে!
+                      Payment Submitted!
                     </h2>
                     <p className="text-[11px] text-slate-300 leading-relaxed font-semibold text-center">
-                      ধন্যবাদ! আপনার পেমেন্ট রিকোয়েস্টটি সফলভাবে গ্রহণ করা হয়েছে এবং আমাদের সিস্টেমে পেন্ডিং অবস্থায় রয়েছে।
+                      Thank you! Your payment request has been successfully submitted and is currently pending verification.
                     </p>
                   </div>
 
@@ -166,38 +166,38 @@ export default function CheckoutModal({
                   <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center gap-2">
                     <span className="text-blue-400 text-xs">⏳</span>
                     <p className="text-[10px] font-black text-blue-300 tracking-wide text-center leading-normal">
-                      পেমেন্ট ম্যানুয়ালি ভেরিফাই হতে ১০-৩০ মিনিট সময় লাগতে পারে।
+                      Manual verification typically takes 10-30 minutes.
                     </p>
                   </div>
 
                   {/* Details summary */}
                   <div className="p-4 bg-gradient-to-b from-[#030d24] to-[#010612] border border-blue-500/15 rounded-2xl space-y-2.5 text-left font-sans">
                     <span className="block text-[8px] text-slate-400 font-extrabold uppercase tracking-widest text-center font-mono">
-                      TRANSACTION SUMMARY / লেনদেন বিবরণী
+                      TRANSACTION SUMMARY
                     </span>
 
                     <div className="space-y-1.5 text-[10.5px]">
                       <div className="flex justify-between items-center border-b border-white/5 pb-1">
-                        <span className="text-slate-400 font-bold">Tier / টায়ার:</span>
+                        <span className="text-slate-400 font-bold">Tier:</span>
                         <span className="text-white font-extrabold">{tierName}</span>
                       </div>
                       <div className="flex justify-between items-center border-b border-white/5 pb-1">
-                        <span className="text-slate-400 font-bold">Amount / পরিমাণ:</span>
+                        <span className="text-slate-400 font-bold">Amount:</span>
                         <span className="text-emerald-400 font-mono font-extrabold">৳{price} BDT</span>
                       </div>
                       <div className="flex justify-between items-center border-b border-white/5 pb-1">
-                        <span className="text-slate-400 font-bold">Method / গেটওয়ে:</span>
+                        <span className="text-slate-400 font-bold">Method:</span>
                         <span className="text-[#dbaa61] font-extrabold">{selectedGateway.name}</span>
                       </div>
                       <div className="flex justify-between items-center border-b border-white/5 pb-1">
-                        <span className="text-slate-400 font-bold">TrxID / ট্রানজেকশন আইডি:</span>
+                        <span className="text-slate-400 font-bold">TrxID:</span>
                         <span className="text-cyan-400 font-mono font-extrabold select-all uppercase">{trxId}</span>
                       </div>
                       {screenshot && (
                         <div className="flex justify-between items-center pt-1">
-                          <span className="text-slate-400 font-bold">Screenshot / স্ক্রিনশট:</span>
+                          <span className="text-slate-400 font-bold">Screenshot:</span>
                           <span className="text-emerald-400 font-black text-[9.5px] flex items-center gap-1">
-                            ✓ Attached (সংযুক্ত)
+                            ✓ Attached
                           </span>
                         </div>
                       )}
@@ -210,7 +210,7 @@ export default function CheckoutModal({
                       onClick={onClose}
                       className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black uppercase text-[10px] tracking-widest py-3.5 rounded-xl transition duration-300 cursor-pointer shadow-lg shadow-emerald-500/20"
                     >
-                      ড্যাশবোর্ডে ফিরে যান (Return to Dashboard)
+                      Return to Dashboard
                     </button>
                   </div>
                 </div>
@@ -226,8 +226,8 @@ export default function CheckoutModal({
 
                   {/* Dynamic Gateway Switches */}
                   <div className="space-y-1.5">
-                    <span className="block text-[8px] text-slate-450 font-black uppercase tracking-widest pl-1">
-                      Select live gateway (গেটওয়ে সিলেক্ট করুন):
+                    <span className="block text-[8px] text-slate-455 font-black uppercase tracking-widest pl-1">
+                      SELECT GATEWAY:
                     </span>
                     <div className="grid grid-cols-2 gap-1.5 max-h-[110px] overflow-y-auto pr-1">
                       {displayGateways.map((g) => (
@@ -248,7 +248,7 @@ export default function CheckoutModal({
                   <div className="bg-[#030a1c] border border-blue-500/15 p-3.5 rounded-xl space-y-2 text-xs text-slate-300 leading-relaxed font-semibold text-left">
                     <div className="flex items-center gap-1.5 text-blue-400">
                       <Info className="w-4 h-4 text-blue-400 shrink-0" />
-                      <p className="font-black text-blue-400">📜 Payment Rules (পেমেন্ট নিয়মাবলী):</p>
+                      <p className="font-black text-blue-400">Instructions:</p>
                     </div>
                     
                     <div className="space-y-1.5 text-[11px] font-medium text-slate-350 bg-black/40 p-2.5 rounded-lg border border-white/5">
@@ -258,12 +258,6 @@ export default function CheckoutModal({
                       <p className="text-[#f3ecdb] leading-relaxed">
                         {selectedGateway.instructions || `Please Send Money or Pay with ${selectedGateway.name} to the number below.`}
                       </p>
-                    </div>
-
-                    <div className="text-[10.5px] font-mono text-slate-400">
-                      ১. এই নম্বরে টাকা পাঠানোর পর আপনার এসএমএস চেক করুন।
-                      <br />
-                      ২. ফিরতি এসএমএস-এর ৮-সংখ্যার ট্রানজেকশন আইডি (TrxID) নিন।
                     </div>
                   </div>
 
@@ -311,7 +305,7 @@ export default function CheckoutModal({
                     {/* Screenshot Upload Option */}
                     <div>
                       <label className="block text-[9px] text-blue-400 font-extrabold uppercase tracking-wider mb-1 flex justify-between">
-                        <span>Upload Payment Screenshot (ঐচ্ছিক)</span>
+                        <span>Upload Payment Screenshot (Optional)</span>
                         {screenshot && <span className="text-emerald-400 font-black">✓ LOADED</span>}
                       </label>
                       

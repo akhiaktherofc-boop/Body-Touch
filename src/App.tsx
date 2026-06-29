@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { db, doc, getDoc, setDoc, collection, query, where, getDocs } from './firebase';
+import { db, doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot } from './firebase';
 import { 
   bootstrapCollectionIfEmpty, 
   syncCloudCollection, 
@@ -1833,6 +1833,13 @@ Website: https://bodytouch.com
     triggerToast('✅ All messages marked as read!', 'success');
   };
 
+  const handleMarkNotificationAsRead = (id: string) => {
+    const notif = notifications.find((n) => n.id === id);
+    if (notif && !notif.isRead) {
+      setCloudDocument('notifications', id, { ...notif, isRead: true });
+    }
+  };
+
   const handleClearAllNotifications = () => {
     notifications.forEach((n) => {
       deleteCloudDocument('notifications', n.id);
@@ -2750,6 +2757,25 @@ https://service.bodytouch.com
     triggerToast('Secure portal session locked and cleared.', 'success');
   };
 
+  // Real-time listener to check if the active client has been blocked by an Admin
+  useEffect(() => {
+    if (isLoggedIn && username) {
+      const userDocRef = doc(db, 'users', username.toLowerCase());
+      const unsubscribe = onSnapshot(userDocRef, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data && data.isBlocked) {
+            handleClearSession();
+            triggerToast('⛔ আপনার অ্যাকাউন্টটি অ্যাডমিন দ্বারা ব্লক করা হয়েছে! (Your account has been blocked by the Administrator.)', 'error');
+          }
+        }
+      }, (err) => {
+        console.warn('Error listening to user document block status:', err);
+      });
+      return () => unsubscribe();
+    }
+  }, [isLoggedIn, username]);
+
   const handleLoginSuccess = (credentials: {
     username: string;
     fullName: string;
@@ -2985,10 +3011,9 @@ https://service.bodytouch.com
             >
               <Bell className="w-4 h-4" />
               {notifications.filter(n => !n.isRead).length > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-rose-500 border border-[#030816] rounded-full animate-ping" />
-              )}
-              {notifications.filter(n => !n.isRead).length > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-rose-500 border border-[#030816] rounded-full" />
+                <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white border border-[#030816] rounded-full text-[9px] font-black font-mono flex items-center justify-center min-w-[16px] h-4 px-1 shadow-[0_0_8px_rgba(244,63,94,0.6)] animate-bounce z-10 leading-none">
+                  {notifications.filter(n => !n.isRead).length}
+                </span>
               )}
             </button>
 
@@ -3053,11 +3078,11 @@ https://service.bodytouch.com
               </motion.div>
 
               {/* Premium Welcome Access banner */}
-              <motion.div variants={itemVariants} className="cyan-glow-card rounded-3xl p-8 relative overflow-hidden text-left bg-gradient-to-tr from-[#051433] to-[#020715] gold-breathing-glow">
+              <motion.div variants={itemVariants} className="cyan-glow-card rounded-3xl p-5 sm:p-8 relative overflow-hidden text-left bg-gradient-to-tr from-[#051433] to-[#020715] gold-breathing-glow">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-1">
+                    <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white mb-1">
                       Welcome, {username}
                     </h2>
                     <p className="text-xs text-blue-400 uppercase tracking-[0.24em] font-black block">
@@ -3128,17 +3153,17 @@ https://service.bodytouch.com
 
 
               {/* Realtime stats dashboard row */}
-              <motion.div variants={itemVariants} className="grid grid-cols-3 gap-3">
+              <motion.div variants={itemVariants} className="grid grid-cols-3 gap-2 sm:gap-3">
                 <motion.div
                   whileHover={{ y: -6, scale: 1.05, boxShadow: "0 22px 50px rgba(0, 0, 0, 0.99), 0 0 30px rgba(13, 110, 253, 0.32)" }}
                   whileTap={{ scale: 0.97 }}
                   transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                  className="cyan-glow-card rounded-2xl py-6 px-4 text-center cursor-pointer transition-all duration-300 border border-blue-500/30 gold-breathing-glow"
+                  className="cyan-glow-card rounded-2xl py-4 px-2 sm:py-6 sm:px-4 text-center cursor-pointer transition-all duration-300 border border-blue-500/30 gold-breathing-glow"
                 >
-                  <p className="text-lg sm:text-2xl font-black text-white font-mono tracking-wide leading-none mb-1.5">
+                  <p className="text-sm min-[370px]:text-base sm:text-2xl font-black text-white font-mono tracking-tight sm:tracking-wide leading-none mb-1.5">
                     {userLevel}
                   </p>
-                  <p className="text-[11px] text-blue-300 uppercase tracking-[0.16em] font-extrabold leading-none">
+                  <p className="text-[9px] min-[370px]:text-[11px] text-blue-300 uppercase tracking-wider sm:tracking-[0.16em] font-extrabold leading-none">
                     LEVEL
                   </p>
                 </motion.div>
@@ -3146,12 +3171,12 @@ https://service.bodytouch.com
                   whileHover={{ y: -6, scale: 1.05, boxShadow: "0 22px 50px rgba(0, 0, 0, 0.99), 0 0 30px rgba(13, 110, 253, 0.32)" }}
                   whileTap={{ scale: 0.97 }}
                   transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                  className="cyan-glow-card rounded-2xl py-6 px-4 text-center cursor-pointer transition-all duration-300 border border-blue-500/30 gold-breathing-glow"
+                  className="cyan-glow-card rounded-2xl py-4 px-2 sm:py-6 sm:px-4 text-center cursor-pointer transition-all duration-300 border border-blue-500/30 gold-breathing-glow"
                 >
-                  <p className="text-2xl sm:text-3xl font-black text-white font-mono tracking-wide leading-none mb-1.5">
+                  <p className="text-lg min-[370px]:text-xl sm:text-3xl font-black text-white font-mono tracking-tight sm:tracking-wide leading-none mb-1.5">
                     {bookings.length}
                   </p>
-                  <p className="text-[11px] text-blue-300 uppercase tracking-[0.16em] font-extrabold leading-none">
+                  <p className="text-[9px] min-[370px]:text-[11px] text-blue-300 uppercase tracking-wider sm:tracking-[0.16em] font-extrabold leading-none">
                     BOOKINGS
                   </p>
                 </motion.div>
@@ -3159,17 +3184,17 @@ https://service.bodytouch.com
                   whileHover={{ y: -6, scale: 1.05, boxShadow: "0 22px 50px rgba(0, 0, 0, 0.99), 0 0 35px rgba(13, 110, 253, 0.42)" }}
                   whileTap={{ scale: 0.97 }}
                   transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                  className="cyan-glow-card rounded-2xl py-6 px-4 text-center relative overflow-hidden cursor-pointer transition-all duration-300 border border-blue-500/30 gold-breathing-glow"
+                  className="cyan-glow-card rounded-2xl py-4 px-2 sm:py-6 sm:px-4 text-center relative overflow-hidden cursor-pointer transition-all duration-300 border border-blue-500/30 gold-breathing-glow"
                 >
-                  <div className="absolute top-2 right-2.5 flex h-2.5 w-2.5">
+                  <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2.5 flex h-2 w-2 sm:h-2.5 sm:w-2.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-emerald-500"></span>
                   </div>
-                  <p className="text-2xl sm:text-3xl font-black text-white font-mono tracking-wide leading-none mb-1.5 flex items-center justify-center">
-                    <span className="text-emerald-400 mr-1 text-base leading-none">•</span>
+                  <p className="text-lg min-[370px]:text-xl sm:text-3xl font-black text-white font-mono tracking-tight sm:tracking-wide leading-none mb-1.5 flex items-center justify-center">
+                    <span className="text-emerald-400 mr-0.5 sm:mr-1 text-sm sm:text-base leading-none">•</span>
                     <span>{onlineCount}</span>
                   </p>
-                  <p className="text-[11px] text-blue-300 uppercase tracking-[0.16em] font-extrabold leading-none">
+                  <p className="text-[9px] min-[370px]:text-[11px] text-blue-300 uppercase tracking-wider sm:tracking-[0.16em] font-extrabold leading-none">
                     ONLINE
                   </p>
                 </motion.div>
@@ -4923,6 +4948,11 @@ https://service.bodytouch.com
         onSubmit={handleBookingSubmit}
         locations={locations}
         initialLocationId={activeReserveLocationId}
+        onGoToMembership={() => {
+          setBookingCompanion(null);
+          setActiveReserveLocationId(undefined);
+          setActiveTab('membership');
+        }}
       />
 
       {/* 4. Upgrade billing secure gate popup */}
@@ -5032,6 +5062,7 @@ https://service.bodytouch.com
         onClose={() => setIsNotificationsOpen(false)}
         notifications={notifications}
         onMarkAllAsRead={handleMarkAllNotificationsAsRead}
+        onMarkAsRead={handleMarkNotificationAsRead}
         onClearAll={handleClearAllNotifications}
         onDeleteNotification={handleDeleteNotification}
       />
@@ -5354,57 +5385,57 @@ https://service.bodytouch.com
       </AnimatePresence>
 
       {/* PERSISTENT STICKY BOTTOM NAVIGATION BAR */}
-      <footer className="fixed bottom-0 left-0 right-0 z-40 bg-[#020712]/95 backdrop-blur-md border-t border-blue-500/15 py-3">
-        <div className="max-w-xl mx-auto px-6 flex justify-between items-center text-center">
+      <footer className="fixed bottom-0 left-0 right-0 z-40 bg-[#020712]/95 backdrop-blur-md border-t border-[#dbaa61]/25 py-3 sm:py-3.5 shadow-[0_-8px_32px_rgba(0,0,0,0.8)]">
+        <div className="max-w-xl mx-auto px-4 min-[380px]:px-6 flex justify-between items-center text-center">
           
           <button
             onClick={() => handleTabSwitch('home')}
             className={`flex flex-col items-center justify-center space-y-1 transition-all cursor-pointer ${
-              activeTab === 'home' ? 'text-blue-400 scale-105' : 'text-blue-300/40 hover:text-blue-300/70'
+              activeTab === 'home' ? 'text-[#dbaa61] scale-105 drop-shadow-[0_0_6px_rgba(219,170,97,0.4)]' : 'text-[#dbaa61]/40 hover:text-[#dbaa61]/75'
             }`}
           >
             <Compass className="w-5 h-5" />
-            <span className="text-[9px] font-black uppercase tracking-wider leading-none">HOME</span>
+            <span className="text-[8px] min-[360px]:text-[9px] font-black uppercase tracking-wider leading-none">HOME</span>
           </button>
 
           <button
             onClick={() => handleTabSwitch('membership')}
             className={`flex flex-col items-center justify-center space-y-1 transition-all cursor-pointer ${
-              activeTab === 'membership' ? 'text-blue-400 scale-105' : 'text-blue-300/40 hover:text-blue-300/70'
+              activeTab === 'membership' ? 'text-[#dbaa61] scale-105 drop-shadow-[0_0_6px_rgba(219,170,97,0.4)]' : 'text-[#dbaa61]/40 hover:text-[#dbaa61]/75'
             }`}
           >
             <Crown className="w-5 h-5" />
-            <span className="text-[9px] font-black uppercase tracking-wider leading-none">MEMBERSHIP</span>
+            <span className="text-[8px] min-[360px]:text-[9px] font-black uppercase tracking-wider leading-none">MEMBERSHIP</span>
           </button>
 
           <button
             onClick={() => handleTabSwitch('assets')}
             className={`flex flex-col items-center justify-center space-y-1 transition-all cursor-pointer ${
-              activeTab === 'assets' ? 'text-blue-400 scale-105' : 'text-blue-300/40 hover:text-blue-300/70'
+              activeTab === 'assets' ? 'text-[#dbaa61] scale-105 drop-shadow-[0_0_6px_rgba(219,170,97,0.4)]' : 'text-[#dbaa61]/40 hover:text-[#dbaa61]/75'
             }`}
           >
             <CreditCard className="w-5 h-5" />
-            <span className="text-[9px] font-black uppercase tracking-wider leading-none">ASSETS</span>
+            <span className="text-[8px] min-[360px]:text-[9px] font-black uppercase tracking-wider leading-none">ASSETS</span>
           </button>
 
           <button
             onClick={() => handleTabSwitch('network')}
             className={`flex flex-col items-center justify-center space-y-1 transition-all cursor-pointer ${
-              activeTab === 'network' ? 'text-blue-400 scale-105' : 'text-blue-300/40 hover:text-blue-300/70'
+              activeTab === 'network' ? 'text-[#dbaa61] scale-105 drop-shadow-[0_0_6px_rgba(219,170,97,0.4)]' : 'text-[#dbaa61]/40 hover:text-[#dbaa61]/75'
             }`}
           >
             <Share2 className="w-5 h-5" />
-            <span className="text-[9px] font-black uppercase tracking-wider leading-none">NETWORK</span>
+            <span className="text-[8px] min-[360px]:text-[9px] font-black uppercase tracking-wider leading-none">NETWORK</span>
           </button>
 
           <button
             onClick={() => handleTabSwitch('profile')}
             className={`flex flex-col items-center justify-center space-y-1 transition-all cursor-pointer ${
-              activeTab === 'profile' ? 'text-blue-400 scale-105' : 'text-blue-300/40 hover:text-blue-300/70'
+              activeTab === 'profile' ? 'text-[#dbaa61] scale-105 drop-shadow-[0_0_6px_rgba(219,170,97,0.4)]' : 'text-[#dbaa61]/40 hover:text-[#dbaa61]/75'
             }`}
           >
             <User className="w-5 h-5" />
-            <span className="text-[9px] font-black uppercase tracking-wider leading-none">PROFILE</span>
+            <span className="text-[8px] min-[360px]:text-[9px] font-black uppercase tracking-wider leading-none">PROFILE</span>
           </button>
 
         </div>
@@ -5422,14 +5453,14 @@ https://service.bodytouch.com
           >
             <button
               onClick={() => setIsChatOpen(true)}
-              className="relative flex flex-col items-center justify-center w-16 h-16 rounded-[22px] bg-gradient-to-tr from-[#c2f800] to-[#e4ff00] border-2 border-black/10 hover:scale-110 hover:rotate-2 active:scale-95 transition-all duration-300 cursor-pointer group shadow-[0_4px_24px_rgba(206,255,0,0.35)]"
+              className="relative flex flex-col items-center justify-center w-9 h-9 sm:w-12 sm:h-12 rounded-[12px] sm:rounded-[16px] bg-gradient-to-tr from-[#a67c33] via-[#dbaa61] to-[#f1d087] border-2 border-black/10 hover:scale-110 hover:rotate-2 active:scale-95 transition-all duration-300 cursor-pointer group shadow-[0_4px_16px_rgba(219,170,97,0.35)] sm:shadow-[0_4px_20px_rgba(219,170,97,0.35)]"
               aria-label="Live Chat"
             >
               {/* Pulsing Outer Rings */}
-              <span className="absolute inset-0 rounded-[22px] bg-[#ceff00]/25 animate-ping opacity-75 pointer-events-none" />
+              <span className="absolute inset-0 rounded-[12px] sm:rounded-[16px] bg-[#dbaa61]/25 animate-ping opacity-75 pointer-events-none" />
 
               {/* Exact winking smiley from image but smaller */}
-              <svg viewBox="0 0 100 100" className="w-9 h-9 select-none pointer-events-none transition-transform duration-300 group-hover:scale-110">
+              <svg viewBox="0 0 100 100" className="w-5 h-5 sm:w-6.5 sm:h-6.5 select-none pointer-events-none transition-transform duration-300 group-hover:scale-110">
                 {/* Left eye */}
                 <circle cx="34" cy="36" r="7.5" fill="black" />
                 {/* Right eye (wink) */}
@@ -5446,12 +5477,12 @@ https://service.bodytouch.com
               </svg>
 
               {/* Green Online status dot at bottom right */}
-              <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#020714] flex items-center justify-center shadow-lg">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 rounded-full bg-emerald-500 border-2 border-[#020714] flex items-center justify-center shadow-lg">
+                <span className="w-0.5 h-0.5 sm:w-1 sm:h-1 rounded-full bg-white animate-pulse" />
               </span>
 
               {/* Hover Tooltip */}
-              <div className="absolute right-18 bg-[#020714]/95 backdrop-blur-md border border-[#ceff00]/30 text-[#ceff00] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
+              <div className="absolute right-18 bg-[#020714]/95 backdrop-blur-md border border-[#dbaa61]/30 text-[#dbaa61] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
                 24/7 Live Support (অনলাইন)
               </div>
             </button>

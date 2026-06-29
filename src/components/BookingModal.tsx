@@ -1,8 +1,9 @@
-import { Companion, PaymentGateway } from '../types';
+import { Companion, PaymentGateway, PromoCode } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Calendar, Clock, Moon, MapPin, Sparkles, User, Video, Heart, Users, ArrowRight, ArrowLeft, Home, Car, ChevronDown, MessageSquare, Phone, Send, CheckCircle2, Copy, Check, Info, Camera, AlertTriangle, Upload, Trash2 } from 'lucide-react';
+import { X, Calendar, Clock, Moon, MapPin, Sparkles, User, Video, Heart, Users, ArrowRight, ArrowLeft, Home, Car, ChevronDown, MessageSquare, Phone, Send, CheckCircle2, Copy, Check, Info, Camera, AlertTriangle, Upload, Trash2, Tag, Percent, Receipt, FileText, Crown } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { compressImage } from '../services/imageService';
+import { db, collection, onSnapshot, doc, setDoc } from '../firebase';
 
 const PREDEFINED_SANCTUARIES = [
   { name: 'Le Méridien Dhaka', address: 'Le Méridien, Pragati Sarani, Dhaka 1229', price: 9500 },
@@ -114,6 +115,7 @@ interface BookingModalProps {
   }) => void;
   locations?: any[];
   initialLocationId?: string;
+  onGoToMembership?: () => void;
 }
 
 export default function BookingModal({
@@ -129,7 +131,8 @@ export default function BookingModal({
   paymentGateways = [],
   onSubmit,
   locations = [],
-  initialLocationId
+  initialLocationId,
+  onGoToMembership
 }: BookingModalProps) {
   // Filter active gateways
   const activeGateways = paymentGateways.filter(g => g.isActive);
@@ -184,7 +187,7 @@ export default function BookingModal({
       return locations.map(l => ({
         id: l.id,
         name: l.name,
-        address: l.description || l.name,
+        address: l.address || l.location || l.name,
         price: l.price
       }));
     }
@@ -214,14 +217,50 @@ export default function BookingModal({
     const today = new Date();
     return today;
   });
+  const [selectedHour, setSelectedHour] = useState('12');
+  const [selectedMinute, setSelectedMinute] = useState('00');
+  const [selectedAmPm, setSelectedAmPm] = useState('PM');
   const [time, setTime] = useState('');
+
+  useEffect(() => {
+    let hr = parseInt(selectedHour, 10);
+    if (selectedAmPm === 'PM' && hr < 12) hr += 12;
+    if (selectedAmPm === 'AM' && hr === 12) hr = 0;
+    const timeStr = `${String(hr).padStart(2, '0')}:${selectedMinute}`;
+    setTime(timeStr);
+  }, [selectedHour, selectedMinute, selectedAmPm]);
+
   const [notes, setNotes] = useState('');
-  const [commsChannel, setCommsChannel] = useState<'PHONE' | 'TELEGRAM'>('TELEGRAM');
+  const [commsChannel, setCommsChannel] = useState<'PHONE' | 'WHATSAPP' | 'TELEGRAM'>('WHATSAPP');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
-  const [telegramId, setTelegramId] = useState('Guest');
+  const [telegramId, setTelegramId] = useState('');
   const [secretCode, setSecretCode] = useState<string>('');
   const [showThankyou, setShowThankyou] = useState<boolean>(false);
+
+  // Acquisition Invoice & Promo Code States
+  const [showInvoice, setShowInvoice] = useState<boolean>(false);
+  const [promoDiscountPercent, setPromoDiscountPercent] = useState<number>(35); // 35% default
+  const [promoCodeInput, setPromoCodeInput] = useState<string>('');
+  const [promoMessage, setPromoMessage] = useState<string>('');
+  const [promoError, setPromoError] = useState<string>('');
+  const [appliedPromoCode, setAppliedPromoCode] = useState<string>('');
+  const [dbPromoCodes, setDbPromoCodes] = useState<PromoCode[]>([]);
+
+  // Subscribe to promo codes from DB
+  useEffect(() => {
+    const colRef = collection(db, 'promo_codes');
+    const unsubscribe = onSnapshot(colRef, (snapshot) => {
+      const codes: PromoCode[] = [];
+      snapshot.forEach((doc: any) => {
+        codes.push({ id: doc.id, ...doc.data() });
+      });
+      setDbPromoCodes(codes);
+    }, (err) => {
+      console.warn("Error loading promo codes in BookingModal:", err);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Telegram OTP Verification States
   const [telegramOtp, setTelegramOtp] = useState('');
@@ -450,7 +489,9 @@ export default function BookingModal({
   const companionCost = calculateBookingCost(companion.rate, selectedService, selectedTimeFrame, companion);
   const selectedHotelObj = sanctuaries.find(s => s.address === specificAddress || s.name === specificAddress);
   const hotelCost = (selectedService !== 'CAM' && coordinatesType === 'INCALL') ? (selectedHotelObj?.price || 0) : 0;
-  const bookingCost = companionCost + hotelCost;
+  
+  const discountAmount = Math.round(companionCost * (promoDiscountPercent / 100));
+  const bookingCost = companionCost - discountAmount + hotelCost;
   const deficitAmount = bookingCost - walletBalance;
   const isDeficit = deficitAmount > 0;
 
@@ -500,7 +541,9 @@ export default function BookingModal({
   };
 
   const getActiveContactValue = () => {
-    return telegramId || phoneNumber;
+    if (commsChannel === 'PHONE') return phoneNumber;
+    if (commsChannel === 'WHATSAPP') return whatsappNumber;
+    return telegramId;
   };
 
   const selectedGateway = displayGateways.find(g => g.id === deficitMethod || g.name === deficitMethod) || displayGateways[0];
@@ -554,22 +597,81 @@ export default function BookingModal({
     }
   };
 
+  const handleApplyPromo = (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = promoCodeInput.trim().toUpperCase();
+    if (!code) return;
+    
+    setPromoError('');
+    setPromoMessage('');
+    setAppliedPromoCode('');
+    
+    // First, search in dynamic database promo codes
+    const dbPromo = dbPromoCodes.find(p => p.code.toUpperCase() === code);
+    if (dbPromo) {
+      if (!dbPromo.isActive) {
+        setPromoError('This promo code is currently inactive.');
+        return;
+      }
+      if (dbPromo.maxUses !== undefined && dbPromo.maxUses !== null && dbPromo.usedCount >= dbPromo.maxUses) {
+        setPromoError('This promo code has reached its usage limit.');
+        return;
+      }
+      setPromoDiscountPercent(dbPromo.discountPercent);
+      setPromoMessage(`Success! ${dbPromo.discountPercent}% discount code "${dbPromo.code}" has been applied (${dbPromo.description}).`);
+      setAppliedPromoCode(dbPromo.code);
+      return;
+    }
+
+    // Fallback to pre-configured static promo codes
+    if (code === 'VIP50' || code === 'BODY50') {
+      setPromoDiscountPercent(50);
+      setPromoMessage('Success! 50% discount has been applied to your acquisition subtotal.');
+    } else if (code === 'VIP40') {
+      setPromoDiscountPercent(40);
+      setPromoMessage('Success! 40% discount has been applied to your acquisition subtotal.');
+    } else if (code === 'VIP100' || code === 'FREE') {
+      setPromoDiscountPercent(100);
+      setPromoMessage('Secret Promo Activated! 100% discount applied.');
+    } else if (code === 'VIP35') {
+      setPromoDiscountPercent(35);
+      setPromoMessage('Promo code VIP35 is already active (35% standard discount).');
+    } else {
+      setPromoDiscountPercent(45);
+      setPromoMessage(`Success! Promo code "${code}" applied (Special 45% VIP discount unlocked).`);
+    }
+  };
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const activeVal = getActiveContactValue();
     const resolvedDate = selectedService === 'CAM' ? (date || 'Today (Virtual CAM)') : date;
-    if (!resolvedDate || !time || !phoneNumber.trim() || !telegramId.trim()) return;
+    if (!resolvedDate || !time) return;
+
+    if (commsChannel === 'PHONE' && !phoneNumber.trim()) return;
+    if (commsChannel === 'WHATSAPP' && !whatsappNumber.trim()) return;
+    if (commsChannel === 'TELEGRAM' && !telegramId.trim()) return;
 
     if (isDeficit) {
       if (!deficitTrxId || deficitTrxId.trim().length < 8) return;
+    }
+
+    if (!showInvoice) {
+      setShowInvoice(true);
+      return;
     }
 
     // OTP verification has been disabled as requested by user. Proceed directly to booking confirmation.
 
     // Collate all filled contacts
     const contactsCollated: string[] = [];
-    if (phoneNumber.trim()) contactsCollated.push(`Phone: ${phoneNumber.trim()}`);
-    if (telegramId.trim()) contactsCollated.push(`Telegram: ${telegramId.trim()}`);
+    if (commsChannel === 'PHONE') {
+      contactsCollated.push(`Phone: ${phoneNumber.trim()}`);
+    } else if (commsChannel === 'WHATSAPP') {
+      contactsCollated.push(`WhatsApp: ${whatsappNumber.trim()}`);
+    } else if (commsChannel === 'TELEGRAM') {
+      contactsCollated.push(`Telegram: ${telegramId.trim()}`);
+    }
     const contactsDetails = contactsCollated.join(' | ');
 
     // Generate random 4-digit security code of mixed letters & numbers
@@ -606,9 +708,9 @@ export default function BookingModal({
       userPhoto: userPhoto || defaultClientPhoto || undefined,
       nidFront: firstTimeBooking ? nidFront : undefined,
       nidBack: firstTimeBooking ? nidBack : undefined,
-      clientName: clientNameInput.trim() || undefined,
-      clientPhone: clientPhoneInput.trim() || undefined,
-      clientEmail: clientEmailInput.trim() || undefined
+      clientName: (clientNameInput.trim() || defaultClientName || localStorage.getItem('bt_fullname') || 'Guest Client').trim(),
+      clientPhone: (clientPhoneInput.trim() || defaultClientPhone || localStorage.getItem('bt_phone') || activeVal || '01700000000').trim(),
+      clientEmail: (clientEmailInput.trim() || defaultClientEmail || localStorage.getItem('bt_email') || 'client@bodytouch.com').trim()
     };
 
     setLastSubmittedData(bookingPayload);
@@ -620,11 +722,32 @@ export default function BookingModal({
     if (lastSubmittedData) {
       onSubmit(lastSubmittedData);
     }
+    
+    // Increment usedCount if a dynamic promo code was applied
+    if (appliedPromoCode) {
+      const matchedPromo = dbPromoCodes.find(p => p.code.toUpperCase() === appliedPromoCode.toUpperCase());
+      if (matchedPromo) {
+        const promoRef = doc(db, 'promo_codes', matchedPromo.id);
+        setDoc(promoRef, {
+          ...matchedPromo,
+          usedCount: matchedPromo.usedCount + 1
+        }).catch(err => console.warn("Failed to increment usedCount for promo:", err));
+      }
+    }
+
     // Reset state
     setDate('');
     setTime('');
+    setSelectedHour('12');
+    setSelectedMinute('00');
+    setSelectedAmPm('PM');
     setSpecificAddress('');
     setSelectedTimeFrame('2_HOURS');
+    setPromoDiscountPercent(35); // Reset discount to default
+    setPromoCodeInput('');
+    setPromoMessage('');
+    setPromoError('');
+    setAppliedPromoCode('');
     setNotes('');
     setPhoneNumber('');
     setWhatsappNumber('');
@@ -729,6 +852,35 @@ export default function BookingModal({
                     </p>
                   </div>
 
+                  {/* Demo Complete & Membership CTA */}
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl space-y-3 text-left shadow-[0_0_20px_rgba(245,158,11,0.08)]">
+                    <div className="flex items-center gap-1.5 text-amber-400">
+                      <span className="text-sm">⭐</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-300">
+                        Trial Experience Complete / ডেমো সম্পন্ন
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-200 font-bold leading-relaxed">
+                      ইহা একটি ডেমো সার্ভিস ছিল। আপনি যদি আসল এবং লাইভ সার্ভিস উপভোগ করতে চান, তবে দয়া করে একটি মেম্বারশিপ প্ল্যান সক্রিয় করুন।
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-semibold leading-relaxed border-t border-amber-500/10 pt-2">
+                      (This was a demo simulation. If you want a real experience with live companions, please acquire a membership.)
+                    </p>
+
+                    {onGoToMembership && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleFinalize();
+                          onGoToMembership();
+                        }}
+                        className="w-full mt-1 bg-gradient-to-tr from-[#a67c33] via-[#dbaa61] to-[#f1d087] hover:brightness-110 text-slate-950 font-black uppercase text-[10.5px] tracking-widest py-3 rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-[#dbaa61]/25 flex items-center justify-center gap-2"
+                      >
+                        👑 মেম্বারশিপ নিন (Get Membership)
+                      </button>
+                    )}
+                  </div>
+
                   <div className="pt-2">
                     <button
                       type="button"
@@ -744,14 +896,30 @@ export default function BookingModal({
                   {/* Dynamic Cost Indicator Capsule */}
                   <div className="mb-4 bg-[#040e29] border border-[#dbaa61]/40 shadow-[0_0_20px_rgba(219,170,97,0.15)] rounded-xl p-3.5 flex justify-between items-center text-xs transition-all duration-300">
                     <div>
-                      <span className="text-[9px] text-[#dbaa61] font-black block uppercase tracking-wider">Service Fee / বুকিং মূল্য</span>
+                      <span className="text-[9px] text-[#dbaa61] font-black block uppercase tracking-wider">Service Fee</span>
                       <span className="font-extrabold text-[#dbaa61] font-mono text-base tracking-wide flex items-center gap-1 mt-0.5">
                         <span className="inline-block text-[#dbaa61] drop-shadow-[0_0_10px_rgba(219,170,97,0.5)]">৳{bookingCost.toLocaleString('en-US')}</span>
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="text-[9px] text-slate-400 font-black block uppercase tracking-wider">Wallet Balance / ওয়ালেট</span>
+                      <span className="text-[9px] text-slate-400 font-black block uppercase tracking-wider">Wallet Balance</span>
                       <span className="font-extrabold text-slate-200 font-mono text-sm mt-0.5 block">৳{walletBalance.toLocaleString('en-US')}</span>
+                    </div>
+                  </div>
+
+                  {/* Demo Trial Mode Notice */}
+                  <div className="mb-4 bg-amber-500/10 border border-amber-500/25 rounded-xl p-3.5 flex items-start gap-2.5 shadow-[0_0_15px_rgba(245,158,11,0.05)] animate-fadeIn">
+                    <span className="text-amber-400 text-sm mt-0.5 shrink-0">⚠️</span>
+                    <div className="text-left">
+                      <p className="text-[10px] font-black text-amber-300 uppercase tracking-widest">
+                        Demo Booking Trial Active / ডেমো বুকিং ট্রায়াল
+                      </p>
+                      <p className="text-[10px] text-slate-300 font-bold mt-1 leading-normal">
+                        এটি একটি ডেমো বুকিং প্রক্রিয়া। আসল এবং লাইভ সার্ভিস উপভোগ করতে মেম্বারশিপ প্রয়োজন।
+                      </p>
+                      <p className="text-[8.5px] text-slate-400 font-semibold mt-0.5 leading-normal">
+                        (This is a demo booking simulation. Upgrade to VIP membership to book active models).
+                      </p>
                     </div>
                   </div>
 
@@ -763,9 +931,9 @@ export default function BookingModal({
                   )}
 
                   {step === 1 && (
-                /* Step 1: Acquisition Protocol - Select Service */
+                /* Step 1: Select Service - Choose Experience */
                 <div className="space-y-6">
-                  <div className="text-center pt-2 pb-4 border-b border-blue-500/10">
+                  <div className="text-center pt-2 pb-4 border-b border-[#dbaa61]/10">
                     <h2 className="text-xl sm:text-2xl font-black text-white tracking-wide font-display">
                       Acquisition Protocol
                     </h2>
@@ -773,7 +941,7 @@ export default function BookingModal({
 
                   <div className="space-y-4">
                     <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-2">
-                      SELECT SERVICE / সার্ভিস নির্বাচন করুন
+                      SELECT SERVICE
                     </span>
                     
                     {(() => {
@@ -790,11 +958,11 @@ export default function BookingModal({
                             onClick={() => handleServiceChange('REAL')}
                             className={`p-5 rounded-xl border text-center flex flex-col items-center justify-center space-y-2 transition-all duration-300 group cursor-pointer ${
                               selectedService === 'REAL'
-                                ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                                : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                             }`}
                           >
-                            <User className={`w-6 h-6 ${selectedService === 'REAL' ? 'text-blue-400' : 'text-slate-400'}`} />
+                            <User className={`w-6 h-6 ${selectedService === 'REAL' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                             <span className="text-xs font-black uppercase tracking-wider text-white">REAL</span>
                           </button>
 
@@ -804,11 +972,11 @@ export default function BookingModal({
                             onClick={() => handleServiceChange('CAM')}
                             className={`p-5 rounded-xl border text-center flex flex-col items-center justify-center space-y-2 transition-all duration-300 group cursor-pointer ${
                               selectedService === 'CAM'
-                                ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                                : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                             }`}
                           >
-                            <Video className={`w-6 h-6 ${selectedService === 'CAM' ? 'text-blue-400' : 'text-slate-400'}`} />
+                            <Video className={`w-6 h-6 ${selectedService === 'CAM' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                             <span className="text-xs font-black uppercase tracking-wider text-white leading-none">CAM</span>
                           </button>
 
@@ -818,11 +986,11 @@ export default function BookingModal({
                             onClick={() => handleServiceChange('MAKE_OUT')}
                             className={`p-5 rounded-xl border text-center flex flex-col items-center justify-center space-y-2 transition-all duration-300 group cursor-pointer ${
                               selectedService === 'MAKE_OUT'
-                                ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                                : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                             }`}
                           >
-                            <Heart className={`w-6 h-6 ${selectedService === 'MAKE_OUT' ? 'text-blue-400' : 'text-slate-400'}`} />
+                            <Heart className={`w-6 h-6 ${selectedService === 'MAKE_OUT' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                             <span className="text-xs font-black uppercase tracking-wider text-white leading-none">MAKE OUT</span>
                           </button>
 
@@ -832,11 +1000,11 @@ export default function BookingModal({
                             onClick={() => handleServiceChange('LIVE_TOGETHER')}
                             className={`p-5 rounded-xl border text-center flex flex-col items-center justify-center space-y-2 transition-all duration-300 group cursor-pointer ${
                               selectedService === 'LIVE_TOGETHER'
-                                ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                                : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                             }`}
                           >
-                            <Users className={`w-6 h-6 ${selectedService === 'LIVE_TOGETHER' ? 'text-blue-400' : 'text-slate-400'}`} />
+                            <Users className={`w-6 h-6 ${selectedService === 'LIVE_TOGETHER' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                             <span className="text-xs font-black uppercase tracking-wider text-white leading-none">LIVE TOGETHER</span>
                           </button>
                         </div>
@@ -847,18 +1015,18 @@ export default function BookingModal({
                   <button
                     type="button"
                     onClick={() => setStep(2)}
-                    className="w-full bg-[#1e40af] hover:bg-[#1d4ed8] text-white font-black uppercase text-[11px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-2 cursor-pointer shadow-md shadow-blue-500/20"
+                    className="w-full bg-gradient-to-r from-[#dbaa61] to-[#b38642] text-black font-black uppercase text-[11px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-2 cursor-pointer shadow-md shadow-[#dbaa61]/20 hover:brightness-110 animate-pulse"
                   >
                     <span>PROCEED</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <ArrowRight className="w-3.5 h-3.5 text-black font-black" />
                   </button>
                 </div>
               )}
 
               {step === 2 && (
-                /* Step 2: Select Time Frame Options */
+                /* Step 2: Choose Duration - Select Time Frame Options */
                 <div className="space-y-6 animate-fadeIn">
-                  <div className="text-center pt-2 pb-4 border-b border-blue-500/10">
+                  <div className="text-center pt-2 pb-4 border-b border-[#dbaa61]/10">
                     <h2 className="text-xl sm:text-2xl font-black text-white tracking-wide font-display">
                       Acquisition Protocol
                     </h2>
@@ -878,11 +1046,11 @@ export default function BookingModal({
                           onClick={() => setSelectedTimeFrame('30_MIN')}
                           className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
                             selectedTimeFrame === '30_MIN'
-                              ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
+                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                           }`}
                         >
-                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '30_MIN' ? 'text-blue-400' : 'text-slate-400'}`} />
+                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '30_MIN' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                           <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">30 MIN</span>
                         </button>
 
@@ -892,11 +1060,11 @@ export default function BookingModal({
                           onClick={() => setSelectedTimeFrame('1_HOUR')}
                           className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
                             selectedTimeFrame === '1_HOUR'
-                              ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
+                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                           }`}
                         >
-                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '1_HOUR' ? 'text-blue-400' : 'text-slate-400'}`} />
+                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '1_HOUR' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                           <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">1 HOUR</span>
                         </button>
 
@@ -906,11 +1074,11 @@ export default function BookingModal({
                           onClick={() => setSelectedTimeFrame('2_HOURS')}
                           className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
                             selectedTimeFrame === '2_HOURS'
-                              ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
+                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                           }`}
                         >
-                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '2_HOURS' ? 'text-blue-400' : 'text-slate-400'}`} />
+                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '2_HOURS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                           <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">2 HOURS</span>
                         </button>
                       </div>
@@ -923,11 +1091,11 @@ export default function BookingModal({
                           onClick={() => setSelectedTimeFrame('2_DAYS')}
                           className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
                             selectedTimeFrame === '2_DAYS'
-                              ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
+                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                           }`}
                         >
-                          <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '2_DAYS' ? 'text-blue-400' : 'text-slate-400'}`} />
+                          <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '2_DAYS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                           <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">2 DAYS</span>
                         </button>
 
@@ -937,11 +1105,11 @@ export default function BookingModal({
                           onClick={() => setSelectedTimeFrame('7_DAYS')}
                           className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
                             selectedTimeFrame === '7_DAYS'
-                              ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
+                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                           }`}
                         >
-                          <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '7_DAYS' ? 'text-blue-400' : 'text-slate-400'}`} />
+                          <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '7_DAYS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                           <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">7 DAYS</span>
                         </button>
 
@@ -951,11 +1119,11 @@ export default function BookingModal({
                           onClick={() => setSelectedTimeFrame('15_DAYS')}
                           className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
                             selectedTimeFrame === '15_DAYS'
-                              ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
+                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                           }`}
                         >
-                          <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '15_DAYS' ? 'text-blue-400' : 'text-slate-400'}`} />
+                          <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '15_DAYS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                           <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">15 DAYS</span>
                         </button>
 
@@ -965,11 +1133,11 @@ export default function BookingModal({
                           onClick={() => setSelectedTimeFrame('1_MONTH')}
                           className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
                             selectedTimeFrame === '1_MONTH'
-                              ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
+                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                           }`}
                         >
-                          <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '1_MONTH' ? 'text-blue-400' : 'text-slate-400'}`} />
+                          <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '1_MONTH' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                           <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">1 MONTH</span>
                         </button>
                       </div>
@@ -982,11 +1150,11 @@ export default function BookingModal({
                           onClick={() => setSelectedTimeFrame('1_HOUR')}
                           className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
                             selectedTimeFrame === '1_HOUR'
-                              ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-450'
+                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                           }`}
                         >
-                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '1_HOUR' ? 'text-blue-400' : 'text-slate-400'}`} />
+                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '1_HOUR' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                           <span className="text-[10px] font-black uppercase tracking-wider">1 HOUR</span>
                         </button>
 
@@ -996,11 +1164,11 @@ export default function BookingModal({
                           onClick={() => setSelectedTimeFrame('2_HOURS')}
                           className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
                             selectedTimeFrame === '2_HOURS'
-                              ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-450'
+                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                           }`}
                         >
-                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '2_HOURS' ? 'text-blue-400' : 'text-slate-400'}`} />
+                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '2_HOURS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                           <span className="text-[10px] font-black uppercase tracking-wider">2 HOURS</span>
                         </button>
 
@@ -1010,11 +1178,11 @@ export default function BookingModal({
                           onClick={() => setSelectedTimeFrame('3_HOURS')}
                           className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
                             selectedTimeFrame === '3_HOURS'
-                              ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-450'
+                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                           }`}
                         >
-                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '3_HOURS' ? 'text-blue-400' : 'text-slate-400'}`} />
+                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '3_HOURS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                           <span className="text-[10px] font-black uppercase tracking-wider">3 HOURS</span>
                         </button>
 
@@ -1025,11 +1193,11 @@ export default function BookingModal({
                             onClick={() => setSelectedTimeFrame('FULL_NIGHT')}
                             className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
                               selectedTimeFrame === 'FULL_NIGHT'
-                                ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                                : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-450'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                             }`}
                           >
-                            <Moon className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === 'FULL_NIGHT' ? 'text-blue-400' : 'text-slate-400'}`} />
+                            <Moon className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === 'FULL_NIGHT' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                             <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">FULL NIGHT</span>
                           </button>
                         )}
@@ -1042,27 +1210,27 @@ export default function BookingModal({
                     <button
                       type="button"
                       onClick={() => setStep(1)}
-                      className="flex-1 bg-transparent border border-blue-500/20 hover:border-blue-500/40 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap"
+                      className="flex-1 bg-transparent border border-[#dbaa61]/20 hover:border-[#dbaa61]/45 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap hover:text-white"
                     >
-                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <ArrowLeft className="w-3.5 h-3.5 text-[#dbaa61]" />
                       <span>Back</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setStep(selectedService === 'CAM' ? 4 : 3)}
-                      className="flex-1 bg-[#1e40af] hover:bg-[#1d4ed8] text-white font-black uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer shadow-md shadow-blue-500/20 whitespace-nowrap"
+                      className="flex-1 bg-gradient-to-r from-[#dbaa61] to-[#b38642] text-black font-black uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer shadow-md shadow-[#dbaa61]/20 whitespace-nowrap hover:brightness-110"
                     >
                       <span>Proceed</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <ArrowRight className="w-3.5 h-3.5 text-black font-black" />
                     </button>
                   </div>
                 </div>
               )}
 
               {step === 3 && (
-                /* Step 3: Select Coordinates Type & Specific Address Form - Dynamic INCALL hotel list and OUTCALL custom input */
+                /* Step 3: Choose Location & Meeting Venue */
                 <div className="space-y-6 animate-fadeIn pb-1">
-                  <div className="text-center pt-2 pb-4 border-b border-blue-500/10">
+                  <div className="text-center pt-2 pb-4 border-b border-[#dbaa61]/10">
                     <h2 className="text-xl sm:text-2xl font-black text-white tracking-wide font-display">
                       Acquisition Protocol
                     </h2>
@@ -1075,21 +1243,21 @@ export default function BookingModal({
                           RESTAURANT LOCATION (OUTCALL ONLY)
                         </span>
                         <div className="relative">
-                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#dbaa61] pointer-events-none" />
                           <input
                             type="text"
                             required
                             value={specificAddress}
                             onChange={(e) => setSpecificAddress(e.target.value)}
                             placeholder="Specify restaurant name & address..."
-                            className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-normal font-semibold placeholder:text-slate-600"
+                            className="w-full bg-[#030a1c] border border-[#dbaa61]/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-[#dbaa61]/40 leading-normal font-semibold placeholder:text-slate-600"
                           />
                         </div>
                       </div>
                     ) : (
                       <>
                         <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
-                          COORDINATES TYPE
+                          MEETING TYPE / সেবার ভেন্যু
                         </span>
 
                         <div className="grid grid-cols-2 gap-3">
@@ -1099,11 +1267,11 @@ export default function BookingModal({
                             onClick={() => handleCoordinatesTypeChange('INCALL')}
                             className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center space-y-1.5 transition-all duration-300 cursor-pointer ${
                               coordinatesType === 'INCALL'
-                                ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                                : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                             }`}
                           >
-                            <Home className={`w-5 h-5 ${coordinatesType === 'INCALL' ? 'text-blue-400' : 'text-slate-400'}`} />
+                            <Home className={`w-5 h-5 ${coordinatesType === 'INCALL' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                             <span className="text-[10px] font-black uppercase tracking-wider">INCALL (OUR PLACE)</span>
                           </button>
 
@@ -1113,19 +1281,19 @@ export default function BookingModal({
                             onClick={() => handleCoordinatesTypeChange('OUTCALL')}
                             className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center space-y-1.5 transition-all duration-300 cursor-pointer ${
                               coordinatesType === 'OUTCALL'
-                                ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)] text-white'
-                                : 'bg-[#030a1c]/80 border-blue-500/10 hover:border-blue-500/25 text-slate-400'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                             }`}
                           >
-                            <Car className={`w-5 h-5 ${coordinatesType === 'OUTCALL' ? 'text-blue-400' : 'text-slate-400'}`} />
+                            <Car className={`w-5 h-5 ${coordinatesType === 'OUTCALL' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                             <span className="text-[10px] font-black uppercase tracking-wider">OUTCALL (YOURS)</span>
                           </button>
                         </div>
 
                         {coordinatesType === 'INCALL' ? (
                           <div className="space-y-3 relative">
-                            <span className="block text-[10px] text-slate-550 font-extrabold uppercase tracking-wider">
-                              SELECT SAFEHOUSE / PREMIUM HOTEL
+                            <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
+                              SELECT PREMIUM HOTEL / SANCTUARY
                             </span>
                             
                             {/* Custom premium dropdown selector with down arrow */}
@@ -1133,27 +1301,27 @@ export default function BookingModal({
                               <button
                                 type="button"
                                 onClick={() => setIsAddressDropdownOpen(!isAddressDropdownOpen)}
-                                className="w-full bg-[#030a1c] border border-blue-500/25 hover:border-blue-500/40 text-left rounded-xl p-3.5 focus:outline-none flex justify-between items-center transition duration-200 cursor-pointer"
+                                className="w-full bg-[#030a1c] border border-[#dbaa61]/25 hover:border-[#dbaa61]/40 text-left rounded-xl p-3.5 focus:outline-none flex justify-between items-center transition duration-200 cursor-pointer"
                               >
                                 <div className="flex items-center gap-2.5 truncate">
-                                  <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
+                                  <MapPin className="w-4 h-4 text-[#dbaa61] shrink-0" />
                                   <div className="truncate">
-                                    <p className="text-[11px] font-black text-blue-300 leading-tight flex items-center gap-1.5">
+                                    <p className="text-[11px] font-black text-[#dbaa61] leading-tight flex items-center gap-1.5">
                                       <span>
-                                        {sanctuaries.find(s => s.address === specificAddress)?.name || 'Select Sanctuary'}
+                                        {sanctuaries.find(s => s.address === specificAddress)?.name || '-- Choose Safehouse --'}
                                       </span>
                                       {sanctuaries.find(s => s.address === specificAddress) && (
-                                        <span className="text-[9px] text-amber-400 bg-amber-450/10 border border-amber-500/20 rounded px-1.5 py-0.2 font-mono">
+                                        <span className="text-[9px] text-amber-400 bg-amber-450/10 border border-amber-550/20 rounded px-1.5 py-0.2 font-mono">
                                           +৳{sanctuaries.find(s => s.address === specificAddress)?.price.toLocaleString()}
                                         </span>
                                       )}
                                     </p>
                                     <p className="text-[9px] text-slate-400 font-mono truncate leading-none mt-1 font-semibold">
-                                      {specificAddress || 'Choose a sanctuary address...'}
+                                      {specificAddress || 'Choose a safehouse address...'}
                                     </p>
                                   </div>
                                 </div>
-                                <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${isAddressDropdownOpen ? 'rotate-180 text-blue-400' : ''}`} />
+                                <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${isAddressDropdownOpen ? 'rotate-180 text-[#dbaa61]' : ''}`} />
                               </button>
 
                               {/* Predefined Sanctuaries list revealed by down-arrow click */}
@@ -1161,7 +1329,7 @@ export default function BookingModal({
                                 <motion.div
                                   initial={{ opacity: 0, y: -5 }}
                                   animate={{ opacity: 1, y: 0 }}
-                                  className="absolute top-full left-0 right-0 z-30 mt-1 bg-[#030a1c] border border-blue-500/30 rounded-xl overflow-hidden shadow-2xl max-h-[170px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-blue-500/20"
+                                  className="absolute top-full left-0 right-0 z-30 mt-1 bg-[#030a1c] border border-[#dbaa61]/30 rounded-xl overflow-hidden shadow-2xl max-h-[170px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[#dbaa61]/20"
                                 >
                                   {sanctuaries.map((s) => {
                                     const isSelected = specificAddress === s.address;
@@ -1173,14 +1341,14 @@ export default function BookingModal({
                                           setSpecificAddress(s.address);
                                           setIsAddressDropdownOpen(false);
                                         }}
-                                        className={`w-full p-3 text-left transition-all duration-200 cursor-pointer text-xs flex flex-col space-y-0.5 border-b border-blue-500/5 last:border-0 ${
+                                        className={`w-full p-3 text-left transition-all duration-200 cursor-pointer text-xs flex flex-col space-y-0.5 border-b border-[#dbaa61]/5 last:border-0 ${
                                           isSelected
-                                            ? 'bg-blue-900/30 text-white font-bold'
-                                            : 'hover:bg-blue-950/40 text-slate-400'
+                                            ? 'bg-[#dbaa61]/15 text-white font-bold'
+                                            : 'hover:bg-slate-900/40 text-slate-400'
                                         }`}
                                       >
                                         <div className="flex justify-between items-center w-full gap-2 text-left">
-                                          <span className={`font-black text-[11px] truncate ${isSelected ? 'text-blue-400' : 'text-blue-300'}`}>
+                                          <span className={`font-black text-[11px] truncate ${isSelected ? 'text-[#dbaa61]' : 'text-[#dbaa61]'}`}>
                                             {s.name}
                                           </span>
                                           <span className="text-[10px] text-amber-400 font-extrabold font-mono shrink-0">
@@ -1198,11 +1366,11 @@ export default function BookingModal({
                             </div>
 
                             <div className="space-y-1.5 pt-1">
-                              <span className="block text-[10px] text-slate-500 font-extrabold uppercase tracking-wider">
-                                CONFIRMED SANCTUARY LOCATION
+                              <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
+                                CONFIRMED VENUE ADDRESS / ভেন্যু ঠিকানা
                               </span>
-                              <div className="p-3 bg-[#030a1c]/90 border border-blue-500/10 rounded-xl text-xs text-white font-semibold font-mono truncate flex items-center gap-2">
-                                <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                              <div className="p-3 bg-[#030a1c]/90 border border-[#dbaa61]/10 rounded-xl text-xs text-white font-semibold font-mono truncate flex items-center gap-2">
+                                <MapPin className="w-3.5 h-3.5 text-[#dbaa61] shrink-0" />
                                 <span className="truncate">{specificAddress}</span>
                               </div>
                               {specificAddress && (
@@ -1216,16 +1384,16 @@ export default function BookingModal({
                                     }}
                                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[9.5px] font-black uppercase tracking-wider transition cursor-pointer select-none"
                                   >
-                                    {copiedAddress ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-blue-400" />}
+                                    {copiedAddress ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-[#dbaa61]" />}
                                     {copiedAddress ? 'Copied!' : 'Copy Location (কপি করুন)'}
                                   </button>
                                   <a
                                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(specificAddress)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-950/40 border border-blue-500/20 text-blue-400 hover:text-blue-300 text-[9.5px] font-black uppercase tracking-wider transition cursor-pointer select-none"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-[9.5px] font-black uppercase tracking-wider transition cursor-pointer select-none"
                                   >
-                                    <MapPin className="w-3.5 h-3.5" />
+                                    <MapPin className="w-3.5 h-3.5 text-[#dbaa61]" />
                                     Map View (ম্যাপ)
                                   </a>
                                   <a
@@ -1247,14 +1415,14 @@ export default function BookingModal({
                               SPECIFIC ADDRESS
                             </span>
                             <div className="relative">
-                              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#dbaa61] pointer-events-none" />
                               <input
                                 type="text"
                                 required
                                 value={specificAddress}
                                 onChange={(e) => setSpecificAddress(e.target.value)}
                                 placeholder="Detailed coordinates..."
-                                className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-normal font-semibold placeholder:text-slate-600"
+                                className="w-full bg-[#030a1c] border border-[#dbaa61]/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-[#dbaa61]/40 leading-normal font-semibold placeholder:text-slate-600"
                               />
                             </div>
                             <div className="pt-1.5">
@@ -1285,9 +1453,9 @@ export default function BookingModal({
                                     { enableHighAccuracy: true, timeout: 8000 }
                                   );
                                 }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-950/20 border border-blue-500/15 text-blue-400 hover:text-blue-300 text-[10px] font-black uppercase tracking-wider transition cursor-pointer select-none disabled:opacity-50"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#dbaa61]/10 border border-[#dbaa61]/15 text-[#dbaa61] hover:text-white text-[10px] font-black uppercase tracking-wider transition cursor-pointer select-none disabled:opacity-50"
                               >
-                                <MapPin className="w-3.5 h-3.5 animate-pulse" />
+                                <MapPin className="w-3.5 h-3.5 animate-pulse text-[#dbaa61]" />
                                 {sharingLocation ? 'Fetching Live GPS...' : '📍 Share My Current GPS Location (আমার লোকেশন)'}
                               </button>
                               {shareError && (
@@ -1305,28 +1473,28 @@ export default function BookingModal({
                     <button
                       type="button"
                       onClick={() => setStep(2)}
-                      className="flex-1 bg-transparent border border-blue-500/20 hover:border-blue-500/40 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap"
+                      className="flex-1 bg-transparent border border-[#dbaa61]/20 hover:border-[#dbaa61]/45 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap hover:text-white"
                     >
-                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <ArrowLeft className="w-3.5 h-3.5 text-[#dbaa61]" />
                       <span>Back</span>
                     </button>
                     <button
                       type="button"
                       disabled={!specificAddress.trim()}
                       onClick={() => setStep(4)}
-                      className="flex-1 bg-[#1e40af] hover:bg-[#1d4ed8] disabled:opacity-40 disabled:cursor-not-allowed text-white font-black uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer shadow-md shadow-blue-500/20 whitespace-nowrap"
+                      className="flex-1 bg-gradient-to-r from-[#dbaa61] to-[#b38642] text-black disabled:opacity-40 disabled:cursor-not-allowed font-black uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer shadow-md shadow-[#dbaa61]/20 whitespace-nowrap hover:brightness-110"
                     >
                       <span>Proceed</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <ArrowRight className="w-3.5 h-3.5 text-black font-black" />
                     </button>
                   </div>
                 </div>
               )}
 
               {step === 4 && (
-                /* Step 4: Date, Time - Step continues to Comms Channel step */
+                /* Step 4: Choose Date & Time Schedule */
                 <div className="space-y-6 animate-fadeIn pb-1">
-                  <div className="text-center pt-2 pb-4 border-b border-blue-500/10">
+                  <div className="text-center pt-2 pb-4 border-b border-[#dbaa61]/10">
                     <h2 className="text-xl sm:text-2xl font-black text-white tracking-wide font-display">
                       Acquisition Protocol
                     </h2>
@@ -1374,16 +1542,16 @@ export default function BookingModal({
                       return (
                         <div className="space-y-2.5">
                           <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
-                            SELECT SERVICE DATE / সার্ভিস তারিখ নির্বাচন করুন
+                            SELECT SERVICE DATE
                           </span>
                           
                           {/* Calendar Card Panel */}
-                          <div className="bg-[#030a1c] border border-blue-500/25 p-4 rounded-2xl space-y-3">
-                            <div className="flex items-center justify-between border-b border-blue-500/10 pb-2.5">
+                          <div className="bg-[#030a1c] border border-[#dbaa61]/25 p-4 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between border-b border-[#dbaa61]/10 pb-2.5">
                               <button
                                 type="button"
                                 onClick={handlePrevMonth}
-                                className="p-1 px-2.5 rounded-lg bg-blue-500/5 hover:bg-blue-500/15 border border-blue-500/10 text-blue-400 text-xs font-black transition cursor-pointer"
+                                className="p-1 px-2.5 rounded-lg bg-[#dbaa61]/5 hover:bg-[#dbaa61]/15 border border-[#dbaa61]/10 text-[#dbaa61] text-xs font-black transition cursor-pointer"
                               >
                                 ◀
                               </button>
@@ -1391,21 +1559,21 @@ export default function BookingModal({
                                 <span className="text-white text-xs font-extrabold block">
                                   {months[month]} {year}
                                 </span>
-                                <span className="text-[10px] text-[#5c75ab] font-bold block mt-0.5">
+                                <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
                                   {bnMonths[month]} {year}
                                 </span>
                               </div>
                               <button
                                 type="button"
                                 onClick={handleNextMonth}
-                                className="p-1 px-2.5 rounded-lg bg-blue-500/5 hover:bg-blue-500/15 border border-blue-500/10 text-blue-400 text-xs font-black transition cursor-pointer"
+                                className="p-1 px-2.5 rounded-lg bg-[#dbaa61]/5 hover:bg-[#dbaa61]/15 border border-[#dbaa61]/10 text-[#dbaa61] text-xs font-black transition cursor-pointer"
                               >
                                 ▶
                               </button>
                             </div>
 
                             {/* Weekday headers */}
-                            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black text-[#5c75ab] uppercase font-mono">
+                            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black text-slate-500 uppercase font-mono">
                               {weekdays.map((wd) => (
                                 <div key={wd} className="py-1">{wd}</div>
                               ))}
@@ -1428,8 +1596,8 @@ export default function BookingModal({
                                     onClick={() => setDate(dateString)}
                                     className={`py-1.5 rounded-lg text-[11px] font-extrabold select-none transition-all cursor-pointer ${
                                       isSelected
-                                        ? 'bg-blue-600 text-white shadow-md shadow-blue-550/20'
-                                        : 'text-slate-300 hover:bg-blue-500/10 hover:text-white'
+                                        ? 'bg-gradient-to-r from-[#dbaa61] to-[#b38642] text-black shadow-md shadow-[#dbaa61]/20'
+                                        : 'text-slate-300 hover:bg-[#dbaa61]/10 hover:text-white'
                                     }`}
                                   >
                                     {day}
@@ -1440,8 +1608,8 @@ export default function BookingModal({
                             
                             {/* Selected Date Summary */}
                             {date && (
-                              <div className="border-t border-blue-500/10 pt-2 text-center">
-                                <span className="text-[10px] text-blue-400 font-bold">
+                              <div className="border-t border-[#dbaa61]/10 pt-2 text-center">
+                                <span className="text-[10px] text-[#dbaa61] font-bold">
                                   Selected Date: <strong className="text-white font-mono select-all font-black">{date}</strong>
                                 </span>
                               </div>
@@ -1451,22 +1619,92 @@ export default function BookingModal({
                       );
                     })()}
 
-                    {/* Time Input */}
-                    <div className="space-y-1.5">
+                    {/* Manual Clock System Selection */}
+                    <div className="space-y-3">
                       <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
                         SELECT SERVICE TIME
                       </span>
-                      <div className="relative">
-                        <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none" />
-                        <input
-                          type="time"
-                          required
-                          value={time}
-                          onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
-                          onFocus={(e) => { try { e.currentTarget.showPicker(); } catch (err) {} }}
-                          onChange={(e) => setTime(e.target.value)}
-                          className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-normal font-semibold font-mono placeholder:text-slate-600 cursor-pointer"
-                        />
+                      
+                      <div className="bg-[#030a1c] border border-[#dbaa61]/25 p-4 rounded-xl space-y-4">
+                        {/* Selected Time Display */}
+                        <div className="flex items-center justify-center gap-2 py-3 bg-[#dbaa61]/5 border border-[#dbaa61]/10 rounded-xl">
+                          <Clock className="w-5 h-5 text-[#dbaa61]" />
+                          <span className="text-xl font-black text-[#dbaa61] tracking-widest font-mono">
+                            {selectedHour}:{selectedMinute} {selectedAmPm}
+                          </span>
+                        </div>
+
+                        {/* Inline Selector Menus */}
+                        <div className="grid grid-cols-3 gap-3">
+                          {/* Hour select */}
+                          <div className="space-y-1.5">
+                            <span className="block text-[9px] text-slate-500 font-extrabold uppercase tracking-wider font-mono">
+                              HOUR
+                            </span>
+                            <div className="relative">
+                              <select
+                                value={selectedHour}
+                                onChange={(e) => setSelectedHour(e.target.value)}
+                                className="w-full bg-black/40 border border-[#dbaa61]/10 rounded-xl px-3 py-2.5 text-xs text-white font-black font-mono focus:border-[#dbaa61]/50 focus:ring-1 focus:ring-[#dbaa61] outline-none appearance-none cursor-pointer"
+                              >
+                                {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map((hr) => (
+                                  <option key={hr} value={hr} className="bg-[#030a1c] text-white font-mono">
+                                    {hr}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="absolute inset-y-0 right-3.5 flex items-center pointer-events-none text-[#dbaa61]/70 text-[8px]">
+                                ▼
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Minute select */}
+                          <div className="space-y-1.5">
+                            <span className="block text-[9px] text-slate-500 font-extrabold uppercase tracking-wider font-mono">
+                              MINUTE
+                            </span>
+                            <div className="relative">
+                              <select
+                                value={selectedMinute}
+                                onChange={(e) => setSelectedMinute(e.target.value)}
+                                className="w-full bg-black/40 border border-[#dbaa61]/10 rounded-xl px-3 py-2.5 text-xs text-white font-black font-mono focus:border-[#dbaa61]/50 focus:ring-1 focus:ring-[#dbaa61] outline-none appearance-none cursor-pointer"
+                              >
+                                {['00', '15', '30', '45'].map((min) => (
+                                  <option key={min} value={min} className="bg-[#030a1c] text-white font-mono">
+                                    {min}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="absolute inset-y-0 right-3.5 flex items-center pointer-events-none text-[#dbaa61]/70 text-[8px]">
+                                ▼
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Period select */}
+                          <div className="space-y-1.5">
+                            <span className="block text-[9px] text-slate-500 font-extrabold uppercase tracking-wider font-mono">
+                              PERIOD
+                            </span>
+                            <div className="relative">
+                              <select
+                                value={selectedAmPm}
+                                onChange={(e) => setSelectedAmPm(e.target.value)}
+                                className="w-full bg-black/40 border border-[#dbaa61]/10 rounded-xl px-3 py-2.5 text-xs text-white font-black focus:border-[#dbaa61]/50 focus:ring-1 focus:ring-[#dbaa61] outline-none appearance-none cursor-pointer"
+                              >
+                                {['AM', 'PM'].map((period) => (
+                                  <option key={period} value={period} className="bg-[#030a1c] text-white">
+                                    {period}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="absolute inset-y-0 right-3.5 flex items-center pointer-events-none text-[#dbaa61]/70 text-[8px]">
+                                ▼
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -1476,103 +1714,44 @@ export default function BookingModal({
                         SPECIAL DIRECTIVES (OPT)
                       </span>
                       <div className="relative">
-                        <MessageSquare className="absolute left-4 top-4 w-4 h-4 text-blue-400 pointer-events-none" />
+                        <MessageSquare className="absolute left-4 top-4 w-4 h-4 text-[#dbaa61] pointer-events-none" />
                         <textarea
                           rows={2}
                           value={notes}
                           onChange={(e) => setNotes(e.target.value)}
                           placeholder="Any strict requirements..."
-                          className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-relaxed font-semibold placeholder:text-slate-600"
+                          className="w-full bg-[#030a1c] border border-[#dbaa61]/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-[#dbaa61]/45 leading-relaxed font-semibold placeholder:text-slate-600"
                         />
-                      </div>
-                    </div>
-
-                    {/* Client Information Section */}
-                    <div className="border border-blue-500/10 bg-[#030a1c] p-4 rounded-xl space-y-4">
-                      <div className="text-left border-b border-blue-500/10 pb-2">
-                        <span className="block text-[10px] text-blue-400 font-extrabold uppercase tracking-wider">
-                          CLIENT DETAILS / গ্রাহকের বিবরণ (বাধ্যতামূলক)
-                        </span>
-                        <span className="text-[9px] text-slate-400 font-medium">
-                          নিরাপদ ও সঠিক যোগাযোগের জন্য আপনার বিস্তারিত তথ্য দিন
-                        </span>
-                      </div>
-
-                      <div className="space-y-3">
-                        {/* Name Input */}
-                        <div className="space-y-1 text-left">
-                          <label className="block text-[9.5px] text-slate-300 font-bold uppercase tracking-wider">
-                            Client Name / গ্রাহকের নাম
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={clientNameInput}
-                            onChange={(e) => setClientNameInput(e.target.value)}
-                            placeholder="e.g. Rohim Ahmed"
-                            className="w-full bg-black/40 border border-blue-500/20 text-white text-xs rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 font-semibold placeholder:text-slate-700"
-                          />
-                        </div>
-
-                        {/* Phone Input */}
-                        <div className="space-y-1 text-left">
-                          <label className="block text-[9.5px] text-slate-300 font-bold uppercase tracking-wider">
-                            Phone Number / মোবাইল নম্বর
-                          </label>
-                          <input
-                            type="tel"
-                            required
-                            value={clientPhoneInput}
-                            onChange={(e) => setClientPhoneInput(e.target.value)}
-                            placeholder="e.g. 017XXXXXXXX"
-                            className="w-full bg-black/40 border border-blue-500/20 text-white text-xs rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 font-mono font-semibold placeholder:text-slate-700"
-                          />
-                        </div>
-
-                        {/* Email Input */}
-                        <div className="space-y-1 text-left">
-                          <label className="block text-[9.5px] text-slate-300 font-bold uppercase tracking-wider">
-                            Email address / ইমেইল এড্রেস
-                          </label>
-                          <input
-                            type="email"
-                            required
-                            value={clientEmailInput}
-                            onChange={(e) => setClientEmailInput(e.target.value)}
-                            placeholder="e.g. rohim@gmail.com"
-                            className="w-full bg-black/40 border border-blue-500/20 text-white text-xs rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 font-mono font-semibold placeholder:text-slate-700"
-                          />
-                        </div>
                       </div>
                     </div>
 
                     {/* First-Time Booking Verification (Auto-Detected) */}
                     {firstTimeBooking && (
-                      <div className="border border-blue-500/10 bg-[#030a1c] p-4 rounded-xl space-y-4 animate-in fade-in duration-200">
-                        <div className="text-left border-b border-blue-500/10 pb-2.5 flex items-center justify-between">
+                      <div className="border border-[#dbaa61]/10 bg-[#030a1c] p-4 rounded-xl space-y-4 animate-in fade-in duration-200">
+                        <div className="text-left border-b border-[#dbaa61]/10 pb-2.5 flex items-center justify-between">
                           <div>
-                            <span className="block text-[10px] text-[#00e5ff] font-extrabold uppercase tracking-wider">
-                              HIGH SECURE LIVE VERIFICATION / প্রথমবার বুকিং ভেরিফিকেশন
+                            <span className="block text-[10px] text-[#dbaa61] font-extrabold uppercase tracking-wider font-mono">
+                              SECURE SELFIE VERIFICATION
                             </span>
                             <span className="text-[9px] text-slate-400 font-medium tracking-tight">
-                              (Direct active camera stream required / সরাসরি লাইভ ক্যামেরা চালু বাধ্যতামূলক)
+                              (Real-time live photo required)
                             </span>
                           </div>
-                          <span className="text-[8px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded font-black uppercase tracking-wider font-mono animate-pulse">
-                            Secure Live / বাধ্যতামূলক
+                          <span className="text-[8px] bg-red-550/20 text-red-400 px-1.5 py-0.5 rounded font-black uppercase tracking-wider font-mono animate-pulse">
+                            Mandatory
                           </span>
                         </div>
 
                         <div className="space-y-4 pt-1">
-                          <div className="p-2.5 bg-blue-500/5 border border-blue-500/20 rounded-lg text-left">
-                            <p className="text-[10px] text-blue-300 leading-normal font-medium">
-                              🔒 আপনার বুকিং ট্র্যাকিং রেকর্ড না থাকায় এটি একটি ভেরিফিকেশন রিঅ্যাক্ট প্রটোকল ট্রাইন করেছে। হাই-সিকিউরিটি নিশ্চিত করতে নিচের লাইভ ক্যামেরা বোতামে ক্লিক করে আপনার একটি সরাসরি সেলফি তুলুন। ফাইল বা গ্যালারি থেকে কোনো ছবি আপলোড করা যাবে না।
+                          <div className="p-2.5 bg-[#dbaa61]/5 border border-[#dbaa61]/20 rounded-lg text-left">
+                            <p className="text-[10px] text-slate-300 leading-normal font-medium">
+                              🔒 As a first-time client, a real-time live selfie is required to verify identity and ensure safety. Please capture or upload a clear photo below.
                             </p>
                           </div>
 
                           <div className="space-y-1.5 text-left">
                             <label className="block text-[9.5px] text-slate-300 font-bold uppercase tracking-wider font-sans">
-                              Active Face Biometrics / সরাসরি সেলফি ছবি (সরাসরি বায়োমেট্রিক ছবি)
+                              Live Selfie Photo
                             </label>
 
                             {userPhoto ? (
@@ -1584,27 +1763,27 @@ export default function BookingModal({
                                       <Check className="w-3 h-3 text-white" />
                                     </span>
                                   </div>
-                                  <span className="text-[10px] text-emerald-400 font-extrabold tracking-wide uppercase">
-                                    BIOMETRIC CAPTURED SECURELY
+                                  <span className="text-[10px] text-emerald-400 font-extrabold tracking-wide uppercase font-mono">
+                                    SELFIE CAPTURED
                                   </span>
                                   <span className="text-[9px] text-slate-400 font-medium">
-                                    বায়োমেট্রিক ফ্রেম সম্পূর্ণভাবে রিসিভ করা হয়েছে
+                                    Verification selfie registered
                                   </span>
                                   <button
                                     type="button"
                                     onClick={() => setUserPhoto('')}
-                                    className="text-[9px] text-rose-400 hover:text-rose-300 bg-rose-500/10 px-3 py-1 rounded-xl border border-rose-500/20 mt-1 transition-all font-bold"
+                                    className="text-[9px] text-rose-400 hover:text-rose-300 bg-rose-500/10 px-3 py-1 rounded-xl border border-rose-500/20 mt-1 transition-all font-bold cursor-pointer"
                                   >
-                                    Retake Selfie / পুনরায় ছবি তুলুন
+                                    Retake Selfie
                                   </button>
                                 </div>
                               </div>
                             ) : (
-                              <div className="relative overflow-hidden rounded-xl bg-black/50 border border-blue-500/20">
+                              <div className="relative overflow-hidden rounded-xl bg-black/50 border border-[#dbaa61]/25">
                                 {cameraActive ? (
                                   <div className="p-3 flex flex-col items-center space-y-4 font-sans">
                                     {/* Video frame with biometric targeting box overlay */}
-                                    <div className="relative w-full max-w-[280px] aspect-square rounded-xl overflow-hidden border border-blue-500/30 bg-black">
+                                    <div className="relative w-full max-w-[280px] aspect-square rounded-xl overflow-hidden border border-[#dbaa61]/35 bg-black">
                                       <video
                                         ref={videoRef}
                                         autoPlay
@@ -1614,13 +1793,13 @@ export default function BookingModal({
                                       ></video>
                                       
                                       {/* Biometric Guide Overlay */}
-                                      <div className="absolute inset-0 border-[3px] border-blue-500/35 m-6 rounded-full pointer-events-none animate-pulse">
-                                        <div className="absolute top-1/2 left-0 right-0 h-[1.5px] bg-red-500/50 -translate-y-1/2 animate-bounce" />
+                                      <div className="absolute inset-0 border-[3px] border-[#dbaa61]/35 m-6 rounded-full pointer-events-none animate-pulse">
+                                        <div className="absolute top-1/2 left-0 right-0 h-[1.5px] bg-amber-500/50 -translate-y-1/2 animate-bounce" />
                                       </div>
                                       
                                       <div className="absolute bottom-2 left-0 right-0 text-center">
-                                        <span className="bg-black/75 text-[8px] text-blue-400 font-bold px-2 py-0.5 rounded uppercase tracking-widest font-mono">
-                                          [ LIVE CAMERA RECON ]
+                                        <span className="bg-black/75 text-[8px] text-[#dbaa61] font-bold px-2 py-0.5 rounded uppercase tracking-widest font-mono">
+                                          [ LIVE CAMERA ACTIVE ]
                                         </span>
                                       </div>
                                     </div>
@@ -1648,25 +1827,25 @@ export default function BookingModal({
                                             }
                                           }
                                         }}
-                                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 cursor-pointer"
+                                        className="px-6 py-3 bg-gradient-to-r from-[#dbaa61] to-[#b38642] text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 cursor-pointer hover:brightness-110"
                                       >
-                                        <Camera className="w-4 h-4 text-white" />
-                                        <span>CAPTURE SELFIE / ছবি সংরক্ষণ করুন</span>
+                                        <Camera className="w-4 h-4 text-black" />
+                                        <span>CAPTURE SELFIE</span>
                                       </button>
 
                                       <button
                                         type="button"
                                         onClick={stopCamera}
-                                        className="text-[10px] text-slate-400 hover:text-white underline font-semibold py-1 hover:no-underline transition"
+                                        className="text-[10px] text-slate-400 hover:text-white underline font-semibold py-1 hover:no-underline transition cursor-pointer"
                                       >
-                                        Turn off camera / ক্যামেরা বন্ধ করুন
+                                        Turn off camera
                                       </button>
                                     </div>
                                   </div>
                                 ) : (
                                   <div className="p-6 text-center flex flex-col items-center justify-center min-h-[160px] space-y-4 font-sans">
-                                    <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                                      <Camera className="w-5 h-5 text-blue-400 animate-pulse" />
+                                    <div className="w-12 h-12 rounded-full bg-[#dbaa61]/10 flex items-center justify-center border border-[#dbaa61]/20">
+                                      <Camera className="w-5 h-5 text-[#dbaa61] animate-pulse" />
                                     </div>
                                     
                                     <div className="space-y-1.5 px-4 animate-fadeIn">
@@ -1674,7 +1853,7 @@ export default function BookingModal({
                                         Device Camera Connection Required
                                       </h5>
                                       <p className="text-[10px] text-slate-400 font-medium leading-relaxed max-w-sm">
-                                        নিরাপত্তা নীতিমাালার কারণে ফাইল বা গ্যালারি থেকে পূর্বে থাকা ছবি আপলোড করার সুযোগ নেই। আপনার রিয়েল-টাইম ছবি নিশ্চিত করতে অনুগ্রহ করে নিচের বোতামটি চেপে আপনার ডিভাইস ক্যামেরাটি অন করুন।
+                                        Please turn on your camera and snap a live selfie to proceed.
                                       </p>
                                     </div>
 
@@ -1688,19 +1867,19 @@ export default function BookingModal({
                                     <button
                                       type="button"
                                       onClick={startCamera}
-                                      className="px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition shadow cursor-pointer active:scale-95"
+                                      className="px-5 py-3 bg-gradient-to-r from-[#dbaa61] to-[#b38642] text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition shadow cursor-pointer active:scale-95 hover:brightness-110"
                                     >
-                                      <Video className="w-4 h-4 text-white" />
-                                      <span>On Camera / ক্যামেরা সচল করুন</span>
+                                      <Video className="w-4 h-4 text-black" />
+                                      <span>On Camera</span>
                                     </button>
 
-                                    <div className="w-full pt-3 border-t border-blue-500/10 flex flex-col items-center space-y-2 mt-2">
-                                      <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider">
-                                        Camera not working? / ক্যামেরা কাজ না করলে:
+                                    <div className="w-full pt-3 border-t border-[#dbaa61]/10 flex flex-col items-center space-y-2 mt-2">
+                                      <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider font-mono">
+                                        Camera not working?
                                       </span>
-                                      <label className="px-5 py-2.5 bg-[#040e29] border border-blue-500/20 hover:border-blue-400 hover:bg-[#06153c] text-[#00e5ff] hover:text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest flex items-center gap-1.5 transition duration-200 cursor-pointer shadow-md">
-                                        <Camera className="w-3.5 h-3.5 text-blue-400" />
-                                        <span>Upload Selfie (গ্যালারি বা সরাসরি সোর্স থেকে দিন)</span>
+                                      <label className="px-5 py-2.5 bg-[#030a1c] border border-[#dbaa61]/25 hover:border-[#dbaa61]/45 hover:bg-[#dbaa61]/5 text-[#dbaa61] hover:text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest flex items-center gap-1.5 transition duration-200 cursor-pointer shadow-md">
+                                        <Camera className="w-3.5 h-3.5 text-[#dbaa61]" />
+                                        <span>Upload Selfie</span>
                                         <input
                                           type="file"
                                           accept="image/*"
@@ -1723,23 +1902,22 @@ export default function BookingModal({
                        <button
                         type="button"
                         onClick={() => setStep(selectedService === 'CAM' ? 2 : 3)}
-                        className="flex-1 bg-transparent border border-blue-500/20 hover:border-blue-500/40 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap"
+                        className="flex-1 bg-transparent border border-[#dbaa61]/20 hover:border-[#dbaa61]/45 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap hover:text-white"
                       >
-                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <ArrowLeft className="w-3.5 h-3.5 text-[#dbaa61]" />
                         <span>Back</span>
                       </button>
                       <button
                         type="submit"
                         disabled={
-                          !clientNameInput.trim() || !clientPhoneInput.trim() || !clientEmailInput.trim() ||
-                          (selectedService === 'CAM'
+                          selectedService === 'CAM'
                             ? !time || (firstTimeBooking && !userPhoto)
-                            : (!date || !time) || (firstTimeBooking && !userPhoto))
+                            : (!date || !time) || (firstTimeBooking && !userPhoto)
                         }
-                        className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer shadow-md shadow-blue-500/20 whitespace-nowrap"
+                        className="flex-1 bg-gradient-to-r from-[#dbaa61] to-[#b38642] text-black disabled:opacity-40 disabled:cursor-not-allowed font-black uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer shadow-md shadow-[#dbaa61]/20 whitespace-nowrap hover:brightness-110"
                       >
                         <span>PROCEED</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <ArrowRight className="w-3.5 h-3.5 text-black font-black" />
                       </button>
                     </div>
                   </form>
@@ -1749,20 +1927,168 @@ export default function BookingModal({
               {step === 5 && (
                 /* Step 5: Secure Contact Method Selection & Optional Remaining Deficit Payment Form */
                 <div className="space-y-5 animate-fadeIn pb-1 opacity-100">
-                  <div className="text-center pt-2 pb-4 border-b border-blue-500/10">
+                  <div className="text-center pt-2 pb-4 border-b border-[#dbaa61]/10">
                     <h2 className="text-xl sm:text-2xl font-black text-white tracking-wide font-display">
                       Acquisition Protocol
                     </h2>
                   </div>
 
-                  {showOtpScreen ? (
+                  {showInvoice ? (
+                    <div className="space-y-4 animate-fadeIn text-left">
+                      {/* Invoice Container Card */}
+                      <div className="bg-[#030a1c] border border-[#dbaa61]/25 p-5 rounded-2xl space-y-4 shadow-[0_0_20px_rgba(219,170,97,0.05)]">
+                        {/* Center Icon & Heading */}
+                        <div className="flex flex-col items-center justify-center text-center space-y-2 py-2">
+                          <div className="p-3 bg-[#dbaa61]/10 rounded-full text-[#dbaa61] border border-[#dbaa61]/20">
+                            <Receipt className="w-8 h-8" />
+                          </div>
+                          <h3 className="text-lg font-black text-white tracking-wider uppercase font-display">
+                            Acquisition Invoice
+                          </h3>
+                        </div>
+
+                        <div className="border-t border-[#dbaa61]/10 pt-4 space-y-3">
+                          {/* Base Service Value */}
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center space-x-2 text-slate-400 font-bold">
+                              <Tag className="w-3.5 h-3.5 text-[#dbaa61]" />
+                              <span>Base Service Value</span>
+                            </div>
+                            <span className="font-semibold text-slate-200 font-mono">
+                              ৳{Math.round(selectedService === 'REAL' ? (companion.rateReal || companion.rate) : selectedService === 'CAM' ? (companion.rateCam || companion.rate * 0.55) : selectedService === 'MAKE_OUT' ? (companion.rateMakeOut || companion.rate * 0.65) : (companion.rateLiveTogether || companion.rate)).toLocaleString('en-US')} x {getDurationString()}
+                            </span>
+                          </div>
+
+                          {/* Subtotal */}
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center space-x-2 text-slate-400 font-bold">
+                              <FileText className="w-3.5 h-3.5 text-[#dbaa61]" />
+                              <span>Subtotal</span>
+                            </div>
+                            <span className="font-semibold text-slate-200 font-mono">
+                              ৳{companionCost.toLocaleString('en-US')}
+                            </span>
+                          </div>
+
+                          {/* Hotel Venue (if any) */}
+                          {hotelCost > 0 && (
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center space-x-2 text-slate-400 font-bold">
+                                <Home className="w-3.5 h-3.5 text-amber-500" />
+                                <span>Hotel Venue</span>
+                              </div>
+                              <span className="font-semibold text-slate-200 font-mono">
+                                + ৳{hotelCost.toLocaleString('en-US')}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Applied Discount */}
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center space-x-2 text-slate-400 font-bold">
+                              <Percent className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>Applied Discount(s)</span>
+                            </div>
+                            <span className="px-3 py-1 rounded-full bg-[#06241a] border border-emerald-500/25 text-[#10b981] font-bold font-mono text-[10px] tracking-wide">
+                              - ৳{discountAmount.toLocaleString('en-US')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Promo Code Form */}
+                        <div className="border-t border-[#dbaa61]/10 pt-4 space-y-2">
+                          <label className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider font-mono">
+                            Have a Promo Code?
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={promoCodeInput}
+                              onChange={(e) => setPromoCodeInput(e.target.value)}
+                              placeholder="ENTER CODE"
+                              className="flex-1 bg-black/40 border border-[#dbaa61]/20 rounded-xl px-4 py-2.5 text-xs font-bold text-white tracking-widest placeholder:text-slate-600 focus:outline-none focus:border-[#dbaa61]/60 font-mono uppercase"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleApplyPromo}
+                              className="bg-[#dbaa61] text-black font-black text-[10px] tracking-widest px-5 py-2.5 rounded-xl hover:brightness-110 uppercase transition duration-200 shadow-md shadow-[#dbaa61]/20 cursor-pointer shrink-0"
+                            >
+                              APPLY
+                            </button>
+                          </div>
+                          {promoMessage && (
+                            <p className="text-emerald-400 text-[10px] font-bold mt-1 bg-emerald-950/20 p-2 rounded-lg border border-emerald-500/20 leading-relaxed">
+                              {promoMessage}
+                            </p>
+                          )}
+                          {promoError && (
+                            <p className="text-red-400 text-[10px] font-bold mt-1 bg-red-950/20 p-2 rounded-lg border border-red-500/20 leading-relaxed">
+                              {promoError}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Total Payable Block */}
+                        <div className="border-t border-[#dbaa61]/10 pt-4 flex items-center justify-between">
+                          <span className="text-[10px] font-extrabold text-slate-400 tracking-wider uppercase font-mono">
+                            TOTAL PAYABLE
+                          </span>
+                          <span className="text-2xl font-black text-[#10b981] font-mono tracking-tight drop-shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                            ৳{bookingCost.toLocaleString('en-US')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Upgrade Banner / Maximize Your Experience */}
+                      <div className="border border-dashed border-[#dbaa61]/45 bg-[#dbaa61]/5 p-4 rounded-2xl text-left space-y-1.5 shadow-[0_0_15px_rgba(219,170,97,0.03)]">
+                        <div className="flex items-center space-x-1.5 text-[#dbaa61] font-black">
+                          <Crown className="w-4 h-4" />
+                          <span className="text-[10px] uppercase tracking-widest font-display">
+                            Maximize Your Experience
+                          </span>
+                        </div>
+                        <p className="text-[9.5px] text-slate-300 leading-normal font-medium">
+                          {companion.badge === 'DEMO' ? (
+                            "You are attempting to book a Demo profile. Upgrade tier to unlock VIP profiles with up to 50% lifetime discounts."
+                          ) : (
+                            `You are attempting to book a ${companion.badge} VIP profile. Upgrade tier to unlock higher VIP benefits with up to 50% lifetime discounts.`
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Bottom Action Row */}
+                      <div className="flex gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowInvoice(false);
+                            // Clear messages
+                            setPromoMessage('');
+                            setPromoError('');
+                          }}
+                          className="flex-1 bg-transparent border border-[#dbaa61]/25 hover:border-[#dbaa61]/45 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer hover:text-white"
+                        >
+                          <ArrowLeft className="w-3.5 h-3.5 text-[#dbaa61]" />
+                          <span>BACK</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleFormSubmit}
+                          className="flex-1 bg-gradient-to-r from-[#dbaa61] to-[#b38642] hover:from-[#eec480] hover:to-[#dbaa61] text-black font-black uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer shadow-md shadow-[#dbaa61]/20 whitespace-nowrap"
+                        >
+                          <span>AUTHORIZE</span>
+                          <ArrowRight className="w-3.5 h-3.5 text-black font-black" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : showOtpScreen ? (
                     <div className="space-y-4 animate-fadeIn">
-                      <div className="p-4 rounded-xl border border-blue-500/35 bg-blue-900/10 text-center space-y-2">
-                        <span className="text-[10px] text-blue-400 font-extrabold uppercase tracking-widest block font-mono">
-                          MANDATORY TELEGRAM SECURITY VERIFICATION (বাধ্যতামূলক নিরাপত্তা যাচাইকরণ)
+                      <div className="p-4 rounded-xl border border-[#dbaa61]/35 bg-[#dbaa61]/5 text-center space-y-2">
+                        <span className="text-[10px] text-[#dbaa61] font-extrabold uppercase tracking-widest block font-mono">
+                          TELEGRAM SECURITY VERIFICATION
                         </span>
                         <p className="text-xs text-slate-300 leading-normal">
-                          আপনার প্রদানকৃত টেলিগ্রাম <b>{telegramId}</b> নম্বরে / চ্যানেলে সিকিউরিটি OTP কোড পাঠানো হয়েছে। কোডটি নিচে সাবমিট করুন।
+                          A 6-digit security OTP code has been sent to your Telegram number <b>{telegramId}</b>. Please enter the code below to complete verification.
                         </p>
                       </div>
 
@@ -1776,7 +2102,7 @@ export default function BookingModal({
 
                       <div className="space-y-1 text-left">
                         <label className="block text-[10px] text-[#dbaa61] uppercase tracking-wider font-extrabold text-center">
-                          6-Digit Verification Code (৬-সংখ্যার কোড)
+                          6-Digit Verification Code
                         </label>
                         <input
                           type="text"
@@ -1785,7 +2111,7 @@ export default function BookingModal({
                           value={enteredOtp}
                           onChange={(e) => setEnteredOtp(e.target.value.replace(/[^0-9]/g, ''))}
                           placeholder="e.g. 529304"
-                          className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xl rounded-xl py-3 text-center font-bold tracking-[0.2em] font-mono focus:outline-none focus:border-blue-400"
+                          className="w-full bg-[#030a1c] border border-[#dbaa61]/25 text-white text-xl rounded-xl py-3 text-center font-bold tracking-[0.2em] font-mono focus:outline-none focus:border-[#dbaa61]"
                         />
                       </div>
 
@@ -1797,7 +2123,7 @@ export default function BookingModal({
                             setEnteredOtp('');
                             setOtpError('');
                           }}
-                          className="flex-1 bg-transparent border border-blue-500/20 hover:border-blue-500/40 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer"
+                          className="flex-1 bg-transparent border border-[#dbaa61]/20 hover:border-[#dbaa61]/45 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer hover:text-white"
                         >
                           Cancel
                         </button>
@@ -1813,27 +2139,100 @@ export default function BookingModal({
                     </div>
                   ) : (
                     <form onSubmit={handleFormSubmit} className="space-y-4">
-                      {/* Contact Number & Telegram ID Fields */}
+                      {/* Comms Channel Selector and Identity Hash */}
                       <div className="space-y-4">
-                        {/* PHONE NUMBER */}
-                        <div className="space-y-1.5">
-                          <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider text-left">
-                            SECURE PHONE NUMBER *
+                        {/* COMMS CHANNEL */}
+                        <div className="space-y-2 text-left">
+                          <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-widest font-mono">
+                            COMMS CHANNEL
                           </span>
-                          <div className="relative">
-                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none" />
-                            <input
-                              type="text"
-                              required
-                              value={phoneNumber}
-                              onChange={(e) => setPhoneNumber(e.target.value)}
-                              placeholder="e.g. +88017xxxxxxxx"
-                              className="w-full bg-[#030a1c] border border-blue-500/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-blue-400 leading-normal font-semibold font-mono placeholder:text-slate-600"
-                            />
+                          <div className="grid grid-cols-3 gap-3">
+                            {/* PHONE */}
+                            <button
+                              type="button"
+                              onClick={() => setCommsChannel('PHONE')}
+                              className={`py-3.5 rounded-xl border flex flex-col items-center justify-center transition-all duration-200 cursor-pointer ${
+                                commsChannel === 'PHONE'
+                                  ? 'border-[#dbaa61] bg-[#dbaa61]/5 text-white shadow-[0_0_15px_rgba(219,170,97,0.15)]'
+                                  : 'bg-black/40 border-[#dbaa61]/10 text-slate-400 hover:border-[#dbaa61]/25 hover:text-slate-200'
+                              }`}
+                            >
+                              <Phone className="w-5 h-5 mb-1.5 text-[#dbaa61]" />
+                              <span className="text-[10px] font-black tracking-widest font-mono">PHONE</span>
+                            </button>
+
+                            {/* WHATSAPP */}
+                            <button
+                              type="button"
+                              onClick={() => setCommsChannel('WHATSAPP')}
+                              className={`py-3.5 rounded-xl border flex flex-col items-center justify-center transition-all duration-200 cursor-pointer ${
+                                commsChannel === 'WHATSAPP'
+                                  ? 'border-[#dbaa61] bg-[#dbaa61]/5 text-white shadow-[0_0_15px_rgba(219,170,97,0.15)]'
+                                  : 'bg-black/40 border-[#dbaa61]/10 text-slate-400 hover:border-[#dbaa61]/25 hover:text-slate-200'
+                              }`}
+                            >
+                              <svg className="w-5 h-5 mb-1.5 text-[#dbaa61]" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.455 5.703 1.456h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                              </svg>
+                              <span className="text-[10px] font-black tracking-widest font-mono">WHATSAPP</span>
+                            </button>
+
+                            {/* TELEGRAM */}
+                            <button
+                              type="button"
+                              onClick={() => setCommsChannel('TELEGRAM')}
+                              className={`py-3.5 rounded-xl border flex flex-col items-center justify-center transition-all duration-200 cursor-pointer ${
+                                commsChannel === 'TELEGRAM'
+                                  ? 'border-[#dbaa61] bg-[#dbaa61]/5 text-white shadow-[0_0_15px_rgba(219,170,97,0.15)]'
+                                  : 'bg-black/40 border-[#dbaa61]/10 text-slate-400 hover:border-[#dbaa61]/25 hover:text-slate-200'
+                              }`}
+                            >
+                              <svg className="w-5 h-5 mb-1.5 text-[#dbaa61]" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.94-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.37.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
+                              </svg>
+                              <span className="text-[10px] font-black tracking-widest font-mono">TELEGRAM</span>
+                            </button>
                           </div>
                         </div>
 
-
+                        {/* IDENTITY HASH */}
+                        <div className="space-y-1.5 text-left">
+                          <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-widest font-mono">
+                            IDENTITY HASH
+                          </span>
+                          <div className="relative">
+                            {commsChannel === 'PHONE' && <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#dbaa61] pointer-events-none" />}
+                            {commsChannel === 'WHATSAPP' && (
+                              <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#dbaa61] pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.455 5.703 1.456h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                              </svg>
+                            )}
+                            {commsChannel === 'TELEGRAM' && (
+                              <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#dbaa61] pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.94-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.37.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
+                              </svg>
+                            )}
+                            <input
+                              type="text"
+                              required
+                              value={commsChannel === 'PHONE' ? phoneNumber : commsChannel === 'WHATSAPP' ? whatsappNumber : telegramId}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (commsChannel === 'PHONE') setPhoneNumber(val);
+                                else if (commsChannel === 'WHATSAPP') setWhatsappNumber(val);
+                                else setTelegramId(val);
+                              }}
+                              placeholder={
+                                commsChannel === 'PHONE'
+                                  ? 'e.g. +88017xxxxxxxx'
+                                  : commsChannel === 'WHATSAPP'
+                                  ? 'e.g. +88018xxxxxxxx'
+                                  : 'e.g. @username or Phone'
+                              }
+                              className="w-full bg-[#030a1c] border border-[#dbaa61]/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-[#dbaa61] leading-normal font-semibold font-mono placeholder:text-slate-600"
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       {/* Integrated Deficit Payment Box */}
@@ -1842,17 +2241,17 @@ export default function BookingModal({
                           <div className="flex items-center gap-2">
                             <span className="text-amber-400 text-sm">⚠️</span>
                             <span className="text-[10px] text-amber-300 font-extrabold uppercase tracking-wide">
-                              Insufficient funds / বাকি টাকা পরিশোধ
+                              OUTSTANDING BALANCE
                             </span>
                           </div>
                           <p className="text-[9.5px] text-slate-400 leading-normal font-medium text-left">
-                            আপনার ওয়ালেট ব্যালেন্সের বাইরে অবশিষ্ট <strong className="text-emerald-400 font-mono">৳{deficitAmount.toLocaleString('en-US')}</strong> টাকা নিচের গেটওয়ে নম্বরে পাঠিয়ে ট্রানজেকশন আইডি প্রদান করুন।
+                            Your wallet balance is insufficient. Please transfer the remaining amount of <strong className="text-emerald-400 font-mono">৳{deficitAmount.toLocaleString('en-US')}</strong> to the gateway below and enter the Transaction ID.
                           </p>
 
                           {/* Deficit Gateway Picker */}
                           <div className="space-y-1">
                             <span className="block text-[8px] text-slate-455 font-black uppercase tracking-widest text-left">
-                              Select Gateway (গেটওয়ে সিলেক্ট করুন):
+                              SELECT GATEWAY:
                             </span>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[110px] overflow-y-auto pr-1">
                               {displayGateways.map((g) => {
@@ -1909,15 +2308,15 @@ export default function BookingModal({
                           <div className="bg-black/35 p-2.5 rounded-lg border border-white/5 text-[10px] text-[#faf5ea] leading-relaxed text-left font-medium">
                             <div className="flex items-center gap-1 text-amber-450 mb-1">
                               <Info className="w-3.5 h-3.5 shrink-0" />
-                              <span className="font-extrabold uppercase text-[8.5px] tracking-wider">Instructions (পেমেন্ট নিয়মাবলী):</span>
+                              <span className="font-extrabold uppercase text-[8.5px] tracking-wider">Instructions:</span>
                             </div>
-                            <p className="leading-normal">{selectedGateway?.instructions || `দয়া করে এই নম্বরে পেমেন্ট সম্পূর্ণ করুন এবং নিচে ট্রানজেকশন আইডি দিন।`}</p>
+                            <p className="leading-normal">{selectedGateway?.instructions || `Please complete payment to this number and enter the Transaction ID below.`}</p>
                           </div>
 
                           {/* Deficit TrxId Input */}
                           <div className="space-y-1">
                             <label className="block text-[8px] text-amber-400 font-extrabold uppercase tracking-wider text-left">
-                              Remaining Pay Transaction ID (baki TrxID)
+                              Remaining Payment Transaction ID
                             </label>
                             <input
                               type="text"
@@ -1932,7 +2331,7 @@ export default function BookingModal({
                           {/* Remaining pay screenshot upload */}
                           <div className="space-y-1">
                             <label className="block text-[8px] text-amber-400 font-extrabold uppercase tracking-wider text-left flex justify-between">
-                              <span>Remaining Pay Screenshot (ঐচ্ছিক)</span>
+                              <span>Remaining Payment Screenshot (Optional)</span>
                               {deficitScreenshot && <span className="text-emerald-400 font-black">✓ LOADED</span>}
                             </label>
                             
@@ -1994,18 +2393,18 @@ export default function BookingModal({
                         <button
                           type="button"
                           onClick={() => setStep(4)}
-                          className="flex-1 bg-transparent border border-blue-500/20 hover:border-blue-500/40 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap"
+                          className="flex-1 bg-transparent border border-[#dbaa61]/20 hover:border-[#dbaa61]/45 text-slate-300 font-extrabold uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap hover:text-white"
                         >
-                          <ArrowLeft className="w-3.5 h-3.5" />
+                          <ArrowLeft className="w-3.5 h-3.5 text-[#dbaa61]" />
                           <span>Back</span>
                         </button>
                         <button
                           type="submit"
                           disabled={!getActiveContactValue().trim() || (isDeficit && deficitTrxId.trim().length < 8)}
-                          className="flex-1 bg-gradient-to-r from-emerald-600 to-indigo-500 hover:from-emerald-500 hover:to-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer shadow-md shadow-emerald-500/20 whitespace-nowrap"
+                          className="flex-1 bg-gradient-to-r from-[#dbaa61] to-[#b38642] text-black disabled:opacity-40 disabled:cursor-not-allowed font-black uppercase text-[10px] tracking-widest py-3.5 rounded-2xl transition duration-200 flex items-center justify-center space-x-1.5 cursor-pointer shadow-md shadow-[#dbaa61]/20 whitespace-nowrap hover:brightness-110"
                         >
-                          <span>CONFIRM BOOKING</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
+                          <span>PROCEED</span>
+                          <ArrowRight className="w-3.5 h-3.5 text-black font-black" />
                         </button>
                       </div>
                     </form>

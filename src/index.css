@@ -1,9 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;950&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;950&family=Nunito:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'YouTube Sans';
+  src: local('YouTube Sans'), local('YouTube Sans Medium'), local('YouTube Sans Bold'), local('YouTube Sans ExtraBold'), local('YouTubeSans-Medium'), local('YouTubeSans-Bold'), local('YouTubeSans');
+  font-weight: 300 900;
+  font-style: normal;
+}
+
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Playfair Display", Georgia, serif;
+  --font-sans: "Nunito", "YouTube Sans", "Anek Bangla", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Nunito", "YouTube Sans", "Anek Bangla", "Playfair Display", Georgia, serif;
   --font-mono: "Space Grotesk", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -16,7 +23,7 @@ body {
   font-family: var(--font-sans);
   background-color: #01030e !important; /* Deepest Obsidian Space Black */
   background: radial-gradient(circle at 50% 28%, #031343 0%, #01030d 100%) no-repeat fixed !important;
-  color: #ffffff !important;
+  color: #fdfaf2 !important;
 }
 
 /* Redefining background mappings to high-contrast rich deep-blue & clear text */
@@ -27,7 +34,7 @@ body,
 .bg-\[\#02050f\]\/60 {
   background-color: #01030e !important;
   background: radial-gradient(circle at 50% 28%, #031343 0%, #01030d 100%) no-repeat fixed !important;
-  color: #ffffff !important;
+  color: #fdfaf2 !important;
 }
 
 .bg-\[\#030a1c\], 
@@ -49,7 +56,7 @@ body,
   color: #ffffff !important;
 }
 
-/* Ensure maximum readability for details and labels in the main panels with fine slate/blue tints */
+/* Ensure maximum readability for details and labels in the main panels with crisp high-contrast white */
 .text-\[\#c4d1eb\], 
 .text-slate-100,
 .text-slate-200,
@@ -57,20 +64,36 @@ body,
 .text-slate-400,
 .text-slate-500,
 .text-slate-600,
+.text-slate-700,
+.text-zinc-300,
 .text-zinc-400,
+.text-zinc-500,
+.text-gray-300,
+.text-gray-400,
+.text-gray-500,
 .text-blue-100,
 .text-blue-200,
 .text-cyan-100,
-.text-cyan-200 {
-  color: #8ea6d6 !important; /* Elegant light steel blue matching user's screenshot exactly */
+.text-cyan-200,
+p,
+span,
+li,
+label,
+td,
+th {
+  color: #ffffff !important; /* Elegant pure high-contrast white */
 }
 
-/* Ensure headings retain their polished look */
+/* Ensure headings retain their polished look with a premium metallic golden texture */
 h1, h2, h3, h4, h5, h6,
 span.font-heavy, 
 span.font-black, 
 span.font-extrabold {
-  color: #ffffff !important; /* Beautiful pure white display title */
+  background: linear-gradient(135deg, #fff3d1 0%, #e0b46d 35%, #b4853d 70%, #fff3d1 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  color: #e0b46d !important; /* Elegant fallback */
 }
 
 /* Highlight variables mapping */
@@ -308,7 +331,7 @@ input:focus, textarea:focus, select:focus {
 
 #join-modal-container p,
 #join-modal-container .text-slate-400 {
-  color: #a1a1aa !important; /* Modern high-quality silver/grey description subtitles */
+  color: #ffffff !important; /* Modern high-quality crisp white description subtitles */
 }
 
 /* Input Fields styling */
