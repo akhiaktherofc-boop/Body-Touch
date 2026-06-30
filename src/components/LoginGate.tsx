@@ -291,24 +291,54 @@ export default function LoginGate({
     setErrorMsg('');
     setSuccessMsg('');
 
-    const usernameLower = forgotUsername.trim().toLowerCase();
-    if (!usernameLower) {
-      setErrorMsg('দয়া করে আপনার ইউজারনেমটি লিখুন! (Please enter your username.)');
+    const inputVal = forgotUsername.trim();
+    if (!inputVal) {
+      setErrorMsg('দয়া করে আপনার ইউজারনেম, ইমেইল অথবা মোবাইল নম্বরটি লিখুন! (Please enter your username, email, or phone number.)');
       return;
     }
 
     try {
-      setSuccessMsg('ডাটাবেজে ইউজারনেম অনুসন্ধান করা হচ্ছে... (Searching database...)');
+      setSuccessMsg('ডাটাবেজে তথ্য অনুসন্ধান করা হচ্ছে... (Searching database...)');
+      let userData: any = null;
+      let resolvedUsername = '';
+
+      // 1. Try checking as username first
+      const usernameLower = inputVal.toLowerCase();
       const userDocRef = doc(db, 'users', usernameLower);
       const userDocSnap = await getDoc(userDocRef);
 
-      if (!userDocSnap.exists()) {
-        setErrorMsg('এই ইউজারনেমটি দিয়ে কোনো অ্যাকাউন্ট পাওয়া যায়নি! (Username not found.)');
+      if (userDocSnap.exists()) {
+        userData = userDocSnap.data();
+        resolvedUsername = usernameLower;
+      } else {
+        // 2. Try checking as Email
+        const qEmail = query(collection(db, 'users'), where('email', '==', inputVal), limit(1));
+        const qEmailSnap = await getDocs(qEmail);
+        if (!qEmailSnap.empty) {
+          const docDoc = qEmailSnap.docs[0];
+          userData = docDoc.data();
+          resolvedUsername = docDoc.id;
+        } else {
+          // 3. Try checking as Phone number
+          const qPhone = query(collection(db, 'users'), where('phone', '==', inputVal), limit(1));
+          const qPhoneSnap = await getDocs(qPhone);
+          if (!qPhoneSnap.empty) {
+            const docDoc = qPhoneSnap.docs[0];
+            userData = docDoc.data();
+            resolvedUsername = docDoc.id;
+          }
+        }
+      }
+
+      if (!userData) {
+        setErrorMsg('এই তথ্য দিয়ে কোনো অ্যাকাউন্ট পাওয়া যায়নি! (Account not found.)');
         setSuccessMsg('');
         return;
       }
 
-      const userData = userDocSnap.data();
+      // Update forgotUsername state to be the resolved correct lowercase username document ID
+      setForgotUsername(resolvedUsername);
+
       const userEmail = userData?.email || '';
       const userPhone = userData?.phone || 'N/A';
 
@@ -327,7 +357,7 @@ export default function LoginGate({
       // Try sending via Email (with PHP fallback)
       try {
         setSuccessMsg('ইমেইলের মাধ্যমে ভেরিফিকেশন কোড পাঠানো হচ্ছে... (Sending OTP to Email...)');
-        const res = await sendOtpEmailHelper(userEmail, usernameLower, code);
+        const res = await sendOtpEmailHelper(userEmail, resolvedUsername, code);
         if (res.success) {
           sentViaEmail = true;
           if (res.mocked) {
@@ -1188,10 +1218,10 @@ export default function LoginGate({
               <form onSubmit={handleForgotUsernameSubmit} className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1 font-sans">
-                    Enter Registered Username
+                    Enter Username, Email, or Phone Number
                   </label>
                   <p className="text-[10.5px] text-slate-400 leading-normal pl-1 mb-1 font-sans">
-                    Forgot your password? No worries. Please provide your username, and a secure verification OTP code will be sent to your registered email address.
+                    Forgot your password? No worries. Please provide your registered Username, Email, or Phone Number, and a secure verification OTP code will be sent to your email.
                   </p>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
@@ -1202,7 +1232,7 @@ export default function LoginGate({
                       required
                       value={forgotUsername}
                       onChange={(e) => setForgotUsername(e.target.value)}
-                      placeholder="e.g. member007"
+                      placeholder=""
                       style={{ paddingLeft: '2.5rem' }}
                       className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
                     />

@@ -230,6 +230,8 @@ export default function AdminPanel({
   });
 
   const [isResetting, setIsResetting] = useState(false);
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const [resetModalMessage, setResetModalMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [liveTime, setLiveTime] = useState(() => new Date());
 
   useEffect(() => {
@@ -494,22 +496,46 @@ export default function AdminPanel({
   };
 
 
-  const handleClearClientAccounts = async () => {
-    const confirmClear = window.confirm(
-      "⚠️ আপনি কি নিশ্চিত যে আপনি সকল কাস্টমার অ্যাকাউন্ট, বুকিং হিস্ট্রি এবং ট্রানজেকশন ডাটাবেজ থেকে মুছে ফেলতে চান?\n\n" +
-      "এই অপারেশনটি সম্পূর্ণ অপরিবর্তনীয় এবং ডাটাবেজের সকল কাস্টমার অ্যাকাউন্ট, বুকিং হিস্ট্রি এবং পেমেন্ট রেকর্ড স্থায়ীভাবে মুছে যাবে।"
-    );
-    if (!confirmClear) return;
+  const handleClearClientAccounts = () => {
+    setShowConfirmClear(true);
+  };
 
+  const executeClearClientAccounts = async () => {
+    setShowConfirmClear(false);
     try {
       setIsResetting(true);
       await clearCollection('users');
       await clearCollection('bookings');
       await clearCollection('payments');
-      alert("✅ সফলভাবে ডাটাবেজ থেকে পূর্বের সকল কাস্টমার অ্যাকাউন্ট, বুকিং হিস্ট্রি এবং ট্রানজেকশন পেমেন্ট রেকর্ড মুছে ফেলা হয়েছে! এখন আপনি নতুন অ্যাকাউন্ট খুলে ফ্রেশ টেস্ট করতে পারবেন।");
+      await clearCollection('companions');
+      await clearCollection('reviews');
+      await clearCollection('email_logs');
+      await clearCollection('notifications');
+
+      // Clear all emulated DB keys and local cached states from browser storage
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (
+          key.startsWith('bodytouch_db_') || 
+          key.startsWith('bt_') || 
+          key.startsWith('metro_maa_')
+        )) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+
+      setResetModalMessage({
+        type: 'success',
+        text: "✅ সফলভাবে ডাটাবেজ থেকে পূর্বের সকল কাস্টমার অ্যাকাউন্ট (users), বুকিং হিস্ট্রি (bookings), ট্রানজেকশন পেমেন্ট রেকর্ড (payments), কাস্টম রেজিস্টার্ড মডেল (companions), রিভিউজ (reviews), নোটিফিকেশন এবং ইমেইল লগ একদম মুছে ফেলা হয়েছে! অ্যাপটি এখন সম্পূর্ণ নতুন (Fresh Launch) অবস্থায় রয়েছে।"
+      });
     } catch (err: any) {
       console.error(err);
-      alert("❌ ডাটা ক্লিয়ার করতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।");
+      setResetModalMessage({
+        type: 'error',
+        text: "❌ ডাটা ক্লিয়ার করতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।"
+      });
     } finally {
       setIsResetting(false);
     }
@@ -4339,15 +4365,15 @@ Body Touch Premium Network`;
                                           <span className="font-bold text-white select-all">{modelComp.name}</span>
                                         </p>
                                         <p className="flex justify-between">
-                                          <span className="text-slate-500">Phone/WhatsApp:</span>
+                                          <span className="text-slate-500">Phone (WhatsApp):</span>
                                           <span className="font-mono font-bold select-all text-[#ceff00]">
-                                            {modelComp.phone || 'N/A'}
+                                            {modelComp.phone || 'N/A'}{modelComp.whatsapp ? ` (WA: ${modelComp.whatsapp})` : ''}
                                           </span>
                                         </p>
                                         <p className="flex justify-between">
-                                          <span className="text-slate-500">Telegram Link:</span>
+                                          <span className="text-slate-500">Telegram (Email):</span>
                                           <span className="font-mono text-blue-400 select-all font-bold">
-                                            {modelComp.telegram || 'N/A'}
+                                            {modelComp.telegram || 'N/A'}{modelComp.email ? ` | ${modelComp.email}` : ''}
                                           </span>
                                         </p>
                                         <p className="flex justify-between text-[10px] text-slate-400">
@@ -9154,6 +9180,120 @@ Body Touch Premium Network`;
           </div>
         </button>
       </div>
+
+      {/* Custom Confirmation Dialog for Database Reset */}
+      <AnimatePresence>
+        {showConfirmClear && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowConfirmClear(false)}
+              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.9, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 15, opacity: 0 }}
+              className="bg-[#0e0a0a] border border-red-500/30 rounded-3xl p-6 max-w-md w-full relative z-10 shadow-[0_0_50px_rgba(239,68,68,0.15)] space-y-6 animate-in fade-in zoom-in duration-200"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/35 flex items-center justify-center text-red-500 shrink-0">
+                  <ShieldAlert className="w-6 h-6 animate-pulse" />
+                </div>
+                <div className="space-y-2 text-left">
+                  <h3 className="text-base font-black uppercase tracking-wider text-white font-mono">⚠️ SYSTEM RESET CONFIRMATION</h3>
+                  <p className="text-xs text-slate-300 font-semibold leading-relaxed">
+                    আপনি কি নিশ্চিত যে আপনি সকল কাস্টমার অ্যাকাউন্ট, বুকিং হিস্ট্রি এবং ট্রানজেকশন ডাটাবেজ থেকে মুছে ফেলতে চান?
+                  </p>
+                  <p className="text-[11px] text-red-400 font-bold leading-relaxed bg-red-950/20 p-2.5 rounded-lg border border-red-500/10">
+                    এই অপারেশনটি সম্পূর্ণ অপরিবর্তনীয় এবং ডাটাবেজের সকল কাস্টমার অ্যাকাউন্ট, বুকিং হিস্ট্রি এবং পেমেন্ট রেকর্ড স্থায়ীভাবে মুছে যাবে।
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmClear(false)}
+                  className="px-4 py-2.5 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                >
+                  না, ফিরে যান (Cancel)
+                </button>
+                <button
+                  type="button"
+                  onClick={executeClearClientAccounts}
+                  className="px-4 py-2.5 bg-gradient-to-tr from-red-800 to-red-600 hover:brightness-110 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
+                >
+                  হ্যাঁ, ডাটা মুছে ফেলুন
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Alert/Success Dialog */}
+      <AnimatePresence>
+        {resetModalMessage && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setResetModalMessage(null)}
+              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.9, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 15, opacity: 0 }}
+              className={`border rounded-3xl p-6 max-w-md w-full relative z-10 shadow-2xl space-y-6 text-left animate-in fade-in zoom-in duration-200 ${
+                resetModalMessage.type === 'success' 
+                  ? 'bg-[#080d0a] border-emerald-500/30 shadow-emerald-950/25' 
+                  : 'bg-[#0e0a0a] border-rose-500/30 shadow-rose-950/25'
+              }`}
+            >
+              <div className="flex items-start gap-4">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 border ${
+                  resetModalMessage.type === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/35 text-emerald-400'
+                    : 'bg-rose-500/10 border-rose-500/35 text-rose-500'
+                }`}>
+                  {resetModalMessage.type === 'success' ? (
+                    <CheckCircle2 className="w-6 h-6" />
+                  ) : (
+                    <XCircle className="w-6 h-6 animate-bounce" />
+                  )}
+                </div>
+                <div className="space-y-1.5 flex-1">
+                  <h3 className="text-base font-black uppercase tracking-wider text-white font-mono">
+                    {resetModalMessage.type === 'success' ? 'SYSTEM NOTIFICATION' : 'OPERATION FAILED'}
+                  </h3>
+                  <p className="text-xs text-slate-300 font-semibold leading-relaxed">
+                    {resetModalMessage.text}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setResetModalMessage(null)}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer ${
+                    resetModalMessage.type === 'success'
+                      ? 'bg-gradient-to-tr from-emerald-800 to-emerald-600 text-white hover:brightness-110 shadow-lg shadow-emerald-950/20'
+                      : 'bg-gradient-to-tr from-rose-800 to-rose-600 text-white hover:brightness-110 shadow-lg shadow-rose-950/20'
+                  }`}
+                >
+                  ঠিক আছে (OK)
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

@@ -298,145 +298,160 @@ input:focus, textarea:focus, select:focus {
    ========================================== */
 
 #join-modal-container {
-  background-color: #000000 !important; /* Pure space onyx-black */
-  background: #000000 !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.28) !important; /* Sharp, high-contrast, crisp luxury light frame */
-  color: #ffffff !important;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.98), 0 0 35px rgba(255, 255, 255, 0.05) !important;
+  background-color: #030b1e !important; /* Deepest royal navy/blue background */
+  background: radial-gradient(circle at 50% 25%, #07193f 0%, #020714 100%) !important;
+  border: 1.5px solid rgba(224, 180, 109, 0.45) !important; /* Elegant golden border */
+  color: #f3ecdb !important; /* Warm golden-cream text */
+  box-shadow: 0 25px 65px rgba(0, 0, 0, 0.98), 0 0 35px rgba(224, 180, 109, 0.15) !important;
 }
 
-/* Override the gold breathing animation to clean premium mono-white respirator */
+/* Override the gold breathing animation to clean premium golden respirator */
 #join-modal-container.gold-breathing-glow {
-  animation: borderPulseMono 4s infinite ease-in-out !important;
+  animation: borderPulseGold 3.5s infinite ease-in-out !important;
 }
 
-@keyframes borderPulseMono {
-  0%, 100% { 
-    border-color: rgba(255, 255, 255, 0.18) !important; 
-    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.98), 0 0 15px rgba(255, 255, 255, 0.02) !important; 
-  }
-  50% { 
-    border-color: rgba(255, 255, 255, 0.85) !important; 
-    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.98), 0 0 35px rgba(255, 255, 255, 0.18) !important; 
-  }
+/* Pure Golden Textures Override */
+#join-modal-container label {
+  color: #e0b46d !important; /* Brilliant warm gold for form labels */
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7) !important;
 }
 
-/* Pure Black & White Label Override */
-#join-modal-container label,
 #join-modal-container .text-\[\#dbaa61\],
 #join-modal-container h2 {
-  color: #ffffff !important; /* High contrast crisp white labels and headers */
-  font-weight: 700 !important;
+  background: linear-gradient(135deg, #fff3d1 0%, #e0b46d 35%, #b4853d 70%, #fff3d1 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  color: #e0b46d !important;
+  font-weight: 900 !important;
 }
 
 #join-modal-container p,
+#join-modal-container .text-slate-100,
+#join-modal-container .text-slate-200,
 #join-modal-container .text-slate-400 {
-  color: #ffffff !important; /* Modern high-quality crisp white description subtitles */
+  color: #f3ecdb !important; /* High contrast cream text instead of generic white */
 }
 
-/* Input Fields styling */
+/* Input Fields styling with golden-blue textured frames */
 #join-modal-container input[type="text"],
 #join-modal-container input[type="number"],
+#join-modal-container input[type="tel"],
+#join-modal-container input[type="email"],
 #join-modal-container select,
 #join-modal-container textarea {
-  background-color: #030303 !important; /* Deep black recessed input spaces */
-  background: #030303 !important;
-  color: #ffffff !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.22) !important; /* Sharp gray/white division */
+  background-color: #020614 !important; /* Deep space-blue recessed inputs */
+  background: linear-gradient(135deg, #020614 0%, #010207 100%) !important;
+  color: #fffaf0 !important;
+  border: 1.5px solid rgba(224, 180, 109, 0.35) !important; /* Golden borders */
   border-radius: 12px !important;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.9) !important;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.85), 0 0 5px rgba(224, 180, 109, 0.08) !important;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 #join-modal-container select option {
-  background-color: #030303 !important;
-  color: #ffffff !important;
+  background-color: #020614 !important;
+  color: #fffaf0 !important;
 }
 
 #join-modal-container input[type="text"]:focus,
 #join-modal-container input[type="number"]:focus,
+#join-modal-container input[type="tel"]:focus,
+#join-modal-container input[type="email"]:focus,
 #join-modal-container select:focus,
 #join-modal-container textarea:focus {
-  border-color: #ffffff !important; /* Strong high-contrast solid white focus line */
-  background-color: #0a0a0a !important; /* Fine feedback lighting */
-  box-shadow: 0 0 16px rgba(255, 255, 255, 0.22), inset 0 2px 4px rgba(0, 0, 0, 0.9) !important;
+  border-color: #f4cf8d !important; /* Shimmering gold focus line */
+  background-color: #040b24 !important;
+  background: linear-gradient(135deg, #040b24 0%, #01040f 100%) !important;
+  box-shadow: 0 0 18px rgba(224, 180, 109, 0.35), inset 0 2px 6px rgba(0, 0, 0, 0.85) !important;
   outline: none !important;
 }
 
-/* Beautiful custom placeholder in pure grayscale style */
+/* Beautiful custom placeholder in warm gold tint */
 #join-modal-container input::placeholder,
 #join-modal-container textarea::placeholder {
-  color: #52525b !important; /* Perfect mid-gray placeholder */
+  color: #8c7e65 !important; /* Soft warm gold-gray placeholder */
 }
 
-/* Clean up internal divisions and lines to match monochrome */
+/* Clean up internal divisions and lines to use gold outlines */
 #join-modal-container .border-b,
 #join-modal-container .border-t,
 #join-modal-container .border-\[\#ac843c\]\/15,
-#join-modal-container .border-\[\#ac843c\]\/10 {
-  border-color: rgba(255, 255, 255, 0.12) !important;
+#join-modal-container .border-\[\#ac843c\]\/10,
+#join-modal-container .border-\[\#ac843c\]\/25,
+#join-modal-container .border-\[\#ac843c\]\/30 {
+  border-color: rgba(224, 180, 109, 0.22) !important;
 }
 
-/* Grayscale slots/dropzones for photo uploaders */
+/* Golden slots/dropzones for photo uploaders */
 #join-modal-container .border-dashed {
-  border-color: rgba(255, 255, 255, 0.24) !important;
-  background-color: #020202 !important;
+  border-color: rgba(224, 180, 109, 0.35) !important;
+  background-color: rgba(2, 7, 24, 0.6) !important;
   transition: all 0.2s ease !important;
 }
 #join-modal-container .border-dashed:hover {
-  border-color: #ffffff !important;
-  background-color: #0b0b0c !important;
+  border-color: #f4cf8d !important;
+  background-color: rgba(4, 11, 36, 0.8) !important;
+  box-shadow: 0 0 15px rgba(224, 180, 109, 0.2) !important;
 }
 #join-modal-container .border-dashed span,
 #join-modal-container .border-dashed div,
 #join-modal-container .border-dashed p {
-  color: #d4d4d8 !important;
+  color: #f3ecdb !important;
 }
 
-/* Security assurance card converted to premium monochrome slate border */
+/* Security assurance card converted to premium deep blue & gold border */
+#join-modal-container .bg-\[\#ac843c\]\/15 {
+  background-color: rgba(172, 132, 60, 0.12) !important;
+  border: 1.5px solid rgba(224, 180, 109, 0.35) !important;
+}
+
 #join-modal-container .bg-\[\#0c0d12\] {
-  background-color: #070708 !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background-color: rgba(3, 11, 30, 0.85) !important;
+  border: 1.5px solid rgba(224, 180, 109, 0.35) !important;
 }
 
 #join-modal-container .bg-\[\#060608\] {
-  background-color: #030303 !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: rgba(2, 6, 18, 0.9) !important;
+  border-color: rgba(224, 180, 109, 0.3) !important;
 }
 
-/* Ensure helper icons are clear monochrome whites/grays instead of gold */
+/* Ensure helper icons are brilliant gold instead of white */
 #join-modal-container svg,
 #join-modal-container button svg {
-  color: #ffffff !important;
+  color: #e0b46d !important;
 }
 
 /* Close action circular button black-and-white custom look */
 #join-modal-container button .text-slate-400 {
-  color: #a1a1aa !important;
+  color: #e0b46d !important;
 }
 #join-modal-container button:hover svg {
-  color: #000000 !important;
+  color: #ffffff !important;
 }
 
-/* Overriding Submit Button to high contrast Solid White Background with black bold text */
+/* Overriding Submit Button to elegant, glowing, shimmering gold button */
 #join-modal-container button[type="submit"] {
-  background: #ffffff !important; /* Elegant white button */
-  background-image: none !important;
-  color: #000000 !important; /* Deepest black text */
-  box-shadow: 0 10px 25px rgba(255, 255, 255, 0.15) !important;
-  border: 1px solid #ffffff !important;
+  background: linear-gradient(135deg, #fff3d1 0%, #e0b46d 50%, #b4853d 100%) !important;
+  background-image: linear-gradient(135deg, #fff3d1 0%, #e0b46d 50%, #b4853d 100%) !important;
+  color: #030b1e !important; /* Elegant dark blue text */
+  box-shadow: 0 10px 30px rgba(224, 180, 109, 0.35) !important;
+  border: 1.5px solid #fff3d1 !important;
   font-weight: 950 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 #join-modal-container button[type="submit"] svg {
-  color: #000000 !important; /* Pure black icon matching the text */
+  color: #030b1e !important; /* Pure dark blue icon matching the text */
 }
 
 #join-modal-container button[type="submit"]:hover {
-  background: #e4e4e7 !important; /* Premium silver hover */
-  border-color: #e4e4e7 !important;
-  box-shadow: 0 12px 30px rgba(255, 255, 255, 0.28) !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f4cf8d 50%, #c5974c 100%) !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 12px 35px rgba(224, 180, 109, 0.5) !important;
   transform: translateY(-1.5px);
 }
 
@@ -446,8 +461,8 @@ input:focus, textarea:focus, select:focus {
 
 /* Success icon container conversion */
 #join-modal-container .mx-auto.w-16.h-16 {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border-color: #ffffff !important;
+  background-color: rgba(224, 180, 109, 0.15) !important;
+  border-color: #e0b46d !important;
 }
 
 /* Custom smooth marquee animation */

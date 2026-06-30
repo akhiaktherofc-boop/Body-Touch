@@ -2943,6 +2943,14 @@ https://service.bodytouch.com
   if (!isLoggedIn) {
     return (
       <div className="text-[#c4d1eb] min-h-screen flex flex-col justify-between selection:bg-rose-500 selection:text-white bg-[#020714]">
+        {/* Dynamic Toast alerts */}
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.isVisible}
+          onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
+        />
+
         <LoginGate 
           onLoginSuccess={handleLoginSuccess} 
           telegramBotToken={telegramBotToken}
@@ -2952,6 +2960,89 @@ https://service.bodytouch.com
           telegramBotSelection={telegramBotSelection}
           emergencyNotice={emergencyNotice}
         />
+
+        {isJoinModalOpen && (
+          <JoinModal
+            isOpen={isJoinModalOpen}
+            onClose={() => setIsJoinModalOpen(false)}
+            initialType={joinModalType}
+            cities={cities}
+            structuredCities={structuredCities}
+            telegramHelpline={telegramHelpline}
+            registrationFee={pricingConfig.registrationFee}
+            onAddCompanion={(newComp) => {
+              setCompanions((prev) => {
+                const exists = prev.some((c) => c.id === newComp.id);
+                if (exists) {
+                  return prev.map((c) => (c.id === newComp.id ? newComp : c));
+                }
+                return [newComp, ...prev];
+              });
+
+              const isInitial = !newComp.specialty.includes('💳 [REGISTRATION FEE PAID]');
+              if (isInitial) {
+                triggerToast('🎉 Career application submitted! Pending verification.', 'success');
+
+                // Send Telegram Notification to Admin Group Chat ID
+                const regText = `🔔 <b>নতুন মডেল রেজিস্ট্রেশন আবেদন!</b>\n\n` +
+                  `👤 নাম: <b>${newComp.name}</b>\n` +
+                  `🧬 ক্যাটাগরি: <b>${newComp.category || 'Female Model'}</b>\n` +
+                  `📍 শহর: <b>${newComp.city || 'Dhaka'}</b>\n` +
+                  `📞 ফোন নাম্বার: <code>${newComp.phone || 'N/A'}</code>\n` +
+                  `✈️ টেলিগ্রাম হ্যান্ডেল: <b>${newComp.telegram ? '@' + newComp.telegram.replace('@', '') : 'Not Provided'}</b>\n` +
+                  `📐 বয়স: ${newComp.age} বছর | উচ্চতা: ${newComp.height}\n` +
+                  `💰 ডিমান্ড রেট: ৳${newComp.rate}/ঘন্টা\n\n` +
+                  `<i>অনুমোদনের জন্য ড্যাশবোর্ড পোর্টালে লগইন করুন।</i>`;
+                sendTelegramNotification(regText);
+              } else {
+                triggerToast('💳 Registration fee payment submitted! Proof sent to admin.', 'success');
+
+                // Record joining metrics for dynamic registration links
+                const sourceLink = sessionStorage.getItem('bt_registration_source');
+                if (sourceLink) {
+                  const storedStats = localStorage.getItem('bt_shortlink_stats');
+                  let stats = {
+                    'join-female-1': { clicks: 0, joins: 0 },
+                    'join-female-2': { clicks: 0, joins: 0 },
+                    'join-male-1': { clicks: 0, joins: 0 },
+                    'join-male-2': { clicks: 0, joins: 0 },
+                    'join-sparm-1': { clicks: 0, joins: 0 },
+                    'join-sparm-2': { clicks: 0, joins: 0 },
+                  };
+                  if (storedStats) {
+                    try {
+                      stats = { ...stats, ...JSON.parse(storedStats) };
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }
+                  if (stats[sourceLink]) {
+                    stats[sourceLink].joins += 1;
+                  }
+                  localStorage.setItem('bt_shortlink_stats', JSON.stringify(stats));
+                  setShortLinkStats(stats);
+                  window.dispatchEvent(new Event('storage'));
+                  sessionStorage.removeItem('bt_registration_source');
+                }
+
+                // Extract payment details
+                const payDetails = newComp.specialty.includes('💳 [REGISTRATION FEE PAID]\n') 
+                  ? newComp.specialty.split('💳 [REGISTRATION FEE PAID]\n')[1] 
+                  : 'Proof submitted';
+
+                // Send Telegram Notification to Admin Group Chat ID
+                const payText = `💳 <b>মডেল রেজিস্ট্রেশন পেমেন্ট সফলভাবে জমা দেওয়া হয়েছে!</b>\n\n` +
+                  `👤 মডেল নাম: <b>${newComp.name}</b>\n` +
+                  `🧬 ক্যাটাগরি: <b>${newComp.category || 'Female Model'}</b>\n` +
+                  `📞 ফোন নাম্বার: <code>${newComp.phone || 'N/A'}</code>\n` +
+                  `✈️ টেলিগ্রাম হ্যান্ডেল: <b>${newComp.telegram ? '@' + newComp.telegram.replace('@', '') : 'Not Provided'}</b>\n\n` +
+                  `💳 <b>পেমেন্ট বিবরণ:</b>\n<code>${payDetails}</code>\n\n` +
+                  `<i>দয়া করে ট্রানজেক্শন আইডি ভেরিফাই করে মডেলটি এপ্রুভ করুন।</i>`;
+                sendTelegramNotification(payText);
+              }
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -5453,26 +5544,40 @@ https://service.bodytouch.com
           >
             <button
               onClick={() => setIsChatOpen(true)}
-              className="relative flex flex-col items-center justify-center w-9 h-9 sm:w-12 sm:h-12 rounded-[12px] sm:rounded-[16px] bg-gradient-to-tr from-[#a67c33] via-[#dbaa61] to-[#f1d087] border-2 border-black/10 hover:scale-110 hover:rotate-2 active:scale-95 transition-all duration-300 cursor-pointer group shadow-[0_4px_16px_rgba(219,170,97,0.35)] sm:shadow-[0_4px_20px_rgba(219,170,97,0.35)]"
+              className="relative flex flex-col items-center justify-center w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-[#1e40af] via-[#3b82f6] to-[#60a5fa] border border-blue-400/20 hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer group shadow-[0_4px_16px_rgba(37,99,235,0.4)] sm:shadow-[0_4px_20px_rgba(37,99,235,0.45)]"
               aria-label="Live Chat"
             >
               {/* Pulsing Outer Rings */}
-              <span className="absolute inset-0 rounded-[12px] sm:rounded-[16px] bg-[#dbaa61]/25 animate-ping opacity-75 pointer-events-none" />
+              <span className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping opacity-75 pointer-events-none" />
 
-              {/* Exact winking smiley from image but smaller */}
-              <svg viewBox="0 0 100 100" className="w-5 h-5 sm:w-6.5 sm:h-6.5 select-none pointer-events-none transition-transform duration-300 group-hover:scale-110">
-                {/* Left eye */}
-                <circle cx="34" cy="36" r="7.5" fill="black" />
-                {/* Right eye (wink) */}
-                <rect x="52" y="32" width="18" height="6.5" rx="2" transform="rotate(-3 61 35)" fill="black" />
-                {/* Mouth loop tongue lick */}
+              {/* Overlapping black chat speech bubbles with custom mask gap as requested */}
+              <svg viewBox="0 0 100 100" className="w-5.5 h-5.5 sm:w-7.5 sm:h-7.5 select-none pointer-events-none transition-transform duration-300 group-hover:scale-110">
+                <defs>
+                  <mask id="chat-bubble-mask">
+                    {/* Everything white is kept */}
+                    <rect width="100" height="100" fill="white" />
+                    {/* Black area is removed (the left bubble + stroke gap) */}
+                    <path 
+                      d="M 41 28 C 52.5 28 62 35.5 62 45 C 62 51.5 56.5 57 49 59.5 L 47 66 L 41.5 62 C 41 62.1 40.5 62.1 40 62.1 C 28.5 62.1 19 54.5 19 45 C 19 35.5 28.5 28 40 28 Z" 
+                      fill="black" 
+                      stroke="black" 
+                      strokeWidth="6" 
+                      strokeLinejoin="round" 
+                    />
+                  </mask>
+                </defs>
+                
+                {/* Right Bubble (behind) masked */}
                 <path 
-                  d="M 33 52 C 40 64, 53 64, 58 54 C 61 50, 63 43, 59 42 C 55 41, 53 48, 54 53 C 55 58, 59 58, 61 53" 
-                  stroke="black" 
-                  strokeWidth="6" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                  fill="none"
+                  d="M 59 40 C 68.5 40 76 46.5 76 54.5 C 76 60 72.5 65 67 67.5 L 68.5 74 L 62.5 70.5 C 62 70.6 61.5 70.6 61 70.6 C 49.5 70.6 42 64 42 54.5 C 42 46.5 49.5 40 59 40 Z" 
+                  fill="black" 
+                  mask="url(#chat-bubble-mask)" 
+                />
+                
+                {/* Left Bubble (front) */}
+                <path 
+                  d="M 41 28 C 52.5 28 62 35.5 62 45 C 62 51.5 56.5 57 49 59.5 L 47 66 L 41.5 62 C 41 62.1 40.5 62.1 40 62.1 C 28.5 62.1 19 54.5 19 45 C 19 35.5 28.5 28 40 28 Z" 
+                  fill="black" 
                 />
               </svg>
 

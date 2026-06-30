@@ -31,6 +31,7 @@ export interface Companion {
   nidBack?: string;
   selfie?: string;
   telegram?: string;
+  whatsapp?: string;
 }
 
 export interface HotelLocation {
