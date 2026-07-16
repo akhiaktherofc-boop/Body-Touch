@@ -493,5 +493,58 @@ input:focus, textarea:focus, select:focus {
   animation: borderPulseGold 3.5s infinite ease-in-out !important;
 }
 
+/* ==========================================================
+   120 FPS MOBILE HARDWARE-ACCELERATION & SCREENSHOT DETERRENTS
+   ========================================================== */
+
+/* Allow text selection as requested, but keep general elements safe */
+body, html, #root {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: none !important; /* Prevents save image sheet on iOS */
+}
+
+/* Keep images fully protected from dragging and long-press saving */
+img {
+  -webkit-user-drag: none !important;
+  user-drag: none !important;
+  pointer-events: none !important;
+}
+
+/* 120 FPS Booster - Enforce hardware rendering pipelines on browsers */
+.gpu-boost,
+button,
+a,
+input,
+select,
+textarea,
+form,
+svg,
+img,
+li,
+.framer-motion-element {
+  -webkit-transform: translate3d(0, 0, 0) !important;
+  transform: translate3d(0, 0, 0) !important;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  perspective: 1000px !important;
+  -webkit-perspective: 1000px !important;
+}
+
+/* Optimizing scroll performance & touch behaviors for up to 120Hz scrolling */
+html {
+  scroll-behavior: smooth !important;
+  overscroll-behavior-y: none !important; /* Elegant overscroll prevention */
+}
+
+/* Secure Blurred Overlay when screenshot/recording is active, or tab loses focus */
+.screenshot-shield-blur {
+  filter: blur(40px) brightness(0.15) !important;
+  pointer-events: none !important;
+  transition: filter 0.15s cubic-bezier(0.1, 0.9, 0.2, 1) !important;
+}
+
 
 

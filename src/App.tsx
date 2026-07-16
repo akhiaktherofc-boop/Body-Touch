@@ -142,6 +142,15 @@ export default function App() {
            path.includes('agent');
   });
 
+  const [isAdminOpen, setIsAdminOpen] = useState(() => {
+    const hash = window.location.hash.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    const path = window.location.pathname.toLowerCase();
+    return hash.includes('turmarheda') ||
+           search.includes('turmarheda') ||
+           path.includes('turmarheda');
+  });
+
   const [username, setUsername] = useState<string>(() => {
     return getStoredItem('bt_username');
   });
@@ -270,6 +279,7 @@ export default function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 640 : false);
   const [showAllActivity, setShowAllActivity] = useState(false);
+  const [isScreenProtected, setIsScreenProtected] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -278,6 +288,151 @@ export default function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // 120 FPS Mobile Performance Booster & Screenshot/Screen-Record Deterrence Engine
+  useEffect(() => {
+    // Determine if the user is in an excluded role (Admin, Model, or Agent)
+    const isExcluded = isAdminOpen || isModelPortalOpen || isAgentOpen;
+
+    if (isExcluded) {
+      // Deactivate shield immediately if user enters an excluded role
+      setIsScreenProtected(false);
+    }
+
+    // 1. FPS lock loop: keeping browser rendering thread hot and prioritized at 120Hz
+    let animFrameId: number;
+    const forceMaxFPS = () => {
+      animFrameId = requestAnimationFrame(forceMaxFPS);
+    };
+    animFrameId = requestAnimationFrame(forceMaxFPS);
+
+    // 2. Tab Visibility and Focus loss listeners to block background screenshots and multitasking preview snaps
+    const handleFocusLoss = () => {
+      if (isExcluded) return;
+      setIsScreenProtected(true);
+    };
+
+    const handleFocusGain = () => {
+      if (isExcluded) {
+        setIsScreenProtected(false);
+        return;
+      }
+      // Small timeout to let user focus back safely without abrupt flickering
+      setTimeout(() => {
+        setIsScreenProtected(false);
+      }, 500);
+    };
+
+    const handleVisibilityChange = () => {
+      if (isExcluded) {
+        setIsScreenProtected(false);
+        return;
+      }
+      if (document.hidden) {
+        setIsScreenProtected(true);
+      } else {
+        setTimeout(() => {
+          setIsScreenProtected(false);
+        }, 500);
+      }
+    };
+
+    window.addEventListener('blur', handleFocusLoss);
+    window.addEventListener('focus', handleFocusGain);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 3. Block keyboard shortcuts for screenshots, print, save, developer tools, etc.
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isExcluded) return;
+
+      // PrintScreen Key
+      if (e.key === 'PrintScreen' || e.keyCode === 44) {
+        e.preventDefault();
+        setIsScreenProtected(true);
+        triggerToast('⚠️ স্ক্রিনশট অবরুদ্ধ! Screenshots are restricted for privacy safety.', 'error');
+        setTimeout(() => setIsScreenProtected(false), 3000);
+        return false;
+      }
+
+      // Ctrl + P or Cmd + P (Print)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        triggerToast('⚠️ প্রিন্ট করা অবরুদ্ধ! Printing page is disabled.', 'error');
+        return false;
+      }
+
+      // Ctrl + S or Cmd + S (Save Page)
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        triggerToast('⚠️ পেজ সেভ করা অবরুদ্ধ! Saving content is disabled.', 'error');
+        return false;
+      }
+
+      // Cmd + Shift + 3 or 4 or 5 (macOS Screenshots)
+      if ((e.metaKey && e.shiftKey) && (e.key === '3' || e.key === '4' || e.key === '5')) {
+        e.preventDefault();
+        setIsScreenProtected(true);
+        triggerToast('⚠️ স্ক্রিনশট অবরুদ্ধ! macOS shortcuts are restricted.', 'error');
+        setTimeout(() => setIsScreenProtected(false), 3000);
+        return false;
+      }
+
+      // Ctrl + Shift + I or Cmd + Option + I (DevTools)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'i') {
+        triggerToast('🛡️ Security Protocol Active.', 'success');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+
+    // 4. Block context menu specifically on images/banners/photos to prevent download, but allow text copy
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target) return;
+
+      const isImageElement = 
+        target.tagName === 'IMG' || 
+        target.closest('img') !== null ||
+        target.classList.contains('companion-card-image') ||
+        target.closest('.companion-card-image') !== null ||
+        target.classList.contains('banner') ||
+        target.closest('.banner') !== null ||
+        target.classList.contains('avatar') ||
+        target.closest('.avatar') !== null ||
+        (target.style && target.style.backgroundImage) ||
+        (target.getAttribute('style') && target.getAttribute('style')?.includes('background-image'));
+
+      if (isImageElement) {
+        e.preventDefault();
+        triggerToast('🔒 সিকিউরিটি প্রোটোকল: ছবি ডাউনলোড বা সেভ করা অবরুদ্ধ।', 'error');
+        return false;
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+
+    // 5. Block image dragging to prevent downloading by dragging to desktop or another tab
+    const handleDragStart = (e: DragEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'IMG' || target.closest('img') || target.classList.contains('companion-card-image') || target.closest('.companion-card-image'))) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    document.addEventListener('dragstart', handleDragStart, true);
+
+    // Clean up event listeners on unmount
+    return () => {
+      cancelAnimationFrame(animFrameId);
+      window.removeEventListener('blur', handleFocusLoss);
+      window.removeEventListener('focus', handleFocusGain);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('keydown', handleKeyDown, true);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('dragstart', handleDragStart, true);
+    };
+  }, [isAdminOpen, isModelPortalOpen, isAgentOpen]);
 
   useEffect(() => {
     if (isChatOpen && isMobile) {
@@ -811,14 +966,6 @@ export default function App() {
 
     setSelectedReserveHotel(null);
   };
-  const [isAdminOpen, setIsAdminOpen] = useState(() => {
-    const hash = window.location.hash.toLowerCase();
-    const search = window.location.search.toLowerCase();
-    const path = window.location.pathname.toLowerCase();
-    return hash.includes('turmarheda') ||
-           search.includes('turmarheda') ||
-           path.includes('turmarheda');
-  });
 
   useEffect(() => {
     const handleLocationCheck = () => {
@@ -3459,7 +3606,8 @@ https://service.bodytouch.com
   }
 
   return (
-    <div className="text-[#c4d1eb] min-h-screen flex flex-col justify-between selection:bg-blue-500 selection:text-white bg-[#020714] pb-24 overflow-x-hidden w-full max-w-full">
+    <>
+      <div className={`text-[#c4d1eb] min-h-screen flex flex-col justify-between selection:bg-blue-500 selection:text-white bg-[#020714] pb-24 overflow-x-hidden w-full max-w-full transition-all duration-300 ${isScreenProtected ? 'screenshot-shield-blur' : ''}`}>
 
 
       {/* Dynamic Toast alerts */}
@@ -6101,5 +6249,31 @@ https://service.bodytouch.com
       </AnimatePresence>
 
     </div>
-  );
+
+    {isScreenProtected && !(isAdminOpen || isModelPortalOpen || isAgentOpen) && (
+      <div className="fixed inset-0 z-[9999999] bg-[#000000]/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center select-none pointer-events-auto">
+        <div className="max-w-md bg-[#020716] border-2 border-red-500/40 rounded-3xl p-8 shadow-2xl shadow-red-500/10 animate-pulse">
+          <div className="w-16 h-16 bg-red-500/15 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/30">
+            {/* Shield Alert Icon */}
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0-6V9m0-6H6a2 2 0 00-2 2v6a7 7 0 007 7h2a7 7 0 007-7V5a2 2 0 00-2-2h-6z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-black text-white tracking-wide mb-3">
+            🔒 SECURITY SHIELD ACTIVE
+          </h2>
+          <p className="text-amber-400 font-bold text-sm mb-4">
+            SCREENSHOTS & RECORDINGS RESTRICTED
+          </p>
+          <p className="text-slate-200 text-xs leading-relaxed font-semibold mb-6">
+            আপনার গোপনীয়তা এবং তথ্যের সুরক্ষার জন্য স্ক্রিনশট, স্ক্রিন রেকর্ডিং অথবা ব্রাউজার পরিবর্তন করা সাময়িকভাবে অবরুদ্ধ করা হয়েছে। অনুগ্রহ করে স্বাভাবিক ব্রাউজিংয়ে ফিরে যান।
+          </p>
+          <div className="text-[10px] text-slate-500 font-mono">
+            SECURITY STATE: SHIELDED • 120 FPS ENGINE ONLINE
+          </div>
+        </div>
+      </div>
+    )}
+  </>
+);
 }

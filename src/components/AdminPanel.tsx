@@ -2827,6 +2827,25 @@ export default function AdminPanel({
     );
   }
 
+  const adminTabsList = [
+    { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'clients' as const, label: 'Deposits', icon: Users, badgeCount: pendingPaymentsList.length },
+    { id: 'memberships' as const, label: 'VIP Upgrades', icon: Layers, badgeCount: pendingMembershipsList.length },
+    { id: 'partners' as const, label: 'Catalog', icon: Briefcase },
+    { id: 'verification' as const, label: 'Applicants', icon: UserCheck, badgeCount: pendingApplicantsList.length },
+    { id: 'orders' as const, label: 'Bookings', icon: Clock, badgeCount: pendingBookingsList.length },
+    { id: 'hotels' as const, label: 'Hotels', icon: Hotel },
+    { id: 'cities' as const, label: 'Cities', icon: Globe },
+    { id: 'gateways' as const, label: 'Gateways', icon: CreditCard },
+    { id: 'admins' as const, label: 'Admins', icon: Users },
+    { id: 'smtp' as const, label: 'Settings & TG', icon: Bot },
+    { id: 'shortlinks' as const, label: 'Short Links', icon: Link2 },
+    { id: 'referrals' as const, label: 'Referrals', icon: Award },
+    { id: 'promocodes' as const, label: 'Promo Codes', icon: Tag },
+    { id: 'livechat' as const, label: 'Support Chat', icon: MessageSquare },
+    { id: 'model_ledger' as const, label: 'Model Ledger', icon: TrendingUp },
+  ];
+
   return (
     <div className="w-full min-h-screen bg-[#07080c] font-sans flex flex-col text-slate-100 animate-in fade-in duration-300 relative">
       
@@ -2918,6 +2937,36 @@ export default function AdminPanel({
         {/* RIGHT DISPLAY PANEL - Takes full width on mobile/tablet, and lg:col-span-9/xl:col-span-9.5 on PC */}
         <div className="col-span-full lg:col-span-9 xl:col-span-9.5 p-4 sm:p-8 lg:p-10 space-y-8 bg-[#07080c] min-h-screen overflow-y-auto">
           
+          {/* Horizontal Mobile Tabs Scroll Bar */}
+          <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-4 scrollbar-none border-b border-[#161a24] select-none">
+            {adminTabsList.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black tracking-wider uppercase whitespace-nowrap shrink-0 border transition-all active:scale-95 duration-200 cursor-pointer ${
+                    isActive
+                      ? 'bg-amber-500/10 border-amber-500/35 text-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.12)]'
+                      : 'bg-[#0f1118]/60 border-slate-800/40 text-slate-400 hover:text-white hover:border-slate-700/60'
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
+                  <span>{tab.label}</span>
+                  {tab.badgeCount !== undefined && tab.badgeCount > 0 && (
+                    <span className="bg-red-650 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full leading-none animate-pulse">
+                      {tab.badgeCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
           {/* Active section header mapping */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1c2333] pb-5">
             <div className="text-left">
@@ -4958,7 +5007,7 @@ export default function AdminPanel({
                 </p>
 
                 {/* Sub-tabs to separate orders according to tier */}
-                <div className="grid grid-cols-4 gap-2 p-1.5 bg-slate-950/75 border border-[#161a24] rounded-2xl">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-1.5 bg-slate-950/75 border border-[#161a24] rounded-2xl">
                   {([
                     { value: 'ALL', en: 'All Orders', bn: 'সকল অর্ডার', count: bookings.length },
                     { value: 'REGULAR', en: 'Regular', bn: 'রেগুলার', count: regularOrdersCount },
