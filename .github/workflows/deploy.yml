@@ -36,6 +36,7 @@ jobs:
 
       - name: Sanitize FTP Credentials
         id: prep
+        if: ${{ secrets.FTP_SERVER != '' && secrets.FTP_USERNAME != '' && secrets.FTP_PASSWORD != '' }}
         uses: actions/github-script@v7
         with:
           script: |
@@ -45,13 +46,6 @@ jobs:
             
             console.log(`Raw server input length: ${server.length}`);
             console.log(`Raw username input length: ${username.length}`);
-            
-            // Validate presence of required secrets
-            if (!server || !username || !password) {
-              console.log("⚠️ FTP Secrets are not configured. Skipping FTP Deployment step gracefully.");
-              core.setOutput('skip', 'true');
-              return;
-            }
             
             // Clean server address:
             // 1. Trim leading and trailing spaces
@@ -70,14 +64,13 @@ jobs:
             console.log(`Sanitized username length: ${username.length}`);
             
             core.setOutput('server', server);
-            core.setOutput('skip', 'false');
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
 
       - name: Sync Files to Hostinger FTP (Robust Mode)
-        if: steps.prep.outputs.skip != 'true'
+        if: ${{ secrets.FTP_SERVER != '' && secrets.FTP_USERNAME != '' && secrets.FTP_PASSWORD != '' && steps.prep.outcome == 'success' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ steps.prep.outputs.server }}
