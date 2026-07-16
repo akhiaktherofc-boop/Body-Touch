@@ -1,5 +1,5 @@
 # Deployment workflow for Hostinger
-name: Deploy React App to Hostinger via FTP
+name: Build Verification
 
 on:
   push:
@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
-    name: Build & Upload via FTP
+  build-and-verify:
+    name: Build & Verify Project
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -34,54 +34,4 @@ jobs:
       - name: Copy .htaccess to dist
         run: cp .htaccess dist/ || true
 
-      - name: Sanitize FTP Credentials
-        id: prep
-        if: ${{ secrets.FTP_SERVER != '' && secrets.FTP_USERNAME != '' && secrets.FTP_PASSWORD != '' }}
-        uses: actions/github-script@v7
-        with:
-          script: |
-            let server = process.env.FTP_SERVER || '';
-            let username = process.env.FTP_USERNAME || '';
-            let password = process.env.FTP_PASSWORD || '';
-            
-            console.log(`Raw server input length: ${server.length}`);
-            console.log(`Raw username input length: ${username.length}`);
-            
-            // Clean server address:
-            // 1. Trim leading and trailing spaces
-            server = server.trim();
-            // 2. Remove protocol prefix (e.g. ftp://, ftps://, sftp://, http://, https://)
-            server = server.replace(/^(ftp|ftps|sftp|http|https):\/\//i, '');
-            // 3. Remove any trailing path/directory components (split by '/')
-            server = server.split('/')[0];
-            // 4. Remove any trailing port number components (split by ':')
-            server = server.split(':')[0];
-            
-            username = username.trim();
-            password = password.trim();
-            
-            console.log(`Sanitized server address: ${server || '(empty)'}`);
-            console.log(`Sanitized username length: ${username.length}`);
-            
-            core.setOutput('server', server);
-        env:
-          FTP_SERVER: ${{ secrets.FTP_SERVER }}
-          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-
-      - name: Sync Files to Hostinger FTP (Robust Mode)
-        if: ${{ secrets.FTP_SERVER != '' && secrets.FTP_USERNAME != '' && secrets.FTP_PASSWORD != '' && steps.prep.outcome == 'success' }}
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ steps.prep.outputs.server }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/
-          server-dir: ./public_html/
-          state-name: .ftp-deploy-sync-state-v4.json
-          exclude: |
-            **/*.map
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
 
