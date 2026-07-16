@@ -79,6 +79,7 @@ import JoinModal from './components/JoinModal';
 import LiveChat from './components/LiveChat';
 import { ModelPortal } from './components/ModelPortal';
 import { AgentPortal } from './components/AgentPortal';
+import { TelegramPage } from './components/TelegramPage';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -140,6 +141,15 @@ export default function App() {
     return hash.includes('agent') ||
            search.includes('agent') ||
            path.includes('agent');
+  });
+
+  const [isTelegramOpen, setIsTelegramOpen] = useState(() => {
+    const hash = window.location.hash.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    const path = window.location.pathname.toLowerCase();
+    return hash.includes('telegram') ||
+           search.includes('telegram') ||
+           path.includes('telegram');
   });
 
   const [isAdminOpen, setIsAdminOpen] = useState(() => {
@@ -1002,23 +1012,36 @@ export default function App() {
       const isAgentRoute = hash.includes('agent') ||
                            search.includes('agent') ||
                            path.includes('agent');
+
+      const isTelegramRoute = hash.includes('telegram') ||
+                              search.includes('telegram') ||
+                              path.includes('telegram');
       
       if (isAdminRoute) {
         setIsAdminOpen(true);
         setIsModelPortalOpen(false);
         setIsAgentOpen(false);
+        setIsTelegramOpen(false);
       } else if (isModelRoute) {
         setIsAdminOpen(false);
         setIsModelPortalOpen(true);
         setIsAgentOpen(false);
+        setIsTelegramOpen(false);
       } else if (isAgentRoute) {
         setIsAdminOpen(false);
         setIsModelPortalOpen(false);
         setIsAgentOpen(true);
+        setIsTelegramOpen(false);
+      } else if (isTelegramRoute) {
+        setIsAdminOpen(false);
+        setIsModelPortalOpen(false);
+        setIsAgentOpen(false);
+        setIsTelegramOpen(true);
       } else {
         setIsAdminOpen(false);
         setIsModelPortalOpen(false);
         setIsAgentOpen(false);
+        setIsTelegramOpen(false);
         const isJoinRoute = hash.includes('join') || hash.includes('register') || hash.includes('registration') || hash.includes('joinmale') || hash.includes('join-male') || hash.includes('joinsparm') || hash.includes('join-sparm') || hash.includes('joinsperm') || hash.includes('join-sperm') || hash.includes('sparm') || hash.includes('sperm') ||
                             search.includes('join') || search.includes('register') || search.includes('registration') || search.includes('joinmale') || search.includes('join-male') || search.includes('joinsparm') || search.includes('join-sparm') || search.includes('joinsperm') || search.includes('join-sperm') || search.includes('sparm') || search.includes('sperm') ||
                             path.includes('join') || path.includes('register') || path.includes('registration') || path.includes('joinmale') || path.includes('join-male') || hash.includes('joinsparm') || hash.includes('join-sparm') || hash.includes('joinsperm') || hash.includes('join-sperm') || hash.includes('sparm') || hash.includes('sperm');
@@ -3489,6 +3512,26 @@ https://service.bodytouch.com
           bookings={bookings}
           onAddWithdrawal={(w) => handleUpdateWithdrawals([w, ...withdrawals])}
           onAddCompanion={(c) => handleUpdateCompanions([c, ...companions])}
+          triggerToast={(msg, type) => triggerToast(msg, type)}
+        />
+      </div>
+    );
+  }
+
+  if (isTelegramOpen) {
+    return (
+      <div className="text-slate-100 min-h-screen bg-[#020510] selection:bg-[#dbaa61] selection:text-slate-950 font-sans w-full flex flex-col justify-start">
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.isVisible}
+          onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
+        />
+        <TelegramPage
+          onBack={() => {
+            window.location.hash = '';
+            setIsTelegramOpen(false);
+          }}
           triggerToast={(msg, type) => triggerToast(msg, type)}
         />
       </div>

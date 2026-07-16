@@ -27,11 +27,14 @@ import {
   Info,
   MapPin,
   Camera,
-  Nfc
+  Nfc,
+  Trash2,
+  Activity
 } from 'lucide-react';
 import { Companion, ReferralRecord, WithdrawalRecord, MemberLevel, Booking } from '../types';
 import { db, collection, setDoc, doc, getDoc } from '../firebase';
 import * as OTPAuth from 'otpauth';
+import QRCode from 'qrcode';
 
 // Custom high-fidelity brand SVGs for MFS gateways
 const BkashLogo = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -94,12 +97,46 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
   const [regPhone, setRegPhone] = useState('');
   const [regEmail, setRegEmail] = useState('');
 
+  // Forgot Password States
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotUsername, setForgotUsername] = useState('');
+  const [forgotPhone, setForgotPhone] = useState('');
+  const [forgotNewPass, setForgotNewPass] = useState('');
+  const [forgotTotpCode, setForgotTotpCode] = useState('');
+
   // 2-Step Verification States
   const [authStep, setAuthStep] = useState<'credentials' | 'totp_setup' | 'totp_verify'>('credentials');
   const [totpSecret, setTotpSecret] = useState('');
   const [totpInputCode, setTotpInputCode] = useState('');
   const [tempAgentUsername, setTempAgentUsername] = useState('');
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [isSending, setIsSending] = useState(false);
+
+  // Generate QR Code dynamically from Secret & Username
+  useEffect(() => {
+    if (totpSecret && tempAgentUsername) {
+      const label = `BodyTouch_Agent:${tempAgentUsername}`;
+      const issuer = 'BodyTouch_Agent';
+      const otpauthUrl = `otpauth://totp/${encodeURIComponent(label)}?secret=${totpSecret}&issuer=${encodeURIComponent(issuer)}`;
+
+      QRCode.toDataURL(otpauthUrl, {
+        margin: 2,
+        width: 180,
+        color: {
+          dark: '#030a1c', // Dark color for QR blocks
+          light: '#ffffff' // Pure white background
+        }
+      })
+        .then(url => {
+          setQrCodeDataUrl(url);
+        })
+        .catch(err => {
+          console.warn('Failed to generate 2FA QR code:', err);
+        });
+    } else {
+      setQrCodeDataUrl('');
+    }
+  }, [totpSecret, tempAgentUsername]);
 
   // Dashboard States
   const [activeTab, setActiveTab] = useState<'dashboard' | 'referrals' | 'withdrawals' | 'recruit'>('dashboard');
@@ -124,6 +161,14 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
   const [recPhone, setRecPhone] = useState('');
   const [recEmail, setRecEmail] = useState('');
   const [recFileLoading, setRecFileLoading] = useState(false);
+
+  // New fields requested by user: Multiple pictures & services selection
+  const [recPictures, setRecPictures] = useState<string[]>([]);
+  const [recPicturesLoading, setRecPicturesLoading] = useState(false);
+  const [recIsRealActive, setRecIsRealActive] = useState(true);
+  const [recIsCamActive, setRecIsCamActive] = useState(true);
+  const [recIsMakeOutActive, setRecIsMakeOutActive] = useState(false);
+  const [recIsLiveTogetherActive, setRecIsLiveTogetherActive] = useState(false);
 
   // Identity Verification & Registration Payment states for manually recruited companions
   const [recIdType, setRecIdType] = useState<'nid' | 'birth'>('nid');
@@ -254,6 +299,84 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
     } catch (err) {
       console.warn('Failed to save agent to firestore:', err);
       triggerToast('নিবন্ধন ব্যর্থ হয়েছে! দয়া করে আবার চেষ্টা করুন।', 'error');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotUsername.trim() || !forgotPhone.trim() || !forgotTotpCode.trim() || !forgotNewPass.trim()) {
+      triggerToast('Please fill in all required fields.', 'error');
+      return;
+    }
+
+    const cleanUsername = forgotUsername.trim().toLowerCase();
+    const cleanPhone = forgotPhone.trim().replace(/\s+/g, '');
+    const cleanNewPass = forgotNewPass.trim();
+    const cleanTotpCode = forgotTotpCode.trim();
+
+    try {
+      setIsSending(true);
+      const agentDocRef = doc(db, 'agents', cleanUsername);
+      const agentSnap = await getDoc(agentDocRef);
+
+      if (!agentSnap.exists()) {
+        triggerToast('Agent username not found!', 'error');
+        setIsSending(false);
+        return;
+      }
+
+      const agentData = agentSnap.data() || {};
+      const storedPhone = (agentData.phone || '').trim().replace(/\s+/g, '');
+
+      if (storedPhone !== cleanPhone) {
+        triggerToast('Incorrect Phone Number! Verification failed.', 'error');
+        setIsSending(false);
+        return;
+      }
+
+      // Verify Authenticator 2-Step Code
+      const totpSnap = await getDoc(doc(db, 'agent_totp_secrets', cleanUsername));
+      if (!totpSnap.exists()) {
+        triggerToast('This agent account has not completed 2-Step verification setup yet. Please contact Admin.', 'error');
+        setIsSending(false);
+        return;
+      }
+
+      const totpSecretValue = totpSnap.data().secret;
+      const totp = new OTPAuth.TOTP({
+        issuer: 'BodyTouch_Agent',
+        label: cleanUsername,
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+        secret: OTPAuth.Secret.fromBase32(totpSecretValue)
+      });
+
+      const isValid = totp.validate({ token: cleanTotpCode, window: 1 }) !== null;
+      if (!isValid) {
+        triggerToast('Incorrect Authenticator 2-Step Code! Verification failed.', 'error');
+        setIsSending(false);
+        return;
+      }
+
+      // Safe update
+      await setDoc(agentDocRef, { password: cleanNewPass }, { merge: true });
+
+      triggerToast('Password has been successfully updated! Please login with your new password.', 'success');
+      
+      // Clear states and return to login
+      setForgotUsername('');
+      setForgotPhone('');
+      setForgotTotpCode('');
+      setForgotNewPass('');
+      setIsForgotPassword(false);
+      setLoginUsername(cleanUsername);
+      setLoginPass('');
+    } catch (err) {
+      console.warn('Failed to reset agent password:', err);
+      triggerToast('Password reset failed. Please contact support.', 'error');
     } finally {
       setIsSending(false);
     }
@@ -460,6 +583,39 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
     setWithNum('');
   };
 
+  // Portfolio pictures handlers
+  const handleAddRecPicture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    
+    const fileList = Array.from(files);
+    setRecPicturesLoading(true);
+    let loadedCount = 0;
+    const newPics: string[] = [];
+
+    fileList.forEach((file: any) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (reader.result) {
+          newPics.push(reader.result as string);
+        }
+        loadedCount++;
+        if (loadedCount === fileList.length) {
+          setRecPictures(prev => {
+            const combined = [...prev, ...newPics].slice(0, 4);
+            return combined;
+          });
+          setRecPicturesLoading(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveRecPicture = (index: number) => {
+    setRecPictures(prev => prev.filter((_, i) => i !== index));
+  };
+
   // Handle Companion Recruitment submission
   const handleRecruitmentSubmit = (e?: React.FormEvent, isConfirmedPayment = false) => {
     if (e) e.preventDefault();
@@ -489,7 +645,12 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
       name: recName.trim(),
       tag: 'Premium Recruited Companion',
       badge: 'REGULAR',
-      image: recPhoto.trim() || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600',
+      image: recPhoto.trim() || recPictures[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600',
+      pictures: recPictures.length > 0 ? recPictures : (recPhoto.trim() ? [recPhoto.trim()] : []),
+      isRealActive: recIsRealActive,
+      isCamActive: recIsCamActive,
+      isMakeOutActive: recIsMakeOutActive,
+      isLiveTogetherActive: recIsLiveTogetherActive,
       age: parseInt(recAge) || 22,
       height: recHeight,
       languages: recLanguages.split(',').map(s => s.trim()),
@@ -540,6 +701,11 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
     setRecLanguages('Bangla, English');
     setRecBio('');
     setRecPhoto('');
+    setRecPictures([]);
+    setRecIsRealActive(true);
+    setRecIsCamActive(true);
+    setRecIsMakeOutActive(false);
+    setRecIsLiveTogetherActive(false);
     setRecPhone('');
     setRecEmail('');
     setRecCategory('Female Model');
@@ -602,8 +768,20 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-300 leading-relaxed">
-                      Open <strong className="text-white font-black">Google Authenticator</strong> or <strong className="text-white font-black">Microsoft Authenticator</strong> on your mobile phone and add the Secret Key below:
+                      Open <strong className="text-white font-black">Google Authenticator</strong> or <strong className="text-white font-black">Microsoft Authenticator</strong> on your mobile phone and scan the QR Code or add the Secret Key manually:
                     </p>
+
+                    {/* QR Code scanning container */}
+                    {qrCodeDataUrl && (
+                      <div className="flex flex-col items-center justify-center p-3 bg-white rounded-2xl mx-auto my-3 w-[160px] h-[160px] shadow-lg shadow-black/40 border-2 border-[#dbaa61]/30">
+                        <img 
+                          src={qrCodeDataUrl} 
+                          alt="Authenticator 2FA QR Code" 
+                          className="w-full h-full select-none"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    )}
 
                     {/* Key copy area */}
                     <div className="bg-slate-950 border border-blue-900/30 rounded-xl p-3 flex items-center justify-between gap-2 mt-2">
@@ -715,6 +893,107 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                       className="w-full bg-[#0f121d] border border-slate-800 hover:bg-slate-900 text-slate-400 font-bold text-xs uppercase py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
                     >
                       Go Back
+                    </button>
+                  </div>
+                </form>
+              ) : isForgotPassword ? (
+                /* Forgot Password Form */
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="bg-amber-950/20 border border-amber-900/35 rounded-2xl p-4 text-left space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
+                        <Key className="w-4 h-4" />
+                      </div>
+                      <span className="text-[11px] font-black uppercase text-amber-400 tracking-wider">
+                        Reset Secure Password
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      Enter your registered Username, Phone Number, and your Google Authenticator 2-Step verification code to verify your identity and set a new secure password.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
+                      Agent Username *
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="text" 
+                        required
+                        value={forgotUsername}
+                        onChange={(e) => setForgotUsername(e.target.value)}
+                        placeholder="" 
+                        className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-2.5 pl-10 pr-4 text-xs font-mono focus:outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
+                      Registered Phone Number *
+                    </label>
+                    <input 
+                      type="tel" 
+                      required
+                      value={forgotPhone}
+                      onChange={(e) => setForgotPhone(e.target.value)}
+                      placeholder="" 
+                      className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-2.5 px-4 text-xs font-mono focus:outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
+                      6-Digit Authenticator Code *
+                    </label>
+                    <input 
+                      type="text" 
+                      required
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      value={forgotTotpCode}
+                      onChange={(e) => setForgotTotpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="e.g. 123456" 
+                      className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-2.5 px-4 text-xs font-mono focus:outline-none transition-all text-center tracking-widest font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
+                      New Secure Password *
+                    </label>
+                    <div className="relative">
+                      <Key className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="password" 
+                        required
+                        value={forgotNewPass}
+                        onChange={(e) => setForgotNewPass(e.target.value)}
+                        placeholder="" 
+                        className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-2.5 pl-10 pr-4 text-xs font-mono focus:outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSending}
+                    className="w-full bg-gradient-to-tr from-[#a67c33] to-[#dbaa61] hover:brightness-110 disabled:brightness-75 text-slate-950 font-black text-xs uppercase tracking-widest py-3.5 rounded-xl transition duration-300 shadow-lg shadow-[#dbaa61]/10 flex items-center justify-center gap-2 cursor-pointer mt-2"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    {isSending ? 'Updating...' : 'Update Password'}
+                  </button>
+
+                  <div className="text-center pt-4 pb-1">
+                    <button 
+                      type="button" 
+                      onClick={() => setIsForgotPassword(false)} 
+                      className="text-xs text-slate-300 hover:text-white transition duration-200 cursor-pointer py-2 px-4 rounded-xl bg-slate-900/40 hover:bg-slate-900/60 border border-slate-800 hover:border-slate-700 active:scale-95 flex flex-col sm:flex-row items-center justify-center gap-1 mx-auto min-h-[46px] w-full shadow-md shadow-black/10 transition-all"
+                    >
+                      <span>Remember password?</span>
+                      <span className="text-[#dbaa61] font-extrabold underline decoration-[#dbaa61] decoration-2">Login Here</span>
                     </button>
                   </div>
                 </form>
@@ -837,9 +1116,21 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
-                      Secure Password
-                    </label>
+                    <div className="flex justify-between items-center">
+                      <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
+                        Secure Password
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsForgotPassword(true);
+                          setForgotUsername(loginUsername);
+                        }}
+                        className="text-[10px] text-amber-500 hover:text-white font-extrabold transition duration-200 cursor-pointer underline decoration-amber-500/30 hover:decoration-white/50"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
                     <div className="relative">
                       <Key className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                       <input 
@@ -1634,6 +1925,64 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                         )}
                       </div>
 
+                      {/* NEW: Portfolio Photos Section */}
+                      <div className="space-y-1 md:col-span-2 border-t border-blue-900/10 pt-3">
+                        <label className="block text-[9.5px] text-[#dbaa61] font-black uppercase tracking-wider flex items-center justify-between">
+                          <span>মডেল পোর্টফোলিও ছবিসমূহ (Model Portfolio Photos - Max 4)</span>
+                          {recPicturesLoading && <span className="text-blue-400 animate-pulse text-[9.5px]">Uploading...</span>}
+                        </label>
+                        <p className="text-[10.5px] text-slate-400 mb-2">
+                          কমপক্ষে ১টি এবং সর্বোচ্চ ৪টি ছবি আপলোড করুন যা গ্যালারিতে দেখাবে।
+                        </p>
+                        
+                        <div className="grid grid-cols-4 gap-2">
+                          {[0, 1, 2, 3].map((slotIdx) => {
+                            const imageSrc = recPictures[slotIdx];
+                            const isClickableUpload = slotIdx === recPictures.length;
+
+                            if (imageSrc) {
+                              return (
+                                <div key={slotIdx} className="relative aspect-square rounded-xl overflow-hidden border border-blue-900/40 hover:border-[#dbaa61] group bg-slate-950">
+                                  <img src={imageSrc} className="w-full h-full object-cover" alt={`Portfolio ${slotIdx + 1}`} referrerPolicy="no-referrer" />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveRecPicture(slotIdx)}
+                                    className="absolute top-1 right-1 bg-red-600 hover:bg-red-500 rounded-full p-1 cursor-pointer text-white shadow-md transform scale-90 group-hover:scale-100 transition-all"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                  <span className="absolute bottom-1 left-1 bg-black/80 px-1 text-[8px] font-mono font-bold text-slate-100 rounded leading-none py-0.5">
+                                    Pic {slotIdx + 1}
+                                  </span>
+                                </div>
+                              );
+                            }
+
+                            if (isClickableUpload) {
+                              return (
+                                <label key={slotIdx} className="aspect-square flex flex-col items-center justify-center border border-dashed border-blue-900/40 hover:border-[#dbaa61] hover:bg-slate-900/40 cursor-pointer rounded-xl transition-all p-1 text-center bg-[#050b18]">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={handleAddRecPicture}
+                                    className="hidden"
+                                  />
+                                  <Camera className="w-5 h-5 text-slate-400 hover:text-white" />
+                                  <span className="text-[8px] text-slate-400 mt-1 font-bold">Upload</span>
+                                </label>
+                              );
+                            }
+
+                            return (
+                              <div key={slotIdx} className="aspect-square flex items-center justify-center border border-dashed border-blue-900/20 rounded-xl bg-slate-950/20 opacity-30">
+                                <span className="text-[10px] font-mono text-slate-600">Locked</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       <div className="space-y-1 md:col-span-2">
                         <label className="block text-[9.5px] text-blue-450 font-black uppercase tracking-wider">
                           সংক্ষিপ্ত পরিচিতি ও বায়ো (Bio / Description)
@@ -1645,6 +1994,69 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                           placeholder="মডেলের চমৎকার সংক্ষিপ্ত বর্ণনা দিন যা কাস্টমারকে আকর্ষণ করবে..." 
                           className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-2 px-3 text-xs focus:outline-none transition-all"
                         />
+                      </div>
+
+                      {/* NEW: Services Selection Checklist */}
+                      <div className="space-y-2 md:col-span-2 border-t border-blue-900/10 pt-3">
+                        <label className="block text-[9.5px] text-[#dbaa61] font-black uppercase tracking-wider">
+                          প্রদানকৃত সার্ভিসসমূহ সিলেক্ট করুন (Services Provided) *
+                        </label>
+                        <p className="text-[10.5px] text-slate-400 mb-2">
+                          মডেল কি কি সার্ভিস প্রদান করতে পারবে তা টিক মার্ক দিয়ে নির্ধারণ করুন।
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <label className="flex items-center gap-2 px-3 py-2 bg-slate-950/50 border border-blue-900/25 rounded-xl cursor-pointer hover:border-[#dbaa61]/35 transition">
+                            <input 
+                              type="checkbox"
+                              checked={recIsRealActive}
+                              onChange={(e) => setRecIsRealActive(e.target.checked)}
+                              className="rounded border-blue-900/40 text-[#dbaa61] focus:ring-[#dbaa61] bg-slate-950 w-4 h-4 cursor-pointer"
+                            />
+                            <div className="text-left">
+                              <span className="text-xs font-bold text-white block">Real Service</span>
+                              <span className="text-[9px] text-slate-400">সরাসরি দেখা ও সাক্ষাৎ</span>
+                            </div>
+                          </label>
+
+                          <label className="flex items-center gap-2 px-3 py-2 bg-slate-950/50 border border-blue-900/25 rounded-xl cursor-pointer hover:border-[#dbaa61]/35 transition">
+                            <input 
+                              type="checkbox"
+                              checked={recIsCamActive}
+                              onChange={(e) => setRecIsCamActive(e.target.checked)}
+                              className="rounded border-blue-900/40 text-[#dbaa61] focus:ring-[#dbaa61] bg-slate-950 w-4 h-4 cursor-pointer"
+                            />
+                            <div className="text-left">
+                              <span className="text-xs font-bold text-white block">Face Cam Service</span>
+                              <span className="text-[9px] text-slate-400">অনলাইন ভিডিও কল সার্ভিস</span>
+                            </div>
+                          </label>
+
+                          <label className="flex items-center gap-2 px-3 py-2 bg-slate-950/50 border border-blue-900/25 rounded-xl cursor-pointer hover:border-[#dbaa61]/35 transition">
+                            <input 
+                              type="checkbox"
+                              checked={recIsMakeOutActive}
+                              onChange={(e) => setRecIsMakeOutActive(e.target.checked)}
+                              className="rounded border-blue-900/40 text-[#dbaa61] focus:ring-[#dbaa61] bg-slate-950 w-4 h-4 cursor-pointer"
+                            />
+                            <div className="text-left">
+                              <span className="text-xs font-bold text-white block">Make Out Service</span>
+                              <span className="text-[9px] text-slate-400">রোমান্টিক বা স্পেশাল ডেটিং</span>
+                            </div>
+                          </label>
+
+                          <label className="flex items-center gap-2 px-3 py-2 bg-slate-950/50 border border-blue-900/25 rounded-xl cursor-pointer hover:border-[#dbaa61]/35 transition">
+                            <input 
+                              type="checkbox"
+                              checked={recIsLiveTogetherActive}
+                              onChange={(e) => setRecIsLiveTogetherActive(e.target.checked)}
+                              className="rounded border-blue-900/40 text-[#dbaa61] focus:ring-[#dbaa61] bg-slate-950 w-4 h-4 cursor-pointer"
+                            />
+                            <div className="text-left">
+                              <span className="text-xs font-bold text-white block">Live Together</span>
+                              <span className="text-[9px] text-slate-400">দীর্ঘস্থায়ী লিভ টুগেদার বা ট্যুর</span>
+                            </div>
+                          </label>
+                        </div>
                       </div>
 
                       {/* Identity & Legal Verification Section */}
