@@ -48,18 +48,8 @@ jobs:
             
             // Validate presence of required secrets
             if (!server || !username || !password) {
-              core.setFailed(`
-            ❌ Error: Missing essential FTP Secrets!
-            Make sure you have added all three Secrets in your GitHub repository:
-            - FTP_SERVER (Current Status: ${server ? '✅ Set' : '❌ MISSING'})
-            - FTP_USERNAME (Current Status: ${username ? '✅ Set' : '❌ MISSING'})
-            - FTP_PASSWORD (Current Status: ${password ? '✅ Set' : '❌ MISSING'})
-            
-            How to configure Secrets in GitHub:
-            1. Go to your GitHub repository -> Settings -> Secrets and variables -> Actions
-            2. Click "New repository secret"
-            3. Name them exactly as above (case-sensitive) and paste your Hostinger FTP credentials.
-              `);
+              console.log("⚠️ FTP Secrets are not configured. Skipping FTP Deployment step gracefully.");
+              core.setOutput('skip', 'true');
               return;
             }
             
@@ -80,12 +70,14 @@ jobs:
             console.log(`Sanitized username length: ${username.length}`);
             
             core.setOutput('server', server);
+            core.setOutput('skip', 'false');
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
 
       - name: Sync Files to Hostinger FTP (Robust Mode)
+        if: steps.prep.outputs.skip != 'true'
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ steps.prep.outputs.server }}
