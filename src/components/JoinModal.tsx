@@ -36,6 +36,8 @@ interface JoinModalProps {
   onAddCompanion?: (companion: Companion) => void;
   telegramHelpline?: string;
   registrationFee?: number;
+  registrationFeeMale?: number;
+  registrationFeeSperm?: number;
 }
 
 export default function JoinModal({ 
@@ -46,9 +48,17 @@ export default function JoinModal({
   structuredCities,
   onAddCompanion, 
   telegramHelpline = 'BodyTouchSupport',
-  registrationFee = 3000
+  registrationFee = 3000,
+  registrationFeeMale = 3000,
+  registrationFeeSperm = 3000
 }: JoinModalProps) {
   const [type, setType] = useState<'female' | 'male' | 'donor'>(initialType || 'female');
+
+  const currentFee = type === 'female'
+    ? registrationFee
+    : type === 'male'
+      ? registrationFeeMale
+      : registrationFeeSperm;
   
   // Custom states for files
   const [pictures, setPictures] = useState<string[]>([]);
@@ -56,6 +66,7 @@ export default function JoinModal({
   const [nidBack, setNidBack] = useState<string | null>(null);
   const [selfie, setSelfie] = useState<string | null>(null);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [idType, setIdType] = useState<'nid' | 'birth'>('nid');
 
   const SERVICES_REAL = [
     { id: 'real_1hour', english: 'Real 1 HOUR', bangla: 'Real 1 HOUR' },
@@ -87,7 +98,7 @@ export default function JoinModal({
     email: '', // Email Address
     location: '', // Operational City Area
     height: '',
-    complexion: 'Fair',
+    complexion: '',
     weight: '',
     bust: '',
     waist: '',
@@ -179,12 +190,12 @@ export default function JoinModal({
   React.useEffect(() => {
     if (showPaymentScreen) {
       setPaymentStep('select_gateway');
-      setDepositAmount(registrationFee.toString());
+      setDepositAmount(currentFee.toString());
       if (formData.phone) {
         setPayeePhone(formData.phone);
       }
     }
-  }, [showPaymentScreen, registrationFee, formData.phone]);
+  }, [showPaymentScreen, currentFee, formData.phone]);
 
   // Sync state with initialType if modal reopens
   React.useEffect(() => {
@@ -202,7 +213,76 @@ export default function JoinModal({
     setEnteredOtp('');
     setShowOtpScreen(false);
     setIsSendingOtp(false);
+    setIsCameraActive(false);
+    setSelfie(null);
+    setNidFront(null);
+    setNidBack(null);
+    setIdType('nid');
+    setPictures([]);
   }, [initialType, isOpen]);
+
+  // Live camera selfie capture states
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const streamRef = React.useRef<MediaStream | null>(null);
+
+  const startCamera = async () => {
+    try {
+      setValidationError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: 640, height: 480 },
+        audio: false
+      });
+      streamRef.current = stream;
+      setIsCameraActive(true);
+      // Wait for element to mount
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (err) {
+      console.error('Error accessing camera:', err);
+      setValidationError('Could not access your camera. Please allow camera permission in your browser to take a selfie.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const captureSelfie = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Draw video frame
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+        setSelfie(dataUrl);
+        stopCamera();
+      }
+    }
+  };
+
+  // Stop camera when modal closes or unmounts
+  React.useEffect(() => {
+    if (!isOpen) {
+      stopCamera();
+    }
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [isOpen]);
 
   // Automatically scroll modal container back to top on any step/tab/error change
   React.useEffect(() => {
@@ -317,12 +397,13 @@ export default function JoinModal({
       setValidationError('Age is required.');
       return;
     }
-    if (!formData.phone.trim()) {
-      setValidationError('Contact Phone Number is required.');
+    const ageNum = parseInt(formData.age);
+    if (isNaN(ageNum) || ageNum < 13 || ageNum > 40) {
+      setValidationError('Age must be between 13 and 40 years.');
       return;
     }
-    if (!formData.telegram.trim()) {
-      setValidationError('Telegram Username is mandatory (@username).');
+    if (!formData.phone.trim()) {
+      setValidationError('Contact Phone Number is required.');
       return;
     }
     if (!formData.whatsapp.trim()) {
@@ -336,6 +417,10 @@ export default function JoinModal({
 
     // Model specific rich validation (Female or Male)
     if (type === 'female' || type === 'male') {
+      if (!formData.complexion) {
+        setValidationError('Complexion is required.');
+        return;
+      }
       if (!formData.weight.trim()) {
         setValidationError('Body Weight is required.');
         return;
@@ -351,8 +436,8 @@ export default function JoinModal({
         setValidationError('Please upload exactly 4 high-quality portfolio photos.');
         return;
       }
-      if (!nidFront || !nidBack) {
-        setValidationError('Please upload both the front and back sides of your NID Card.');
+      if (!nidFront) {
+        setValidationError('Please upload your NID Front or Birth Certificate.');
         return;
       }
       if (!selfie) {
@@ -372,12 +457,10 @@ export default function JoinModal({
       }
     }
 
-    if (!formData.details || formData.details.trim() === '') {
+    if (type !== 'female' && (!formData.details || formData.details.trim() === '')) {
       let errorMsg = '';
       if (type === 'donor') {
         errorMsg = 'Please specify your Health & Body Vitals detail.';
-      } else if (type === 'female') {
-        errorMsg = 'Please select what service you can provide.';
       } else {
         errorMsg = 'Please describe your specialty service.';
       }
@@ -420,11 +503,18 @@ export default function JoinModal({
       nidBack: nidBack || undefined,
       selfie: selfie || undefined,
       telegram: formData.telegram.trim() || undefined,
+      recruiter: sessionStorage.getItem('bt_pending_model_ref') || localStorage.getItem('bt_pending_model_ref') || undefined,
+      pictures: pictures,
     };
 
     onAddCompanion?.(newComp); // Add to join list in Admin panel immediately!
     setTempComp(newComp);
-    setShowPaymentScreen(true);
+    if (type === 'female') {
+      setSubmitted(true);
+      setShowPaymentScreen(false);
+    } else {
+      setShowPaymentScreen(true);
+    }
     setShowOtpScreen(false);
   };
 
@@ -438,7 +528,7 @@ export default function JoinModal({
       email: '',
       location: '',
       height: '',
-      complexion: 'Fair',
+      complexion: '',
       weight: '',
       bust: '',
       waist: '',
@@ -749,7 +839,7 @@ export default function JoinModal({
                   {/* 4. UPLOAD SCREENSHOT */}
                   <div className="space-y-1.5">
                     <label className="block text-[10px] text-slate-300 font-black uppercase tracking-widest pl-1 font-mono">
-                      4. UPLOAD SCREENSHOT (ঐচ্ছিক)
+                      4. UPLOAD SCREENSHOT (OPTIONAL)
                     </label>
                     
                     <input
@@ -954,9 +1044,9 @@ export default function JoinModal({
                       <input
                         type="number"
                         required
-                        min="18"
-                        max="45"
-                        placeholder=""
+                        min="13"
+                        max="40"
+                        placeholder="13 - 40"
                         value={formData.age}
                         onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                         style={{ paddingLeft: '2.5rem' }}
@@ -1002,12 +1092,13 @@ export default function JoinModal({
                           value={formData.complexion}
                           onChange={(e) => setFormData({ ...formData, complexion: e.target.value })}
                           style={{ paddingLeft: '2.5rem' }}
-                          className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all cursor-pointer"
+                          className="w-full bg-[#030818] border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all cursor-pointer"
                         >
-                          <option value="Fair">Fair</option>
-                          <option value="Light">Light</option>
-                          <option value="Medium">Medium</option>
-                          <option value="Dark">Dark</option>
+                          <option value="" className="bg-[#030818] text-slate-400 font-sans font-bold">Select Complexion</option>
+                          <option value="Fair" className="bg-[#030818] text-white font-sans font-bold">Fair</option>
+                          <option value="Light" className="bg-[#030818] text-white font-sans font-bold">Light</option>
+                          <option value="Medium" className="bg-[#030818] text-white font-sans font-bold">Medium</option>
+                          <option value="Dark" className="bg-[#030818] text-white font-sans font-bold">Dark</option>
                         </select>
                       </div>
                     </div>
@@ -1040,7 +1131,9 @@ export default function JoinModal({
                           Bust (inch) *
                         </label>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           required
                           placeholder=""
                           value={formData.bust}
@@ -1053,7 +1146,9 @@ export default function JoinModal({
                           Waist (inch) *
                         </label>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           required
                           placeholder=""
                           value={formData.waist}
@@ -1066,7 +1161,9 @@ export default function JoinModal({
                           Hip (inch) *
                         </label>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           required
                           placeholder=""
                           value={formData.hip}
@@ -1090,19 +1187,19 @@ export default function JoinModal({
                         value={formData.location}
                         onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                         style={{ paddingLeft: '2.5rem' }}
-                        className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all cursor-pointer"
+                        className="w-full bg-[#030818] border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all cursor-pointer"
                       >
-                        <option value="">Select Area</option>
+                        <option value="" className="bg-[#030818] text-white font-sans font-bold">Select Area</option>
                         {structuredCities && structuredCities.length > 0 ? (
                           structuredCities.map((p) => (
-                            <optgroup key={p.id} label={`${p.name.toUpperCase()} (District/City)`}>
+                            <optgroup key={p.id} label={`${p.name.toUpperCase()} (District/City)`} className="bg-[#030818] text-[#dbaa61] font-bold font-sans">
                               {p.subAreas.map((sub) => (
-                                <option key={`${sub}, ${p.name}`} value={`${sub}, ${p.name}`}>
+                                <option key={`${sub}, ${p.name}`} value={`${sub}, ${p.name}`} className="bg-[#030818] text-white font-sans font-bold">
                                   {sub.toUpperCase()} ({p.name.toUpperCase()})
                                 </option>
                               ))}
                               {p.subAreas.length === 0 && (
-                                <option value={p.name.toUpperCase()}>{p.name.toUpperCase()}</option>
+                                <option value={p.name.toUpperCase()} className="bg-[#030818] text-white font-sans font-bold">{p.name.toUpperCase()}</option>
                               )}
                             </optgroup>
                           ))
@@ -1114,7 +1211,7 @@ export default function JoinModal({
                             'CHATTOGRAM CITY',
                             'SYLHET OVERSEAS'
                           ]).map((city) => (
-                            <option key={city} value={city.toUpperCase()}>
+                            <option key={city} value={city.toUpperCase()} className="bg-[#030818] text-white font-sans font-bold">
                               {city.toUpperCase()}
                             </option>
                           ))
@@ -1239,8 +1336,8 @@ export default function JoinModal({
                   {/* Telegram */}
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1 font-sans flex justify-between">
-                      <span>Telegram Username *</span>
-                      <span className="text-red-400 text-[9px] font-black">MANDATORY</span>
+                      <span>Telegram Username (Optional)</span>
+                      <span className="text-emerald-400 text-[9px] font-black">OPTIONAL</span>
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
@@ -1248,10 +1345,9 @@ export default function JoinModal({
                       </div>
                       <input
                         type="text"
-                        required
                         value={formData.telegram}
                         onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
-                        placeholder=""
+                        placeholder="e.g. @username"
                         style={{ paddingLeft: '2.5rem' }}
                         className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
                       />
@@ -1368,25 +1464,117 @@ export default function JoinModal({
                 </div>
               )}
 
-              {/* NID CARD UPLAOD SECTION */}
+              {/* NID / BIRTH CERTIFICATE UPLOAD SECTION */}
               {(type === 'female' || type === 'male') && (
                 <div className="border-t border-[#ac843c]/25 pt-4 space-y-3">
                   <div>
-                    <p className="text-xs font-mono uppercase text-[#dbaa61] font-black tracking-wider">
-                      ID Document Verification
+                    <p className="text-xs font-mono uppercase text-[#dbaa61] font-black tracking-wider flex justify-between">
+                      <span>ID Document / Birth Certificate Verification</span>
+                      <span className="text-[10px] text-emerald-400 font-extrabold font-sans">NID / BIRTH CERTIFICATE VERIFICATION</span>
                     </p>
-                    <p className="text-xs text-slate-200 font-bold mt-1.5">
-                      Upload clear photos of both sides of your National ID Card to verify age and genuine identity.
+                    <p className="text-[10.5px] text-slate-200 font-bold mt-1.5 leading-relaxed font-sans">
+                      Select your ID type and upload a clear photo to verify your age and identity.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Front Side */}
-                    <div>
-                      <p className="text-[11px] text-slate-200 font-extrabold mb-1.5 uppercase font-mono tracking-wider">NID Front Side *</p>
+                  {/* ID Type Selector */}
+                  <div className="flex gap-2 p-1 bg-slate-950/60 rounded-xl border border-blue-900/25">
+                    <button
+                      type="button"
+                      onClick={() => { setIdType('nid'); setValidationError(null); }}
+                      className={`flex-1 py-2 text-[10px] min-[380px]:text-[11px] font-black uppercase rounded-lg transition-all ${
+                        idType === 'nid'
+                          ? 'bg-gradient-to-r from-amber-600/30 to-[#dbaa61]/35 border border-[#dbaa61]/70 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+                      }`}
+                    >
+                      National ID (NID)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setIdType('birth'); setValidationError(null); }}
+                      className={`flex-1 py-2 text-[10px] min-[380px]:text-[11px] font-black uppercase rounded-lg transition-all ${
+                        idType === 'birth'
+                          ? 'bg-gradient-to-r from-amber-600/30 to-[#dbaa61]/35 border border-[#dbaa61]/70 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+                      }`}
+                    >
+                      Birth Certificate
+                    </button>
+                  </div>
+
+                  {idType === 'nid' ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Front Side */}
+                      <div>
+                        <p className="text-[11px] text-slate-200 font-extrabold mb-1.5 uppercase font-mono tracking-wider">
+                          NID Front Side *
+                        </p>
+                        {nidFront ? (
+                          <div className="relative h-24 rounded-xl overflow-hidden border-2 border-[#dbaa61]/55 bg-slate-950">
+                            <img src={nidFront} className="w-full h-full object-cover" alt="NID Front" referrerPolicy="no-referrer" />
+                            <button
+                              type="button"
+                              onClick={() => removeNid('front')}
+                              className="absolute top-1.5 right-1.5 bg-red-650 hover:bg-red-500 rounded-full p-1.5 cursor-pointer text-white"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="h-24 flex flex-col items-center justify-center border-2 border-dashed border-[#dbaa61]/45 hover:border-[#dbaa61] hover:bg-slate-900/60 cursor-pointer rounded-xl transition-all text-center bg-[#0e101a] px-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleNidChange(e, 'front')}
+                              className="hidden"
+                            />
+                            <UploadCloud className="w-6 h-6 text-[#dbaa61] mb-1 opacity-95" />
+                            <span className="text-[10px] min-[380px]:text-[11px] text-[#dbaa61] font-bold font-mono">Upload NID Front</span>
+                            <span className="text-[8.5px] text-slate-400 font-sans">Front Side of your National ID</span>
+                          </label>
+                        )}
+                      </div>
+
+                      {/* Back Side */}
+                      <div>
+                        <p className="text-[11px] text-slate-200 font-extrabold mb-1.5 uppercase font-mono tracking-wider">
+                          NID Back Side (Optional)
+                        </p>
+                        {nidBack ? (
+                          <div className="relative h-24 rounded-xl overflow-hidden border-2 border-[#dbaa61]/55 bg-slate-950">
+                            <img src={nidBack} className="w-full h-full object-cover" alt="NID Back" referrerPolicy="no-referrer" />
+                            <button
+                              type="button"
+                              onClick={() => removeNid('back')}
+                              className="absolute top-1.5 right-1.5 bg-red-650 hover:bg-red-500 rounded-full p-1.5 cursor-pointer text-white"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="h-24 flex flex-col items-center justify-center border-2 border-dashed border-[#dbaa61]/45 hover:border-[#dbaa61] hover:bg-slate-900/60 cursor-pointer rounded-xl transition-all text-center bg-[#0e101a] px-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleNidChange(e, 'back')}
+                              className="hidden"
+                            />
+                            <UploadCloud className="w-6 h-6 text-[#dbaa61] mb-1 opacity-95" />
+                            <span className="text-[10px] min-[380px]:text-[11px] text-[#dbaa61] font-bold font-mono">Upload NID Back</span>
+                            <span className="text-[8.5px] text-slate-400 font-sans">Back Side of your National ID (Optional)</span>
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full">
+                      <p className="text-[11px] text-slate-200 font-extrabold mb-1.5 uppercase font-mono tracking-wider">
+                        Birth Certificate *
+                      </p>
                       {nidFront ? (
-                        <div className="relative h-24 rounded-xl overflow-hidden border-2 border-[#dbaa61]/55 bg-slate-950">
-                          <img src={nidFront} className="w-full h-full object-cover" alt="NID Front" referrerPolicy="no-referrer" />
+                        <div className="relative h-32 rounded-xl overflow-hidden border-2 border-[#dbaa61]/55 bg-slate-950 w-full">
+                          <img src={nidFront} className="w-full h-full object-cover" alt="Birth Certificate" referrerPolicy="no-referrer" />
                           <button
                             type="button"
                             onClick={() => removeNid('front')}
@@ -1396,259 +1584,134 @@ export default function JoinModal({
                           </button>
                         </div>
                       ) : (
-                        <label className="h-24 flex flex-col items-center justify-center border-2 border-dashed border-[#dbaa61]/45 hover:border-[#dbaa61] hover:bg-slate-900/60 cursor-pointer rounded-xl transition-all text-center bg-[#0e101a]">
+                        <label className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-[#dbaa61]/45 hover:border-[#dbaa61] hover:bg-slate-900/60 cursor-pointer rounded-xl transition-all text-center bg-[#0e101a] px-4 w-full">
                           <input
                             type="file"
                             accept="image/*"
                             onChange={(e) => handleNidChange(e, 'front')}
                             className="hidden"
                           />
-                          <UploadCloud className="w-6 h-6 text-[#dbaa61] mb-1 opacity-95" />
-                          <span className="text-[11px] text-[#dbaa61] font-bold font-mono">Upload Front</span>
+                          <UploadCloud className="w-8 h-8 text-[#dbaa61] mb-1.5 opacity-95" />
+                          <span className="text-[11px] text-[#dbaa61] font-black font-mono">Upload Birth Certificate Photo</span>
+                          <span className="text-[9.5px] text-slate-400 font-sans mt-0.5">Please upload a clear digital copy of your Birth Certificate (Single file)</span>
                         </label>
                       )}
                     </div>
+                  )}
 
-                    {/* Back Side */}
-                    <div>
-                      <p className="text-[11px] text-slate-200 font-extrabold mb-1.5 uppercase font-mono tracking-wider">NID Back Side *</p>
-                      {nidBack ? (
-                        <div className="relative h-24 rounded-xl overflow-hidden border-2 border-[#dbaa61]/55 bg-slate-950">
-                          <img src={nidBack} className="w-full h-full object-cover" alt="NID Back" referrerPolicy="no-referrer" />
+                  {/* Selfie Verification Block - Mandatory Live Capture Only */}
+                  <div className="pt-1.5">
+                    <p className="text-[11px] text-slate-200 font-extrabold mb-1.5 uppercase font-mono tracking-wider flex justify-between">
+                      <span>Live Selfie Verification *</span>
+                      <span className="text-red-400 font-black text-[9px]">CAMERA CAPTURE ONLY</span>
+                    </p>
+
+                    {isCameraActive ? (
+                      <div className="bg-slate-950/80 border-2 border-[#dbaa61]/55 p-3 rounded-2xl flex flex-col items-center space-y-3.5">
+                        <div className="relative w-full max-w-[280px] aspect-[4/3] rounded-xl overflow-hidden bg-black border border-slate-800">
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-2 left-2 px-2 py-0.5 bg-red-600 animate-pulse rounded-full text-[8.5px] font-black uppercase text-white font-mono">
+                            LIVE CAMERA
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2.5 w-full justify-center">
                           <button
                             type="button"
-                            onClick={() => removeNid('back')}
-                            className="absolute top-1.5 right-1.5 bg-red-650 hover:bg-red-500 rounded-full p-1.5 cursor-pointer text-white"
+                            onClick={captureSelfie}
+                            className="px-5 py-2.5 bg-gradient-to-tr from-amber-600 to-[#dbaa61] hover:brightness-110 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer shadow-lg shadow-amber-950/20 font-sans flex items-center gap-1.5"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Camera className="w-4 h-4" />
+                            Capture Photo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={stopCamera}
+                            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer font-sans"
+                          >
+                            Cancel
                           </button>
                         </div>
-                      ) : (
-                        <label className="h-24 flex flex-col items-center justify-center border-2 border-dashed border-[#dbaa61]/45 hover:border-[#dbaa61] hover:bg-slate-900/60 cursor-pointer rounded-xl transition-all text-center bg-[#0e101a]">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleNidChange(e, 'back')}
-                            className="hidden"
-                          />
-                          <UploadCloud className="w-6 h-6 text-[#dbaa61] mb-1 opacity-95" />
-                          <span className="text-[11px] text-[#dbaa61] font-bold font-mono">Upload Back</span>
-                        </label>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Selfie Verification Block - Mandatory */}
-                  <div className="pt-1.5">
-                    <p className="text-[11px] text-slate-200 font-extrabold mb-1.5 uppercase font-mono tracking-wider">
-                      Live Selfie Verification *
-                    </p>
-                    {selfie ? (
-                      <div className="relative h-24 rounded-xl overflow-hidden border-2 border-[#dbaa61]/55 bg-slate-950">
+                      </div>
+                    ) : selfie ? (
+                      <div className="relative h-36 rounded-xl overflow-hidden border-2 border-[#dbaa61]/55 bg-slate-950">
                         <img src={selfie} className="w-full h-full object-cover" alt="Verification Selfie" referrerPolicy="no-referrer" />
+                        <div className="absolute top-2 left-2 bg-emerald-600 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full font-mono tracking-widest flex items-center gap-1">
+                          <Check className="w-3 h-3" /> VERIFIED CAMERA CAPTURE
+                        </div>
                         <button
                           type="button"
                           onClick={() => setSelfie(null)}
-                          className="absolute top-1.5 right-1.5 bg-red-650 hover:bg-red-500 rounded-full p-1.5 cursor-pointer text-white"
+                          className="absolute top-2 right-2 bg-red-600 hover:bg-red-500 rounded-full p-2 cursor-pointer text-white shadow-lg active:scale-90 transition-all"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     ) : (
-                      <label className="h-24 flex flex-col items-center justify-center border-2 border-dashed border-[#dbaa61]/45 hover:border-[#dbaa61] hover:bg-slate-900/60 cursor-pointer rounded-xl transition-all text-center bg-[#0e101a] px-3.5 py-2">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files[0]) {
-                              const file = e.target.files[0];
-                              compressImage(file, 800, 800, 0.75).then((compressedUrl) => {
-                                if (compressedUrl) {
-                                  setSelfie(compressedUrl);
-                                }
-                              });
-                            }
-                          }}
-                          className="hidden"
-                        />
-                        <Camera className="w-5 h-5 text-[#dbaa61] mb-1 opacity-95" />
-                        <span className="text-[11px] text-[#dbaa61] font-bold font-mono">Upload Live Selfie</span>
-                        <span className="text-[8.5px] text-slate-400 leading-tight font-sans">
-                          Selfie verification is mandatory
-                        </span>
-                      </label>
+                      <div className="border-2 border-dashed border-[#dbaa61]/45 bg-[#0e101a] rounded-2xl p-6 text-center flex flex-col items-center justify-center space-y-3">
+                        <div className="w-11 h-11 rounded-full bg-amber-500/10 border border-[#dbaa61]/25 flex items-center justify-center text-[#dbaa61]">
+                          <Camera className="w-5 h-5 animate-pulse" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-white font-black font-sans">
+                            Live Camera Capture Mandatory
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-medium font-sans max-w-sm leading-relaxed">
+                            Upload is disabled for security. Click below to start your front or back camera and snap a live selfie directly.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={startCamera}
+                          className="px-5 py-2.5 bg-[#dbaa61]/10 hover:bg-[#dbaa61]/20 border border-[#dbaa61]/55 text-[#dbaa61] rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer shadow-md font-sans"
+                        >
+                          Start Camera
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
               )}
 
               {/* Apni ki service dite parben / What services can you provide */}
-              <div className="border-t border-[#ac843c]/25 pt-4">
-                {type === 'female' ? (
-                  <div className="space-y-6">
-                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-200 font-black mb-1.5 label-mono-white">
-                      WHAT SERVICES CAN YOU PROVIDE? *
-                    </label>
-                    
-                    {/* Real Services Category */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1.5 border-b border-[#ac843c]/30 pb-1.5">
-                        <span className="w-2 h-2 rounded-full bg-[#dbaa61]" />
-                        <span className="text-xs font-mono font-black uppercase tracking-wider text-[#dbaa61]">
-                          Real Services
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
-                        {SERVICES_REAL.map((srv) => {
-                          const isSelected = selectedServices.includes(srv.english);
-                          return (
-                            <div
-                              key={srv.id}
-                              onClick={() => handleToggleService(srv.english)}
-                              className={`flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer select-none transition-all ${
-                                isSelected
-                                  ? 'bg-gradient-to-r from-[#ac843c]/20 to-[#dbaa61]/30 border-[#dbaa61] text-[#f3ecdb]'
-                                  : 'bg-[#0e101a] border-[#dbaa61]/35 text-slate-200 hover:border-[#dbaa61] hover:text-white'
-                              }`}
-                            >
-                              <div
-                                className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all ${
-                                  isSelected
-                                    ? 'bg-[#dbaa61] border-[#dbaa61] text-black'
-                                    : 'bg-[#030303] border-[#ac843c]/40'
-                                }`}
-                              >
-                                {isSelected && (
-                                  <Check className="w-3.5 h-3.5 stroke-[4.5] text-black" />
-                                )}
-                              </div>
-                              <div className="leading-tight">
-                                <span className="text-sm font-extrabold block text-white">
-                                  {srv.english}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+              {type !== 'female' && (
+                <div className="border-t border-[#ac843c]/25 pt-4">
+                  {type === 'male' ? (
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                        Specialty Service Description & Experience *
+                      </label>
+                      <textarea
+                        rows={3}
+                        required
+                        placeholder=""
+                        value={formData.details}
+                        onChange={(e) => setFormData({ ...formData, details: e.target.value })}
+                        className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl px-4 py-3.5 font-bold focus:outline-none transition-all placeholder:text-slate-400 resize-none leading-relaxed"
+                      />
                     </div>
-
-                    {/* Face Cam Services Category */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1.5 border-b border-[#ac843c]/30 pb-1.5">
-                        <span className="w-2 h-2 rounded-full bg-[#dbaa61]" />
-                        <span className="text-xs font-mono font-black uppercase tracking-wider text-[#dbaa61]">
-                          Face Cam Video
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
-                        {SERVICES_FACECAM.map((srv) => {
-                          const isSelected = selectedServices.includes(srv.english);
-                          return (
-                            <div
-                              key={srv.id}
-                              onClick={() => handleToggleService(srv.english)}
-                              className={`flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer select-none transition-all ${
-                                isSelected
-                                  ? 'bg-gradient-to-r from-[#ac843c]/20 to-[#dbaa61]/30 border-[#dbaa61] text-[#f3ecdb]'
-                                  : 'bg-[#0e101a] border-[#dbaa61]/35 text-slate-200 hover:border-[#dbaa61] hover:text-white'
-                              }`}
-                            >
-                              <div
-                                className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all ${
-                                  isSelected
-                                    ? 'bg-[#dbaa61] border-[#dbaa61] text-black'
-                                    : 'bg-[#030303] border-[#ac843c]/40'
-                                }`}
-                              >
-                                {isSelected && (
-                                  <Check className="w-3.5 h-3.5 stroke-[4.5] text-black" />
-                                )}
-                              </div>
-                              <div className="leading-tight">
-                                <span className="text-sm font-extrabold block text-white">
-                                  {srv.english}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                        Health & Body Vitals (Height, Weight, Habits) *
+                      </label>
+                      <textarea
+                        rows={3}
+                        required
+                        placeholder=""
+                        value={formData.details}
+                        onChange={(e) => setFormData({ ...formData, details: e.target.value })}
+                        className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl px-4 py-3.5 font-bold focus:outline-none transition-all placeholder:text-slate-400 resize-none leading-relaxed"
+                      />
                     </div>
-
-                    {/* Live Together Category */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1.5 border-b border-[#ac843c]/30 pb-1.5">
-                        <span className="w-2 h-2 rounded-full bg-[#dbaa61]" />
-                        <span className="text-xs font-mono font-black uppercase tracking-wider text-[#dbaa61]">
-                          Live Together
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
-                        {SERVICES_LIVETOGETHER.map((srv) => {
-                          const isSelected = selectedServices.includes(srv.english);
-                          return (
-                            <div
-                              key={srv.id}
-                              onClick={() => handleToggleService(srv.english)}
-                              className={`flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer select-none transition-all ${
-                                isSelected
-                                  ? 'bg-gradient-to-r from-[#ac843c]/20 to-[#dbaa61]/30 border-[#dbaa61] text-[#f3ecdb]'
-                                  : 'bg-[#0e101a] border-[#dbaa61]/35 text-slate-200 hover:border-[#dbaa61] hover:text-white'
-                              }`}
-                            >
-                              <div
-                                className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all ${
-                                  isSelected
-                                    ? 'bg-[#dbaa61] border-[#dbaa61] text-black'
-                                    : 'bg-[#030303] border-[#ac843c]/40'
-                                }`}
-                              >
-                                {isSelected && (
-                                  <Check className="w-3.5 h-3.5 stroke-[4.5] text-black" />
-                                )}
-                              </div>
-                              <div className="leading-tight">
-                                <span className="text-sm font-extrabold block text-white">
-                                  {srv.english}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                ) : type === 'male' ? (
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
-                      Specialty Service Description & Experience *
-                    </label>
-                    <textarea
-                      rows={3}
-                      required
-                      placeholder=""
-                      value={formData.details}
-                      onChange={(e) => setFormData({ ...formData, details: e.target.value })}
-                      className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl px-4 py-3.5 font-bold focus:outline-none transition-all placeholder:text-slate-400 resize-none leading-relaxed"
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
-                      Health & Body Vitals (Height, Weight, Habits) *
-                    </label>
-                    <textarea
-                      rows={3}
-                      required
-                      placeholder=""
-                      value={formData.details}
-                      onChange={(e) => setFormData({ ...formData, details: e.target.value })}
-                      className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl px-4 py-3.5 font-bold focus:outline-none transition-all placeholder:text-slate-400 resize-none leading-relaxed"
-                    />
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
               {/* Security Assurance */}
               <div className="bg-[#181510] border-2 border-[#ac843c]/60 p-4 rounded-xl space-y-1.5 text-xs text-slate-100 leading-relaxed font-bold shadow-md">
@@ -1694,14 +1757,20 @@ export default function JoinModal({
               </p>
             </div>
 
-            {/* HIGHLY VISIBLE CUSTOM TELEGRAM THANK-YOU CARD */}
-            <div className="bg-[#051a30] border-2 border-[#38bdf8] p-5 rounded-2xl text-left text-sm text-slate-100 space-y-3 font-bold leading-relaxed shadow-lg cyan-breathing-glow">
-              <div className="flex items-center gap-2 border-b border-[#38bdf8]/35 pb-2">
-                <Send className="w-5 h-5 text-[#38bdf8] rotate-45" />
-                <span className="font-extrabold text-[#38bdf8] uppercase tracking-wider font-mono">Telegram Message Alert</span>
+            {/* HIGHLY VISIBLE CUSTOM EMAIL/CREDENTIALS ALERT CARD */}
+            <div className="bg-[#0b1c1e] border-2 border-emerald-500/50 p-5 rounded-2xl text-left text-sm text-slate-100 space-y-3.5 font-bold leading-relaxed shadow-lg shadow-emerald-950/20">
+              <div className="flex items-center gap-2 border-b border-emerald-500/35 pb-2">
+                <Mail className="w-5 h-5 text-emerald-400" />
+                <span className="font-extrabold text-emerald-400 uppercase tracking-wider font-mono">System Email Notification</span>
               </div>
-              <p className="text-base text-white font-black leading-relaxed">
-                Thank you for joining Body Touch. Please check your Telegram account, we have sent all details to your Telegram.
+              <p className="text-sm text-white font-bold leading-relaxed">
+                Thank you for registering. Once our dispatch operations team reviews and approves your registry profile, your system username and a temporary login password will be automatically generated and sent to your email address:
+              </p>
+              <div className="bg-black/45 px-4 py-3 rounded-xl border border-emerald-500/20 font-mono text-center text-xs text-emerald-400 font-black select-all break-all tracking-wide">
+                {formData.email || 'your-registered-email@domain.com'}
+              </div>
+              <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                * Please make sure to check your Inbox as well as your Spam/Junk folder for your temporary password once approved.
               </p>
             </div>
 
@@ -1721,7 +1790,7 @@ export default function JoinModal({
                 <span className="font-black text-amber-400 uppercase animate-pulse">UNDER MANUAL INSPECTION</span>
               </div>
               <p className="pt-1 text-xs text-slate-350 font-semibold leading-relaxed">
-                Our dispatch operations team will review your photos, dimensions, and NID credentials. If approved, we will contact you on <span className="font-bold text-[#dbaa61]">{formData.telegram}</span> (Telegram) within 12 - 24 hours to schedule onboarding coordinates.
+                Our dispatch operations team will review your photos, dimensions, and NID credentials. If approved, your credentials (including your temporary password) will be emailed immediately, and we will contact you on <span className="font-bold text-[#dbaa61]">{formData.telegram || 'your Telegram'}</span> (Telegram) within 12 - 24 hours to schedule onboarding coordinates.
               </p>
             </div>
 

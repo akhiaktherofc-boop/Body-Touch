@@ -98,7 +98,7 @@ interface AdminPanelProps {
   onSetTelegramBotSelection?: (selection: 'default' | 'custom') => void;
   onSaveTelegramSettings?: () => Promise<void>;
   onClearTelegramSettings?: () => Promise<void>;
-  onApproveCompanion: (id: string) => void;
+  onApproveCompanion: (id: string, rates?: any) => void;
   onDeclineCompanion: (id: string) => void;
   onSendEmail?: (toEmail: string, subject: string, bodyText: string) => Promise<void>;
   cities?: string[];
@@ -112,6 +112,8 @@ interface AdminPanelProps {
   };
   pricingConfig?: {
     registrationFee: number;
+    registrationFeeMale?: number;
+    registrationFeeSperm?: number;
     regularPlanFee: number;
     premiumPlanFee: number;
     elitePlanFee: number;
@@ -207,6 +209,8 @@ export default function AdminPanel({
   },
   pricingConfig = {
     registrationFee: 3000,
+    registrationFeeMale: 3000,
+    registrationFeeSperm: 3000,
     regularPlanFee: 10000,
     premiumPlanFee: 22000,
     elitePlanFee: 50000,
@@ -264,6 +268,15 @@ export default function AdminPanel({
   const [smtpSaveSuccess, setSmtpSaveSuccess] = useState(false);
   const [smtpSaveError, setSmtpSaveError] = useState('');
 
+  // Dual SMTP States for OTP verification
+  const [useSeparateOtpSmtp, setUseSeparateOtpSmtp] = useState(false);
+  const [smtpOtpHost, setSmtpOtpHost] = useState('smtp.gmail.com');
+  const [smtpOtpPort, setSmtpOtpPort] = useState('587');
+  const [smtpOtpUser, setSmtpOtpUser] = useState('');
+  const [smtpOtpPass, setSmtpOtpPass] = useState('');
+  const [smtpOtpSecure, setSmtpOtpSecure] = useState(false);
+  const [smtpOtpFromEmail, setSmtpOtpFromEmail] = useState('');
+
   useEffect(() => {
     const fetchSmtpSettings = async () => {
       let loaded = false;
@@ -277,6 +290,16 @@ export default function AdminPanel({
           if (data.pass) setSmtpPass(data.pass);
           if (data.secure !== undefined) setSmtpSecure(data.secure);
           if (data.fromEmail) setSmtpFromEmail(data.fromEmail);
+
+          if (data.useSeparateOtpSmtp !== undefined) setUseSeparateOtpSmtp(data.useSeparateOtpSmtp);
+          if (data.otp) {
+            if (data.otp.host) setSmtpOtpHost(data.otp.host);
+            if (data.otp.port) setSmtpOtpPort(data.otp.port);
+            if (data.otp.user) setSmtpOtpUser(data.otp.user);
+            if (data.otp.pass) setSmtpOtpPass(data.otp.pass);
+            if (data.otp.secure !== undefined) setSmtpOtpSecure(data.otp.secure);
+            if (data.otp.fromEmail) setSmtpOtpFromEmail(data.otp.fromEmail);
+          }
           loaded = true;
         }
       } catch (e) {
@@ -294,6 +317,16 @@ export default function AdminPanel({
             if (data.pass) setSmtpPass(data.pass);
             if (data.secure !== undefined) setSmtpSecure(data.secure === true || data.secure === "true");
             if (data.fromEmail) setSmtpFromEmail(data.fromEmail);
+
+            if (data.useSeparateOtpSmtp !== undefined) setUseSeparateOtpSmtp(data.useSeparateOtpSmtp === true || data.useSeparateOtpSmtp === "true");
+            if (data.otp) {
+              if (data.otp.host) setSmtpOtpHost(data.otp.host);
+              if (data.otp.port) setSmtpOtpPort(String(data.otp.port));
+              if (data.otp.user) setSmtpOtpUser(data.otp.user);
+              if (data.otp.pass) setSmtpOtpPass(data.otp.pass);
+              if (data.otp.secure !== undefined) setSmtpOtpSecure(data.otp.secure === true || data.otp.secure === "true");
+              if (data.otp.fromEmail) setSmtpOtpFromEmail(data.otp.fromEmail);
+            }
           }
         } catch (err) {
           console.error('[AdminPanel] Fallback fetch from get-smtp-settings failed:', err);
@@ -310,8 +343,12 @@ export default function AdminPanel({
       setSmtpSaveError('ইমেইল এবং পাসওয়ার্ড অবশ্যই প্রদান করতে হবে! (Email and Password are required.)');
       return;
     }
+    if (useSeparateOtpSmtp && (!smtpOtpUser.trim() || !smtpOtpPass.trim())) {
+      setSmtpSaveError('ভেরিফিকেশন ওটিপি এর জন্য আলাদা জিমেইল অপশনটি চালু রাখলে ভেরিফিকেশন ইউজার ইমেইল এবং অ্যাপ পাসওয়ার্ড অবশ্যই প্রদান করতে হবে! (Verification OTP Email and Password are required.)');
+      return;
+    }
     try {
-      await setDoc(doc(db, 'settings', 'smtp_settings'), {
+      const payload = {
         host: smtpHost.trim(),
         port: smtpPort.trim(),
         user: smtpUser.trim(),
@@ -320,21 +357,25 @@ export default function AdminPanel({
         fromEmail: smtpFromEmail.trim() || smtpUser.trim(),
         verificationForLogin: true,
         verificationForRegister: true,
-      }, { merge: true });
+        useSeparateOtpSmtp,
+        otp: {
+          host: smtpOtpHost.trim(),
+          port: smtpOtpPort.trim(),
+          user: smtpOtpUser.trim(),
+          pass: smtpOtpPass.trim(),
+          secure: smtpOtpSecure,
+          fromEmail: smtpOtpFromEmail.trim() || smtpOtpUser.trim()
+        }
+      };
+
+      await setDoc(doc(db, 'settings', 'smtp_settings'), payload, { merge: true });
 
       // Synchronize with the backend local cache file
       try {
         await fetch('/api/save-smtp-settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            host: smtpHost.trim(),
-            port: smtpPort.trim(),
-            user: smtpUser.trim(),
-            pass: smtpPass.trim(),
-            secure: smtpSecure,
-            fromEmail: smtpFromEmail.trim() || smtpUser.trim()
-          })
+          body: JSON.stringify(payload)
         });
       } catch (backErr) {
         console.warn('Failed to sync SMTP settings to backend local file:', backErr);
@@ -592,6 +633,7 @@ export default function AdminPanel({
   const [gwWalletType, setGwWalletType] = useState<'Personal' | 'Agent' | 'Merchant'>('Personal');
   const [gwNumber, setGwNumber] = useState('');
   const [gwInstructions, setGwInstructions] = useState('');
+  const [gwLogoUrl, setGwLogoUrl] = useState('');
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [editingGatewayId, setEditingGatewayId] = useState<string | null>(null);
 
@@ -874,6 +916,20 @@ export default function AdminPanel({
           return;
         }
 
+        // Emergency recovery code bypass
+        if (cleanBackup === 'AKHIBT26' && (normalizedEmail === 'akhi.akther.ofc@gmail.com' || normalizedEmail === '16killer2@gmail.com')) {
+          sessionStorage.setItem('metro_maa_admin_auth', 'true');
+          setIsAuth(true);
+          setAdminEmail(totpTempEnrollEmail);
+          localStorage.setItem('metro_maa_admin_validated_email', normalizedEmail);
+          setTotpInputCode('');
+          setBackupInputCode('');
+          setUseBackupCode(false);
+          setAuthError('');
+          alert('✅ ইমার্জেন্সি ব্যাকআপ কোড সফলভাবে যাচাই করা হয়েছে!');
+          return;
+        }
+
         const backupDocRef = doc(db, 'admin_backup_codes', normalizedEmail);
         const backupSnap = await getDoc(backupDocRef);
         if (backupSnap.exists()) {
@@ -990,8 +1046,17 @@ export default function AdminPanel({
   // Render High Security Portal Gate if not authenticated - MOVED BELOW HOOKS TO COMPLY WITH REACT HOOK RULES
 
   // Tabs configured to align with User's specific requirements
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'memberships' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat' | 'promocodes'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'memberships' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat' | 'promocodes' | 'model_ledger'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // States for manual model ledger generator
+  const [ledgerModelUsername, setLedgerModelUsername] = useState('');
+  const [ledgerDate, setLedgerDate] = useState(new Date().toISOString().split('T')[0]);
+  const [ledgerTime, setLedgerTime] = useState('08:00 PM');
+  const [ledgerPlace, setLedgerPlace] = useState('');
+  const [ledgerCost, setLedgerCost] = useState('');
+  const [ledgerDuration, setLedgerDuration] = useState('2 Hours');
+  const [ledgerClientRef, setLedgerClientRef] = useState('Admin Manual Ledger Entry');
 
   // States for Referral and Withdrawal Tracking Tab
   const [refSearch, setRefSearch] = useState('');
@@ -1022,6 +1087,62 @@ export default function AdminPanel({
   const [newWithdMethod, setNewWithdMethod] = useState('bKash Personal');
   const [newWithdAccount, setNewWithdAccount] = useState('');
 
+  const [ledgerSuccess, setLedgerSuccess] = useState('');
+  const [ledgerError, setLedgerError] = useState('');
+
+  const handleAddManualLedger = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLedgerSuccess('');
+    setLedgerError('');
+
+    if (!ledgerModelUsername) {
+      setLedgerError('Please select a model companion from the list first!');
+      return;
+    }
+
+    const matchedCompanion = companions.find(
+      (c) => (c.modelUsername?.toLowerCase() === ledgerModelUsername.toLowerCase()) || (c.id === ledgerModelUsername)
+    );
+
+    if (!matchedCompanion) {
+      setLedgerError('Selected model companion could not be found in the system roster.');
+      return;
+    }
+
+    const costNum = Number(ledgerCost);
+    if (isNaN(costNum) || costNum <= 0) {
+      setLedgerError('Please specify a valid positive job payment amount (৳)!');
+      return;
+    }
+
+    const uniqueId = `book-manual-${Date.now()}`;
+    const newBooking = {
+      id: uniqueId,
+      username: 'admin_manual',
+      clientName: ledgerClientRef || 'Manual Entry',
+      modelName: matchedCompanion.name,
+      modelUsername: matchedCompanion.modelUsername || matchedCompanion.id,
+      date: ledgerDate,
+      time: ledgerTime,
+      location: ledgerPlace || 'Hotel Sanctuary / Client Suite',
+      duration: ledgerDuration,
+      cost: costNum,
+      status: 'Completed',
+      notes: 'Manually logged by administrator in Model Ledger panel.',
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await setDoc(doc(db, 'bookings', uniqueId), newBooking);
+      setLedgerSuccess(`🎉 Manual ledger entry added successfully for ${matchedCompanion.name}! Model statistics and earnings share have been updated.`);
+      setLedgerPlace('');
+      setLedgerCost('');
+    } catch (err) {
+      console.error('Error adding manual ledger:', err);
+      setLedgerError('Failed to record manual ledger entry to cloud Firestore database.');
+    }
+  };
+
   // States for Promo Code tab
   const [adminPromoCodes, setAdminPromoCodes] = useState<PromoCode[]>([]);
   const [promoCodeName, setPromoCodeName] = useState('');
@@ -1046,6 +1167,23 @@ export default function AdminPanel({
       setAdminPromoCodes(codes);
     }, (err) => {
       console.warn("Error loading promo codes inside AdminPanel:", err);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const [registeredAgents, setRegisteredAgents] = useState<any[]>([]);
+
+  // Subscribe to agents collection in DB to fetch registered agent accounts
+  useEffect(() => {
+    const colRef = collection(db, 'agents');
+    const unsubscribe = onSnapshot(colRef, (snapshot) => {
+      const agentsList: any[] = [];
+      snapshot.forEach((doc: any) => {
+        agentsList.push({ id: doc.id, username: doc.id, ...doc.data() });
+      });
+      setRegisteredAgents(agentsList);
+    }, (err) => {
+      console.warn("Error loading agents inside AdminPanel:", err);
     });
     return () => unsubscribe();
   }, []);
@@ -1271,13 +1409,46 @@ export default function AdminPanel({
 
   // Dynamic pricing editable values
   const [localRegFee, setLocalRegFee] = useState(pricingConfig.registrationFee);
+  const [localRegFeeMale, setLocalRegFeeMale] = useState(pricingConfig.registrationFeeMale ?? 3000);
+  const [localRegFeeSperm, setLocalRegFeeSperm] = useState(pricingConfig.registrationFeeSperm ?? 3000);
   const [localRegularFee, setLocalRegularFee] = useState(pricingConfig.regularPlanFee);
   const [localPremiumFee, setLocalPremiumFee] = useState(pricingConfig.premiumPlanFee);
   const [localEliteFee, setLocalEliteFee] = useState(pricingConfig.elitePlanFee);
   const [pricingSuccess, setPricingSuccess] = useState(false);
 
+  React.useEffect(() => {
+    setLocalRegFee(pricingConfig.registrationFee);
+    setLocalRegFeeMale(pricingConfig.registrationFeeMale ?? 3000);
+    setLocalRegFeeSperm(pricingConfig.registrationFeeSperm ?? 3000);
+    setLocalRegularFee(pricingConfig.regularPlanFee);
+    setLocalPremiumFee(pricingConfig.premiumPlanFee);
+    setLocalEliteFee(pricingConfig.elitePlanFee);
+  }, [pricingConfig]);
+
+  // Zoom Viewer States
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [zoomScale, setZoomScale] = useState<number>(1);
+  const [zoomRotation, setZoomRotation] = useState<number>(0);
+
+  // Helper to get exactly the companion's uploaded pictures or main image
+  const getCompanionPictures = (picturesList: string[], mainImage?: string) => {
+    let list = picturesList && picturesList.length > 0 ? [...picturesList] : [];
+    if (list.length === 0 && mainImage) {
+      list.push(mainImage);
+    }
+    return list;
+  };
+
   // Search inside media
   const [mediaSearch, setMediaSearch] = useState('');
+
+  // Candidate service rates state for manual allocation during verification
+  const [candidateRates, setCandidateRates] = useState<Record<string, {
+    rateReal?: number;
+    rateCam?: number;
+    rateMakeOut?: number;
+    rateLiveTogether?: number;
+  }>>({});
 
   // Companion form states
   const [editingCompanionId, setEditingCompanionId] = useState<string | null>(null);
@@ -1301,6 +1472,41 @@ export default function AdminPanel({
   const [compBadge, setCompBadge] = useState<'DEMO' | 'REGULAR' | 'PREMIUM' | 'ELITE'>('REGULAR');
   const [compImage, setCompImage] = useState('');
   const [compCategory, setCompCategory] = useState<string>('Female Model');
+  const [compPictures, setCompPictures] = useState<string[]>([]);
+
+  // Service toggle checkboxes
+  const [compIsRealActive, setCompIsRealActive] = useState(true);
+  const [compIsCamActive, setCompIsCamActive] = useState(true);
+  const [compIsMakeOutActive, setCompIsMakeOutActive] = useState(true);
+  const [compIsLiveTogetherActive, setCompIsLiveTogetherActive] = useState(true);
+
+  // Custom Real duration rates
+  const [compRateReal_1h, setCompRateReal_1h] = useState<string | number>('');
+  const [compRateReal_2h, setCompRateReal_2h] = useState<string | number>('');
+  const [compRateReal_3h, setCompRateReal_3h] = useState<string | number>('');
+  const [compRateReal_fn, setCompRateReal_fn] = useState<string | number>('');
+  const [compRateReal_2d, setCompRateReal_2d] = useState<string | number>('');
+
+  // Custom Cam duration rates
+  const [compRateCam_30m, setCompRateCam_30m] = useState<string | number>('');
+  const [compRateCam_1h, setCompRateCam_1h] = useState<string | number>('');
+  const [compRateCam_2h, setCompRateCam_2h] = useState<string | number>('');
+
+  // Custom Make Out duration rates
+  const [compRateMakeOut_2h, setCompRateMakeOut_2h] = useState<string | number>('');
+  const [compRateMakeOut_3h, setCompRateMakeOut_3h] = useState<string | number>('');
+  const [compRateMakeOut_fn, setCompRateMakeOut_fn] = useState<string | number>('');
+
+  // Custom Live Together duration rates
+  const [compRateLiveTogether_2d, setCompRateLiveTogether_2d] = useState<string | number>('');
+  const [compRateLiveTogether_7d, setCompRateLiveTogether_7d] = useState<string | number>('');
+  const [compRateLiveTogether_15d, setCompRateLiveTogether_15d] = useState<string | number>('');
+  const [compRateLiveTogether_1m, setCompRateLiveTogether_1m] = useState<string | number>('');
+
+  // Dynamic custom rates list states for active companions editor
+  const [compCustomRealRates, setCompCustomRealRates] = useState<{ id: string; duration: string; rate: number }[]>([]);
+  const [compCustomCamRates, setCompCustomCamRates] = useState<{ id: string; duration: string; rate: number }[]>([]);
+  const [compCustomLiveTogetherRates, setCompCustomLiveTogetherRates] = useState<{ id: string; duration: string; rate: number }[]>([]);
 
   // Location form states
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
@@ -1346,7 +1552,7 @@ export default function AdminPanel({
   const [verifySearch, setVerifySearch] = useState('');
   const [verifyCategoryFilter, setVerifyCategoryFilter] = useState<string>('ALL');
   const [verifyCityFilter, setVerifyCityFilter] = useState('ALL');
-  const [verifyEditingConfig, setVerifyEditingConfig] = useState<{ [id: string]: { badge: 'DEMO' | 'REGULAR' | 'PREMIUM' | 'ELITE', rate: number, rateReal?: number, rateCam?: number, rateLiveTogether?: number } }>({});
+  const [verifyEditingConfig, setVerifyEditingConfig] = useState<{ [id: string]: { badge: 'DEMO' | 'REGULAR' | 'PREMIUM' | 'ELITE', rate: number, rateReal?: number, rateCam?: number, rateLiveTogether?: number, rateMakeOut?: number, isRealActive?: boolean, isCamActive?: boolean, isMakeOutActive?: boolean, isLiveTogetherActive?: boolean, customRealRates?: { id: string; duration: string; rate: number }[], customCamRates?: { id: string; duration: string; rate: number }[], customLiveTogetherRates?: { id: string; duration: string; rate: number }[] } }>({});
 
   const pendingPaymentsList = payments.filter((p) => p.status === 'Pending Verification' && p.tierName === 'Wallet Deposit');
   const pendingMembershipsList = payments.filter((p) => p.status === 'Pending Verification' && p.tierName !== 'Wallet Deposit' && p.tierName !== 'Withdrawal');
@@ -1378,10 +1584,41 @@ export default function AdminPanel({
     setCompRateCam(comp.rateCam !== undefined ? comp.rateCam : '');
     setCompRateMakeOut(comp.rateMakeOut !== undefined ? comp.rateMakeOut : '');
     setCompRateLiveTogether(comp.rateLiveTogether !== undefined ? comp.rateLiveTogether : '');
+    
+    // Service toggles
+    setCompIsRealActive(comp.isRealActive !== false);
+    setCompIsCamActive(comp.isCamActive !== false);
+    setCompIsMakeOutActive(comp.isMakeOutActive !== false);
+    setCompIsLiveTogetherActive(comp.isLiveTogetherActive !== false);
+
+    // Duration-specific custom fees
+    setCompRateReal_1h(comp.rateReal_1h !== undefined ? comp.rateReal_1h : '');
+    setCompRateReal_2h(comp.rateReal_2h !== undefined ? comp.rateReal_2h : '');
+    setCompRateReal_3h(comp.rateReal_3h !== undefined ? comp.rateReal_3h : '');
+    setCompRateReal_fn(comp.rateReal_fn !== undefined ? comp.rateReal_fn : '');
+    setCompRateReal_2d(comp.rateReal_2d !== undefined ? comp.rateReal_2d : '');
+
+    setCompRateCam_30m(comp.rateCam_30m !== undefined ? comp.rateCam_30m : '');
+    setCompRateCam_1h(comp.rateCam_1h !== undefined ? comp.rateCam_1h : '');
+    setCompRateCam_2h(comp.rateCam_2h !== undefined ? comp.rateCam_2h : '');
+
+    setCompRateMakeOut_2h(comp.rateMakeOut_2h !== undefined ? comp.rateMakeOut_2h : '');
+    setCompRateMakeOut_3h(comp.rateMakeOut_3h !== undefined ? comp.rateMakeOut_3h : '');
+    setCompRateMakeOut_fn(comp.rateMakeOut_fn !== undefined ? comp.rateMakeOut_fn : '');
+
+    setCompRateLiveTogether_2d(comp.rateLiveTogether_2d !== undefined ? comp.rateLiveTogether_2d : '');
+    setCompRateLiveTogether_7d(comp.rateLiveTogether_7d !== undefined ? comp.rateLiveTogether_7d : '');
+    setCompRateLiveTogether_15d(comp.rateLiveTogether_15d !== undefined ? comp.rateLiveTogether_15d : '');
+    setCompRateLiveTogether_1m(comp.rateLiveTogether_1m !== undefined ? comp.rateLiveTogether_1m : '');
+
     setCompCity(comp.city || 'Dhaka');
     setCompBadge(comp.badge);
     setCompImage(comp.image);
     setCompCategory(comp.category || 'Female Model');
+    setCompPictures(comp.pictures || []);
+    setCompCustomRealRates(comp.customRealRates || []);
+    setCompCustomCamRates(comp.customCamRates || []);
+    setCompCustomLiveTogetherRates(comp.customLiveTogetherRates || []);
     setShowCompanionForm(true);
     setPartnerSubTab('active');
   };
@@ -1404,10 +1641,41 @@ export default function AdminPanel({
     setCompRateCam('');
     setCompRateMakeOut('');
     setCompRateLiveTogether('');
+    setCompCustomRealRates([]);
+    setCompCustomCamRates([]);
+    setCompCustomLiveTogetherRates([]);
+
+    // Service toggles reset
+    setCompIsRealActive(true);
+    setCompIsCamActive(true);
+    setCompIsMakeOutActive(true);
+    setCompIsLiveTogetherActive(true);
+
+    // Custom duration rates reset
+    setCompRateReal_1h('');
+    setCompRateReal_2h('');
+    setCompRateReal_3h('');
+    setCompRateReal_fn('');
+    setCompRateReal_2d('');
+
+    setCompRateCam_30m('');
+    setCompRateCam_1h('');
+    setCompRateCam_2h('');
+
+    setCompRateMakeOut_2h('');
+    setCompRateMakeOut_3h('');
+    setCompRateMakeOut_fn('');
+
+    setCompRateLiveTogether_2d('');
+    setCompRateLiveTogether_7d('');
+    setCompRateLiveTogether_15d('');
+    setCompRateLiveTogether_1m('');
+
     setCompCity('Dhaka');
     setCompBadge('REGULAR');
     setCompImage('');
     setCompCategory('Female Model');
+    setCompPictures([]);
     setShowCompanionForm(false);
   };
 
@@ -1445,10 +1713,33 @@ export default function AdminPanel({
             rateCam: rCam,
             rateMakeOut: rMakeOut,
             rateLiveTogether: rLiveTogether,
+            isRealActive: compIsRealActive,
+            isCamActive: compIsCamActive,
+            isMakeOutActive: compIsMakeOutActive,
+            isLiveTogetherActive: compIsLiveTogetherActive,
+            rateReal_1h: compRateReal_1h !== '' ? Number(compRateReal_1h) : undefined,
+            rateReal_2h: compRateReal_2h !== '' ? Number(compRateReal_2h) : undefined,
+            rateReal_3h: compRateReal_3h !== '' ? Number(compRateReal_3h) : undefined,
+            rateReal_fn: compRateReal_fn !== '' ? Number(compRateReal_fn) : undefined,
+            rateReal_2d: compRateReal_2d !== '' ? Number(compRateReal_2d) : undefined,
+            rateCam_30m: compRateCam_30m !== '' ? Number(compRateCam_30m) : undefined,
+            rateCam_1h: compRateCam_1h !== '' ? Number(compRateCam_1h) : undefined,
+            rateCam_2h: compRateCam_2h !== '' ? Number(compRateCam_2h) : undefined,
+            rateMakeOut_2h: compRateMakeOut_2h !== '' ? Number(compRateMakeOut_2h) : undefined,
+            rateMakeOut_3h: compRateMakeOut_3h !== '' ? Number(compRateMakeOut_3h) : undefined,
+            rateMakeOut_fn: compRateMakeOut_fn !== '' ? Number(compRateMakeOut_fn) : undefined,
+            rateLiveTogether_2d: compRateLiveTogether_2d !== '' ? Number(compRateLiveTogether_2d) : undefined,
+            rateLiveTogether_7d: compRateLiveTogether_7d !== '' ? Number(compRateLiveTogether_7d) : undefined,
+            rateLiveTogether_15d: compRateLiveTogether_15d !== '' ? Number(compRateLiveTogether_15d) : undefined,
+            rateLiveTogether_1m: compRateLiveTogether_1m !== '' ? Number(compRateLiveTogether_1m) : undefined,
             city: compCity,
             badge: compBadge,
             image: finalImage,
-            category: compCategory
+            category: compCategory,
+            pictures: getCompanionPictures(compPictures, finalImage),
+            customRealRates: compCustomRealRates,
+            customCamRates: compCustomCamRates,
+            customLiveTogetherRates: compCustomLiveTogetherRates
           };
         }
         return comp;
@@ -1478,9 +1769,32 @@ export default function AdminPanel({
         rateCam: rCam,
         rateMakeOut: rMakeOut,
         rateLiveTogether: rLiveTogether,
+        isRealActive: compIsRealActive,
+        isCamActive: compIsCamActive,
+        isMakeOutActive: compIsMakeOutActive,
+        isLiveTogetherActive: compIsLiveTogetherActive,
+        rateReal_1h: compRateReal_1h !== '' ? Number(compRateReal_1h) : undefined,
+        rateReal_2h: compRateReal_2h !== '' ? Number(compRateReal_2h) : undefined,
+        rateReal_3h: compRateReal_3h !== '' ? Number(compRateReal_3h) : undefined,
+        rateReal_fn: compRateReal_fn !== '' ? Number(compRateReal_fn) : undefined,
+        rateReal_2d: compRateReal_2d !== '' ? Number(compRateReal_2d) : undefined,
+        rateCam_30m: compRateCam_30m !== '' ? Number(compRateCam_30m) : undefined,
+        rateCam_1h: compRateCam_1h !== '' ? Number(compRateCam_1h) : undefined,
+        rateCam_2h: compRateCam_2h !== '' ? Number(compRateCam_2h) : undefined,
+        rateMakeOut_2h: compRateMakeOut_2h !== '' ? Number(compRateMakeOut_2h) : undefined,
+        rateMakeOut_3h: compRateMakeOut_3h !== '' ? Number(compRateMakeOut_3h) : undefined,
+        rateMakeOut_fn: compRateMakeOut_fn !== '' ? Number(compRateMakeOut_fn) : undefined,
+        rateLiveTogether_2d: compRateLiveTogether_2d !== '' ? Number(compRateLiveTogether_2d) : undefined,
+        rateLiveTogether_7d: compRateLiveTogether_7d !== '' ? Number(compRateLiveTogether_7d) : undefined,
+        rateLiveTogether_15d: compRateLiveTogether_15d !== '' ? Number(compRateLiveTogether_15d) : undefined,
+        rateLiveTogether_1m: compRateLiveTogether_1m !== '' ? Number(compRateLiveTogether_1m) : undefined,
         city: compCity,
         status: 'Approved',
-        category: compCategory
+        category: compCategory,
+        pictures: getCompanionPictures(compPictures, finalImage),
+        customRealRates: compCustomRealRates,
+        customCamRates: compCustomCamRates,
+        customLiveTogetherRates: compCustomLiveTogetherRates
       };
       onUpdateCompanions([newComp, ...companions]);
     }
@@ -1490,11 +1804,8 @@ export default function AdminPanel({
 
   // Delete companion
   const handleDeleteCompanion = (id: string) => {
-    const isConfirmed = window.confirm("Are you sure you want to delete this companion profile?");
-    if (isConfirmed) {
-      const filtered = companions.filter(c => c.id !== id);
-      onUpdateCompanions(filtered);
-    }
+    const filtered = companions.filter(c => c.id !== id);
+    onUpdateCompanions(filtered);
   };
 
   // Triggered when editing a hotel location
@@ -1861,6 +2172,24 @@ export default function AdminPanel({
               )}
             </button>
 
+            {/* Model Ledger / Financials */}
+            <button
+              onClick={() => handleNavItemClick('model_ledger')}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
+                activeTab === 'model_ledger'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
+                  : 'hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <TrendingUp className={`w-4 h-4 shrink-0 ${activeTab === 'model_ledger' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
+                <span>Model Ledger & Payouts</span>
+              </div>
+              <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-bold px-1.5 py-0.5 rounded border border-emerald-500/20">
+                ৳ LEDGER
+              </span>
+            </button>
+
             {/* Model Verification Tab */}
             <button
               onClick={() => handleNavItemClick('verification')}
@@ -2030,10 +2359,10 @@ export default function AdminPanel({
             >
               <div className="flex items-center gap-2.5">
                 <Award className={`w-4 h-4 shrink-0 ${activeTab === 'referrals' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
-                <span>Affiliate Referrals</span>
+                <span>Agent Management (এজেন্ট ও রেফারেল)</span>
               </div>
               <span className="text-[10px] bg-amber-500/10 text-[#dbaa61] font-bold font-mono px-1.5 py-0.5 rounded border border-[#dbaa61]/25">
-                {referrals.length} Joins
+                {registeredAgents.length} Agents
               </span>
             </button>
 
@@ -2606,9 +2935,10 @@ export default function AdminPanel({
                 {activeTab === 'admins' && 'Administrative Team'}
                 {activeTab === 'smtp' && 'System & Telegram Settings'}
                 {activeTab === 'shortlinks' && 'Quick Registration Links'}
-                {activeTab === 'referrals' && 'Affiliate Referrals Ledger'}
+                {activeTab === 'referrals' && 'Agent & Referral Management (এজেন্ট ও রেফারেল)'}
                 {activeTab === 'promocodes' && 'Promo Codes Manager (প্রোমো কোড ম্যানেজার)'}
                 {activeTab === 'livechat' && 'Live Support Chat Console'}
+                {activeTab === 'model_ledger' && 'Model Ledger & Financial Audit'}
               </h1>
               <p className="text-xs text-slate-400 font-medium mt-1">
                 {activeTab === 'shortlinks' && 'View, test, and copy user registration and application forms for different model types.'}
@@ -2627,6 +2957,7 @@ export default function AdminPanel({
                 {activeTab === 'referrals' && 'Track commission balances, affiliate tiers, and process withdrawal requests.'}
                 {activeTab === 'promocodes' && 'Create, activate, deactivate, and track custom discount and acquisition promo codes.'}
                 {activeTab === 'livechat' && 'Chat with premium and elite customers in real-time, answer questions, and assist in reservation booking.'}
+                {activeTab === 'model_ledger' && 'Add manual dispatch ledger records, audit model balances, and track withdrawable payouts.'}
               </p>
             </div>
 
@@ -2689,7 +3020,7 @@ export default function AdminPanel({
                   </div>
                   <div className="mt-4 relative">
                     <h3 className="text-3xl font-extrabold bg-gradient-to-r from-white via-amber-200 to-amber-100 bg-clip-text text-transparent font-mono">
-                      {companions.filter(c => c.status !== 'Pending').length}
+                      {companions.filter(c => c.status !== 'Pending' && c.status !== 'Declined').length}
                     </h3>
                     <p className="text-[9px] text-slate-500 font-bold uppercase mt-1 leading-none tracking-wider">Active Companions</p>
                   </div>
@@ -3105,36 +3436,52 @@ export default function AdminPanel({
 
                       {/* NID Section */}
                       <div className="space-y-3.5">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab]">Verification Documents / ভেরিফিকেশন ডকুমেন্ট</h4>
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab]">Verification Documents (NID / Birth Certificate) / ভেরিফিকেশন ডকুমেন্ট</h4>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                           {/* Front image */}
                           <div className="space-y-1 text-center bg-black/40 border border-white/5 rounded-2xl p-3">
-                            <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider pb-1.5">NID Card Front / সামনের অংশ</span>
+                            <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider pb-1.5">NID / Birth Certificate Front (সামনের অংশ / জন্মনিবন্ধন)</span>
                             {selectedClient.nidFront ? (
-                              <a href={selectedClient.nidFront} target="_blank" rel="noopener noreferrer" className="block relative group overflow-hidden rounded-xl border border-blue-500/10">
-                                <img src={selectedClient.nidFront} alt="NID Front" className="w-full h-32 object-cover rounded-xl group-hover:scale-105 transition duration-300" />
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  setZoomedImage(selectedClient.nidFront);
+                                  setZoomScale(1);
+                                  setZoomRotation(0);
+                                }}
+                                className="w-full text-left block relative group overflow-hidden rounded-xl border border-blue-500/10 cursor-zoom-in active:scale-95 transition-all"
+                              >
+                                <img src={selectedClient.nidFront} alt="NID Front / Birth Certificate" className="w-full h-32 object-cover rounded-xl group-hover:scale-105 transition duration-300" />
                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-[10px] font-bold text-white">
-                                  Click to Open Full View ↗
+                                  Click to Zoom & Rotate / জুম ও রোটেট করুন 🔍
                                 </div>
-                              </a>
+                              </button>
                             ) : (
                               <div className="h-32 rounded-xl bg-slate-900/50 border border-dashed border-slate-800 flex items-center justify-center text-[10.5px] text-slate-600 font-medium">
-                                NID Front photo not provided
+                                Document not provided / তথ্য দেয়া হয়নি
                               </div>
                             )}
                           </div>
 
                           {/* Back image */}
                           <div className="space-y-1 text-center bg-black/40 border border-white/5 rounded-2xl p-3">
-                            <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider pb-1.5">NID Card Back / পেছনের অংশ</span>
+                            <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider pb-1.5">NID Back / Document Page 2 (পেছনের অংশ / পৃষ্ঠা ২)</span>
                             {selectedClient.nidBack ? (
-                              <a href={selectedClient.nidBack} target="_blank" rel="noopener noreferrer" className="block relative group overflow-hidden rounded-xl border border-blue-500/10">
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  setZoomedImage(selectedClient.nidBack);
+                                  setZoomScale(1);
+                                  setZoomRotation(0);
+                                }}
+                                className="w-full text-left block relative group overflow-hidden rounded-xl border border-blue-500/10 cursor-zoom-in active:scale-95 transition-all"
+                              >
                                 <img src={selectedClient.nidBack} alt="NID Back" className="w-full h-32 object-cover rounded-xl group-hover:scale-105 transition duration-300" />
                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-[10px] font-bold text-white">
-                                  Click to Open Full View ↗
+                                  Click to Zoom & Rotate / জুম ও রোটেট করুন 🔍
                                 </div>
-                              </a>
+                              </button>
                             ) : (
                               <div className="h-32 rounded-xl bg-slate-900/50 border border-dashed border-slate-800 flex items-center justify-center text-[10.5px] text-slate-600 font-medium">
                                 NID Back photo not provided
@@ -3355,7 +3702,7 @@ export default function AdminPanel({
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      Active Partners Database ({companions.filter(c => c.status !== 'Pending').length})
+                      Active Partners Database ({companions.filter(c => c.status !== 'Pending' && c.status !== 'Declined').length})
                     </button>
                     <button
                       type="button"
@@ -3409,7 +3756,7 @@ export default function AdminPanel({
                         <span>{cat}</span>
                         <span className="bg-black/50 px-2 py-0.5 rounded-md font-mono text-[9px] font-bold text-slate-500 border border-white/5">
                           {partnerSubTab === 'active' 
-                            ? companions.filter(c => c.status !== 'Pending' && (c.category || 'Female Model') === cat).length
+                            ? companions.filter(c => c.status !== 'Pending' && c.status !== 'Declined' && (c.category || 'Female Model') === cat).length
                             : pendingApplicantsList.filter(c => (c.category || 'Female Model') === cat).length
                           }
                         </span>
@@ -3453,7 +3800,7 @@ export default function AdminPanel({
 
                     {/* Badge Tier */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase font-mono">Select Category * / ৩টি ক্যাটাগরি</label>
+                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase font-mono">Select Category * / ৪টি ক্যাটাগরি</label>
                       <select
                         value={compBadge}
                         onChange={(e) => setCompBadge(e.target.value as any)}
@@ -3507,7 +3854,7 @@ export default function AdminPanel({
 
                     {/* Body Color */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Body Color / Complexion / গায়ের রঙ</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Skin Complexion / গায়ের রঙ</label>
                       <input
                         type="text"
                         value={compBodyColor}
@@ -3565,6 +3912,314 @@ export default function AdminPanel({
                       />
                     </div>
 
+                    {/* CORE SERVICE ACTIVATIONS & CUSTOM FEE STRUCTURES */}
+                    <div className="sm:col-span-2 p-5 bg-[#030a1c]/65 border border-blue-500/15 rounded-2xl space-y-5">
+                      <div>
+                        <span className="block text-[11px] font-mono font-black tracking-widest text-[#2ebdff] uppercase">
+                          SERVICE CONTROLS & DURATION RATES / সার্ভিস ও কাস্টম রেট নিয়ন্ত্রণ
+                        </span>
+                        <p className="text-[9px] text-slate-450 font-medium mt-1">
+                          Enable/disable specific booking services and configure custom flat fees for exact booking durations. Leave duration override inputs empty to automatically apply standard hourly multipliers.
+                        </p>
+                      </div>
+
+                      {/* 1. REAL (IN-PERSON) SERVICE CONTROL */}
+                      <div className="border border-slate-800/80 rounded-xl p-3 bg-black/40 space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-850 pb-2">
+                          <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={compIsRealActive}
+                              onChange={(e) => setCompIsRealActive(e.target.checked)}
+                              className="w-4 h-4 rounded text-blue-500 bg-[#11131a] border-slate-800 focus:ring-blue-500 focus:ring-opacity-25"
+                            />
+                            <span className="text-xs font-black uppercase tracking-wider text-slate-250">Real Service (In-Person Meet)</span>
+                          </label>
+                          <span className={`text-[8px] px-2 py-0.5 rounded font-black tracking-wider ${compIsRealActive ? 'bg-emerald-500/10 text-emerald-450 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'}`}>
+                            {compIsRealActive ? 'ACTIVE' : 'DISABLED'}
+                          </span>
+                        </div>
+
+                        {compIsRealActive && (
+                          <div className="space-y-3">
+                            <span className="block text-[8px] font-bold text-slate-400 tracking-wider">📍 REAL MEET DURATION RATES (৳ Taka):</span>
+                            
+                            <div className="space-y-2">
+                              {(compCustomRealRates || []).length === 0 ? (
+                                <p className="text-[9px] text-slate-500 italic">No custom rates added yet.</p>
+                              ) : (
+                                (compCustomRealRates || []).map((slot, idx) => (
+                                  <div key={slot.id || idx} className="flex gap-2 items-center bg-black/40 border border-slate-800 rounded-lg p-2">
+                                    <input
+                                      type="text"
+                                      value={slot.duration}
+                                      onChange={(e) => {
+                                        const newList = [...(compCustomRealRates || [])];
+                                        newList[idx] = { ...newList[idx], duration: e.target.value };
+                                        setCompCustomRealRates(newList);
+                                      }}
+                                      placeholder="e.g. 1 Hour"
+                                      className="flex-1 bg-[#11131a] border border-slate-800 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
+                                    />
+                                    <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-800">
+                                      <span className="text-slate-500 text-[10px]">৳</span>
+                                      <input
+                                        type="number"
+                                        value={slot.rate || ''}
+                                        onChange={(e) => {
+                                          const newList = [...(compCustomRealRates || [])];
+                                          newList[idx] = { ...newList[idx], rate: Number(e.target.value) };
+                                          setCompCustomRealRates(newList);
+                                        }}
+                                        placeholder="0"
+                                        className="w-20 bg-[#11131a] border border-slate-800 rounded px-2 py-0.5 text-xs text-emerald-400 font-mono font-bold focus:outline-none text-right"
+                                      />
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newList = (compCustomRealRates || []).filter((_, i) => i !== idx);
+                                        setCompCustomRealRates(newList);
+                                      }}
+                                      className="text-red-500 hover:text-red-400 p-1 text-sm transition active:scale-90"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCompCustomRealRates([...(compCustomRealRates || []), { id: Math.random().toString(), duration: '', rate: 0 }]);
+                              }}
+                              className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-blue-500/30 text-slate-400 hover:text-white text-[9px] font-black uppercase tracking-wider py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              ➕ Add Real Meet Rate Option (+ নতুন রেট যোগ করুন)
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2. CAM SERVICE CONTROL */}
+                      <div className="border border-slate-800/80 rounded-xl p-3 bg-black/40 space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-855 pb-2">
+                          <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={compIsCamActive}
+                              onChange={(e) => setCompIsCamActive(e.target.checked)}
+                              className="w-4 h-4 rounded text-cyan-500 bg-[#11131a] border-slate-800 focus:ring-cyan-500 focus:ring-opacity-25"
+                            />
+                            <span className="text-xs font-black uppercase tracking-wider text-slate-250">Cam Service (Virtual Video Call)</span>
+                          </label>
+                          <span className={`text-[8px] px-2 py-0.5 rounded font-black tracking-wider ${compIsCamActive ? 'bg-cyan-500/10 text-cyan-450 border border-cyan-500/20' : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'}`}>
+                            {compIsCamActive ? 'ACTIVE' : 'DISABLED'}
+                          </span>
+                        </div>
+
+                        {compIsCamActive && (
+                          <div className="space-y-3">
+                            <span className="block text-[8px] font-bold text-slate-400 tracking-wider">📍 VIDEO CAM DURATION RATES (৳ Taka):</span>
+                            
+                            <div className="space-y-2">
+                              {(compCustomCamRates || []).length === 0 ? (
+                                <p className="text-[9px] text-slate-500 italic">No custom rates added yet.</p>
+                              ) : (
+                                (compCustomCamRates || []).map((slot, idx) => (
+                                  <div key={slot.id || idx} className="flex gap-2 items-center bg-black/40 border border-slate-800 rounded-lg p-2">
+                                    <input
+                                      type="text"
+                                      value={slot.duration}
+                                      onChange={(e) => {
+                                        const newList = [...(compCustomCamRates || [])];
+                                        newList[idx] = { ...newList[idx], duration: e.target.value };
+                                        setCompCustomCamRates(newList);
+                                      }}
+                                      placeholder="e.g. 30 Mins"
+                                      className="flex-1 bg-[#11131a] border border-slate-800 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
+                                    />
+                                    <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-800">
+                                      <span className="text-slate-500 text-[10px]">৳</span>
+                                      <input
+                                        type="number"
+                                        value={slot.rate || ''}
+                                        onChange={(e) => {
+                                          const newList = [...(compCustomCamRates || [])];
+                                          newList[idx] = { ...newList[idx], rate: Number(e.target.value) };
+                                          setCompCustomCamRates(newList);
+                                        }}
+                                        placeholder="0"
+                                        className="w-20 bg-[#11131a] border border-slate-800 rounded px-2 py-0.5 text-xs text-emerald-400 font-mono font-bold focus:outline-none text-right"
+                                      />
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newList = (compCustomCamRates || []).filter((_, i) => i !== idx);
+                                        setCompCustomCamRates(newList);
+                                      }}
+                                      className="text-red-500 hover:text-red-400 p-1 text-sm transition active:scale-90"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCompCustomCamRates([...(compCustomCamRates || []), { id: Math.random().toString(), duration: '', rate: 0 }]);
+                              }}
+                              className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-cyan-500/30 text-slate-400 hover:text-white text-[9px] font-black uppercase tracking-wider py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              ➕ Add Video Cam Rate Option (+ নতুন রেট যোগ করুন)
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3. MAKE OUT SERVICE CONTROL */}
+                      <div className="border border-slate-800/80 rounded-xl p-3 bg-black/40 space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-855 pb-2">
+                          <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={compIsMakeOutActive}
+                              onChange={(e) => setCompIsMakeOutActive(e.target.checked)}
+                              className="w-4 h-4 rounded text-pink-500 bg-[#11131a] border-slate-800 focus:ring-pink-500 focus:ring-opacity-25"
+                            />
+                            <span className="text-xs font-black uppercase tracking-wider text-slate-250">Make Out Service</span>
+                          </label>
+                          <span className={`text-[8px] px-2 py-0.5 rounded font-black tracking-wider ${compIsMakeOutActive ? 'bg-pink-500/10 text-pink-450 border border-pink-500/20' : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'}`}>
+                            {compIsMakeOutActive ? 'ACTIVE' : 'DISABLED'}
+                          </span>
+                        </div>
+
+                        {compIsMakeOutActive && (
+                          <div className="space-y-2">
+                            <span className="block text-[8px] font-bold text-slate-400 tracking-wider">DURATION PRICE OVERRIDES (৳ Taka):</span>
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="space-y-1">
+                                <label className="block text-[8px] text-slate-500 font-bold">2 Hours Rate</label>
+                                <input
+                                  type="number"
+                                  placeholder="Base x 2"
+                                  value={compRateMakeOut_2h}
+                                  onChange={(e) => setCompRateMakeOut_2h(e.target.value === '' ? '' : Number(e.target.value))}
+                                  className="w-full bg-[#11131a] border border-slate-800 rounded-lg px-2 py-1 text-xs text-white text-center focus:outline-none focus:border-pink-500"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="block text-[8px] text-slate-500 font-bold">3 Hours Rate</label>
+                                <input
+                                  type="number"
+                                  placeholder="Base x 3"
+                                  value={compRateMakeOut_3h}
+                                  onChange={(e) => setCompRateMakeOut_3h(e.target.value === '' ? '' : Number(e.target.value))}
+                                  className="w-full bg-[#11131a] border border-slate-800 rounded-lg px-2 py-1 text-xs text-white text-center focus:outline-none focus:border-pink-500"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="block text-[8px] text-slate-500 font-bold">Full Night Rate</label>
+                                <input
+                                  type="number"
+                                  placeholder="Base x 6"
+                                  value={compRateMakeOut_fn}
+                                  onChange={(e) => setCompRateMakeOut_fn(e.target.value === '' ? '' : Number(e.target.value))}
+                                  className="w-full bg-[#11131a] border border-slate-800 rounded-lg px-2 py-1 text-xs text-white text-center focus:outline-none focus:border-pink-500"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. LIVE TOGETHER SERVICE CONTROL */}
+                      <div className="border border-slate-800/80 rounded-xl p-3 bg-black/40 space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-855 pb-2">
+                          <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={compIsLiveTogetherActive}
+                              onChange={(e) => setCompIsLiveTogetherActive(e.target.checked)}
+                              className="w-4 h-4 rounded text-purple-500 bg-[#11131a] border-slate-800 focus:ring-purple-500 focus:ring-opacity-25"
+                            />
+                            <span className="text-xs font-black uppercase tracking-wider text-slate-250">Live Together (Stayover Companion)</span>
+                          </label>
+                          <span className={`text-[8px] px-2 py-0.5 rounded font-black tracking-wider ${compIsLiveTogetherActive ? 'bg-purple-500/10 text-purple-450 border border-purple-500/20' : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'}`}>
+                            {compIsLiveTogetherActive ? 'ACTIVE' : 'DISABLED'}
+                          </span>
+                        </div>
+
+                        {compIsLiveTogetherActive && (
+                          <div className="space-y-3">
+                            <span className="block text-[8px] font-bold text-slate-400 tracking-wider">📍 LIVE TOGETHER DURATION RATES (৳ Taka):</span>
+                            
+                            <div className="space-y-2">
+                              {(compCustomLiveTogetherRates || []).length === 0 ? (
+                                <p className="text-[9px] text-slate-500 italic">No custom rates added yet.</p>
+                              ) : (
+                                (compCustomLiveTogetherRates || []).map((slot, idx) => (
+                                  <div key={slot.id || idx} className="flex gap-2 items-center bg-black/40 border border-slate-800 rounded-lg p-2">
+                                    <input
+                                      type="text"
+                                      value={slot.duration}
+                                      onChange={(e) => {
+                                        const newList = [...(compCustomLiveTogetherRates || [])];
+                                        newList[idx] = { ...newList[idx], duration: e.target.value };
+                                        setCompCustomLiveTogetherRates(newList);
+                                      }}
+                                      placeholder="e.g. 2 Days"
+                                      className="flex-1 bg-[#11131a] border border-slate-800 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
+                                    />
+                                    <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-800">
+                                      <span className="text-slate-550 text-[10px]">৳</span>
+                                      <input
+                                        type="number"
+                                        value={slot.rate || ''}
+                                        onChange={(e) => {
+                                          const newList = [...(compCustomLiveTogetherRates || [])];
+                                          newList[idx] = { ...newList[idx], rate: Number(e.target.value) };
+                                          setCompCustomLiveTogetherRates(newList);
+                                        }}
+                                        placeholder="0"
+                                        className="w-20 bg-[#11131a] border border-slate-800 rounded px-2 py-0.5 text-xs text-emerald-400 font-mono font-bold focus:outline-none text-right"
+                                      />
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newList = (compCustomLiveTogetherRates || []).filter((_, i) => i !== idx);
+                                        setCompCustomLiveTogetherRates(newList);
+                                      }}
+                                      className="text-red-500 hover:text-red-400 p-1 text-sm transition active:scale-90"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCompCustomLiveTogetherRates([...(compCustomLiveTogetherRates || []), { id: Math.random().toString(), duration: '', rate: 0 }]);
+                              }}
+                              className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-purple-500/30 text-slate-400 hover:text-white text-[9px] font-black uppercase tracking-wider py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              ➕ Add Live Together Rate Option (+ নতুন রেট যোগ করুন)
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     {/* City */}
                     <div className="space-y-1.5">
                       <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Operational City Area (শহর ও এলাকা)</label>
@@ -3573,23 +4228,23 @@ export default function AdminPanel({
                         onChange={(e) => setCompCity(e.target.value)}
                         className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 cursor-pointer text-xs font-bold"
                       >
-                        <option value="">Select Area / এলাকা সিলেক্ট করুন</option>
+                        <option value="" className="bg-[#11131a] text-white font-sans font-bold">Select Area / এলাকা সিলেক্ট করুন</option>
                         {structuredCities && structuredCities.length > 0 ? (
                           structuredCities.map((p) => (
-                            <optgroup key={p.id} label={p.name.toUpperCase()}>
+                            <optgroup key={p.id} label={p.name.toUpperCase()} className="bg-[#11131a] text-[#dbaa61] font-bold font-sans">
                               {p.subAreas.map((sub) => (
-                                <option key={`${sub}, ${p.name}`} value={`${sub}, ${p.name}`}>
+                                <option key={`${sub}, ${p.name}`} value={`${sub}, ${p.name}`} className="bg-[#11131a] text-white font-sans font-bold">
                                   {sub.toUpperCase()} ({p.name.toUpperCase()})
                                 </option>
                               ))}
                               {p.subAreas.length === 0 && (
-                                <option value={p.name}>{p.name.toUpperCase()}</option>
+                                <option value={p.name} className="bg-[#11131a] text-white font-sans font-bold">{p.name.toUpperCase()}</option>
                               )}
                             </optgroup>
                           ))
                         ) : (
                           cities.map((city) => (
-                            <option key={city} value={city}>
+                            <option key={city} value={city} className="bg-[#11131a] text-white font-sans font-bold">
                               {city.toUpperCase()}
                             </option>
                           ))
@@ -3773,6 +4428,78 @@ export default function AdminPanel({
                           ))}
                         </div>
                       </div>
+
+                      {/* ADDITIONAL PORTFOLIO PHOTOS (UP TO 4) */}
+                      <div className="pt-4 border-t border-slate-800/60 mt-3 space-y-2">
+                        <span className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">
+                          Additional Gallery Portfolio Photos / অতিরিক্ত ছবি গ্যালারি (সর্বোচ্চ ৪টি)
+                        </span>
+                        <p className="text-[9px] text-slate-500 font-medium">
+                          These images will show up in the dynamic thumbnail photo gallery on the companion profile page.
+                        </p>
+
+                        <div className="grid grid-cols-4 gap-3 pt-1">
+                          {[0, 1, 2, 3].map((idx) => {
+                            const picUrl = compPictures[idx];
+                            return (
+                              <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-slate-800 bg-black/50 group flex items-center justify-center">
+                                {picUrl ? (
+                                  <>
+                                    <img src={picUrl} alt={`Portfolio ${idx + 1}`} className="w-full h-full object-cover" />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = [...compPictures];
+                                        updated.splice(idx, 1);
+                                        setCompPictures(updated);
+                                      }}
+                                      className="absolute top-1 right-1 bg-red-600/90 hover:bg-red-500 rounded-full p-1 cursor-pointer text-white shadow-md transition-all scale-90"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-blue-600/5 transition">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          compressImage(file, 800, 800, 0.75).then((compressedUrl) => {
+                                            if (compressedUrl) {
+                                              const updated = [...compPictures];
+                                              updated[idx] = compressedUrl;
+                                              setCompPictures(updated);
+                                            }
+                                          });
+                                        }
+                                      }}
+                                      className="hidden"
+                                    />
+                                    <ImageIcon className="w-4 h-4 text-slate-650 group-hover:text-blue-500 mb-0.5" />
+                                    <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Slot {idx + 1}</span>
+                                  </label>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* URL Manual input for multi-pics */}
+                        <div className="space-y-1 pt-1">
+                          <label className="block text-[8px] text-slate-500 font-bold uppercase tracking-wider">Or paste additional URLs manually (comma separated)</label>
+                          <input
+                            type="text"
+                            value={compPictures.join(', ')}
+                            onChange={(e) => {
+                              const urls = e.target.value.split(',').map(u => u.trim()).filter(Boolean);
+                              setCompPictures(urls);
+                            }}
+                            placeholder="e.g. https://url1.com, https://url2.com"
+                            className="w-full bg-[#11131a] border border-slate-800 rounded-lg px-3 py-1 text-xs text-white placeholder-slate-700 focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -3798,13 +4525,13 @@ export default function AdminPanel({
               {/* SUB TAB MAIN VIEW AREA */}
               {partnerSubTab === 'active' ? (
                 <>
-                  {companions.filter(c => c.status !== 'Pending' && (c.category || 'Female Model') === partnerCategoryFilter).length === 0 ? (
+                  {companions.filter(c => c.status !== 'Pending' && c.status !== 'Declined' && (c.category || 'Female Model') === partnerCategoryFilter).length === 0 ? (
                     <div className="py-14 text-center text-slate-500 font-bold uppercase tracking-widest text-[10px] bg-[#11131a]/40 border border-dashed border-slate-800 rounded-3xl select-none w-full">
                       📭 No active {partnerCategoryFilter.toLowerCase()} partners registered in database yet
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[460px] overflow-y-auto pr-1 scrollbar-none">
-                      {companions.filter(c => c.status !== 'Pending' && (c.category || 'Female Model') === partnerCategoryFilter).map((comp) => (
+                      {companions.filter(c => c.status !== 'Pending' && c.status !== 'Declined' && (c.category || 'Female Model') === partnerCategoryFilter).map((comp) => (
                     <div
                       key={comp.id}
                       className="bg-[#11131a] border border-[#1d232a] hover:border-blue-500/30 rounded-2xl p-4 flex gap-3 relative justify-between transition-all"
@@ -3943,6 +4670,84 @@ export default function AdminPanel({
                           )}
                         </div>
 
+                        {/* Service configuration section for Admin verification */}
+                        {(comp.category || 'Female Model') === 'Female Model' && (
+                          <div className="bg-[#181a25]/60 border border-blue-900/25 p-3.5 rounded-xl space-y-3">
+                            <span className="text-[9px] font-black uppercase tracking-wider text-[#dbaa61] block font-mono">
+                              ⚙️ CONFIGURE APPROVED SERVICES & HOURLY RATES (৳)
+                            </span>
+                            <div className="grid grid-cols-2 gap-2 text-[10px]">
+                              <div>
+                                <label className="block text-slate-400 font-bold mb-1 font-mono">Real Service Rate (৳)</label>
+                                <input
+                                  type="number"
+                                  placeholder="e.g. 8000"
+                                  value={candidateRates[comp.id]?.rateReal || ''}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || undefined;
+                                    setCandidateRates(prev => ({
+                                      ...prev,
+                                      [comp.id]: { ...prev[comp.id], rateReal: val }
+                                    }));
+                                  }}
+                                  className="w-full bg-[#030303] border border-slate-800 rounded px-2.5 py-1.5 font-bold text-white focus:outline-none focus:border-[#dbaa61]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-slate-400 font-bold mb-1 font-mono">Face Cam Rate (৳)</label>
+                                <input
+                                  type="number"
+                                  placeholder="e.g. 3000"
+                                  value={candidateRates[comp.id]?.rateCam || ''}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || undefined;
+                                    setCandidateRates(prev => ({
+                                      ...prev,
+                                      [comp.id]: { ...prev[comp.id], rateCam: val }
+                                    }));
+                                  }}
+                                  className="w-full bg-[#030303] border border-slate-800 rounded px-2.5 py-1.5 font-bold text-white focus:outline-none focus:border-[#dbaa61]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-slate-400 font-bold mb-1 font-mono">Make Out Rate (৳)</label>
+                                <input
+                                  type="number"
+                                  placeholder="e.g. 5000"
+                                  value={candidateRates[comp.id]?.rateMakeOut || ''}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || undefined;
+                                    setCandidateRates(prev => ({
+                                      ...prev,
+                                      [comp.id]: { ...prev[comp.id], rateMakeOut: val }
+                                    }));
+                                  }}
+                                  className="w-full bg-[#030303] border border-slate-800 rounded px-2.5 py-1.5 font-bold text-white focus:outline-none focus:border-[#dbaa61]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-slate-400 font-bold mb-1 font-mono">Live Together (৳/day)</label>
+                                <input
+                                  type="number"
+                                  placeholder="e.g. 15000"
+                                  value={candidateRates[comp.id]?.rateLiveTogether || ''}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || undefined;
+                                    setCandidateRates(prev => ({
+                                      ...prev,
+                                      [comp.id]: { ...prev[comp.id], rateLiveTogether: val }
+                                    }));
+                                  }}
+                                  className="w-full bg-[#030303] border border-slate-800 rounded px-2.5 py-1.5 font-bold text-white focus:outline-none focus:border-[#dbaa61]"
+                                />
+                              </div>
+                            </div>
+                            <p className="text-[8.5px] text-slate-400 font-medium font-sans leading-tight">
+                              * Leave blank if the service is not allowed. On approval, the checked rates will determine active services for this companion.
+                            </p>
+                          </div>
+                        )}
+
                         <div className="flex gap-2.5 pt-1 border-t border-white/5 pt-3">
                           <button
                             onClick={() => onDeclineCompanion && onDeclineCompanion(comp.id)}
@@ -3951,7 +4756,7 @@ export default function AdminPanel({
                             Decline Application
                           </button>
                           <button
-                            onClick={() => onApproveCompanion && onApproveCompanion(comp.id)}
+                            onClick={() => onApproveCompanion && onApproveCompanion(comp.id, candidateRates[comp.id])}
                             className="flex-1 bg-emerald-955/30 hover:bg-emerald-950/80 border border-emerald-500/15 hover:border-emerald-500/40 text-emerald-400 text-[10.5px] font-black uppercase tracking-wider py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5 animate-pulse" />
@@ -4718,23 +5523,23 @@ Body Touch Premium Network`;
                         onChange={(e) => setLocCity(e.target.value)}
                         className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 cursor-pointer text-xs font-bold"
                       >
-                        <option value="">Select Area / এলাকা সিলেক্ট করুন</option>
+                        <option value="" className="bg-[#11131a] text-white font-sans font-bold">Select Area / এলাকা সিলেক্ট করুন</option>
                         {structuredCities && structuredCities.length > 0 ? (
                           structuredCities.map((p) => (
-                            <optgroup key={p.id} label={p.name.toUpperCase()}>
+                            <optgroup key={p.id} label={p.name.toUpperCase()} className="bg-[#11131a] text-[#dbaa61] font-bold font-sans">
                               {p.subAreas.map((sub) => (
-                                <option key={`${sub}, ${p.name}`} value={`${sub}, ${p.name}`}>
+                                <option key={`${sub}, ${p.name}`} value={`${sub}, ${p.name}`} className="bg-[#11131a] text-white font-sans font-bold">
                                   {sub.toUpperCase()} ({p.name.toUpperCase()})
                                 </option>
                               ))}
                               {p.subAreas.length === 0 && (
-                                <option value={p.name}>{p.name.toUpperCase()}</option>
+                                <option value={p.name} className="bg-[#11131a] text-white font-sans font-bold">{p.name.toUpperCase()}</option>
                               )}
                             </optgroup>
                           ))
                         ) : (
                           cities.map((city) => (
-                            <option key={city} value={city}>
+                            <option key={city} value={city} className="bg-[#11131a] text-white font-sans font-bold">
                               {city.toUpperCase()}
                             </option>
                           ))
@@ -5644,6 +6449,107 @@ Body Touch Premium Network`;
                   </div>
                 </div>
 
+                {/* DUAL SMTP SEPARATE OPTION */}
+                <div className="p-4 bg-teal-950/20 border border-teal-500/25 rounded-2xl space-y-4">
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="useSeparateOtpSmtp"
+                      type="checkbox"
+                      checked={useSeparateOtpSmtp}
+                      onChange={(e) => setUseSeparateOtpSmtp(e.target.checked)}
+                      className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 bg-black/40 border-slate-700 cursor-pointer"
+                    />
+                    <label htmlFor="useSeparateOtpSmtp" className="text-xs font-black uppercase text-slate-200 tracking-wider cursor-pointer select-none">
+                      ভেরিফিকেশনের (OTP) জন্য আলাদা জিমেইল ব্যবহার করুন (Use Separate Gmail for OTP codes)
+                    </label>
+                  </div>
+
+                  {useSeparateOtpSmtp && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="space-y-4 pt-3 border-t border-dashed border-teal-500/20"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-ping" />
+                        <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 font-mono">
+                          Verification OTP Specific Gateway (ভেরিফিকেশন ওটিপি পাঠানোর গেটওয়ে)
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold">
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
+                            OTP SMTP Host (হোস্ট)
+                          </label>
+                          <input
+                            type="text"
+                            value={smtpOtpHost}
+                            onChange={(e) => setSmtpOtpHost(e.target.value)}
+                            placeholder="e.g. smtp.gmail.com"
+                            className="w-full bg-black/40 border border-[#232733] focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
+                            OTP SMTP Port (পোর্ট)
+                          </label>
+                          <input
+                            type="text"
+                            value={smtpOtpPort}
+                            onChange={(e) => setSmtpOtpPort(e.target.value)}
+                            placeholder="e.g. 587"
+                            className="w-full bg-black/40 border border-[#232733] focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
+                            OTP Sender Name (প্রেরকের নাম)
+                          </label>
+                          <input
+                            type="text"
+                            value={smtpOtpFromEmail}
+                            onChange={(e) => setSmtpOtpFromEmail(e.target.value)}
+                            placeholder="e.g. BODY TOUCH Otp Center"
+                            className="w-full bg-black/40 border border-[#232733] focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5 md:col-span-2">
+                          <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono text-cyan-400">
+                            <Lock className="w-3.5 h-3.5 text-cyan-500" />
+                            OTP SMTP User Email (ভেরিফিকেশন জিমেইল)
+                          </label>
+                          <input
+                            type="email"
+                            value={smtpOtpUser}
+                            onChange={(e) => setSmtpOtpUser(e.target.value)}
+                            placeholder="e.g. verification@gmail.com"
+                            className="w-full bg-black/40 border border-[#232733] focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono text-cyan-400">
+                            <Lock className="w-3.5 h-3.5 text-cyan-500" />
+                            OTP App Password (অ্যাপ পাসওয়ার্ড)
+                          </label>
+                          <input
+                            type="password"
+                            value={smtpOtpPass}
+                            onChange={(e) => setSmtpOtpPass(e.target.value)}
+                            placeholder="e.g. xxxx yyyy zzzz wwww"
+                            className="w-full bg-black/40 border border-[#232733] focus:border-cyan-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-4 bg-[#0b1022] border border-[#1b254b]/60 rounded-2xl p-4.5">
                   <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
                     <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
@@ -6331,6 +7237,114 @@ Body Touch Premium Network`;
                 </p>
               </div>
 
+              {/* Model Registration Fee Configuration (মডেল রেজিস্ট্রেশন ফি) */}
+              <div className="p-6 bg-[#0f111a] rounded-2xl border-2 border-[#dbaa61]/30 text-xs space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-800">
+                  <div className="space-y-0.5">
+                    <h5 className="text-[10px] font-black uppercase tracking-widest text-[#dbaa61] flex items-center gap-1.5 font-mono">
+                      <DollarSign className="w-4 h-4 text-[#dbaa61]" />
+                      Model Registration Fee Configuration / মডেল রেজিস্ট্রেশন ফি
+                    </h5>
+                    <p className="text-[10px] text-slate-400">
+                      মডেল (মহিলা, পুরুষ এবং স্পার্ম ডোনার)-দের সাইটে রেজিস্ট্রেশন করার জন্য আলাদা আলাদা ফি নিচে সেট করুন।
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-[9px] font-mono font-bold">
+                    <span className="text-pink-400 bg-pink-400/5 px-2 py-0.5 rounded border border-pink-400/15">Female: ৳{localRegFee}</span>
+                    <span className="text-blue-400 bg-blue-400/5 px-2 py-0.5 rounded border border-blue-400/15">Male: ৳{localRegFeeMale}</span>
+                    <span className="text-amber-400 bg-amber-400/5 px-2 py-0.5 rounded border border-amber-400/15">Donor: ৳{localRegFeeSperm}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Female */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-pink-400 font-mono tracking-wider">
+                      Female Model Fee (মহিলা মডেল ফি):
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-pink-400/60 font-bold text-xs">৳</span>
+                      <input
+                        type="number"
+                        value={localRegFee}
+                        onChange={(e) => setLocalRegFee(parseInt(e.target.value) || 0)}
+                        className="w-full bg-black/40 border border-slate-800 focus:border-pink-500 rounded-xl pl-8 pr-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
+                        placeholder="e.g. 3000"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Male */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-blue-400 font-mono tracking-wider">
+                      Male Model Fee (পুরুষ মডেল ফি):
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400/60 font-bold text-xs">৳</span>
+                      <input
+                        type="number"
+                        value={localRegFeeMale}
+                        onChange={(e) => setLocalRegFeeMale(parseInt(e.target.value) || 0)}
+                        className="w-full bg-black/40 border border-slate-800 focus:border-blue-500 rounded-xl pl-8 pr-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
+                        placeholder="e.g. 3000"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Donor */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-amber-500 font-mono tracking-wider">
+                      Sperm Donor Fee (স্পার্ম ডোনার ফি):
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-amber-500/60 font-bold text-xs">৳</span>
+                      <input
+                        type="number"
+                        value={localRegFeeSperm}
+                        onChange={(e) => setLocalRegFeeSperm(parseInt(e.target.value) || 0)}
+                        className="w-full bg-black/40 border border-slate-800 focus:border-amber-500 rounded-xl pl-8 pr-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
+                        placeholder="e.g. 3000"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onUpdatePricingConfig) {
+                        onUpdatePricingConfig({
+                          registrationFee: localRegFee,
+                          registrationFeeMale: localRegFeeMale,
+                          registrationFeeSperm: localRegFeeSperm,
+                          regularPlanFee: localRegularFee,
+                          premiumPlanFee: localPremiumFee,
+                          elitePlanFee: localEliteFee,
+                        });
+                        setPricingSuccess(true);
+                        setTimeout(() => setPricingSuccess(false), 3000);
+                      }
+                    }}
+                    className="px-5 py-2.5 bg-gradient-to-r from-[#dbaa61] to-[#b38644] hover:from-[#e5b36a] hover:to-[#dbaa61] text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer h-9.5"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    Save Registration Fees (ফি সমূহ সেভ করুন)
+                  </button>
+                </div>
+
+                {pricingSuccess && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[10.5px] text-emerald-400 font-bold flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                    <span>মডেল রেজিস্ট্রেশন ফি সমূহ সফলভাবে পরিবর্তন করা হয়েছে (Female: ৳{localRegFee}, Male: ৳{localRegFeeMale}, Donor: ৳{localRegFeeSperm})!</span>
+                  </motion.div>
+                )}
+              </div>
+
               {gatewayError && (
                 <div className="p-4 bg-red-950/40 border border-red-500/20 text-red-400 text-xs rounded-xl font-bold flex justify-between items-center transition-all animate-fadeIn">
                   <span>⚠️ {gatewayError}</span>
@@ -6368,7 +7382,8 @@ Body Touch Premium Network`;
                             method: gwMethod,
                             walletType: gwWalletType,
                             number,
-                            instructions
+                            instructions,
+                            logoUrl: gwLogoUrl.trim() || undefined
                           };
                         }
                         return g;
@@ -6385,7 +7400,8 @@ Body Touch Premium Network`;
                         walletType: gwWalletType,
                         number,
                         instructions,
-                        isActive: true
+                        isActive: true,
+                        logoUrl: gwLogoUrl.trim() || undefined
                       };
                       if (onUpdatePaymentGateways) {
                         onUpdatePaymentGateways([...paymentGateways, newGateway]);
@@ -6398,6 +7414,7 @@ Body Touch Premium Network`;
                     setGwInstructions('');
                     setGwMethod('BKASH');
                     setGwWalletType('Personal');
+                    setGwLogoUrl('');
                   }}
                   className="space-y-4 font-semibold text-slate-300"
                 >
@@ -6444,7 +7461,7 @@ Body Touch Premium Network`;
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
                     {/* Wallet account phone number */}
                     <div className="space-y-1">
                       <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Wallet Number (মোবাইল নম্বর)</label>
@@ -6456,6 +7473,55 @@ Body Touch Premium Network`;
                         placeholder="e.g. 01712-345678"
                         className="w-full bg-black/40 border border-[#232733] rounded-xl px-4 py-2.5 text-white placeholder-slate-650 focus:outline-none focus:border-red-500 font-mono font-bold text-xs"
                       />
+                    </div>
+
+                    {/* Custom Logo Upload/URL Input */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Gateway Logo (লোগো আপলোড)</label>
+                      <div className="flex items-center gap-2 bg-black/40 border border-[#232733] rounded-xl p-1 h-10">
+                        {gwLogoUrl ? (
+                          <div className="relative w-8 h-8 rounded bg-slate-900 border border-slate-800 flex items-center justify-center overflow-hidden shrink-0">
+                            <img src={gwLogoUrl} alt="Logo preview" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                            <button
+                              type="button"
+                              onClick={() => setGwLogoUrl('')}
+                              className="absolute inset-0 bg-black/70 hover:bg-black/85 flex items-center justify-center text-red-500 opacity-0 hover:opacity-100 transition-opacity"
+                              title="Remove logo"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 rounded border border-dashed border-slate-700 flex items-center justify-center text-slate-500 shrink-0 text-[8px] font-bold font-mono">
+                            NO LOGO
+                          </div>
+                        )}
+                        <input
+                          type="text"
+                          value={gwLogoUrl}
+                          onChange={(e) => setGwLogoUrl(e.target.value)}
+                          placeholder="Image URL or upload..."
+                          className="flex-1 bg-transparent text-white placeholder-slate-650 focus:outline-none text-[10px] font-bold min-w-0"
+                        />
+                        <label className="bg-slate-850 hover:bg-slate-800 text-slate-300 text-[8.5px] font-black uppercase px-2 py-1.5 rounded-lg cursor-pointer shrink-0 select-none border border-slate-750">
+                          Upload
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setGwLogoUrl(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
                     </div>
 
                     {/* Step guidance instructions */}
@@ -6483,6 +7549,7 @@ Body Touch Premium Network`;
                           setGwInstructions('');
                           setGwMethod('BKASH');
                           setGwWalletType('Personal');
+                          setGwLogoUrl('');
                         }}
                         className="bg-slate-800 hover:bg-slate-750 text-white px-5 py-2.5 rounded-xl font-heavy uppercase text-[10px] tracking-wider transition cursor-pointer"
                       >
@@ -6523,11 +7590,22 @@ Body Touch Premium Network`;
                       >
                         <div className="text-left space-y-2">
                           <div className="flex justify-between items-start">
-                            <div>
-                              <span className="text-xs font-black text-white block truncate max-w-[130px]">{g.name}</span>
-                              <span className="text-[8.5px] font-mono font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 mt-1 inline-block">
-                                {g.method}
-                              </span>
+                            <div className="flex items-center gap-2">
+                              {g.logoUrl ? (
+                                <div className="w-8 h-8 rounded bg-slate-900 border border-slate-800 p-0.5 overflow-hidden flex items-center justify-center shrink-0">
+                                  <img src={g.logoUrl} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                                </div>
+                              ) : (
+                                <div className="w-8 h-8 rounded bg-slate-900 border border-slate-850 flex items-center justify-center shrink-0 text-[9px] font-bold text-slate-500 uppercase">
+                                  {g.method.substring(0, 3)}
+                                </div>
+                              )}
+                              <div>
+                                <span className="text-xs font-black text-white block truncate max-w-[130px]">{g.name}</span>
+                                <span className="text-[8.5px] font-mono font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 mt-1 inline-block">
+                                  {g.method}
+                                </span>
+                              </div>
                             </div>
                             <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
                               g.walletType === 'Personal' 
@@ -7302,8 +8380,21 @@ Body Touch Premium Network`;
                           badge: comp.badge || 'REGULAR',
                           rate: comp.rate || 8000,
                           rateReal: comp.rateReal,
+                          rateReal_1h: comp.rateReal_1h,
+                          rateReal_2h: comp.rateReal_2h,
+                          rateReal_3h: comp.rateReal_3h,
+                          rateReal_fn: comp.rateReal_fn,
                           rateCam: comp.rateCam,
-                          rateLiveTogether: comp.rateLiveTogether
+                          rateLiveTogether: comp.rateLiveTogether,
+                          customRealRates: comp.customRealRates && comp.customRealRates.length > 0
+                            ? comp.customRealRates
+                            : [{ id: 'init-real-1', duration: '1 Hour', rate: comp.rateReal_1h || comp.rate || 8000 }],
+                          customCamRates: comp.customCamRates && comp.customCamRates.length > 0
+                            ? comp.customCamRates
+                            : [{ id: 'init-cam-1', duration: '30 Mins', rate: comp.rateCam_30m || 3000 }],
+                          customLiveTogetherRates: comp.customLiveTogetherRates && comp.customLiveTogetherRates.length > 0
+                            ? comp.customLiveTogetherRates
+                            : [{ id: 'init-live-1', duration: '2 Days', rate: comp.rateLiveTogether_2d || 15000 }]
                         };
 
                         const handleFieldChange = (field: string, val: any) => {
@@ -7325,8 +8416,16 @@ Body Touch Premium Network`;
                                 badge: config.badge,
                                 rate: config.rate,
                                 rateReal: config.rateReal,
+                                rateReal_1h: config.rateReal_1h,
+                                rateReal_2h: config.rateReal_2h,
+                                rateReal_3h: config.rateReal_3h,
+                                rateReal_fn: config.rateReal_fn,
                                 rateCam: config.rateCam,
-                                rateLiveTogether: config.rateLiveTogether
+                                rateLiveTogether: config.rateLiveTogether,
+                                customRealRates: config.customRealRates || [],
+                                customCamRates: config.customCamRates || [],
+                                customLiveTogetherRates: config.customLiveTogetherRates || [],
+                                pictures: getCompanionPictures(c.pictures || [], c.image)
                               };
                             }
                             return c;
@@ -7334,9 +8433,25 @@ Body Touch Premium Network`;
                           onUpdateCompanions(updated);
                           // Trigger verification / emails
                           if (onApproveCompanion) {
-                            onApproveCompanion(comp.id);
+                            onApproveCompanion(comp.id, {
+                              badge: config.badge,
+                              rate: config.rate,
+                              rateReal: config.rateReal,
+                              rateReal_1h: config.rateReal_1h,
+                              rateReal_2h: config.rateReal_2h,
+                              rateReal_3h: config.rateReal_3h,
+                              rateReal_fn: config.rateReal_fn,
+                              rateCam: config.rateCam,
+                              rateLiveTogether: config.rateLiveTogether,
+                              customRealRates: config.customRealRates || [],
+                              customCamRates: config.customCamRates || [],
+                              customLiveTogetherRates: config.customLiveTogetherRates || []
+                            });
                           }
                         };
+                        const configCustomRealRates = config.customRealRates || [];
+                        const configCustomCamRates = config.customCamRates || [];
+                        const configCustomLiveTogetherRates = config.customLiveTogetherRates || [];
 
                         return (
                           <div
@@ -7384,6 +8499,26 @@ Body Touch Premium Network`;
                                 </div>
                               </div>
 
+                              {/* Measurements Overview */}
+                              <div className="grid grid-cols-4 gap-2 text-[10px] text-slate-400 font-bold">
+                                <div className="bg-[#11131a] p-2 rounded-xl text-left">
+                                  <span className="text-slate-550 text-[7.5px] uppercase block font-mono">Weight (ওজন):</span>
+                                  <span className="text-white font-heavy text-[10.5px]">{comp.weight || 'N/A'}</span>
+                                </div>
+                                <div className="bg-[#11131a] p-2 rounded-xl text-left">
+                                  <span className="text-slate-550 text-[7.5px] uppercase block font-mono">Breast (স্তন):</span>
+                                  <span className="text-white font-heavy text-[10.5px]">{comp.bust || 'N/A'}</span>
+                                </div>
+                                <div className="bg-[#11131a] p-2 rounded-xl text-left">
+                                  <span className="text-slate-550 text-[7.5px] uppercase block font-mono">Waist (কোমর):</span>
+                                  <span className="text-white font-heavy text-[10.5px]">{comp.waist || 'N/A'}</span>
+                                </div>
+                                <div className="bg-[#11131a] p-2 rounded-xl text-left">
+                                  <span className="text-slate-550 text-[7.5px] uppercase block font-mono">Hip (নিতম্ব):</span>
+                                  <span className="text-white font-heavy text-[10.5px]">{comp.hip || 'N/A'}</span>
+                                </div>
+                              </div>
+
                               {/* Biological description block */}
                               <div className="bg-[#11131a] p-3 rounded-xl border border-white/5 space-y-1 text-xs text-left">
                                 <span className="text-slate-550 text-[8px] font-black uppercase tracking-wider block font-mono">Self Summary / Intro (বায়োডাটা):</span>
@@ -7404,20 +8539,57 @@ Body Touch Premium Network`;
                                 </div>
                               </div>
 
+                              {/* Model Portfolio Photos Gallery */}
+                              {(() => {
+                                const reviewPics = getCompanionPictures(comp.pictures || [], comp.image);
+                                return (
+                                  <div className="p-3 bg-blue-950/10 border border-blue-500/10 rounded-xl space-y-2 text-left">
+                                    <span className="text-[8.5px] font-black uppercase tracking-wider text-blue-400 block font-mono">
+                                      📸 Model Portfolio Gallery / মডেল গ্যালারি ছবি ({reviewPics.length} Photos)
+                                    </span>
+                                    <div className="grid grid-cols-4 gap-2">
+                                      {reviewPics.map((imgUrl, idx) => (
+                                        <div key={idx} className="bg-black/40 border border-blue-500/10 rounded-lg p-1 text-center flex flex-col justify-between items-center h-20 relative group">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setZoomedImage(imgUrl);
+                                              setZoomScale(1);
+                                              setZoomRotation(0);
+                                            }}
+                                            className="block w-full h-full relative overflow-hidden rounded border border-blue-500/10 cursor-zoom-in active:scale-95 transition-all"
+                                          >
+                                            <img src={imgUrl} alt={`Portfolio ${idx + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+
                               {/* Model Identity Verification Documents */}
                               {(comp.nidFront || comp.nidBack || comp.selfie) && (
                                 <div className="p-3 bg-red-950/10 border border-red-500/10 rounded-xl space-y-2 text-left">
                                   <span className="text-[8.5px] font-black uppercase tracking-wider text-red-400 block font-mono">
-                                    🆔 Verification Documents / আইডি ও সেলফি ভেরিফিকেশন
+                                    🆔 Verification Documents (NID / Birth Certificate) / আইডি ও সেলফি ভেরিফিকেশন
                                   </span>
                                   <div className="grid grid-cols-3 gap-2">
                                     {/* Selfie Verification */}
                                     {comp.selfie ? (
                                       <div className="bg-black/40 border border-[#2b1717] rounded-lg p-1.5 text-center flex flex-col justify-between items-center h-20">
                                         <span className="text-[7.5px] text-slate-400 uppercase font-mono tracking-tight block truncate w-full">Selfie / সেলফি</span>
-                                        <a href={comp.selfie} target="_blank" rel="noopener noreferrer" className="block w-full h-11 relative overflow-hidden rounded border border-red-500/10">
+                                        <button 
+                                          type="button"
+                                          onClick={() => {
+                                            setZoomedImage(comp.selfie);
+                                            setZoomScale(1);
+                                            setZoomRotation(0);
+                                          }}
+                                          className="block w-full h-11 relative overflow-hidden rounded border border-red-500/10 cursor-zoom-in active:scale-95 transition-all"
+                                        >
                                           <img src={comp.selfie} alt="Selfie" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                        </a>
+                                        </button>
                                       </div>
                                     ) : (
                                       <div className="bg-black/20 border border-slate-900 rounded-lg p-1.5 h-20 flex items-center justify-center text-[7.5px] text-slate-550 uppercase">
@@ -7425,33 +8597,76 @@ Body Touch Premium Network`;
                                       </div>
                                     )}
 
-                                    {/* NID Front */}
+                                    {/* NID Front / Birth Certificate */}
                                     {comp.nidFront ? (
                                       <div className="bg-black/40 border border-[#2b1717] rounded-lg p-1.5 text-center flex flex-col justify-between items-center h-20">
-                                        <span className="text-[7.5px] text-slate-400 uppercase font-mono tracking-tight block truncate w-full">NID Front / সামনে</span>
-                                        <a href={comp.nidFront} target="_blank" rel="noopener noreferrer" className="block w-full h-11 relative overflow-hidden rounded border border-red-500/10">
-                                          <img src={comp.nidFront} alt="NID Front" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                        </a>
+                                        <span className="text-[7.5px] text-slate-400 uppercase font-mono tracking-tight block truncate w-full">Front / জন্মনিবন্ধন</span>
+                                        <button 
+                                          type="button"
+                                          onClick={() => {
+                                            setZoomedImage(comp.nidFront);
+                                            setZoomScale(1);
+                                            setZoomRotation(0);
+                                          }}
+                                          className="block w-full h-11 relative overflow-hidden rounded border border-red-500/10 cursor-zoom-in active:scale-95 transition-all"
+                                        >
+                                          <img src={comp.nidFront} alt="NID Front / Birth Certificate" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                        </button>
                                       </div>
                                     ) : (
                                       <div className="bg-black/20 border border-slate-900 rounded-lg p-1.5 h-20 flex items-center justify-center text-[7.5px] text-slate-550 uppercase">
-                                        No Front
+                                        No Doc Front
                                       </div>
                                     )}
 
                                     {/* NID Back */}
                                     {comp.nidBack ? (
                                       <div className="bg-black/40 border border-[#2b1717] rounded-lg p-1.5 text-center flex flex-col justify-between items-center h-20">
-                                        <span className="text-[7.5px] text-slate-400 uppercase font-mono tracking-tight block truncate w-full">NID Back / পেছনে</span>
-                                        <a href={comp.nidBack} target="_blank" rel="noopener noreferrer" className="block w-full h-11 relative overflow-hidden rounded border border-red-500/10">
+                                        <span className="text-[7.5px] text-slate-400 uppercase font-mono tracking-tight block truncate w-full">Back / পেছনের অংশ</span>
+                                        <button 
+                                          type="button"
+                                          onClick={() => {
+                                            setZoomedImage(comp.nidBack);
+                                            setZoomScale(1);
+                                            setZoomRotation(0);
+                                          }}
+                                          className="block w-full h-11 relative overflow-hidden rounded border border-red-500/10 cursor-zoom-in active:scale-95 transition-all"
+                                        >
                                           <img src={comp.nidBack} alt="NID Back" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                        </a>
+                                        </button>
                                       </div>
                                     ) : (
                                       <div className="bg-black/20 border border-slate-900 rounded-lg p-1.5 h-20 flex items-center justify-center text-[7.5px] text-slate-550 uppercase">
-                                        No Back
+                                        No Doc Back
                                       </div>
                                     )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Agent Recruitment Payment Info */}
+                              {(comp.paymentTrx || comp.paymentMethod) && (
+                                <div className="p-3 bg-emerald-950/20 border border-emerald-500/20 rounded-xl space-y-2 text-left">
+                                  <span className="text-[8.5px] font-black uppercase tracking-wider text-emerald-400 block font-mono">
+                                    💰 Recruitment Payment / রেজিস্ট্রেশন ফি বিবরণী
+                                  </span>
+                                  <div className="grid grid-cols-2 gap-2 text-[10.5px] text-slate-300">
+                                    <div className="bg-black/30 p-1.5 rounded border border-emerald-950/40">
+                                      <span className="text-[7.5px] text-slate-500 block uppercase">Gateway</span>
+                                      <strong className="text-emerald-400 font-mono">{comp.paymentMethod || 'MFS'}</strong>
+                                    </div>
+                                    <div className="bg-black/30 p-1.5 rounded border border-emerald-950/40">
+                                      <span className="text-[7.5px] text-slate-500 block uppercase">Transaction ID</span>
+                                      <strong className="text-white font-mono uppercase">{comp.paymentTrx || 'N/A'}</strong>
+                                    </div>
+                                    <div className="bg-black/30 p-1.5 rounded border border-emerald-950/40 col-span-2 sm:col-span-1">
+                                      <span className="text-[7.5px] text-slate-500 block uppercase">Sender Number</span>
+                                      <strong className="text-slate-200 font-mono">{comp.paymentSender || 'N/A'}</strong>
+                                    </div>
+                                    <div className="bg-black/30 p-1.5 rounded border border-emerald-950/40 col-span-2 sm:col-span-1">
+                                      <span className="text-[7.5px] text-slate-500 block uppercase">Amount Paid</span>
+                                      <strong className="text-[#dbaa61] font-mono">৳{(comp.paymentAmount || 3000).toLocaleString()}</strong>
+                                    </div>
                                   </div>
                                 </div>
                               )}
@@ -7462,14 +8677,7 @@ Body Touch Premium Network`;
                                   ADMIN APPROVAL SETTINGS (অনুমোদন কনফিগারেশন)
                                 </span>
 
-                                <div className="p-3 bg-emerald-950/20 border border-emerald-500/15 rounded-xl text-[10px] text-emerald-400 leading-relaxed font-semibold">
-                                  💡 <strong>Admin Guidelines / অ্যাডমিন নির্দেশিকা:</strong>
-                                  <p className="mt-1 font-sans">
-                                    রেজিস্ট্রেশন কমপ্লিট করার পর শুধু নিচে রেট (Taka) বসিয়ে দিন এবং ৩টি ক্যাটাগরির (Regular, Premium, Elite) যেকোনো একটি সিলেক্ট করে <span className="text-white underline font-extrabold uppercase font-mono">Verify & Deploy</span>-এ ক্লিক করে দিলেই সরাসরি পাবলিশ হয়ে যাবে।
-                                  </p>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3.5 text-left">
+                                <div className="grid grid-cols-1 gap-3.5 text-left">
                                   {/* Verification Tier badge selection */}
                                   <div className="space-y-1">
                                     <label className="block text-[8.5px] text-slate-400 uppercase tracking-widest font-bold">Assign Society Rank (লেভেল)</label>
@@ -7484,51 +8692,177 @@ Body Touch Premium Network`;
                                       <option value="DEMO">Demo Class (ডিমো ক্যাটাগরি)</option>
                                     </select>
                                   </div>
-
-                                  {/* Rate value */}
-                                  <div className="space-y-1">
-                                    <label className="block text-[8.5px] text-slate-400 uppercase tracking-widest font-bold">Hourly Rate Override (৳ / hr)</label>
-                                    <input
-                                      type="number"
-                                      value={config.rate}
-                                      onChange={(e) => handleFieldChange('rate', Number(e.target.value))}
-                                      placeholder="e.g. 8000"
-                                      className="w-full h-9 bg-black border border-[#232733] rounded-lg px-2.5 py-1.5 text-white placeholder-slate-650 focus:outline-none focus:border-red-500 font-mono font-bold text-xs"
-                                    />
-                                  </div>
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-2 text-xs">
-                                  <div className="space-y-1 text-left">
-                                    <label className="block text-[8px] text-slate-500 uppercase font-mono text-slate-400">Real Meet Override (৳)</label>
-                                    <input
-                                      type="number"
-                                      value={config.rateReal || ''}
-                                      onChange={(e) => handleFieldChange('rateReal', e.target.value ? Number(e.target.value) : undefined)}
-                                      placeholder="Not Set"
-                                      className="w-full bg-[#11131a]/85 border border-[#232733] rounded px-1.5 py-1 text-white font-mono text-[10.5px]"
-                                    />
+                                {/* Row 1: Real Meet Custom Rates */}
+                                <div className="p-3 bg-red-950/5 border border-red-500/10 rounded-xl space-y-2">
+                                  <span className="text-[8.5px] font-black uppercase tracking-wider text-red-400 block font-mono">
+                                    📍 Real Meet Rates / সরাসরি সাক্ষাৎ রেট (ঘণ্টা অনুযায়ী)
+                                  </span>
+                                  <div className="space-y-2">
+                                    {configCustomRealRates.map((slot, idx) => (
+                                      <div key={slot.id || idx} className="flex gap-2 items-center bg-black/40 border border-[#232733] rounded-lg p-1.5">
+                                        <input
+                                          type="text"
+                                          value={slot.duration}
+                                          onChange={(e) => {
+                                            const newList = [...configCustomRealRates];
+                                            newList[idx] = { ...newList[idx], duration: e.target.value };
+                                            handleFieldChange('customRealRates', newList);
+                                          }}
+                                          placeholder="e.g. 1 Hour"
+                                          className="flex-1 bg-black border border-slate-900 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
+                                        />
+                                        <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-900">
+                                          <span className="text-slate-500 text-[10px]">৳</span>
+                                          <input
+                                            type="number"
+                                            value={slot.rate || ''}
+                                            onChange={(e) => {
+                                              const newList = [...configCustomRealRates];
+                                              newList[idx] = { ...newList[idx], rate: Number(e.target.value) };
+                                              handleFieldChange('customRealRates', newList);
+                                            }}
+                                            placeholder="0"
+                                            className="w-28 bg-black border border-slate-900 rounded px-2 py-0.5 text-xs text-emerald-450 font-mono font-bold focus:outline-none text-right"
+                                          />
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newList = configCustomRealRates.filter((_, i) => i !== idx);
+                                            handleFieldChange('customRealRates', newList);
+                                          }}
+                                          className="text-red-500 hover:text-red-400 px-1.5 text-sm transition active:scale-90"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    ))}
                                   </div>
-                                  <div className="space-y-1 text-left">
-                                    <label className="block text-[8px] text-slate-500 uppercase font-mono font-bold text-slate-400">Video Cam Override (৳)</label>
-                                    <input
-                                      type="number"
-                                      value={config.rateCam || ''}
-                                      onChange={(e) => handleFieldChange('rateCam', e.target.value ? Number(e.target.value) : undefined)}
-                                      placeholder="Not Set"
-                                      className="w-full bg-[#11131a]/85 border border-[#232733] rounded px-1.5 py-1 text-white font-mono text-[10.5px]"
-                                    />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleFieldChange('customRealRates', [...configCustomRealRates, { id: Math.random().toString(), duration: '', rate: 0 }]);
+                                    }}
+                                    className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-red-500/30 text-slate-400 hover:text-white text-[8.5px] font-black uppercase tracking-wider py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer font-bold"
+                                  >
+                                    ➕ Add Real Meet Option (+ নতুন রেট যোগ করুন)
+                                  </button>
+                                </div>
+
+                                {/* Row 2: Video Cam Custom Rates */}
+                                <div className="p-3 bg-cyan-950/5 border border-cyan-500/10 rounded-xl space-y-2">
+                                  <span className="text-[8.5px] font-black uppercase tracking-wider text-cyan-400 block font-mono">
+                                    🎥 Video Cam Rates / ভিডিও কল রেট
+                                  </span>
+                                  <div className="space-y-2">
+                                    {configCustomCamRates.map((slot, idx) => (
+                                      <div key={slot.id || idx} className="flex gap-2 items-center bg-black/40 border border-[#232733] rounded-lg p-1.5">
+                                        <input
+                                          type="text"
+                                          value={slot.duration}
+                                          onChange={(e) => {
+                                            const newList = [...configCustomCamRates];
+                                            newList[idx] = { ...newList[idx], duration: e.target.value };
+                                            handleFieldChange('customCamRates', newList);
+                                          }}
+                                          placeholder="e.g. 30 Mins"
+                                          className="flex-1 bg-black border border-slate-900 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
+                                        />
+                                        <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-900">
+                                          <span className="text-slate-500 text-[10px]">৳</span>
+                                          <input
+                                            type="number"
+                                            value={slot.rate || ''}
+                                            onChange={(e) => {
+                                              const newList = [...configCustomCamRates];
+                                              newList[idx] = { ...newList[idx], rate: Number(e.target.value) };
+                                              handleFieldChange('customCamRates', newList);
+                                            }}
+                                            placeholder="0"
+                                            className="w-28 bg-black border border-slate-900 rounded px-2 py-0.5 text-xs text-emerald-450 font-mono font-bold focus:outline-none text-right"
+                                          />
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newList = configCustomCamRates.filter((_, i) => i !== idx);
+                                            handleFieldChange('customCamRates', newList);
+                                          }}
+                                          className="text-red-500 hover:text-red-400 px-1.5 text-sm transition active:scale-90"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    ))}
                                   </div>
-                                  <div className="space-y-1 text-left">
-                                    <label className="block text-[8px] text-slate-500 uppercase font-mono text-slate-400">Live Together Override (৳/Day)</label>
-                                    <input
-                                      type="number"
-                                      value={config.rateLiveTogether || ''}
-                                      onChange={(e) => handleFieldChange('rateLiveTogether', e.target.value ? Number(e.target.value) : undefined)}
-                                      placeholder="Not Set"
-                                      className="w-full bg-[#11131a]/85 border border-[#232733] rounded px-1.5 py-1 text-white font-mono text-[10.5px]"
-                                    />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleFieldChange('customCamRates', [...configCustomCamRates, { id: Math.random().toString(), duration: '', rate: 0 }]);
+                                    }}
+                                    className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-cyan-500/30 text-slate-400 hover:text-white text-[8.5px] font-black uppercase tracking-wider py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer font-bold"
+                                  >
+                                    ➕ Add Video Cam Option (+ নতুন রেট যোগ করুন)
+                                  </button>
+                                </div>
+
+                                {/* Row 3: Live Together Custom Rates */}
+                                <div className="p-3 bg-purple-950/5 border border-purple-500/10 rounded-xl space-y-2">
+                                  <span className="text-[8.5px] font-black uppercase tracking-wider text-purple-400 block font-mono">
+                                    🏠 Live Together Rates / লাইভ টুগেদার রেট
+                                  </span>
+                                  <div className="space-y-2">
+                                    {configCustomLiveTogetherRates.map((slot, idx) => (
+                                      <div key={slot.id || idx} className="flex gap-2 items-center bg-black/40 border border-[#232733] rounded-lg p-1.5">
+                                        <input
+                                          type="text"
+                                          value={slot.duration}
+                                          onChange={(e) => {
+                                            const newList = [...configCustomLiveTogetherRates];
+                                            newList[idx] = { ...newList[idx], duration: e.target.value };
+                                            handleFieldChange('customLiveTogetherRates', newList);
+                                          }}
+                                          placeholder="e.g. 2 Days"
+                                          className="flex-1 bg-black border border-slate-900 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
+                                        />
+                                        <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-900">
+                                          <span className="text-slate-500 text-[10px]">৳</span>
+                                          <input
+                                            type="number"
+                                            value={slot.rate || ''}
+                                            onChange={(e) => {
+                                              const newList = [...configCustomLiveTogetherRates];
+                                              newList[idx] = { ...newList[idx], rate: Number(e.target.value) };
+                                              handleFieldChange('customLiveTogetherRates', newList);
+                                            }}
+                                            placeholder="0"
+                                            className="w-28 bg-black border border-slate-900 rounded px-2 py-0.5 text-xs text-emerald-450 font-mono font-bold focus:outline-none text-right"
+                                          />
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newList = configCustomLiveTogetherRates.filter((_, i) => i !== idx);
+                                            handleFieldChange('customLiveTogetherRates', newList);
+                                          }}
+                                          className="text-red-500 hover:text-red-400 px-1.5 text-sm transition active:scale-90"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    ))}
                                   </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleFieldChange('customLiveTogetherRates', [...configCustomLiveTogetherRates, { id: Math.random().toString(), duration: '', rate: 0 }]);
+                                    }}
+                                    className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-purple-500/30 text-slate-400 hover:text-white text-[8.5px] font-black uppercase tracking-wider py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer font-bold"
+                                  >
+                                    ➕ Add Live Together Option (+ নতুন রেট যোগ করুন)
+                                  </button>
                                 </div>
                               </div>
                             </div>
@@ -7538,10 +8872,8 @@ Body Touch Premium Network`;
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if (window.confirm(`মডেল ${comp.name}-এর আবেদন প্রত্যাখ্যান এবং ডাটাবেজ থেকে মুছে ফেলতে চান?`)) {
-                                    if (onDeclineCompanion) {
-                                      onDeclineCompanion(comp.id);
-                                    }
+                                  if (onDeclineCompanion) {
+                                    onDeclineCompanion(comp.id);
                                   }
                                 }}
                                 className="flex-1 bg-red-955/20 hover:bg-red-950/40 border border-red-500/20 text-red-500 hover:text-red-350 text-[10px] font-black uppercase tracking-wider py-3 rounded-xl transition cursor-pointer"
@@ -7600,17 +8932,41 @@ Body Touch Premium Network`;
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Fee 1 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Fee 1 - Female */}
                   <div className="space-y-1.5">
-                    <label className="block text-[11px] font-black uppercase text-slate-300 font-mono tracking-wider">
-                      Model Registration Fee (৳):
+                    <label className="block text-[11px] font-black uppercase text-pink-400 font-mono tracking-wider">
+                      Female Reg Fee (মহিলা রেজিস্ট্রেশন ফি) (৳):
                     </label>
                     <input
                       type="number"
                       value={localRegFee}
                       onChange={(e) => setLocalRegFee(parseInt(e.target.value) || 0)}
-                      className="w-full bg-zinc-950/80 border border-slate-800 focus:border-[#dbaa61] rounded-xl px-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
+                      className="w-full bg-zinc-950/80 border border-slate-800 focus:border-pink-500 rounded-xl px-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
+                    />
+                  </div>
+                  {/* Fee 1b - Male */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-black uppercase text-blue-400 font-mono tracking-wider">
+                      Male Reg Fee (পুরুষ রেজিস্ট্রেশন ফি) (৳):
+                    </label>
+                    <input
+                      type="number"
+                      value={localRegFeeMale}
+                      onChange={(e) => setLocalRegFeeMale(parseInt(e.target.value) || 0)}
+                      className="w-full bg-zinc-950/80 border border-slate-800 focus:border-blue-500 rounded-xl px-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
+                    />
+                  </div>
+                  {/* Fee 1c - Sperm Donor */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-black uppercase text-amber-500 font-mono tracking-wider">
+                      Sperm Donor Reg Fee (স্পার্ম ডোনার ফি) (৳):
+                    </label>
+                    <input
+                      type="number"
+                      value={localRegFeeSperm}
+                      onChange={(e) => setLocalRegFeeSperm(parseInt(e.target.value) || 0)}
+                      className="w-full bg-zinc-950/80 border border-slate-800 focus:border-amber-500 rounded-xl px-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
                     />
                   </div>
                   {/* Fee 2 */}
@@ -7669,6 +9025,8 @@ Body Touch Premium Network`;
                       if (onUpdatePricingConfig) {
                         onUpdatePricingConfig({
                           registrationFee: localRegFee,
+                          registrationFeeMale: localRegFeeMale,
+                          registrationFeeSperm: localRegFeeSperm,
                           regularPlanFee: localRegularFee,
                           premiumPlanFee: localPremiumFee,
                           elitePlanFee: localEliteFee,
@@ -7966,11 +9324,155 @@ Body Touch Premium Network`;
           {activeTab === 'referrals' && (
             <div className="space-y-8 text-left animate-fadeIn">
               
-              {/* TOP GLOBAL STATS ROW */}
+              {/* HEADER WITH CLEAR ALL ACTION */}
+              <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 bg-slate-950/40 p-5 rounded-2xl border border-slate-800">
+                <div>
+                  <h3 className="text-base font-black text-white uppercase tracking-wider flex items-center gap-2 font-sans">
+                    <Award className="w-5 h-5 text-[#dbaa61]" />
+                    Agent Performance Ledger (এজেন্ট পারফরম্যান্স লেজার)
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 font-semibold">
+                    Manage agent commission rates, inspect active agent accounts, and process withdrawal requests.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm('Are you absolutely sure you want to clear ALL Agent & Referral records? This will delete all referrers, signup mappings, and withdrawal history permanently!')) {
+                      if (onUpdateReferrals) {
+                        onUpdateReferrals([]);
+                        localStorage.setItem('bt_referrals', JSON.stringify([]));
+                      }
+                      if (onUpdateWithdrawals) {
+                        onUpdateWithdrawals([]);
+                        localStorage.setItem('bt_withdrawals', JSON.stringify([]));
+                      }
+                      alert('All agent & referral management data has been successfully cleared!');
+                    }
+                  }}
+                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 font-extrabold text-[11px] uppercase tracking-widest px-4 py-2.5 rounded-xl border border-red-500/30 transition flex items-center gap-2 cursor-pointer self-start md:self-auto"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Clear All Agent Records (সব তথ্য মুছুন)</span>
+                </button>
+              </div>
+
               {(() => {
-                const totalJoins = referrals.length;
+                // Calculate aggregated calculations per referrer (Agents)
+                const referrersMap: { [key: string]: {
+                  username: string;
+                  totalReferredCount: number;
+                  conversionsCount: number;
+                  totalEarned: number;
+                  totalWithdrawn: number;
+                  pendingAmount: number;
+                } } = {};
+
+                // Initialize referrers we know from referrals
+                referrals.forEach(ref => {
+                  const refName = ref.referrer.trim().toLowerCase();
+                  if (!refName) return;
+                  if (!referrersMap[refName]) {
+                    referrersMap[refName] = {
+                      username: ref.referrer,
+                      totalReferredCount: 0,
+                      conversionsCount: 0,
+                      totalEarned: 0,
+                      totalWithdrawn: 0,
+                      pendingAmount: 0
+                    };
+                  }
+                  const r = referrersMap[refName];
+                  r.totalReferredCount += 1;
+                  if (ref.tier !== 'FREE') {
+                    r.conversionsCount += 1;
+                  }
+                  r.totalEarned += ref.commission;
+                });
+
+                // Factoring in withdrawal records for those referrers
+                withdrawals.forEach(w => {
+                  const uName = w.username.trim().toLowerCase();
+                  if (!referrersMap[uName]) {
+                    referrersMap[uName] = {
+                      username: w.username,
+                      totalReferredCount: 0,
+                      conversionsCount: 0,
+                      totalEarned: 0,
+                      totalWithdrawn: 0,
+                      pendingAmount: 0
+                    };
+                  }
+                  const r = referrersMap[uName];
+                  if (w.status === 'Approved') {
+                    r.totalWithdrawn += w.amount;
+                  } else if (w.status === 'Pending') {
+                    r.pendingAmount += w.amount;
+                  }
+                });
+
+                // Loop through all registered agents and add 10% commission for completed bookings of recruited companions
+                registeredAgents.forEach(agent => {
+                  const agentUserLower = (agent.username || '').trim().toLowerCase();
+                  if (!agentUserLower) return;
+                  
+                  if (!referrersMap[agentUserLower]) {
+                    referrersMap[agentUserLower] = {
+                      username: agent.username || '',
+                      totalReferredCount: 0,
+                      conversionsCount: 0,
+                      totalEarned: 0,
+                      totalWithdrawn: 0,
+                      pendingAmount: 0
+                    };
+                  }
+                  
+                  // Find companions recruited by this agent
+                  const agentCompanions = companions.filter(c => 
+                    (c.recruiter && c.recruiter.toLowerCase() === agentUserLower) ||
+                    (c.telegram && c.telegram.toLowerCase() === agentUserLower)
+                  );
+                  let recruitBookingCommissions = 0;
+                  
+                  agentCompanions.forEach(c => {
+                    const companionBookings = bookings.filter(b => 
+                      b.status === 'Completed' && (
+                        (b.modelUsername && c.modelUsername && b.modelUsername.toLowerCase() === c.modelUsername.toLowerCase()) ||
+                        (b.modelName && c.name && b.modelName.toLowerCase() === c.name.toLowerCase())
+                      )
+                    );
+                    companionBookings.forEach(b => {
+                      recruitBookingCommissions += (b.cost || 0) * 0.10;
+                    });
+                  });
+                  
+                  // Add this recruit commission to the total earned for this agent
+                  referrersMap[agentUserLower].totalEarned += recruitBookingCommissions;
+                });
+
+                const summaryList = registeredAgents.map(agent => {
+                  const usernameLower = (agent.username || '').trim().toLowerCase();
+                  const stats = referrersMap[usernameLower] || {
+                    username: agent.username || '',
+                    totalReferredCount: 0,
+                    conversionsCount: 0,
+                    totalEarned: 0,
+                    totalWithdrawn: 0,
+                    pendingAmount: 0
+                  };
+                  return {
+                    username: agent.username || '',
+                    fullName: agent.fullName || '',
+                    phone: agent.phone || '',
+                    email: agent.email || '',
+                    dateRegistered: agent.dateRegistered || '',
+                    ...stats
+                  };
+                });
+
+                const totalAgents = summaryList.length;
                 const totalConverted = referrals.filter(r => r.tier !== 'FREE').length;
-                const totalEarnedCommission = referrals.reduce((sum, r) => sum + r.commission, 0);
+                const totalEarnedCommission = Object.values(referrersMap).reduce((sum, r) => sum + r.totalEarned, 0);
                 
                 const approvedWithdrawalsSum = withdrawals
                   .filter(w => w.status === 'Approved')
@@ -7981,657 +9483,145 @@ Body Touch Premium Network`;
                   .reduce((sum, w) => sum + w.amount, 0);
 
                 return (
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 bg-[#0a0b10] border border-blue-500/10 p-4 rounded-2xl">
-                    <div className="bg-[#11131c] border border-blue-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
-                      <div className="flex items-center justify-between text-blue-400">
-                        <span className="text-[10px] font-black uppercase tracking-wider">Total Joins</span>
-                        <Users className="w-4 h-4 bg-blue-500/10 p-0.5 rounded" />
+                  <div className="space-y-8">
+                    {/* TOP GLOBAL STATS ROW */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 bg-[#0a0b10] border border-blue-500/10 p-4 rounded-2xl">
+                      <div className="bg-[#11131c] border border-blue-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
+                        <div className="flex items-center justify-between text-blue-400">
+                          <span className="text-[10px] font-black uppercase tracking-wider">Total Agents</span>
+                          <Users className="w-4 h-4 bg-blue-500/10 p-0.5 rounded" />
+                        </div>
+                        <div className="mt-3">
+                          <span className="text-xl font-black text-white font-mono">{totalAgents}</span>
+                          <span className="text-[9px] text-slate-500 block">Registered partners</span>
+                        </div>
                       </div>
-                      <div className="mt-3">
-                        <span className="text-xl font-black text-white font-mono">{totalJoins}</span>
-                        <span className="text-[9px] text-slate-500 block">All signups via link</span>
+
+                      <div className="bg-[#11131c] border border-green-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
+                        <div className="flex items-center justify-between text-emerald-400">
+                          <span className="text-[10px] font-black uppercase tracking-wider font-sans">Active Conversions</span>
+                          <Sparkles className="w-4 h-4 bg-emerald-500/10 p-0.5 rounded" />
+                        </div>
+                        <div className="mt-3">
+                          <span className="text-xl font-black text-white font-mono">{totalConverted}</span>
+                          <span className="text-[9px] text-slate-500 block">Sales & Subscriptions</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#11131c] border border-cyan-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
+                        <div className="flex items-center justify-between text-cyan-400">
+                          <span className="text-[10px] font-black uppercase tracking-wider">Total Commission</span>
+                          <DollarSign className="w-4 h-4 bg-cyan-500/10 p-0.5 rounded" />
+                        </div>
+                        <div className="mt-3">
+                          <span className="text-xl font-black text-white font-mono">৳{totalEarnedCommission.toLocaleString()}</span>
+                          <span className="text-[9px] text-slate-500 block">Generated earnings</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#11131c] border border-amber-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
+                        <div className="flex items-center justify-between text-amber-400">
+                          <span className="text-[10px] font-black uppercase tracking-wider">Pending Payouts</span>
+                          <Clock className="w-4 h-4 bg-amber-500/10 p-0.5 rounded" />
+                        </div>
+                        <div className="mt-3">
+                          <span className="text-xl font-black text-white font-mono">৳{pendingWithdrawalsSum.toLocaleString()}</span>
+                          <span className="text-[9px] text-slate-500 block">Awaiting approval</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#11131c] border border-red-500/10 p-4.5 rounded-2xl flex flex-col justify-between col-span-2 md:col-span-1">
+                        <div className="flex items-center justify-between text-[#ef4444]">
+                          <span className="text-[10px] font-black uppercase tracking-wider">Disbursed Payouts</span>
+                          <HandCoins className="w-4 h-4 bg-red-500/10 p-0.5 rounded" />
+                        </div>
+                        <div className="mt-3">
+                          <span className="text-xl font-black text-white font-mono">৳{approvedWithdrawalsSum.toLocaleString()}</span>
+                          <span className="text-[9px] text-slate-500 block">Transferred to wallets</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="bg-[#11131c] border border-green-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
-                      <div className="flex items-center justify-between text-emerald-400">
-                        <span className="text-[10px] font-black uppercase tracking-wider font-sans">Sales</span>
-                        <Sparkles className="w-4 h-4 bg-emerald-500/10 p-0.5 rounded" />
+                    {/* SECTION A: AGENTS PERFORMANCE DIRECTORY */}
+                    <div className="bg-[#0b0c15] border border-blue-500/10 rounded-2xl p-5 sm:p-6 space-y-4">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-800 pb-3">
+                        <div>
+                          <h3 className="text-sm font-black text-[#58a6ff] uppercase tracking-wider flex items-center gap-2">
+                            <TrendingUp className="w-4.5 h-4.5 text-[#58a6ff]" />
+                            Agents & Recruiters Performance (এজেন্ট ও রিক্রুটার তালিকা)
+                          </h3>
+                          <p className="text-[11px] text-slate-400">
+                            সারসংক্ষেপ: প্রতিটি এজেন্টের কমিশন, পেমেন্ট, উইথড্র এবং রিয়েলটাইম ব্যালেন্সের হিসাব।
+                          </p>
+                        </div>
                       </div>
-                      <div className="mt-3">
-                        <span className="text-xl font-black text-white font-mono">{totalConverted}</span>
-                        <span className="text-[9px] text-slate-500 block">Paid subscriptions</span>
-                      </div>
-                    </div>
 
-                    <div className="bg-[#11131c] border border-cyan-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
-                      <div className="flex items-center justify-between text-cyan-400">
-                        <span className="text-[10px] font-black uppercase tracking-wider">Total Commission</span>
-                        <DollarSign className="w-4 h-4 bg-cyan-500/10 p-0.5 rounded" />
-                      </div>
-                      <div className="mt-3">
-                        <span className="text-xl font-black text-white font-mono">৳{totalEarnedCommission.toLocaleString()}</span>
-                        <span className="text-[9px] text-slate-500 block">Generated earnings</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-[#11131c] border border-amber-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
-                      <div className="flex items-center justify-between text-amber-400">
-                        <span className="text-[10px] font-black uppercase tracking-wider">Pending Payouts</span>
-                        <Clock className="w-4 h-4 bg-amber-500/10 p-0.5 rounded" />
-                      </div>
-                      <div className="mt-3">
-                        <span className="text-xl font-black text-white font-mono">৳{pendingWithdrawalsSum.toLocaleString()}</span>
-                        <span className="text-[9px] text-slate-500 block">Awaiting approval</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-[#11131c] border border-red-500/10 p-4.5 rounded-2xl flex flex-col justify-between col-span-2 md:col-span-1">
-                      <div className="flex items-center justify-between text-[#ef4444]">
-                        <span className="text-[10px] font-black uppercase tracking-wider">Disbursed Payouts</span>
-                        <HandCoins className="w-4 h-4 bg-red-500/10 p-0.5 rounded" />
-                      </div>
-                      <div className="mt-3">
-                        <span className="text-xl font-black text-white font-mono">৳{approvedWithdrawalsSum.toLocaleString()}</span>
-                        <span className="text-[9px] text-slate-500 block">Transferred to wallets</span>
-                      </div>
+                      {summaryList.length === 0 ? (
+                        <div className="py-8 text-center text-slate-500 font-bold text-xs">
+                          No active agents or recruiters registered yet.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="border-b border-slate-800 text-slate-400 font-extrabold uppercase text-[9.5px] tracking-wider bg-black/20">
+                                <th className="py-2.5 px-3">Agent Username</th>
+                                <th className="py-2.5 px-3 text-center font-sans">Badge / Level</th>
+                                <th className="py-2.5 px-3 text-center">Invited Clients</th>
+                                <th className="py-2.5 px-3 text-center">Conversions</th>
+                                <th className="py-2.5 px-3 text-right text-cyan-400">Total Earned</th>
+                                <th className="py-2.5 px-3 text-right text-rose-400">Total Withdrawn</th>
+                                <th className="py-2.5 px-3 text-right">Pending Payout</th>
+                                <th className="py-2.5 px-3 text-right text-emerald-400 font-bold">Balance Available</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/40 text-[11px] font-semibold text-slate-300">
+                              {summaryList.map((user, idx) => {
+                                const availableBal = user.totalEarned - user.totalWithdrawn - user.pendingAmount;
+                                return (
+                                  <tr key={idx} className="hover:bg-slate-800/20 transition">
+                                    <td className="py-3 px-3 text-left">
+                                      <div className="font-bold text-white font-mono">@{user.username}</div>
+                                      {user.fullName && (
+                                        <div className="text-[10px] text-[#dbaa61] mt-0.5 font-sans">{user.fullName}</div>
+                                      )}
+                                      {(user.phone || user.email) && (
+                                        <div className="text-[9px] text-slate-500 font-mono mt-0.5">
+                                          {user.phone} {user.email && `| ${user.email}`}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="py-3 px-3 text-center">
+                                      <span className={`px-2 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider ${
+                                        user.conversionsCount >= 5 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/25' :
+                                        user.conversionsCount >= 2 ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/25' :
+                                        'bg-blue-500/10 text-blue-400 border border-blue-500/25'
+                                      }`}>
+                                        {user.conversionsCount >= 5 ? 'Elite Partner' :
+                                         user.conversionsCount >= 2 ? 'Premium Partner' : 'Standard Partner'}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-3 text-center font-mono text-slate-300">{user.totalReferredCount} joins</td>
+                                    <td className="py-3 px-3 text-center font-mono">
+                                      <span className="text-emerald-400">{user.conversionsCount} sales</span>
+                                    </td>
+                                    <td className="py-3 px-3 text-right font-mono text-cyan-400 font-bold">৳{user.totalEarned.toLocaleString()}</td>
+                                    <td className="py-3 px-3 text-right font-mono text-rose-400">৳{user.totalWithdrawn.toLocaleString()}</td>
+                                    <td className="py-3 px-3 text-right font-mono text-amber-400">৳{user.pendingAmount.toLocaleString()}</td>
+                                    <td className="py-3 px-3 text-right font-mono text-emerald-400 font-extrabold text-xs">
+                                      ৳{(availableBal < 0 ? 0 : availableBal).toLocaleString()}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
               })()}
-
-              {/* SECTION A: USER EARNINGS SUMMARY (কে কত টাকা আর্ন করলো) */}
-              <div className="bg-[#0b0c15] border border-blue-500/10 rounded-2xl p-5 sm:p-6 space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-800 pb-3">
-                  <div>
-                    <h3 className="text-sm font-black text-[#58a6ff] uppercase tracking-wider flex items-center gap-2">
-                      <TrendingUp className="w-4.5 h-4.5 text-[#58a6ff]" />
-                      Affiliate Channels Summary (কে কত টাকা আর্ন করলো)
-                    </h3>
-                    <p className="text-[11px] text-slate-400">
-                      সারসংক্ষেপ: প্রতিটি ব্যবহারকারী কতজন রেফার করেছেন এবং তাদের অ্যাকাউন্টে পেমেন্ট ও উইথড্রয়ের হিসাব দেখায়।
-                    </p>
-                  </div>
-                </div>
-
-                {(() => {
-                  // Calculate aggregated calculations per referrer
-                  const referrersMap: { [key: string]: {
-                    username: string;
-                    totalReferredCount: number;
-                    conversionsCount: number;
-                    totalEarned: number;
-                    totalWithdrawn: number;
-                    pendingAmount: number;
-                  } } = {};
-
-                  // Initialize any referrers we know from referrals
-                  referrals.forEach(ref => {
-                    const refName = ref.referrer.trim().toLowerCase();
-                    if (!refName) return;
-                    if (!referrersMap[refName]) {
-                      referrersMap[refName] = {
-                        username: ref.referrer,
-                        totalReferredCount: 0,
-                        conversionsCount: 0,
-                        totalEarned: 0,
-                        totalWithdrawn: 0,
-                        pendingAmount: 0
-                      };
-                    }
-                    const r = referrersMap[refName];
-                    r.totalReferredCount += 1;
-                    if (ref.tier !== 'FREE') {
-                      r.conversionsCount += 1;
-                    }
-                    r.totalEarned += ref.commission;
-                  });
-
-                  // Factoring in withdrawal records for those referrers
-                  withdrawals.forEach(w => {
-                    const uName = w.username.trim().toLowerCase();
-                    // Auto construct user if not already in list
-                    if (!referrersMap[uName]) {
-                      referrersMap[uName] = {
-                        username: w.username,
-                        totalReferredCount: 0,
-                        conversionsCount: 0,
-                        totalEarned: 0,
-                        totalWithdrawn: 0,
-                        pendingAmount: 0
-                      };
-                    }
-                    const r = referrersMap[uName];
-                    if (w.status === 'Approved') {
-                      r.totalWithdrawn += w.amount;
-                    } else if (w.status === 'Pending') {
-                      r.pendingAmount += w.amount;
-                    }
-                  });
-
-                  const summaryList = Object.values(referrersMap);
-
-                  if (summaryList.length === 0) {
-                    return (
-                      <div className="py-8 text-center text-slate-500 font-bold text-xs">
-                        No active referral network metrics available yet.
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse text-xs">
-                        <thead>
-                          <tr className="border-b border-slate-800 text-slate-400 font-extrabold uppercase text-[9.5px] tracking-wider bg-black/20">
-                            <th className="py-2.5 px-3">Username</th>
-                            <th className="py-2.5 px-3 text-center">Invited (Total)</th>
-                            <th className="py-2.5 px-3 text-center">Converted</th>
-                            <th className="py-2.5 px-3 text-right text-cyan-400">Total Earned</th>
-                            <th className="py-2.5 px-3 text-right text-rose-400">Total Withdrawn</th>
-                            <th className="py-2.5 px-3 text-right">Pending Payout</th>
-                            <th className="py-2.5 px-3 text-right text-emerald-400 font-bold">Balance Available</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/40 text-[11px] font-semibold text-slate-300">
-                          {summaryList.map((user, idx) => {
-                            const availableBal = user.totalEarned - user.totalWithdrawn - user.pendingAmount;
-                            return (
-                              <tr key={idx} className="hover:bg-slate-800/20 transition">
-                                <td className="py-3 px-3">
-                                  <div className="font-bold text-white font-mono">@{user.username}</div>
-                                  <div className="mt-0.5">
-                                    <span className={`px-1 rounded text-[8px] font-black uppercase tracking-wider ${
-                                      user.conversionsCount >= 5 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                                      user.conversionsCount >= 2 ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' :
-                                      'bg-blue-500/10 text-blue-400 border border-blue-500/25'
-                                    }`}>
-                                      {user.conversionsCount >= 5 ? 'Elite Partner' :
-                                       user.conversionsCount >= 2 ? 'Premium Partner' : 'Standard Partner'}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-3 text-center font-mono text-white">{user.totalReferredCount} joined</td>
-                                <td className="py-3 px-3 text-center font-mono">
-                                  <span className="text-emerald-400">{user.conversionsCount} sales</span>
-                                </td>
-                                <td className="py-3 px-3 text-right font-mono text-cyan-400 font-bold">৳{user.totalEarned.toLocaleString()}</td>
-                                <td className="py-3 px-3 text-right font-mono text-rose-400">৳{user.totalWithdrawn.toLocaleString()}</td>
-                                <td className="py-3 px-3 text-right font-mono text-amber-400">৳{user.pendingAmount.toLocaleString()}</td>
-                                <td className="py-3 px-3 text-right font-mono text-emerald-400 font-extrabold text-xs">
-                                  ৳{(availableBal < 0 ? 0 : availableBal).toLocaleString()}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* SECTION B: WHO JOINED UNDER WHOSE REFFERRAL (কার আন্ডারে কতজন জয়েন হলো বিস্তারিত হিসেব) */}
-              <div className="bg-[#0b0c15] border border-blue-500/10 rounded-2xl p-5 sm:p-6 space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between gap-4 border-b border-slate-800 pb-4">
-                  <div className="text-left">
-                    <h3 className="text-sm font-black text-[#58a6ff] uppercase tracking-wider flex items-center gap-2">
-                      <Layers className="w-4.5 h-4.5 text-blue-400" />
-                      Detailed Referral Hierarchy (কে কার রেফারে জয়েন করলো)
-                    </h3>
-                    <p className="text-[11px] text-slate-400">
-                      নিচের তালিকায় প্রতিটি লিংকের স্বয়ংক্রিয় রেফারেল সম্পর্ক বিস্তারিত ডেটা সহ দেখানো হয়েছে।
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                      <input
-                        type="search"
-                        placeholder="Search referrer or invited..."
-                        value={refSearch}
-                        onChange={(e) => setRefSearch(e.target.value)}
-                        className="bg-black/40 text-xs text-white border border-slate-800 focus:border-[#58a6ff] focus:outline-none pl-9 pr-3.5 py-2 rounded-xl w-48 sm:w-64"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Filter and render detailed hierarchy rows */}
-                {(() => {
-                  const items = referrals.filter(r => 
-                    r.referrer.toLowerCase().includes(refSearch.toLowerCase()) ||
-                    r.referredUser.toLowerCase().includes(refSearch.toLowerCase()) ||
-                    (r.referredFullName || '').toLowerCase().includes(refSearch.toLowerCase())
-                  );
-
-                  if (items.length === 0) {
-                    return (
-                      <div className="py-12 flex flex-col items-center justify-center text-slate-500">
-                        <AlertCircle className="w-8 h-8 text-slate-605 mb-2" />
-                        <span className="text-xs font-bold">No referral matching criteria.</span>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="overflow-x-auto text-left">
-                      <table className="w-full text-left border-collapse text-xs">
-                        <thead>
-                          <tr className="border-b border-slate-800 text-slate-400 font-extrabold uppercase text-[9.5px] tracking-wider bg-black/20">
-                            <th className="py-2.5 px-3">Invited User (যার জয়েন সফল হলো)</th>
-                            <th className="py-2.5 px-3">Contact info</th>
-                            <th className="py-2.5 px-3">Referrer Account (যার লিংকে জয়েন হলো)</th>
-                            <th className="py-2.5 px-3">Date Joined</th>
-                            <th className="py-2.5 px-3">Subscription Tier</th>
-                            <th className="py-2.5 px-3 text-right">Commission generated</th>
-                            <th className="py-2.5 px-3 text-center text-rose-500">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/40 text-[11px] font-semibold text-slate-300">
-                          {items.map((ref) => (
-                            <tr key={ref.id} className="hover:bg-slate-800/10 transition">
-                              <td className="py-3 px-3">
-                                <div className="font-bold text-white">{ref.referredFullName || 'VIP Member'}</div>
-                                <div className="text-[10px] text-slate-500 font-mono">@{ref.referredUser}</div>
-                              </td>
-                              <td className="py-3 px-3 font-mono text-[10.5px]">
-                                <div className="text-slate-300">{ref.referredPhone || 'N/A'}</div>
-                                <div className="text-slate-500 text-[9.5px]">{ref.referredEmail || 'N/A'}</div>
-                              </td>
-                              <td className="py-3 px-3">
-                                <div className="font-bold text-[#58a6ff] font-mono">@{ref.referrer}</div>
-                                <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">UPLINE REFERRER</div>
-                              </td>
-                              <td className="py-3 px-3 font-mono text-slate-400 text-[10px]">{ref.dateJoined}</td>
-                              <td className="py-3 px-3">
-                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
-                                  ref.tier === 'ELITE' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold' :
-                                  ref.tier === 'PREMIUM' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' :
-                                  ref.tier === 'REGULAR' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                                  'bg-slate-500/20 text-slate-400 border border-slate-800'
-                                }`}>
-                                  {ref.tier}
-                                </span>
-                              </td>
-                              <td className="py-3 px-3 text-right font-bold text-emerald-400 font-mono text-xs">
-                                ৳{ref.commission.toLocaleString()}
-                              </td>
-                              <td className="py-3 px-3 text-center whitespace-nowrap">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingReferral(ref);
-                                    setEditRefReferrer(ref.referrer);
-                                    setEditRefUser(ref.referredUser);
-                                    setEditRefFullName(ref.referredFullName || '');
-                                    setEditRefPhone(ref.referredPhone || '');
-                                    setEditRefEmail(ref.referredEmail || '');
-                                    setEditRefTier(ref.tier || 'REGULAR');
-                                    setEditRefCommission(ref.commission || 0);
-                                    setEditRefDate(ref.dateJoined || '');
-                                  }}
-                                  className="text-slate-400 hover:text-cyan-400 transition p-1 mr-1.5 cursor-pointer inline-block"
-                                  title="Edit relationship mapping"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (confirm(`Remove this referral relationship mapping?`)) {
-                                      const updated = referrals.filter(r => r.id !== ref.id);
-                                      if (onUpdateReferrals) {
-                                        onUpdateReferrals(updated);
-                                        localStorage.setItem('bt_referrals', JSON.stringify(updated));
-                                      }
-                                      alert('Referral relationship deleted.');
-                                    }
-                                  }}
-                                  className="text-slate-400 hover:text-red-400 transition p-1 cursor-pointer inline-block"
-                                  title="Delete relationship mapping"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })()}
-
-                {/* ADD NEW MANUAL REFERRAL RELATIONSHIP */}
-                <div className="bg-black/30 border border-slate-800 rounded-xl p-4 sm:p-5 mt-4 space-y-4">
-                  <h4 className="text-xs font-black text-emerald-300 uppercase tracking-widest flex items-center gap-1.5 font-sans">
-                    <Plus className="w-4 h-4 text-emerald-400" />
-                    Manually Register Referral Relationship (রেফারেল সম্পর্ক ম্যানুয়ালি যোগ করুন)
-                  </h4>
-                  
-                  <form 
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (!newRefReferrer || !newRefUser) {
-                        alert('Required fields missing.');
-                        return;
-                      }
-
-                      // Calculate initial commission based on subscription tier configured
-                      let calculatedCommission = 0;
-                      if (newRefTier === 'REGULAR') calculatedCommission = 1005;
-                      else if (newRefTier === 'PREMIUM') calculatedCommission = 1000;
-                      else if (newRefTier === 'ELITE') calculatedCommission = 5005;
-
-                      const id = 'ref-' + Date.now();
-                      const curDate = new Date().toISOString().split('T')[0];
-
-                      const newRecord: ReferralRecord = {
-                        id,
-                        referrer: newRefReferrer.trim().toLowerCase(),
-                        referredUser: newRefUser.trim().toLowerCase(),
-                        referredFullName: newRefFullName.trim() || undefined,
-                        referredPhone: newRefPhone.trim() || undefined,
-                        referredEmail: newRefEmail.trim() || undefined,
-                        dateJoined: curDate,
-                        tier: newRefTier,
-                        commission: calculatedCommission
-                      };
-
-                      const updated = [newRecord, ...referrals];
-                      if (onUpdateReferrals) {
-                        onUpdateReferrals(updated);
-                        localStorage.setItem('bt_referrals', JSON.stringify(updated));
-                        alert('Referral relationship details added successfully!');
-                      }
-
-                      // Reset form inputs
-                      setNewRefReferrer('');
-                      setNewRefUser('');
-                      setNewRefFullName('');
-                      setNewRefPhone('');
-                      setNewRefEmail('');
-                      setNewRefTier('REGULAR');
-                    }}
-                    className="grid grid-cols-1 sm:grid-cols-3 gap-3"
-                  >
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Upline Referrer Username *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="akhiaktherofc"
-                        value={newRefReferrer}
-                        onChange={(e) => setNewRefReferrer(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-805 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Referred Candidate Username *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="new_user_join"
-                        value={newRefUser}
-                        onChange={(e) => setNewRefUser(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-805 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Full Name of Nominated</label>
-                      <input
-                        type="text"
-                        placeholder="Ariful Islam"
-                        value={newRefFullName}
-                        onChange={(e) => setNewRefFullName(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-805 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Candidate Phone Number</label>
-                      <input
-                        type="text"
-                        placeholder="01799228833"
-                        value={newRefPhone}
-                        onChange={(e) => setNewRefPhone(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-805 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Candidate Email Account</label>
-                      <input
-                        type="email"
-                        placeholder="arif@gmail.com"
-                        value={newRefEmail}
-                        onChange={(e) => setNewRefEmail(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-805 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Activated Member Tier</label>
-                      <select
-                        value={newRefTier}
-                        onChange={(e) => setNewRefTier(e.target.value as MemberLevel)}
-                        className="w-full bg-[#11131c] text-xs text-white border border-slate-805 rounded-xl px-3 py-2.5 focus:outline-none focus:border-emerald-500 cursor-pointer"
-                      >
-                        <option value="FREE">FREE REGISTRATION (৳0)</option>
-                        <option value="REGULAR">REGULAR PLAN (৳1,005 commission)</option>
-                        <option value="PREMIUM">PREMIUM PLAN (৳1,000 commission)</option>
-                        <option value="ELITE">ELITE PLAN (৳5,005 commission)</option>
-                      </select>
-                    </div>
-
-                    <div className="sm:col-span-3 flex justify-end pt-2">
-                      <button
-                        type="submit"
-                        className="bg-emerald-650 hover:bg-emerald-600 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>REGISTER RELATIONSHIP DETAILS</span>
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-
-              {/* EDIT AFFILIATE REFERRAL MODAL */}
-              <AnimatePresence>
-                {editingReferral && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      className="bg-[#0b0c15] border border-cyan-500/20 rounded-2xl p-5 sm:p-6 w-full max-w-lg space-y-4 shadow-2xl relative text-left"
-                    >
-                      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                        <div className="flex items-center gap-2">
-                          <Edit className="w-5 h-5 text-cyan-400" />
-                          <h3 className="text-sm font-black text-white uppercase tracking-wider font-sans">
-                            Edit Affiliate Referral Mapping
-                          </h3>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setEditingReferral(null)}
-                          className="text-slate-400 hover:text-white transition p-1 cursor-pointer"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          if (!editRefReferrer || !editRefUser) {
-                            alert('Required fields missing.');
-                            return;
-                          }
-
-                          const updated = referrals.map((r) => {
-                            if (r.id === editingReferral.id) {
-                              return {
-                                ...r,
-                                referrer: editRefReferrer.trim().toLowerCase(),
-                                referredUser: editRefUser.trim().toLowerCase(),
-                                referredFullName: editRefFullName.trim() || undefined,
-                                referredPhone: editRefPhone.trim() || undefined,
-                                referredEmail: editRefEmail.trim() || undefined,
-                                tier: editRefTier,
-                                commission: Number(editRefCommission),
-                                dateJoined: editRefDate,
-                              };
-                            }
-                            return r;
-                          });
-
-                          if (onUpdateReferrals) {
-                            onUpdateReferrals(updated);
-                            localStorage.setItem('bt_referrals', JSON.stringify(updated));
-                          }
-                          setEditingReferral(null);
-                          alert('Referral relationship updated successfully!');
-                        }}
-                        className="space-y-4 text-slate-300 text-xs font-semibold"
-                      >
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
-                              Upline Referrer Username *
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              value={editRefReferrer}
-                              onChange={(e) => setEditRefReferrer(e.target.value)}
-                              className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
-                              Referred Candidate Username *
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              value={editRefUser}
-                              onChange={(e) => setEditRefUser(e.target.value)}
-                              className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
-                              Full Name
-                            </label>
-                            <input
-                              type="text"
-                              value={editRefFullName}
-                              onChange={(e) => setEditRefFullName(e.target.value)}
-                              className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
-                              Phone Number
-                            </label>
-                            <input
-                              type="text"
-                              value={editRefPhone}
-                              onChange={(e) => setEditRefPhone(e.target.value)}
-                              className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
-                              Email Account
-                            </label>
-                            <input
-                              type="email"
-                              value={editRefEmail}
-                              onChange={(e) => setEditRefEmail(e.target.value)}
-                              className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
-                              Date Joined (YYYY-MM-DD)
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              value={editRefDate}
-                              onChange={(e) => setEditRefDate(e.target.value)}
-                              className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
-                              Activated Member Tier
-                            </label>
-                            <select
-                              value={editRefTier}
-                              onChange={(e) => {
-                                const newTier = e.target.value as MemberLevel;
-                                setEditRefTier(newTier);
-                                // Suggest default commission for new tier if user changes tier
-                                if (newTier === 'REGULAR') setEditRefCommission(1005);
-                                else if (newTier === 'PREMIUM') setEditRefCommission(1000);
-                                else if (newTier === 'ELITE') setEditRefCommission(5005);
-                                else if (newTier === 'FREE') setEditRefCommission(0);
-                              }}
-                              className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3 py-2 focus:outline-none focus:border-cyan-500 cursor-pointer"
-                            >
-                              <option value="FREE">FREE REGISTRATION</option>
-                              <option value="REGULAR">REGULAR PLAN</option>
-                              <option value="PREMIUM">PREMIUM PLAN</option>
-                              <option value="ELITE">ELITE PLAN</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">
-                              Commission Amount (BDT)
-                            </label>
-                            <input
-                              type="number"
-                              required
-                              value={editRefCommission}
-                              onChange={(e) => setEditRefCommission(Number(e.target.value))}
-                              className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-800">
-                          <button
-                            type="button"
-                            onClick={() => setEditingReferral(null)}
-                            className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="submit"
-                            className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <Save className="w-4 h-4" />
-                            <span>SAVE CHANGES</span>
-                          </button>
-                        </div>
-                      </form>
-                    </motion.div>
-                  </div>
-                )}
-              </AnimatePresence>
 
               {/* SECTION C: PAYOUTS & WITHDRAWAL AUDIT BLOCK (নিবন্ধিত উইথড্রয়ের হিসেব) */}
               <div className="bg-[#0b0c15] border border-blue-500/10 rounded-2xl p-5 sm:p-6 space-y-4">
@@ -8893,6 +9883,397 @@ Body Touch Premium Network`;
                       </button>
                     </div>
                   </form>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* =======================================================
+              MODEL LEDGER & FINANCIAL AUDITING TAB
+              ======================================================= */}
+          {activeTab === 'model_ledger' && (
+            <div className="space-y-8 text-left animate-fadeIn">
+              
+              {/* TOP GLOBAL LEDGER STATS ROW */}
+              {(() => {
+                const completedBookings = bookings.filter(b => b.status === 'Completed');
+                const grossRev = completedBookings.reduce((sum, b) => sum + (b.cost || 0), 0);
+                const netModelShare = grossRev * 0.6;
+                const totalApprovedWithd = withdrawals
+                  .filter(w => w.status === 'Approved')
+                  .reduce((sum, w) => sum + (w.amount || 0), 0);
+                const totalDues = Math.max(0, netModelShare - totalApprovedWithd);
+
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    {/* Stat 1 */}
+                    <div className="bg-gradient-to-br from-[#0c1020] to-[#070913] border border-[#1e2333]/60 p-5 rounded-2xl flex items-center justify-between shadow-xl">
+                      <div>
+                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Total Jobs Completed</span>
+                        <span className="block text-2xl font-black text-white mt-1">{completedBookings.length} Dispatches</span>
+                        <span className="text-[10px] text-slate-500 font-semibold mt-1 block">Manually & Auto Logged</span>
+                      </div>
+                      <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/10 flex items-center justify-center text-blue-400">
+                        <TrendingUp className="w-6 h-6" />
+                      </div>
+                    </div>
+
+                    {/* Stat 2 */}
+                    <div className="bg-gradient-to-br from-[#0c1020] to-[#070913] border border-[#1e2333]/60 p-5 rounded-2xl flex items-center justify-between shadow-xl">
+                      <div>
+                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Gross Dispatch Value</span>
+                        <span className="block text-2xl font-black text-white mt-1">৳{grossRev.toLocaleString()}</span>
+                        <span className="text-[10px] text-emerald-500 font-semibold mt-1 block">Total billing handled</span>
+                      </div>
+                      <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/10 flex items-center justify-center text-emerald-400">
+                        <CreditCard className="w-6 h-6" />
+                      </div>
+                    </div>
+
+                    {/* Stat 3 */}
+                    <div className="bg-gradient-to-br from-[#0c1020] to-[#070913] border border-[#1e2333]/60 p-5 rounded-2xl flex items-center justify-between shadow-xl">
+                      <div>
+                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Model Share (60%)</span>
+                        <span className="block text-2xl font-black text-amber-200 mt-1">৳{netModelShare.toLocaleString()}</span>
+                        <span className="text-[10px] text-amber-500 font-semibold mt-1 block">Gateway Charge (40%): ৳{Math.round(grossRev * 0.4).toLocaleString()}</span>
+                      </div>
+                      <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-[#dbaa61]/20 flex items-center justify-center text-[#dbaa61]">
+                        <HandCoins className="w-6 h-6" />
+                      </div>
+                    </div>
+
+                    {/* Stat 4 */}
+                    <div className="bg-gradient-to-br from-[#0c1020] to-[#070913] border border-[#1e2333]/60 p-5 rounded-2xl flex items-center justify-between shadow-xl">
+                      <div>
+                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Pending Payout Balances</span>
+                        <span className="block text-2xl font-black text-rose-400 mt-1">৳{totalDues.toLocaleString()}</span>
+                        <span className="text-[10px] text-rose-500/80 font-semibold mt-1 block">Unpaid outstanding dues</span>
+                      </div>
+                      <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/10 flex items-center justify-center text-rose-400">
+                        <DollarSign className="w-6 h-6" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* GRID: FORM + MODEL BALANCE LIST */}
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                
+                {/* 1. MANUAL LEDGER JOB ENTRY FORM */}
+                <div className="xl:col-span-1 bg-[#0b0c13] border border-[#1e2333] p-6 rounded-2xl space-y-6">
+                  <div>
+                    <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2 font-display">
+                      <Plus className="w-4 h-4 text-[#dbaa61]" />
+                      <span>Record Manual Job Dispatch</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                      এডমিন প্যানেল থেকে যেকোনো মডেলের জন্য কাজের বিবরণ (তারিখ, সময়, কাজের স্থান ও পেমেন্ট) সরাসরি এন্ট্রি করুন।
+                    </p>
+                  </div>
+
+                  {ledgerSuccess && (
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs p-3.5 rounded-xl">
+                      {ledgerSuccess}
+                    </div>
+                  )}
+
+                  {ledgerError && (
+                    <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-3.5 rounded-xl">
+                      {ledgerError}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleAddManualLedger} className="space-y-4">
+                    {/* Model Choice */}
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Select Model Companion *</label>
+                      <select
+                        required
+                        value={ledgerModelUsername}
+                        onChange={(e) => setLedgerModelUsername(e.target.value)}
+                        className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="">-- Select Companion --</option>
+                        {companions.map((comp) => (
+                          <option key={comp.id} value={comp.modelUsername || comp.id}>
+                            {comp.name} ({comp.modelUsername ? `@${comp.modelUsername}` : 'No user linked'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Date picker */}
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Dispatch Date *</label>
+                      <input
+                        type="date"
+                        required
+                        value={ledgerDate}
+                        onChange={(e) => setLedgerDate(e.target.value)}
+                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    {/* Time string */}
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Dispatch Time *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. 08:00 PM or Night Shift"
+                        value={ledgerTime}
+                        onChange={(e) => setLedgerTime(e.target.value)}
+                        className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    {/* Place / Location */}
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Dispatch Location / Hotel Place *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. InterContinental Suite 501"
+                        value={ledgerPlace}
+                        onChange={(e) => setLedgerPlace(e.target.value)}
+                        className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    {/* Cost/Payment */}
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Total Job Cost/Payment (৳) *</label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="e.g. 15000"
+                        value={ledgerCost}
+                        onChange={(e) => setLedgerCost(e.target.value)}
+                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    {/* Duration */}
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Duration / Service Duration</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 2 Hours, Short Stay, Full Night"
+                        value={ledgerDuration}
+                        onChange={(e) => setLedgerDuration(e.target.value)}
+                        className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    {/* Client Reference / Phone */}
+                    <div>
+                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Client Reference / Order Source</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Phone Booking #017xxx"
+                        value={ledgerClientRef}
+                        onChange={(e) => setLedgerClientRef(e.target.value)}
+                        className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full bg-[#dbaa61] hover:bg-[#c99850] text-black font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-lg mt-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>RECORD LEDGER DISPATCH</span>
+                    </button>
+                  </form>
+                </div>
+
+                {/* 2. MODEL BALANCES LEDGER SUMMARY */}
+                <div className="xl:col-span-2 bg-[#0b0c13] border border-[#1e2333] p-6 rounded-2xl flex flex-col h-full justify-between">
+                  <div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.04] pb-4 mb-4">
+                      <div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2 font-display">
+                          <HandCoins className="w-4 h-4 text-[#dbaa61]" />
+                          <span>Model Roster Financial Sheets</span>
+                        </h3>
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          প্রতিটি অনুমোদিত মডেলের কাজ, সর্বমোট বুকিং মূল্য, তাদের প্রাপ্য শেয়ার (৮০%) এবং উত্তোলনযোগ্য বাকি ব্যালেন্সের হিসাব।
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-white/[0.04] text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
+                            <th className="pb-3 pl-2">Model Companion</th>
+                            <th className="pb-3 text-center">Jobs</th>
+                            <th className="pb-3">Gross Value</th>
+                            <th className="pb-3 text-amber-200">Share (60%)</th>
+                            <th className="pb-3 text-emerald-400">Paid Out</th>
+                            <th className="pb-3 text-rose-400">Withdrawable Due</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/[0.02]">
+                          {companions.map((comp) => {
+                            const modelUser = comp.modelUsername || comp.id;
+                            // Match bookings
+                            const compBookings = bookings.filter(
+                              (b) =>
+                                b.status === 'Completed' &&
+                                (b.modelUsername?.toLowerCase() === modelUser.toLowerCase() ||
+                                  b.modelName?.toLowerCase() === comp.name.toLowerCase())
+                            );
+                            const grossVal = compBookings.reduce((sum, b) => sum + (b.cost || 0), 0);
+                            const shareVal = grossVal * 0.6;
+                            // Match withdrawals
+                            const approvedWithd = withdrawals
+                              .filter(
+                                (w) =>
+                                  w.status === 'Approved' &&
+                                  w.username?.toLowerCase() === modelUser.toLowerCase()
+                              )
+                              .reduce((sum, w) => sum + (w.amount || 0), 0);
+                            const dueVal = Math.max(0, shareVal - approvedWithd);
+
+                            return (
+                              <tr key={comp.id} className="hover:bg-white/[0.01] transition-all">
+                                <td className="py-3 pl-2 flex items-center gap-2.5">
+                                  <img
+                                    src={comp.imageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120'}
+                                    alt={comp.name}
+                                    className="w-8 h-8 rounded-lg object-cover border border-white/[0.08]"
+                                  />
+                                  <div className="text-left">
+                                    <span className="block font-bold text-white leading-none">{comp.name}</span>
+                                    <span className="block text-[9px] text-slate-500 font-mono mt-1">
+                                      @{modelUser}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="py-3 text-center font-bold text-slate-300">
+                                  {compBookings.length}
+                                </td>
+                                <td className="py-3 font-semibold text-slate-300 font-mono">
+                                  ৳{grossVal.toLocaleString()}
+                                </td>
+                                <td className="py-3 font-bold text-[#dbaa61] font-mono">
+                                  ৳{shareVal.toLocaleString()}
+                                </td>
+                                <td className="py-3 font-semibold text-emerald-400 font-mono">
+                                  ৳{approvedWithd.toLocaleString()}
+                                </td>
+                                <td className="py-3 font-black text-rose-400 font-mono">
+                                  ৳{dueVal.toLocaleString()}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* DETAILED TRANSACTION LOGS TABLE */}
+              <div className="bg-[#0b0c13] border border-[#1e2333] p-6 rounded-2xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.04] pb-4 mb-4">
+                  <div className="text-left">
+                    <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2 font-display">
+                      <Clock className="w-4 h-4 text-[#dbaa61]" />
+                      <span>Detailed Ledger Transactions Logs</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      অনুমোদিত কাজের হিস্ট্রি। এখানে আপনি ম্যানুয়ালি এন্ট্রি করা কোনো কাজের হিসাব সংশোধন বা ডিলিট করতে পারবেন।
+                    </p>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-white/[0.04] text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
+                        <th className="pb-3 pl-2">Job Reference</th>
+                        <th className="pb-3">Model Companion</th>
+                        <th className="pb-3">Date / Time</th>
+                        <th className="pb-3">Location Place</th>
+                        <th className="pb-3">Gross Payment</th>
+                        <th className="pb-3 text-amber-200">Share (60%)</th>
+                        <th className="pb-3">Notes</th>
+                        <th className="pb-3 text-right pr-2">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.01]">
+                      {(() => {
+                        const completedList = bookings.filter((b) => b.status === 'Completed');
+                        if (completedList.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={8} className="py-8 text-center text-slate-500 font-medium">
+                                No completed dispatches or ledger records found in database.
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return completedList.map((book) => {
+                          const netShare = (book.cost || 0) * 0.6;
+                          return (
+                            <tr key={book.id} className="hover:bg-white/[0.01] transition-all">
+                              <td className="py-3.5 pl-2 font-mono text-[10px] text-slate-400 font-bold">
+                                {book.id}
+                              </td>
+                              <td className="py-3.5 text-left">
+                                <span className="block font-bold text-white">{book.modelName}</span>
+                                <span className="block text-[9px] text-slate-500 font-mono mt-0.5">
+                                  {book.modelUsername ? `@${book.modelUsername}` : 'Direct match'}
+                                </span>
+                              </td>
+                              <td className="py-3.5 text-slate-300 font-mono text-[11px]">
+                                <span className="block">{book.date}</span>
+                                <span className="block text-[10px] text-slate-500 mt-0.5">{book.time}</span>
+                              </td>
+                              <td className="py-3.5 text-slate-300 font-medium text-[11px]">
+                                {book.location}
+                              </td>
+                              <td className="py-3.5 font-bold text-slate-300 font-mono">
+                                ৳{book.cost?.toLocaleString() || 0}
+                              </td>
+                              <td className="py-3.5 font-bold text-[#dbaa61] font-mono">
+                                ৳{netShare.toLocaleString()}
+                              </td>
+                              <td className="py-3.5 text-slate-400 text-[11px] max-w-xs truncate" title={book.notes}>
+                                {book.notes || '—'}
+                              </td>
+                              <td className="py-3.5 text-right pr-2">
+                                <button
+                                  onClick={async () => {
+                                    if (confirm('Are you sure you want to delete this completed job entry from the ledger? This will instantly adjust the model\'s balance sheet!')) {
+                                      try {
+                                        await deleteDoc(doc(db, 'bookings', book.id));
+                                        alert('Ledger transaction entry deleted successfully!');
+                                      } catch (err) {
+                                        console.error('Error deleting booking:', err);
+                                        alert('Failed to delete transaction.');
+                                      }
+                                    }
+                                  }}
+                                  className="p-1.5 hover:bg-rose-500/10 text-rose-500 hover:text-rose-400 rounded-lg transition active:scale-95 cursor-pointer"
+                                  title="Delete transaction entry"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
@@ -9294,6 +10675,91 @@ Body Touch Premium Network`;
           </div>
         )}
       </AnimatePresence>
+
+      {/* Dynamic High-Fidelity Image Zoom Overlay */}
+      {zoomedImage && (
+        <div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 select-none">
+          {/* Top bar */}
+          <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-50">
+            <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-full border border-slate-800">
+              🔍 Document Inspector / নথিপত্র পরিদর্শক (Zoomed)
+            </span>
+            <button
+              onClick={() => {
+                setZoomedImage(null);
+                setZoomScale(1);
+                setZoomRotation(0);
+              }}
+              className="p-2.5 bg-red-650 hover:bg-red-500 rounded-full text-white cursor-pointer transition-all shadow-lg active:scale-95"
+              title="Close / বন্ধ করুন"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Interactive canvas / Viewport */}
+          <div className="relative flex-1 w-full max-w-4xl max-h-[80vh] flex items-center justify-center overflow-hidden border border-slate-800/60 rounded-3xl bg-zinc-950/40">
+            <div className="absolute inset-0 flex items-center justify-center overflow-auto p-8">
+              <img
+                src={zoomedImage}
+                alt="Document Inspector Zoomed"
+                className="max-w-full max-h-full object-contain shadow-2xl transition-all duration-200"
+                style={{
+                  transform: `scale(${zoomScale}) rotate(${zoomRotation}deg)`,
+                  transformOrigin: 'center center'
+                }}
+                referrerPolicy="no-referrer"
+              />
+            </div>
+          </div>
+
+          {/* Control Bar */}
+          <div className="mt-5 bg-slate-900/90 border border-slate-800 px-5 py-3 rounded-2xl flex flex-wrap gap-4 items-center justify-center shadow-2xl z-50">
+            <button
+              onClick={() => setZoomScale(prev => Math.max(0.5, prev - 0.25))}
+              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-mono text-[10px] font-black rounded-lg transition-all active:scale-95 cursor-pointer"
+            >
+              ZOOM -
+            </button>
+            <span className="text-[10px] font-mono font-black text-[#dbaa61]">
+              {Math.round(zoomScale * 100)}%
+            </span>
+            <button
+              onClick={() => setZoomScale(prev => Math.min(4, prev + 0.25))}
+              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-mono text-[10px] font-black rounded-lg transition-all active:scale-95 cursor-pointer"
+            >
+              ZOOM +
+            </button>
+            
+            <div className="w-px h-4 bg-slate-800" />
+
+            <button
+              onClick={() => setZoomRotation(prev => prev - 90)}
+              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-mono text-[10px] font-black rounded-lg transition-all active:scale-95 cursor-pointer"
+            >
+              ROTATE ↺
+            </button>
+            <button
+              onClick={() => setZoomRotation(prev => prev + 90)}
+              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-mono text-[10px] font-black rounded-lg transition-all active:scale-95 cursor-pointer"
+            >
+              ROTATE ↻
+            </button>
+
+            <div className="w-px h-4 bg-slate-800" />
+
+            <button
+              onClick={() => {
+                setZoomScale(1);
+                setZoomRotation(0);
+              }}
+              className="px-3.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-[#dbaa61] border border-[#dbaa61]/25 font-mono text-[10px] font-black rounded-lg transition-all active:scale-95 cursor-pointer"
+            >
+              RESET / স্বাভাবিক
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

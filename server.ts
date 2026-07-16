@@ -17,6 +17,16 @@ function getSmtpConfig() {
   let pass = process.env.SMTP_PASS || "ctpgmlskuevxjnld";
   let fromEmail = process.env.SMTP_FROM_EMAIL || "sakilroky@gmail.com";
 
+  let useSeparateOtpSmtp = false;
+  let otp = {
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    user: "sakilroky@gmail.com",
+    pass: "ctpgmlskuevxjnld",
+    fromEmail: "sakilroky@gmail.com"
+  };
+
   try {
     const configPath = path.join(process.cwd(), "smtp-config.json");
     if (fs.existsSync(configPath)) {
@@ -27,6 +37,18 @@ function getSmtpConfig() {
       if (fileData.user) user = fileData.user;
       if (fileData.pass) pass = fileData.pass;
       if (fileData.fromEmail) fromEmail = fileData.fromEmail;
+
+      if (fileData.useSeparateOtpSmtp !== undefined) {
+        useSeparateOtpSmtp = fileData.useSeparateOtpSmtp === true || fileData.useSeparateOtpSmtp === "true";
+      }
+      if (fileData.otp) {
+        if (fileData.otp.host) otp.host = fileData.otp.host;
+        if (fileData.otp.port) otp.port = parseInt(fileData.otp.port);
+        if (fileData.otp.secure !== undefined) otp.secure = fileData.otp.secure === true || fileData.otp.secure === "true";
+        if (fileData.otp.user) otp.user = fileData.otp.user;
+        if (fileData.otp.pass) otp.pass = fileData.otp.pass;
+        if (fileData.otp.fromEmail) otp.fromEmail = fileData.otp.fromEmail;
+      }
     }
   } catch (err) {
     console.error("Failed to read local smtp-config.json file:", err);
@@ -54,7 +76,21 @@ function getSmtpConfig() {
     fromEmail = user;
   }
 
-  return { host, port, secure, user, pass, fromEmail };
+  // Sanitize OTP config as well
+  if (otp.user) {
+    otp.user = otp.user.trim();
+  }
+  if (otp.pass) {
+    otp.pass = otp.pass.replace(/\s+/g, "");
+  }
+  if (otp.fromEmail) {
+    otp.fromEmail = otp.fromEmail.trim();
+  }
+  if (!otp.fromEmail || !otp.fromEmail.includes("@")) {
+    otp.fromEmail = otp.user;
+  }
+
+  return { host, port, secure, user, pass, fromEmail, useSeparateOtpSmtp, otp };
 }
 
 async function sendMailWithRetries(transporterConfig: any, mailOptions: any) {
@@ -406,7 +442,7 @@ async function startServer() {
   // API Route to save SMTP settings locally on server
   app.post("/api/save-smtp-settings", (req, res) => {
     try {
-      const { host, port, user, pass, secure, fromEmail } = req.body;
+      const { host, port, user, pass, secure, fromEmail, useSeparateOtpSmtp, otp } = req.body;
       const configPath = path.join(process.cwd(), "smtp-config.json");
       const configData = {
         host: host || "smtp.gmail.com",
@@ -414,7 +450,16 @@ async function startServer() {
         user: user || "",
         pass: pass || "",
         secure: secure === true || secure === "true",
-        fromEmail: fromEmail || user || ""
+        fromEmail: fromEmail || user || "",
+        useSeparateOtpSmtp: useSeparateOtpSmtp === true || useSeparateOtpSmtp === "true",
+        otp: otp ? {
+          host: otp.host || "smtp.gmail.com",
+          port: otp.port || "587",
+          user: otp.user || "",
+          pass: otp.pass || "",
+          secure: otp.secure === true || otp.secure === "true",
+          fromEmail: otp.fromEmail || otp.user || ""
+        } : undefined
       };
       fs.writeFileSync(configPath, JSON.stringify(configData, null, 2), "utf8");
       console.log("SMTP Configuration saved successfully to local file.");
@@ -448,12 +493,34 @@ async function startServer() {
     
     try {
       const localSmtp = getSmtpConfig();
-      const host = smtp?.host || localSmtp.host;
-      const port = smtp?.port ? parseInt(smtp.port) : localSmtp.port;
-      const secure = smtp?.secure !== undefined ? (smtp.secure === true || smtp.secure === "true") : localSmtp.secure;
-      const user = smtp?.user ? smtp.user.trim() : localSmtp.user;
-      const pass = smtp?.pass ? smtp.pass.trim() : localSmtp.pass;
-      const fromEmail = smtp?.fromEmail ? smtp.fromEmail.trim() : (smtp?.user ? smtp.user.trim() : localSmtp.fromEmail);
+
+      // Determine which SMTP configuration to use for sending OTP
+      const isOtpSeparate = (smtp && smtp.useSeparateOtpSmtp !== undefined) 
+        ? (smtp.useSeparateOtpSmtp === true || smtp.useSeparateOtpSmtp === "true")
+        : localSmtp.useSeparateOtpSmtp;
+
+      let host, port, secure, user, pass, fromEmail;
+
+      if (isOtpSeparate) {
+        // Use OTP-specific settings
+        const smtpOtp = smtp?.otp || localSmtp.otp;
+        host = smtpOtp?.host || localSmtp.otp.host || localSmtp.host;
+        port = smtpOtp?.port ? parseInt(smtpOtp.port) : (localSmtp.otp.port || localSmtp.port);
+        secure = smtpOtp?.secure !== undefined 
+          ? (smtpOtp.secure === true || smtpOtp.secure === "true") 
+          : (localSmtp.otp.secure !== undefined ? localSmtp.otp.secure : localSmtp.secure);
+        user = smtpOtp?.user ? smtpOtp.user.trim() : (localSmtp.otp.user || localSmtp.user);
+        pass = smtpOtp?.pass ? smtpOtp.pass.trim() : (localSmtp.otp.pass || localSmtp.pass);
+        fromEmail = smtpOtp?.fromEmail ? smtpOtp.fromEmail.trim() : (smtpOtp?.user ? smtpOtp.user.trim() : (localSmtp.otp.fromEmail || localSmtp.fromEmail));
+      } else {
+        // Use main/primary settings
+        host = smtp?.host || localSmtp.host;
+        port = smtp?.port ? parseInt(smtp.port) : localSmtp.port;
+        secure = smtp?.secure !== undefined ? (smtp.secure === true || smtp.secure === "true") : localSmtp.secure;
+        user = smtp?.user ? smtp.user.trim() : localSmtp.user;
+        pass = smtp?.pass ? smtp.pass.trim() : localSmtp.pass;
+        fromEmail = smtp?.fromEmail ? smtp.fromEmail.trim() : (smtp?.user ? smtp.user.trim() : localSmtp.fromEmail);
+      }
 
       if (!user || !pass) {
         console.warn("[SMTP Warning] SMTP is not configured. Returning simulated sandbox success.");
@@ -476,7 +543,7 @@ async function startServer() {
       };
 
       const mailOptions = {
-        from: `"BODY TOUCH Security" <${fromEmail}>`,
+        from: `"${fromEmail.includes("@") ? "BODY TOUCH Security" : fromEmail}" <${fromEmail.includes("@") ? fromEmail : user}>`,
         to: email,
         subject: "🔐 [BODY TOUCH] Security Verification Code (ভেরিফিকেশন কোড)",
         text: emailBody,

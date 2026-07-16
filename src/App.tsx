@@ -77,6 +77,8 @@ import ImageSlider from './components/ImageSlider';
 import LoginGate from './components/LoginGate';
 import JoinModal from './components/JoinModal';
 import LiveChat from './components/LiveChat';
+import { ModelPortal } from './components/ModelPortal';
+import { AgentPortal } from './components/AgentPortal';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -116,6 +118,28 @@ export default function App() {
   // State Initialization from Session/LocalStorage
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     return getStoredItem('bt_is_logged_in') === 'true';
+  });
+
+  const [userRole, setUserRole] = useState<string>(() => {
+    return getStoredItem('bt_user_role', '');
+  });
+
+  const [isModelPortalOpen, setIsModelPortalOpen] = useState(() => {
+    const hash = window.location.hash.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    const path = window.location.pathname.toLowerCase();
+    return hash.includes('model') ||
+           search.includes('model') ||
+           path.includes('model');
+  });
+
+  const [isAgentOpen, setIsAgentOpen] = useState(() => {
+    const hash = window.location.hash.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    const path = window.location.pathname.toLowerCase();
+    return hash.includes('agent') ||
+           search.includes('agent') ||
+           path.includes('agent');
   });
 
   const [username, setUsername] = useState<string>(() => {
@@ -459,6 +483,8 @@ export default function App() {
     }
     return {
       registrationFee: 3000,
+      registrationFeeMale: 3000,
+      registrationFeeSperm: 3000,
       regularPlanFee: 10000,
       premiumPlanFee: 22000,
       elitePlanFee: 50000,
@@ -502,85 +528,7 @@ export default function App() {
         console.error(e);
       }
     }
-    return [
-      {
-        id: 'ref-1',
-        referredUser: 'tasnim_eva',
-        referredFullName: 'Tasnim Eva',
-        referredPhone: '01712233445',
-        referredEmail: 'eva.tasnim@gmail.com',
-        referrer: 'akhiaktherofc',
-        dateJoined: '2026-06-05',
-        tier: 'REGULAR',
-        commission: 1005
-      },
-      {
-        id: 'ref-2',
-        referredUser: 'safwan_bin_arif',
-        referredFullName: 'Safwan Bin Arif',
-        referredPhone: '01815121314',
-        referredEmail: 'safwan.arif@outlook.com',
-        referrer: 'akhiaktherofc',
-        dateJoined: '2026-06-10',
-        tier: 'PREMIUM',
-        commission: 1000
-      },
-      {
-        id: 'ref-3',
-        referredUser: 'shaila_sharmin',
-        referredFullName: 'Shaila Sharmin',
-        referredPhone: '01998765432',
-        referredEmail: 'shaila.sharmin@yahoo.com',
-        referrer: 'akhiaktherofc',
-        dateJoined: '2026-06-12',
-        tier: 'FREE',
-        commission: 0
-      },
-      {
-        id: 'ref-4',
-        referredUser: 'mahin_hossain',
-        referredFullName: 'Mahin Hossain',
-        referredPhone: '01511223344',
-        referredEmail: 'mahin.hossain@gmail.com',
-        referrer: 'salmanshah',
-        dateJoined: '2026-05-28',
-        tier: 'ELITE',
-        commission: 5005
-      },
-      {
-        id: 'ref-5',
-        referredUser: 'orpi_afrena',
-        referredFullName: 'Orpi Afrena',
-        referredPhone: '01655667788',
-        referredEmail: 'orpi.afrena@gmil.com',
-        referrer: 'salmanshah',
-        dateJoined: '2026-06-01',
-        tier: 'REGULAR',
-        commission: 1005
-      },
-      {
-        id: 'ref-6',
-        referredUser: 'tanveer_ahmed',
-        referredFullName: 'Tanveer Ahmed',
-        referredPhone: '01799228833',
-        referredEmail: 'tanveer.ahmed@live.com',
-        referrer: 'salmanshah',
-        dateJoined: '2026-06-02',
-        tier: 'PREMIUM',
-        commission: 1000
-      },
-      {
-        id: 'ref-7',
-        referredUser: 'anika_tabassum',
-        referredFullName: 'Anika Tabassum',
-        referredPhone: '01399887766',
-        referredEmail: 'anika.tab@gmail.com',
-        referrer: 'tasnim_eva',
-        dateJoined: '2026-06-06',
-        tier: 'REGULAR',
-        commission: 1005
-      }
-    ];
+    return [];
   });
 
   const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>(() => {
@@ -592,38 +540,7 @@ export default function App() {
         console.error(e);
       }
     }
-    return [
-      {
-        id: 'w-1',
-        username: 'salmanshah',
-        fullName: 'Salman Shah VIP',
-        amount: 5000,
-        method: 'bKash Agent',
-        accountNumber: '01712345678',
-        date: '2026-06-04',
-        status: 'Approved'
-      },
-      {
-        id: 'w-2',
-        username: 'akhiaktherofc',
-        fullName: 'Akhi Akther Ofc',
-        amount: 1005,
-        method: 'Nagad Personal',
-        accountNumber: '01822334455',
-        date: '2026-06-07',
-        status: 'Approved'
-      },
-      {
-        id: 'w-3',
-        username: 'tasnim_eva',
-        fullName: 'Tasnim Eva',
-        amount: 1000,
-        method: 'bKash Personal',
-        accountNumber: '01911223344',
-        date: '2026-06-13',
-        status: 'Pending'
-      }
-    ];
+    return [];
   });
 
   useEffect(() => {
@@ -909,16 +826,55 @@ export default function App() {
       const search = window.location.search.toLowerCase();
       const path = window.location.pathname.toLowerCase();
       
+      // Capture referral codes (ref=AGENTNAME)
+      const urlStr = window.location.href;
+      const refMatch = urlStr.match(/[?&]ref=([^&#\s\?]+)/i);
+      if (refMatch && refMatch[1]) {
+        const cleanRef = refMatch[1].trim().toUpperCase();
+        const isJoinRoute = hash.includes('join') || hash.includes('model') || hash.includes('sparm') || hash.includes('sperm') ||
+                            search.includes('join') || search.includes('model') || search.includes('sparm') || search.includes('sperm') ||
+                            path.includes('join') || path.includes('model') || path.includes('sparm') || path.includes('sperm');
+        
+        if (isJoinRoute) {
+          sessionStorage.setItem('bt_pending_model_ref', cleanRef);
+          localStorage.setItem('bt_pending_model_ref', cleanRef);
+        } else {
+          sessionStorage.setItem('bt_pending_client_ref', cleanRef);
+          localStorage.setItem('bt_pending_client_ref', cleanRef);
+        }
+      }
+      
       const isAdminRoute = hash.includes('turmarheda') ||
                            search.includes('turmarheda') ||
                            path.includes('turmarheda');
       
+      const isModelRoute = hash.includes('model') ||
+                           search.includes('model') ||
+                           path.includes('model');
+
+      const isAgentRoute = hash.includes('agent') ||
+                           search.includes('agent') ||
+                           path.includes('agent');
+      
       if (isAdminRoute) {
         setIsAdminOpen(true);
+        setIsModelPortalOpen(false);
+        setIsAgentOpen(false);
+      } else if (isModelRoute) {
+        setIsAdminOpen(false);
+        setIsModelPortalOpen(true);
+        setIsAgentOpen(false);
+      } else if (isAgentRoute) {
+        setIsAdminOpen(false);
+        setIsModelPortalOpen(false);
+        setIsAgentOpen(true);
       } else {
-        const isJoinRoute = hash.includes('join') || hash.includes('register') || hash.includes('registration') || hash.includes('model') || hash.includes('joinmale') || hash.includes('join-male') || hash.includes('joinsparm') || hash.includes('join-sparm') || hash.includes('joinsperm') || hash.includes('join-sperm') || hash.includes('sparm') || hash.includes('sperm') ||
-                            search.includes('join') || search.includes('register') || search.includes('registration') || search.includes('model') || search.includes('joinmale') || search.includes('join-male') || search.includes('joinsparm') || search.includes('join-sparm') || search.includes('joinsperm') || search.includes('join-sperm') || search.includes('sparm') || search.includes('sperm') ||
-                            path.includes('join') || path.includes('register') || path.includes('registration') || path.includes('model') || path.includes('joinmale') || path.includes('join-male') || hash.includes('joinsparm') || hash.includes('join-sparm') || hash.includes('joinsperm') || hash.includes('join-sperm') || hash.includes('sparm') || hash.includes('sperm');
+        setIsAdminOpen(false);
+        setIsModelPortalOpen(false);
+        setIsAgentOpen(false);
+        const isJoinRoute = hash.includes('join') || hash.includes('register') || hash.includes('registration') || hash.includes('joinmale') || hash.includes('join-male') || hash.includes('joinsparm') || hash.includes('join-sparm') || hash.includes('joinsperm') || hash.includes('join-sperm') || hash.includes('sparm') || hash.includes('sperm') ||
+                            search.includes('join') || search.includes('register') || search.includes('registration') || search.includes('joinmale') || search.includes('join-male') || search.includes('joinsparm') || search.includes('join-sparm') || search.includes('joinsperm') || search.includes('join-sperm') || search.includes('sparm') || search.includes('sperm') ||
+                            path.includes('join') || path.includes('register') || path.includes('registration') || path.includes('joinmale') || path.includes('join-male') || hash.includes('joinsparm') || hash.includes('join-sparm') || hash.includes('joinsperm') || hash.includes('join-sperm') || hash.includes('sparm') || hash.includes('sperm');
         if (isJoinRoute) {
           if (hash.includes('male') || search.includes('male') || path.includes('male') || hash.includes('joinmale') || search.includes('joinmale') || path.includes('joinmale') || path.includes('join-male') || hash.includes('join-male')) {
             setJoinModalType('male');
@@ -1266,10 +1222,31 @@ export default function App() {
       }
     }));
 
+    unsubscribers.push(syncCloudCollection('withdrawals', (items) => {
+      if (items) {
+        const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
+        setWithdrawals(sorted);
+      }
+    }));
+
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
   }, []);
+
+  const handleUpdateWithdrawals = (updated: WithdrawalRecord[]) => {
+    setWithdrawals(updated);
+    localStorage.setItem('bt_withdrawals', JSON.stringify(updated));
+    updated.forEach((item) => {
+      setCloudDocument('withdrawals', item.id, item);
+    });
+    withdrawals.forEach((oldItem) => {
+      const stillExists = updated.some(item => item.id === oldItem.id);
+      if (!stillExists) {
+        deleteCloudDocument('withdrawals', oldItem.id);
+      }
+    });
+  };
 
   // Online Counter fluctuation simulation
   const handleUpdateCompanions = (updated: Companion[]) => {
@@ -1666,6 +1643,11 @@ Website: https://bodytouch.com
       return;
     }
 
+    if (amount > myEarningsSum) {
+      triggerToast('❌ মেম্বারশিপ ফি বা ওয়ালেট রিচার্জের টাকা উত্তোলন করা যাবে না। শুধুমাত্র রেফারেল লিংক থেকে ইনকাম করা টাকা উত্তোলন করতে পারবেন।', 'error');
+      return;
+    }
+
     if (!liquidateMobile || liquidateMobile.trim().length < 11) {
       triggerToast('⚠️ Please enter a valid Mobile Wallet number.', 'error');
       return;
@@ -1674,6 +1656,22 @@ Website: https://bodytouch.com
     // Deduct immediately from local wallet and from user's account in cloud database
     setWalletBalance((prev) => Math.max(0, prev - amount));
     updateTargetUserWallet(username, -amount);
+
+    // Create a negative commission referral record as debit so myEarningsSum matches immediately
+    const debitRecord: ReferralRecord = {
+      id: 'ref_debit_wd_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+      referrer: username,
+      referredUser: `WITHDRAWAL_${liquidateMethod}`,
+      tier: 'FREE',
+      dateJoined: new Date().toLocaleDateString(),
+      commission: -amount
+    };
+    setReferrals((prevRefs) => {
+      const updated = [...prevRefs, debitRecord];
+      localStorage.setItem('bt_referrals', JSON.stringify(updated));
+      return updated;
+    });
+    setCloudDocument('referrals', debitRecord.id, debitRecord);
 
     const newPaymentLog: PaymentRecord = {
       id: 'pay-' + Date.now(),
@@ -2054,14 +2052,62 @@ Website: https://bodytouch.com
   };
 
   // Administration bookings / services manual checkers
-  const handleAdminApproveCompanion = (companionId: string) => {
+  const handleAdminApproveCompanion = (
+    companionId: string,
+    rates?: { 
+      rateReal?: number; 
+      rateCam?: number; 
+      rateMakeOut?: number; 
+      rateLiveTogether?: number;
+      badge?: 'DEMO' | 'REGULAR' | 'PREMIUM' | 'ELITE';
+      rate?: number;
+      customRealRates?: { id: string; duration: string; rate: number }[];
+      customCamRates?: { id: string; duration: string; rate: number }[];
+      customLiveTogetherRates?: { id: string; duration: string; rate: number }[];
+      rateReal_1h?: number;
+      rateReal_2h?: number;
+      rateReal_3h?: number;
+      rateReal_fn?: number;
+    }
+  ) => {
     setCompanions((prev) =>
       prev.map((c) => {
         if (c.id === companionId) {
-          const freshTag = c.badge === 'DEMO' ? 'Class DEMO' : c.badge === 'ELITE' ? 'Class ELITE' : c.badge === 'PREMIUM' ? 'Class PREMIUM' : 'Class REGULAR';
-          const updated = { ...c, status: 'Approved' as const, tag: freshTag };
+          const targetBadge = rates?.badge || c.badge || 'REGULAR';
+          const freshTag = targetBadge === 'DEMO' ? 'Class DEMO' : targetBadge === 'ELITE' ? 'Class ELITE' : targetBadge === 'PREMIUM' ? 'Class PREMIUM' : 'Class REGULAR';
+          
+          // Generate model login account credentials
+          const baseUsername = c.name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'model';
+          const finalUsername = `${baseUsername}_${Math.floor(1000 + Math.random() * 9000)}`;
+          const tempPassword = 'bt_' + Math.floor(100000 + Math.random() * 900000);
+          
+          const updated = { 
+            ...c, 
+            status: 'Approved' as const, 
+            tag: freshTag, 
+            modelUsername: finalUsername,
+            ...(rates || {})
+          };
           setCloudDocument('companions', c.id, updated);
-          const mailSubject = `🎉 bodyTOUCH Roster: Your Career Application is APPROVED!`;
+          
+          // Save model login user account in standard 'users' collection
+          const uid = 'user-model-' + Date.now();
+          const modelUser = {
+            username: finalUsername,
+            fullName: c.name,
+            email: (c.email || '').trim().toLowerCase() || `${finalUsername}@bodytouch.com`,
+            phone: c.phone || '',
+            role: 'model',
+            userLevel: 'FREE' as const,
+            walletBalance: 0,
+            uid: uid,
+            password: tempPassword,
+            passwordHash: tempPassword,
+            createdAt: new Date().toISOString()
+          };
+          setCloudDocument('users', finalUsername, modelUser);
+
+          const mailSubject = `🎉 bodyTOUCH: Your Career Application is APPROVED!`;
           const mailBody = `
 Dear ${c.name},
 
@@ -2069,23 +2115,20 @@ Congratulations! Our administration team has verified and APPROVED your professi
 
 Your profile is now LIVE in our exclusive directory under category: ${c.category || 'Female Model'}.
 
---- PARTNER DATA CARD ---
-👤 Name: ${c.name}
-📍 Assigned City: ${c.city || 'Dhaka'}
-💎 Badge Tier: ${c.badge}
-💰 Target Rate: ৳${c.rate}/hour
-📞 Mobile Connected: ${c.phone || 'N/A'}
-📧 Email Registered: ${c.email || 'N/A'}
+We have automatically created a dedicated Model Account for you to track your bookings, work history, and earnings securely!
 
-You can now start receiving premium booking dispatches from our upscale high-society user network. Keep your profile updated!
+--- YOUR PORTAL CREDENTIALS ---
+🌐 Portal Link: ${window.location.origin}/#model
+👤 Username: ${finalUsername}
+🔐 Temporary Password: ${tempPassword}
 
-Thank you for choosing bodyTOUCH.
+Please log in using the credentials above. You can view all your earnings, previous works, and request withdrawals directly from your dashboard.
+
 Sincerely,
 bodyTOUCH Auditing Core
-https://service.bodytouch.com
-          `;
+`;
           sendAutoEmail(c.email || 'code@bodytouch.com', mailSubject, mailBody);
-          triggerToast(`✅ Partner approved: ${c.name}! Acceptance email sent.`, 'success');
+          triggerToast(`✅ Partner approved: ${c.name}! Account created and details sent to email.`, 'success');
 
           // Send Telegram Activation Notification to Admin Group
           const botApproveText = `✅ <b>মডেল প্রোফাইল অ্যাক্টিভেট করা হয়েছে!</b>\n\n` +
@@ -2093,6 +2136,8 @@ https://service.bodytouch.com
             `💎 লেভেল: <b>${c.badge} (${c.badge === 'ELITE' ? 'এলিট সোসাইটি' : c.badge === 'PREMIUM' ? 'প্রিমিয়াম মেম্বার' : 'রেগুলার মেম্বার'})</b>\n` +
             `💰 ডিমান্ড রেট: <b>৳${c.rate}/ঘন্টা</b>\n` +
             `📍 শহর: <b>${c.city || 'Dhaka'}</b>\n` +
+            `🔑 পোর্টাল ইউজারনেম: <code>${finalUsername}</code>\n` +
+            `🔒 পাসওয়ার্ড: <code>${tempPassword}</code>\n` +
             `✈️ টেলিগ্রাম: <b>${c.telegram ? '@' + c.telegram.replace('@', '') : 'N/A'}</b>\n\n` +
             `<i>প্রোফাইলটি এখন ক্যাটালগে সবার জন্য দৃশ্যমান এবং বুকিং করার জন্য উন্মুক্ত।</i>`;
           sendTelegramNotification(botApproveText);
@@ -2300,6 +2345,60 @@ Body Touch VIP Concierge
           const updated = { ...b, status: 'Completed' as const };
           setCloudDocument('bookings', b.id, updated);
 
+          // Check for client referral booking commission
+          const clientUser = b.clientName;
+          if (clientUser) {
+            const matchingRefIndex = referrals.findIndex(
+              (r) => r.referredUser.toLowerCase() === clientUser.toLowerCase()
+            );
+            if (matchingRefIndex !== -1) {
+              const targetRef = referrals[matchingRefIndex];
+              
+              // Count completed bookings for this client (including this one)
+              const completedCount = prev.filter(
+                (bk) => bk.clientName?.toLowerCase() === clientUser.toLowerCase() && (bk.status === 'Completed' || bk.id === b.id)
+              ).length;
+              
+              if (completedCount <= 2) {
+                // 10% commission on the booking cost
+                const bookingCommission = (b.cost || 0) * 0.10;
+                
+                if (bookingCommission > 0) {
+                  const updatedRef = {
+                    ...targetRef,
+                    commission: (targetRef.commission || 0) + bookingCommission
+                  };
+                  
+                  setReferrals((prevRefs) => {
+                    const updated = prevRefs.map((r) => r.id === targetRef.id ? updatedRef : r);
+                    localStorage.setItem('bt_referrals', JSON.stringify(updated));
+                    return updated;
+                  });
+                  setCloudDocument('referrals', targetRef.id, updatedRef);
+                  
+                  // Send smart in-app notification to referrer
+                  const referrerNotifId = 'notif_' + Date.now() + '_ref_earn_' + b.id;
+                  setCloudDocument('notifications', referrerNotifId, {
+                    id: referrerNotifId,
+                    title: '🎁 Referral Booking Commission Earned!',
+                    message: `You earned ৳${bookingCommission.toLocaleString()} BDT commission from @${clientUser}'s completed booking!`,
+                    timestamp: new Date().toISOString(),
+                    type: 'success',
+                    username: targetRef.referrer
+                  });
+                  
+                  // Telegram notification
+                  const telRefMsg = `🎁 <b>রেফারেল বুকিং কমিশন অর্জিত হয়েছে!</b>\n\n` +
+                    `👤 রেফারার: <b>@${targetRef.referrer}</b>\n` +
+                    `👥 আমন্ত্রিত কাস্টমার: <b>@${clientUser}</b>\n` +
+                    `💰 কমিশন পরিমাণ: <b>৳${bookingCommission.toLocaleString()} BDT (10%)</b>\n` +
+                    `⏱️ বুকিং নং: <b>${completedCount}</b>`;
+                  sendTelegramNotification(telRefMsg);
+                }
+              }
+            }
+          }
+
           // Dispatch instant smart notification
           const notifId = 'notif_' + Date.now() + '_cmp';
           setCloudDocument('notifications', notifId, {
@@ -2438,7 +2537,101 @@ https://bodytouch.com
             triggerToast(`✅ Withdrawal of ৳${numericPrice.toLocaleString()} approved for @${p.username}.`, 'success');
           } else {
             if (tNameU === 'REGULAR' || tNameU === 'PREMIUM' || tNameU === 'ELITE') {
-              setUserLevel(tNameU as MemberLevel);
+              if (p.username.toLowerCase() === username.toLowerCase()) {
+                setUserLevel(tNameU as MemberLevel);
+              }
+              setCloudDocument('users', p.username.toLowerCase(), { userLevel: tNameU });
+
+              // Update Referral record tier and check if referred by an agent
+              const matchingRefIndex = referrals.findIndex(
+                (r) => r.referredUser.toLowerCase() === p.username.toLowerCase()
+              );
+              if (matchingRefIndex !== -1) {
+                const targetRef = referrals[matchingRefIndex];
+
+                // Fetch agent info asynchronously to determine if referrer is an agent or a regular client
+                getDoc(doc(db, 'agents', targetRef.referrer.toLowerCase())).then((agentDoc) => {
+                  if (agentDoc.exists()) {
+                    // This is an Agent referrer! They receive the original fixed commission
+                    let refCommission = 0;
+                    if (tNameU === 'REGULAR') refCommission = 500;
+                    else if (tNameU === 'PREMIUM') refCommission = 1100;
+                    else if (tNameU === 'ELITE') refCommission = 2500;
+
+                    const updatedRef: ReferralRecord = {
+                      ...targetRef,
+                      tier: tNameU as MemberLevel,
+                      commission: refCommission
+                    };
+
+                    setReferrals((prevRefs) => {
+                      const updated = prevRefs.map((r) => r.id === targetRef.id ? updatedRef : r);
+                      localStorage.setItem('bt_referrals', JSON.stringify(updated));
+                      return updated;
+                    });
+                    setCloudDocument('referrals', targetRef.id, updatedRef);
+
+                    // Trigger friendly agent toast
+                    setTimeout(() => {
+                      triggerToast(`🎁 Referral commission of ৳${refCommission.toLocaleString()} BDT credited to Agent @${targetRef.referrer}!`, 'success');
+                    }, 1000);
+                  } else {
+                    // Regular client referrer - gets flat 500 BDT commission on any membership purchase!
+                    const clientRefCommission = 500;
+
+                    const updatedRef: ReferralRecord = {
+                      ...targetRef,
+                      tier: tNameU as MemberLevel,
+                      commission: (targetRef.commission || 0) + clientRefCommission
+                    };
+
+                    setReferrals((prevRefs) => {
+                      const updated = prevRefs.map((r) => r.id === targetRef.id ? updatedRef : r);
+                      localStorage.setItem('bt_referrals', JSON.stringify(updated));
+                      return updated;
+                    });
+                    setCloudDocument('referrals', targetRef.id, updatedRef);
+
+                    // Send smart in-app notification to the referrer client
+                    const referrerNotifId = 'notif_' + Date.now() + '_ref_mbr_' + p.username;
+                    setCloudDocument('notifications', referrerNotifId, {
+                      id: referrerNotifId,
+                      title: '🎁 Referral Membership Commission Earned!',
+                      message: `You earned ৳${clientRefCommission.toLocaleString()} BDT commission (Fixed ৳500) from @${p.username}'s ${tNameU} membership purchase!`,
+                      timestamp: new Date().toISOString(),
+                      type: 'success',
+                      username: targetRef.referrer
+                    });
+
+                    // Send Telegram notification
+                    const telRefMsg = `🎁 <b>রেফারেল মেম্বারশিপ কমিশন অর্জিত হয়েছে!</b>\n\n` +
+                      `👤 রেফারার: <b>@${targetRef.referrer}</b>\n` +
+                      `👥 আমন্ত্রিত কাস্টমার: <b>@${p.username}</b>\n` +
+                      `💎 মেম্বারশিপ প্ল্যান: <b>${tNameU}</b>\n` +
+                      `💰 কমিশন পরিমাণ: <b>৳${clientRefCommission.toLocaleString()} BDT (Fixed ৳500)</b>`;
+                    sendTelegramNotification(telRefMsg);
+
+                    // Trigger toast
+                    setTimeout(() => {
+                      triggerToast(`🎁 Referral commission of ৳${clientRefCommission.toLocaleString()} BDT credited to @${targetRef.referrer}!`, 'success');
+                    }, 1000);
+                  }
+                }).catch((err) => {
+                  console.warn('Error fetching agent status:', err);
+                  // Fallback: update tier
+                  const updatedRef: ReferralRecord = {
+                    ...targetRef,
+                    tier: tNameU as MemberLevel
+                  };
+                  setReferrals((prevRefs) => {
+                    const updated = prevRefs.map((r) => r.id === targetRef.id ? updatedRef : r);
+                    localStorage.setItem('bt_referrals', JSON.stringify(updated));
+                    return updated;
+                  });
+                  setCloudDocument('referrals', targetRef.id, updatedRef);
+                });
+              }
+
               triggerToast(`✅ Payment approved manually! Upgraded to ${p.tierName}.`, 'success');
             } else {
               triggerToast(`✅ Deposit of ৳${p.price} approved manually.`, 'success');
@@ -2525,6 +2718,23 @@ https://bodytouch.com`;
 
             // Refund the withdrawal amount back to user's wallet
             updateTargetUserWallet(p.username, numericPrice);
+
+            // Refund/cancel the debit referral record by adding a positive commission record
+            const refundRecord: ReferralRecord = {
+              id: 'ref_refund_wd_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+              referrer: p.username,
+              referredUser: `REFUND_WD_${p.id}`,
+              tier: 'FREE',
+              dateJoined: new Date().toLocaleDateString(),
+              commission: numericPrice
+            };
+            setReferrals((prevRefs) => {
+              const updated = [...prevRefs, refundRecord];
+              localStorage.setItem('bt_referrals', JSON.stringify(updated));
+              return updated;
+            });
+            setCloudDocument('referrals', refundRecord.id, refundRecord);
+
             triggerToast(`❌ Withdrawal of ৳${numericPrice.toLocaleString()} rejected by operator. Balance refunded to @${p.username}!`, 'error');
 
             const mailSubject = `⚠️ Body Touch Notification: Withdrawal Request Rejected & Refunded`;
@@ -2703,6 +2913,7 @@ https://service.bodytouch.com
 
   const handleClearSession = () => {
     setIsLoggedIn(false);
+    setUserRole('');
 
     const keys = [
       'bt_is_logged_in',
@@ -2710,6 +2921,7 @@ https://service.bodytouch.com
       'bt_fullname',
       'bt_email',
       'bt_phone',
+      'bt_user_role',
       'bt_avatar_url',
       'bt_userlevel',
       'bt_wallet_balance',
@@ -2783,10 +2995,14 @@ https://service.bodytouch.com
     phone: string;
     rememberMe?: boolean;
     isSignUp?: boolean;
+    role?: string;
   }) => {
     const isRemembered = credentials.rememberMe !== false;
     setRememberMe(isRemembered);
     localStorage.setItem('bt_remember_me', String(isRemembered));
+
+    const role = credentials.role || '';
+    setUserRole(role);
 
     setUsername(credentials.username);
     setCustomUsername(credentials.username);
@@ -2804,8 +3020,39 @@ https://service.bodytouch.com
     activeStorage.setItem('bt_fullname', credentials.fullName);
     activeStorage.setItem('bt_email', credentials.email);
     activeStorage.setItem('bt_phone', credentials.phone);
+    activeStorage.setItem('bt_user_role', role);
 
     if (credentials.isSignUp) {
+      // Check if there is a pending referrer from agent's referral link
+      const pendingReferrer = sessionStorage.getItem('bt_pending_client_ref') || localStorage.getItem('bt_pending_client_ref');
+      if (pendingReferrer) {
+        const referrerClean = pendingReferrer.trim().toUpperCase();
+        
+        // Add referral record
+        const newReferral: ReferralRecord = {
+          id: 'ref-' + Date.now(),
+          referrer: referrerClean,
+          referredUser: credentials.username,
+          referredFullName: credentials.fullName,
+          referredPhone: credentials.phone || 'N/A',
+          referredEmail: credentials.email,
+          tier: 'FREE',
+          commission: 0,
+          dateJoined: new Date().toISOString().split('T')[0]
+        };
+
+        setReferrals((prev) => {
+          const updated = [newReferral, ...prev];
+          localStorage.setItem('bt_referrals', JSON.stringify(updated));
+          return updated;
+        });
+        setCloudDocument('referrals', newReferral.id, newReferral);
+        
+        // Clear from pending storage
+        sessionStorage.removeItem('bt_pending_client_ref');
+        localStorage.removeItem('bt_pending_client_ref');
+      }
+
       const clientRegText = `🔔 <b>নতুন কাস্টমার সফলভাবে রেজিস্টার করেছেন!</b>\n\n` +
         `👤 ইউজারনেম: <b>${credentials.username}</b>\n` +
         `📛 নাম: <b>${credentials.fullName}</b>\n` +
@@ -2816,7 +3063,7 @@ https://service.bodytouch.com
     }
 
     // Swap files or clear alternate to prevent overlapping states
-    const targetKeys = ['bt_is_logged_in', 'bt_username', 'bt_fullname', 'bt_email', 'bt_phone'];
+    const targetKeys = ['bt_is_logged_in', 'bt_username', 'bt_fullname', 'bt_email', 'bt_phone', 'bt_user_role'];
     targetKeys.forEach(k => {
       if (isRemembered) {
         sessionStorage.removeItem(k);
@@ -2857,13 +3104,127 @@ https://service.bodytouch.com
   const myConversionsCount = myReferrals.filter((r) => r.tier !== 'FREE').length;
   const myEarningsSum = myReferrals.reduce((sum, r) => sum + r.commission, 0);
 
-  // commission percentage calculation based on count
+  // commission percentage calculation based on count (5% fixed)
   const myCommissionPercent = useMemo(() => {
-    if (myConversionsCount >= 5) return 25; // Elite level
-    if (myConversionsCount >= 2) return 15; // Premium level
-    if (myConversionsCount >= 1) return 10; // Regular level
-    return 5; // Default free affiliate tier commission rate
-  }, [myConversionsCount]);
+    return 10; // Customer commission is now 10% on first 2 services!
+  }, []);
+
+  const handleBuyMembershipWithReferrals = (tierName: MemberLevel, planFee: number) => {
+    if (myEarningsSum < planFee) {
+      triggerToast(`❌ Insufficient Referral Earnings. You have ৳${myEarningsSum.toLocaleString()} BDT but need ৳${planFee.toLocaleString()} BDT.`, 'error');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to purchase the ${tierName} Membership instantly using ৳${planFee.toLocaleString()} BDT from your Referral Earnings?\n\nThis will deduct the fee from your referral balance and upgrade your status immediately.`)) {
+      return;
+    }
+
+    // Create negative commission referral record as debit
+    const debitRecord: ReferralRecord = {
+      id: 'debit-' + Date.now(),
+      referrer: username,
+      referredUser: `membership-debit-${Date.now()}`,
+      referredFullName: `Membership Purchase (${tierName})`,
+      referredPhone: 'N/A',
+      referredEmail: 'N/A',
+      tier: 'FREE',
+      commission: -planFee,
+      dateJoined: new Date().toISOString().split('T')[0]
+    };
+
+    setReferrals((prev) => {
+      const updated = [debitRecord, ...prev];
+      localStorage.setItem('bt_referrals', JSON.stringify(updated));
+      return updated;
+    });
+    setCloudDocument('referrals', debitRecord.id, debitRecord);
+
+    // Check if this user has a referrer record to reward them
+    const matchingRefIndex = referrals.findIndex(
+      (r) => r.referredUser.toLowerCase() === username.toLowerCase()
+    );
+    if (matchingRefIndex !== -1) {
+      const targetRef = referrals[matchingRefIndex];
+      getDoc(doc(db, 'agents', targetRef.referrer.toLowerCase())).then((agentDoc) => {
+        if (agentDoc.exists()) {
+          // This is an Agent referrer!
+          let refCommission = 0;
+          if (tierName === 'REGULAR') refCommission = 500;
+          else if (tierName === 'PREMIUM') refCommission = 1100;
+          else if (tierName === 'ELITE') refCommission = 2500;
+
+          const updatedRef: ReferralRecord = {
+            ...targetRef,
+            tier: tierName as MemberLevel,
+            commission: refCommission
+          };
+          setReferrals((prevRefs) => {
+            const updated = prevRefs.map((r) => r.id === targetRef.id ? updatedRef : r);
+            localStorage.setItem('bt_referrals', JSON.stringify(updated));
+            return updated;
+          });
+          setCloudDocument('referrals', targetRef.id, updatedRef);
+        } else {
+          // Regular client referrer gets flat 500 BDT commission on the purchase price!
+          const clientRefCommission = 500;
+          const updatedRef: ReferralRecord = {
+            ...targetRef,
+            tier: tierName as MemberLevel,
+            commission: (targetRef.commission || 0) + clientRefCommission
+          };
+          setReferrals((prevRefs) => {
+            const updated = prevRefs.map((r) => r.id === targetRef.id ? updatedRef : r);
+            localStorage.setItem('bt_referrals', JSON.stringify(updated));
+            return updated;
+          });
+          setCloudDocument('referrals', targetRef.id, updatedRef);
+
+          // In-app notification to the referrer client
+          const referrerNotifId = 'notif_' + Date.now() + '_ref_mbr_buy_' + username;
+          setCloudDocument('notifications', referrerNotifId, {
+            id: referrerNotifId,
+            title: '🎁 Referral Membership Commission Earned!',
+            message: `You earned ৳${clientRefCommission.toLocaleString()} BDT commission (Fixed ৳500) from @${username}'s ${tierName} membership purchase via referral earnings!`,
+            timestamp: new Date().toISOString(),
+            type: 'success',
+            username: targetRef.referrer
+          });
+
+          // Telegram notification
+          const telRefMsg = `🎁 <b>রেফারেল মেম্বারশিপ কমিশন অর্জিত হয়েছে (আর্নিং দিয়ে কেনা)!</b>\n\n` +
+            `👤 রেফারার: <b>@${targetRef.referrer}</b>\n` +
+            `👥 আমন্ত্রিত কাস্টমার: <b>@${username}</b>\n` +
+            `💎 মেম্বারশিপ প্ল্যান: <b>${tierName}</b>\n` +
+            `💰 কমিশন পরিমাণ: <b>৳${clientRefCommission.toLocaleString()} BDT (Fixed ৳500)</b>`;
+          sendTelegramNotification(telRefMsg);
+        }
+      }).catch(e => console.warn(e));
+    }
+
+    // Set user level locally and in cloud
+    setUserLevel(tierName);
+    setCloudDocument('users', username.toLowerCase(), { userLevel: tierName });
+
+    // Send Notification
+    const notifId = 'notif_' + Date.now() + '_upgrade_ref';
+    setCloudDocument('notifications', notifId, {
+      id: notifId,
+      title: `👑 Upgraded to ${tierName}!`,
+      message: `Congratulations! Your account has been upgraded to ${tierName} tier instantly using ৳${planFee.toLocaleString()} from your referral earnings!`,
+      timestamp: new Date().toISOString(),
+      type: 'success',
+      username: username
+    });
+
+    // Send Telegram Notification
+    const telMsg = `👑 <b>ইউজার রেফারেল আর্নিং দিয়ে মেম্বারশিপ নিয়েছেন!</b>\n\n` +
+      `👤 ইউজারনেম: <b>@${username}</b>\n` +
+      `💎 মেম্বারশিপ টায়ার: <b>${tierName}</b>\n` +
+      `💰 মূল্য: <b>৳${planFee.toLocaleString()} BDT (আর্নিং থেকে কর্তনকৃত)</b>`;
+    sendTelegramNotification(telMsg);
+
+    triggerToast(`🎉 Successfully upgraded to ${tierName} tier using referral earnings!`, 'success');
+  };
 
   if (isAdminOpen) {
     return (
@@ -2928,13 +3289,60 @@ https://service.bodytouch.com
           referrals={referrals}
           onUpdateReferrals={setReferrals}
           withdrawals={withdrawals}
-          onUpdateWithdrawals={setWithdrawals}
+          onUpdateWithdrawals={handleUpdateWithdrawals}
           categories={categories}
           onUpdateCategories={setCategories}
           emergencyNotice={emergencyNotice}
           onSaveEmergencyNotice={handleSaveEmergencyNotice}
           googleSheetUrl={googleSheetUrl}
           onSaveGoogleSheetUrl={handleSaveGoogleSheetUrl}
+        />
+      </div>
+    );
+  }
+
+  if (isModelPortalOpen) {
+    return (
+      <div className="text-slate-100 min-h-screen bg-[#070b19] selection:bg-cyan-500 selection:text-white font-sans w-full flex flex-col justify-start">
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.isVisible}
+          onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
+        />
+        <ModelPortal
+          bookings={bookings}
+          withdrawals={withdrawals}
+          companions={companions}
+          onLoginSuccess={handleLoginSuccess}
+          isLoggedIn={isLoggedIn}
+          loggedInUsername={username}
+          loggedInUserRole={userRole}
+          onLogout={handleClearSession}
+          onAddWithdrawal={(w) => handleUpdateWithdrawals([w, ...withdrawals])}
+          triggerToast={(msg, type) => triggerToast(msg, type)}
+        />
+      </div>
+    );
+  }
+
+  if (isAgentOpen) {
+    return (
+      <div className="text-slate-100 min-h-screen bg-[#020510] selection:bg-[#dbaa61] selection:text-slate-950 font-sans w-full flex flex-col justify-start">
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.isVisible}
+          onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
+        />
+        <AgentPortal
+          referrals={referrals}
+          withdrawals={withdrawals}
+          companions={companions}
+          bookings={bookings}
+          onAddWithdrawal={(w) => handleUpdateWithdrawals([w, ...withdrawals])}
+          onAddCompanion={(c) => handleUpdateCompanions([c, ...companions])}
+          triggerToast={(msg, type) => triggerToast(msg, type)}
         />
       </div>
     );
@@ -2970,7 +3378,10 @@ https://service.bodytouch.com
             structuredCities={structuredCities}
             telegramHelpline={telegramHelpline}
             registrationFee={pricingConfig.registrationFee}
+            registrationFeeMale={pricingConfig.registrationFeeMale}
+            registrationFeeSperm={pricingConfig.registrationFeeSperm}
             onAddCompanion={(newComp) => {
+              setCloudDocument('companions', newComp.id, newComp);
               setCompanions((prev) => {
                 const exists = prev.some((c) => c.id === newComp.id);
                 if (exists) {
@@ -3830,10 +4241,15 @@ https://service.bodytouch.com
               {/* Local Bengali Informational box */}
               <motion.div variants={itemVariants} className="bg-blue-950/20 border border-blue-500/25 rounded-2xl p-4.5 flex items-start gap-3 text-left gold-breathing-glow">
                 <Info className="text-blue-400 flex-shrink-0 mt-0.5 w-5 h-5" />
-                <p className="text-xs text-blue-300 leading-relaxed font-semibold">
-                  মেম্বারশিপ ভেরিফিকেশনের জন্য কোনো ফি কেটে নেওয়া হবে না। যে টাকা আপনি জমা করবেন তা আপনার 
-                  ব্যক্তিগত ওয়ালেটে ১০০% যুক্ত হবে এবং পরবর্তীতে বুকিংয়ে সরাসরি ব্যবহার করা যাবে।
-                </p>
+                <div className="text-xs text-blue-300 leading-relaxed font-semibold space-y-1">
+                  <p>
+                    মেম্বারশিপ ভেরিফিকেশনের জন্য কোনো ফি কেটে নেওয়া হবে না। যে টাকা আপনি জমা করবেন তা আপনার 
+                    ব্যক্তিগত ওয়ালেটে ১০০% যুক্ত হবে এবং পরবর্তীতে বুকিংয়ে সরাসরি ব্যবহার করা যাবে।
+                  </p>
+                  <p className="text-emerald-400 font-black">
+                    🔄 যেকোনো কাস্টমার ১ বার মেম্বারশিপ নিলে তা সারাজীবন (Lifetime) থাকবে এবং কখনো মেয়াদ শেষ হবে না।
+                  </p>
+                </div>
               </motion.div>
 
               {/* Membership Pricing Cards Stacked */}
@@ -3883,13 +4299,24 @@ https://service.bodytouch.com
                   </div>
 
                   {userLevel === 'FREE' ? (
-                    <button
-                      onClick={() => triggerOpenCheckout('Regular', pricingConfig.regularPlanFee.toLocaleString())}
-                      className="w-full bg-[#569bef] hover:bg-[#68a6f4] text-[#030919] text-xs font-black uppercase tracking-wider py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer font-sans shadow-md"
-                    >
-                      <Star className="w-4.5 h-4.5 fill-current text-[#030919]" />
-                      <span>GET BASIC</span>
-                    </button>
+                    <div className="space-y-2 w-full">
+                      <button
+                        onClick={() => triggerOpenCheckout('Regular', pricingConfig.regularPlanFee.toLocaleString())}
+                        className="w-full bg-[#569bef] hover:bg-[#68a6f4] text-[#030919] text-xs font-black uppercase tracking-wider py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer font-sans shadow-md"
+                      >
+                        <Star className="w-4.5 h-4.5 fill-current text-[#030919]" />
+                        <span>GET BASIC</span>
+                      </button>
+                      {myEarningsSum >= pricingConfig.regularPlanFee && (
+                        <button
+                          onClick={() => handleBuyMembershipWithReferrals('REGULAR', pricingConfig.regularPlanFee)}
+                          className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-xs font-black uppercase tracking-wider py-3 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer font-sans shadow-md border border-emerald-400/20"
+                        >
+                          <Gift className="w-4 h-4 shrink-0" />
+                          <span>Buy with Referral (৳{pricingConfig.regularPlanFee.toLocaleString()})</span>
+                        </button>
+                      )}
+                    </div>
                   ) : userLevel === 'REGULAR' ? (
                     <div className="w-full bg-emerald-500/10 text-[#04d98c] border border-emerald-500/35 text-xs font-black uppercase tracking-wider py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 font-mono">
                       <span>✓ CURRENT ACTIVE PLAN</span>
@@ -3947,13 +4374,24 @@ https://service.bodytouch.com
                   </div>
 
                   {(userLevel === 'FREE' || userLevel === 'REGULAR') ? (
-                    <button
-                      onClick={() => triggerOpenCheckout('Premium', pricingConfig.premiumPlanFee.toLocaleString())}
-                      className="w-full bg-[#f5c531] hover:bg-[#fbd349] text-[#030919] text-xs font-black uppercase tracking-wider py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer font-sans shadow-md animate-pulse"
-                    >
-                      <Crown className="w-4 h-4 fill-current text-[#030919]" />
-                      <span>GET PREMIUM</span>
-                    </button>
+                    <div className="space-y-2 w-full">
+                      <button
+                        onClick={() => triggerOpenCheckout('Premium', pricingConfig.premiumPlanFee.toLocaleString())}
+                        className="w-full bg-[#f5c531] hover:bg-[#fbd349] text-[#030919] text-xs font-black uppercase tracking-wider py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer font-sans shadow-md animate-pulse"
+                      >
+                        <Crown className="w-4 h-4 fill-current text-[#030919]" />
+                        <span>GET PREMIUM</span>
+                      </button>
+                      {myEarningsSum >= pricingConfig.premiumPlanFee && (
+                        <button
+                          onClick={() => handleBuyMembershipWithReferrals('PREMIUM', pricingConfig.premiumPlanFee)}
+                          className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-xs font-black uppercase tracking-wider py-3 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer font-sans shadow-md border border-emerald-400/20"
+                        >
+                          <Gift className="w-4 h-4 shrink-0" />
+                          <span>Buy with Referral (৳{pricingConfig.premiumPlanFee.toLocaleString()})</span>
+                        </button>
+                      )}
+                    </div>
                   ) : userLevel === 'PREMIUM' ? (
                     <div className="w-full bg-yellow-500/10 text-[#f5c531] border border-yellow-500/35 text-xs font-black uppercase tracking-wider py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 font-mono">
                       <span>✓ CURRENT ACTIVE PLAN</span>
@@ -4015,13 +4453,24 @@ https://service.bodytouch.com
                   </div>
 
                   {userLevel !== 'ELITE' ? (
-                    <button
-                      onClick={() => triggerOpenCheckout('Elite', pricingConfig.elitePlanFee.toLocaleString())}
-                      className="w-full bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-300 hover:to-cyan-300 text-[#030919] text-xs font-black uppercase tracking-wider py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer font-sans shadow-md"
-                    >
-                      <Gem className="w-4 h-4 fill-current text-[#030919]" />
-                      <span>GET ELITE</span>
-                    </button>
+                    <div className="space-y-2 w-full">
+                      <button
+                        onClick={() => triggerOpenCheckout('Elite', pricingConfig.elitePlanFee.toLocaleString())}
+                        className="w-full bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-300 hover:to-cyan-300 text-[#030919] text-xs font-black uppercase tracking-wider py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer font-sans shadow-md"
+                      >
+                        <Gem className="w-4 h-4 fill-current text-[#030919]" />
+                        <span>GET ELITE</span>
+                      </button>
+                      {myEarningsSum >= pricingConfig.elitePlanFee && (
+                        <button
+                          onClick={() => handleBuyMembershipWithReferrals('ELITE', pricingConfig.elitePlanFee)}
+                          className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-xs font-black uppercase tracking-wider py-3 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer font-sans shadow-md border border-emerald-400/20"
+                        >
+                          <Gift className="w-4 h-4 shrink-0" />
+                          <span>Buy with Referral (৳{pricingConfig.elitePlanFee.toLocaleString()})</span>
+                        </button>
+                      )}
+                    </div>
                   ) : (
                     <div className="w-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/35 text-xs font-black uppercase tracking-wider py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 font-mono">
                       <span>✓ CURRENT ACTIVE ELITE STATUS</span>
@@ -4206,7 +4655,7 @@ https://service.bodytouch.com
                   <Wallet className="w-5 h-5 text-emerald-400" />
                   <span className="text-sm sm:text-base font-black text-white font-mono">৳ {myEarningsSum.toLocaleString()}</span>
                   <span className="text-[8px] sm:text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">
-                    EARNINGS
+                    মোট আয়
                   </span>
                 </div>
 
@@ -4214,7 +4663,7 @@ https://service.bodytouch.com
                   <Users className="w-5 h-5 text-cyan-400" />
                   <span className="text-sm sm:text-base font-black text-white font-mono">{myReferralsCount}</span>
                   <span className="text-[8px] sm:text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">
-                    REFERRALS
+                    মোট রেফারেল
                   </span>
                 </div>
 
@@ -4222,7 +4671,7 @@ https://service.bodytouch.com
                   <Crown className="w-5 h-5 text-amber-400" />
                   <span className="text-sm sm:text-base font-black text-white font-mono">{myConversionsCount}</span>
                   <span className="text-[8px] sm:text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">
-                    CONVERSIONS
+                    মেম্বারশিপ ক্রয়
                   </span>
                 </div>
 
@@ -4230,7 +4679,7 @@ https://service.bodytouch.com
                   <Percent className="w-5 h-5 text-indigo-400" />
                   <span className="text-sm sm:text-base font-black text-white font-mono">{myCommissionPercent}%</span>
                   <span className="text-[8px] sm:text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block truncate max-w-[50px] sm:max-w-none">
-                    COMMISSION
+                    কমিশন হার
                   </span>
                 </div>
               </motion.div>
@@ -4239,7 +4688,7 @@ https://service.bodytouch.com
               <motion.div variants={itemVariants} className="bg-[#030a1c]/90 border border-blue-500/10 rounded-3xl p-5 sm:p-6 space-y-5 text-left">
                 <div className="flex items-center gap-2 text-white border-b border-blue-500/10 pb-3">
                   <Link2 className="w-4 h-4 text-blue-400 rotate-45" />
-                  <h3 className="text-sm font-bold tracking-wide">Your Referral Network Link</h3>
+                  <h3 className="text-sm font-bold tracking-wide">আপনার রেফারেল নেটওয়ার্ক লিংক</h3>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-stretch gap-2 bg-slate-950/60 border border-blue-500/20 rounded-2xl p-2">
@@ -4250,54 +4699,66 @@ https://service.bodytouch.com
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(currentReferralLink);
-                      triggerToast('📋 Referral link copied to clipboard!', 'success');
+                      triggerToast('📋 রেফারেল লিংকটি কপি করা হয়েছে!', 'success');
                     }}
                     className="bg-[#0ea5e9] hover:bg-[#0284c7] text-white text-[10px] font-black uppercase tracking-wider px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
                   >
                     <Copy className="w-3.5 h-3.5" />
-                    <span>COPY LINK</span>
+                    <span>লিংক কপি করুন</span>
                   </button>
                 </div>
 
                 <div className="flex items-center justify-between text-xs font-mono bg-blue-500/5 border border-blue-500/10 rounded-xl px-4 py-2 text-[11px]">
-                  <span className="text-slate-400">YOUR REFERRAL ID</span>
+                  <span className="text-slate-400">আপনার রেফারেল আইডি</span>
                   <span className="text-white font-black tracking-wider text-right">{currentReferralCode}</span>
                 </div>
 
                 {/* Reward structure bullet points container */}
-                <div className="bg-[#02050f]/60 p-4 rounded-2xl border border-blue-500/10 space-y-3">
-                  <div className="flex items-center gap-1.5 text-blue-400 font-extrabold text-[9px] uppercase tracking-wider pb-1">
+                <div className="bg-[#02050f]/60 p-5 rounded-2xl border border-blue-500/10 space-y-4">
+                  <div className="flex items-center gap-1.5 text-blue-400 font-extrabold text-[9.5px] uppercase tracking-wider pb-1 border-b border-blue-500/5">
                     <Gift className="w-3.5 h-3.5" />
-                    <span>REWARD STRUCTURE</span>
+                    <span>কাস্টমার রেফারেল নিয়মাবলী</span>
                   </div>
 
-                  <div className="space-y-2 text-xs text-slate-350 leading-relaxed font-semibold">
+                  <div className="space-y-3.5 text-xs text-slate-350 leading-relaxed">
                     <div className="flex items-start gap-2.5">
-                      <Star className="w-4 h-4 text-emerald-400 fill-emerald-400/10 shrink-0 mt-0.5" />
-                      <span>
-                        <strong className="text-white">1 Referral Purchase:</strong> Regular Tier + <strong className="text-cyan-400">৳1,005</strong> Bonus
-                      </span>
+                      <Percent className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-white block font-black mb-0.5">১০% বুকিং কমিশন</strong>
+                        <span className="font-semibold text-slate-400 text-[11px] leading-relaxed block">
+                          আপনার আমন্ত্রিত কাস্টমারের প্রথম ২টি সফল বুকিং সার্ভিসের মোট খরচের ওপর আপনি সরাসরি <strong className="text-emerald-500">১০% ক্যাশ কমিশন</strong> পাবেন।
+                        </span>
+                      </div>
                     </div>
 
                     <div className="flex items-start gap-2.5">
-                      <Crown className="w-4 h-4 text-amber-400 fill-amber-400/10 shrink-0 mt-0.5" />
-                      <span>
-                        <strong className="text-white">2 Referral Purchases:</strong> Premium Tier + Extra <strong className="text-cyan-400">৳1,000</strong> Bonus
-                      </span>
+                      <Star className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-white block font-black mb-0.5">৳৫০০ মেম্বারশিপ কমিশন</strong>
+                        <span className="font-semibold text-slate-400 text-[11px] leading-relaxed block">
+                          আপনার আমন্ত্রিত কাস্টমার যেকোনো মেম্বারশিপ প্ল্যান ক্রয় করলে আপনি সরাসরি <strong className="text-indigo-400">৳৫০০ ফিক্সড ক্যাশ কমিশন</strong> পাবেন।
+                        </span>
+                      </div>
                     </div>
 
                     <div className="flex items-start gap-2.5">
-                      <Gem className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-                      <span>
-                        <strong className="text-white">5 Referral Purchases:</strong> Elite Tier + <strong className="text-cyan-400">৳5,000</strong> Bonus
-                      </span>
+                      <Crown className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-white block font-black mb-0.5">আর্নিং দিয়ে মেম্বারশিপ ক্রয়</strong>
+                        <span className="font-semibold text-slate-400 text-[11px] leading-relaxed block">
+                          আপনার রেফারেল ব্যালেন্স মেম্বারশিপ প্ল্যানের সমপরিমাণ (Basic: ৳{pricingConfig.regularPlanFee.toLocaleString()}, Premium: ৳{pricingConfig.premiumPlanFee.toLocaleString()}, Elite: ৳{pricingConfig.elitePlanFee.toLocaleString()}) হলে, আপনি সরাসরি ওই অর্জিত ব্যালেন্স দিয়ে মেম্বারশিপ কিনতে পারবেন।
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-start gap-2.5">
-                      <Infinity className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                      <span>
-                        <strong className="text-white">Lifetime Benefits:</strong> Unlocked networks are permanent.
-                      </span>
+                    <div className="flex items-start gap-2.5 border-t border-blue-500/5 pt-3">
+                      <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-white block font-black mb-0.5">মেম্বারশিপের লাইফটাইম মেয়াদ (Lifetime Validity)</strong>
+                        <span className="font-semibold text-slate-400 text-[11px] leading-relaxed block">
+                          যেকোনো কাস্টমার ১ বার মেম্বারশিপ প্ল্যান ক্রয় বা রেফারেলের মাধ্যমে সক্রিয় করলে তা সারাজীবন (Lifetime) কার্যকর থাকবে এবং কোনো রিনিউয়াল ফি লাগবে না।
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -4307,7 +4768,7 @@ https://service.bodytouch.com
               <motion.div variants={itemVariants} className="bg-[#030a1c]/90 border border-blue-500/10 rounded-3xl p-5 sm:p-6 space-y-4 text-left">
                 <div className="flex items-center gap-2 text-white border-b border-blue-500/10 pb-3">
                   <ClipboardList className="w-4 h-4 text-blue-400" />
-                  <h3 className="text-sm font-bold tracking-wide">Active Referrals ({myReferralsCount})</h3>
+                  <h3 className="text-sm font-bold tracking-wide">সক্রিয় রেফারেল ({myReferralsCount} জন)</h3>
                 </div>
 
                 {myReferrals.length === 0 ? (
@@ -4315,7 +4776,7 @@ https://service.bodytouch.com
                   <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
                     <UserMinus className="w-10 h-10 text-slate-600" />
                     <p className="text-xs text-slate-500 leading-normal font-semibold max-w-[240px]">
-                      Your network is currently empty. Share your link to begin earning assets.
+                      আপনার রেফারেল নেটওয়ার্ক বর্তমানে খালি আছে। ইনকাম শুরু করতে আপনার রেফারেল লিংকটি শেয়ার করুন।
                     </p>
                   </div>
                 ) : (
@@ -4323,10 +4784,10 @@ https://service.bodytouch.com
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
                         <tr className="border-b border-blue-500/10 text-slate-400 font-extrabold uppercase text-[10px] tracking-wider">
-                          <th className="py-3 px-2">Referred User</th>
-                          <th className="py-3 px-2">Member Tier</th>
-                          <th className="py-3 px-2">Date Joined</th>
-                          <th className="py-3 px-2 text-right">Commission</th>
+                          <th className="py-3 px-2">আমন্ত্রিত কাস্টমার</th>
+                          <th className="py-3 px-2">মেম্বারশিপ প্ল্যান</th>
+                          <th className="py-3 px-2">যোগদানের তারিখ</th>
+                          <th className="py-3 px-2 text-right">অর্জিত কমিশন</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-blue-500/5 font-semibold text-slate-250">
@@ -4348,7 +4809,7 @@ https://service.bodytouch.com
                             </td>
                             <td className="py-3 px-2 font-mono text-slate-400 text-[10px]">{ref.dateJoined}</td>
                             <td className="py-3 px-2 text-right font-bold text-emerald-400 font-mono">
-                              {ref.commission > 0 ? `৳${ref.commission.toLocaleString()}` : '৳0 (Demo)'}
+                              {ref.commission > 0 ? `৳${ref.commission.toLocaleString()}` : ref.commission < 0 ? `-৳${Math.abs(ref.commission).toLocaleString()}` : '৳০'}
                             </td>
                           </tr>
                         ))}
@@ -4897,16 +5358,16 @@ https://service.bodytouch.com
                                 onChange={(e) => setPartnerCity(e.target.value)}
                                 className="w-full bg-[#04091a] border border-[#101e3d] text-xs text-white rounded-xl px-4 py-3.5 font-bold focus:outline-none cursor-pointer"
                               >
-                                <option value="">Select Area / এলাকা নির্বাচন করুন</option>
+                                <option value="" className="bg-[#04091a] text-white font-sans font-bold">Select Area / এলাকা নির্বাচন করুন</option>
                                 {structuredCities.map((p) => (
-                                  <optgroup key={p.id} label={`${p.name.toUpperCase()} (জেলা/শহর)`}>
+                                  <optgroup key={p.id} label={`${p.name.toUpperCase()} (জেলা/শহর)`} className="bg-[#04091a] text-[#dbaa61] font-bold font-sans">
                                     {p.subAreas.map((sub) => (
-                                      <option key={`${sub}, ${p.name}`} value={`${sub}, ${p.name}`}>
+                                      <option key={`${sub}, ${p.name}`} value={`${sub}, ${p.name}`} className="bg-[#04091a] text-white font-sans font-bold">
                                         {sub.toUpperCase()} ({p.name.toUpperCase()})
                                       </option>
                                     ))}
                                     {p.subAreas.length === 0 && (
-                                      <option value={p.name.toUpperCase()}>{p.name.toUpperCase()}</option>
+                                      <option value={p.name.toUpperCase()} className="bg-[#04091a] text-white font-sans font-bold">{p.name.toUpperCase()}</option>
                                     )}
                                   </optgroup>
                                 ))}
@@ -5044,6 +5505,7 @@ https://service.bodytouch.com
           setActiveReserveLocationId(undefined);
           setActiveTab('membership');
         }}
+        userLevel={userLevel}
       />
 
       {/* 4. Upgrade billing secure gate popup */}
@@ -5064,7 +5526,10 @@ https://service.bodytouch.com
         structuredCities={structuredCities}
         telegramHelpline={telegramHelpline}
         registrationFee={pricingConfig.registrationFee}
+        registrationFeeMale={pricingConfig.registrationFeeMale}
+        registrationFeeSperm={pricingConfig.registrationFeeSperm}
         onAddCompanion={(newComp) => {
+          setCloudDocument('companions', newComp.id, newComp);
           setCompanions((prev) => {
             const exists = prev.some((c) => c.id === newComp.id);
             if (exists) {
@@ -5360,10 +5825,20 @@ https://service.bodytouch.com
                   <span className="text-[10px] text-cyan-400 font-extrabold uppercase tracking-widest">
                     Discreet Withdrawal
                   </span>
-                  <p className="text-lg font-black text-white mt-1">Withdraw Your Earnings</p>
-                  <p className="text-[10px] font-bold text-slate-400 font-mono mt-0.5">
-                    Available: ৳{walletBalance.toLocaleString('en-US')}
-                  </p>
+                  <p className="text-lg font-black text-white mt-1">Withdraw Your Referral Earnings</p>
+                  <div className="mt-1.5 space-y-1 text-left bg-slate-950/50 border border-blue-500/10 rounded-2xl p-3 text-xs leading-relaxed font-semibold">
+                    <div className="flex justify-between items-center text-slate-400 text-[11px]">
+                      <span>মোট ওয়ালেট ব্যালেন্স:</span>
+                      <span className="text-white font-mono font-black">৳{walletBalance.toLocaleString('en-US')}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-emerald-400">
+                      <span>উত্তোলনযোগ্য রেফারেল আয়:</span>
+                      <span className="font-mono font-black">৳{myEarningsSum.toLocaleString('en-US')}</span>
+                    </div>
+                    <div className="text-[10px] text-amber-400 border-t border-blue-500/5 pt-1.5 mt-1 text-center font-bold leading-normal">
+                      ⚠️ মেম্বারশিপ ফি বা ওয়ালেট রিচার্জের টাকা উত্তোলনযোগ্য নয়। শুধুমাত্র রেফারেল ইনকাম উত্তোলন করা যাবে।
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-3">

@@ -32,6 +32,50 @@ export interface Companion {
   selfie?: string;
   telegram?: string;
   whatsapp?: string;
+  modelUsername?: string;
+  imageUrl?: string;
+  pictures?: string[];        // Multi-picture gallery
+  recruiter?: string;         // Recruiter Agent username
+  
+  // Real service duration rates
+  rateReal_1h?: number;
+  rateReal_2h?: number;
+  rateReal_3h?: number;
+  rateReal_fn?: number;
+  rateReal_2d?: number;
+
+  // Cam service duration rates
+  rateCam_30m?: number;
+  rateCam_1h?: number;
+  rateCam_2h?: number;
+
+  // Make Out service duration rates
+  rateMakeOut_2h?: number;
+  rateMakeOut_3h?: number;
+  rateMakeOut_fn?: number;
+
+  // Live Together service duration rates
+  rateLiveTogether_2d?: number;
+  rateLiveTogether_7d?: number;
+  rateLiveTogether_15d?: number;
+  rateLiveTogether_1m?: number;
+
+  // Active service toggles
+  isRealActive?: boolean;
+  isCamActive?: boolean;
+  isMakeOutActive?: boolean;
+  isLiveTogetherActive?: boolean;
+
+  // Dynamic custom rate lists
+  customRealRates?: { id: string; duration: string; rate: number }[];
+  customCamRates?: { id: string; duration: string; rate: number }[];
+  customLiveTogetherRates?: { id: string; duration: string; rate: number }[];
+
+  // Recruitment Payment Details
+  paymentMethod?: 'BKASH' | 'NAGAD' | 'ROCKET';
+  paymentSender?: string;
+  paymentTrx?: string;
+  paymentAmount?: number;
 }
 
 export interface HotelLocation {
@@ -96,6 +140,7 @@ export interface Booking {
     amount: number;
     screenshot?: string;
   };
+  modelUsername?: string;
 }
 
 export interface EmailLog {
@@ -128,6 +173,7 @@ export interface PaymentGateway {
   number: string; // Gateway Phone Number
   instructions: string; // Custom Dynamic instructions shown during pay step
   isActive: boolean; // active display flag
+  logoUrl?: string; // custom logo image url or base64 string
 }
 
 

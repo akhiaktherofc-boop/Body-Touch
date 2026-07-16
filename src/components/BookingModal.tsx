@@ -1,6 +1,7 @@
-import { Companion, PaymentGateway, PromoCode } from '../types';
+import { Companion, PaymentGateway, PromoCode, MemberLevel } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Calendar, Clock, Moon, MapPin, Sparkles, User, Video, Heart, Users, ArrowRight, ArrowLeft, Home, Car, ChevronDown, MessageSquare, Phone, Send, CheckCircle2, Copy, Check, Info, Camera, AlertTriangle, Upload, Trash2, Tag, Percent, Receipt, FileText, Crown } from 'lucide-react';
+import { GatewayLogo } from './CheckoutModal';
 import React, { useState, useEffect, useRef } from 'react';
 import { compressImage } from '../services/imageService';
 import { db, collection, onSnapshot, doc, setDoc } from '../firebase';
@@ -22,6 +23,47 @@ export const getTodayDateString = () => {
 };
 
 export const calculateBookingCost = (hourlyRate: number, service: string, timeFrame: string, companion?: Companion): number => {
+  if (companion) {
+    if (service === 'REAL') {
+      if (timeFrame.startsWith('CUSTOM_') && companion.customRealRates) {
+        const idx = parseInt(timeFrame.split('_')[1]);
+        if (companion.customRealRates[idx]) {
+          return companion.customRealRates[idx].rate;
+        }
+      }
+      if (timeFrame === '1_HOUR' && companion.rateReal_1h && companion.rateReal_1h > 0) return companion.rateReal_1h;
+      if (timeFrame === '2_HOURS' && companion.rateReal_2h && companion.rateReal_2h > 0) return companion.rateReal_2h;
+      if (timeFrame === '3_HOURS' && companion.rateReal_3h && companion.rateReal_3h > 0) return companion.rateReal_3h;
+      if (timeFrame === 'FULL_NIGHT' && companion.rateReal_fn && companion.rateReal_fn > 0) return companion.rateReal_fn;
+      if (timeFrame === '2_DAYS' && companion.rateReal_2d && companion.rateReal_2d > 0) return companion.rateReal_2d;
+    } else if (service === 'CAM') {
+      if (timeFrame.startsWith('CUSTOM_') && companion.customCamRates) {
+        const idx = parseInt(timeFrame.split('_')[1]);
+        if (companion.customCamRates[idx]) {
+          return companion.customCamRates[idx].rate;
+        }
+      }
+      if (timeFrame === '30_MIN' && companion.rateCam_30m && companion.rateCam_30m > 0) return companion.rateCam_30m;
+      if (timeFrame === '1_HOUR' && companion.rateCam_1h && companion.rateCam_1h > 0) return companion.rateCam_1h;
+      if (timeFrame === '2_HOURS' && companion.rateCam_2h && companion.rateCam_2h > 0) return companion.rateCam_2h;
+    } else if (service === 'MAKE_OUT') {
+      if (timeFrame === '2_HOURS' && companion.rateMakeOut_2h && companion.rateMakeOut_2h > 0) return companion.rateMakeOut_2h;
+      if (timeFrame === '3_HOURS' && companion.rateMakeOut_3h && companion.rateMakeOut_3h > 0) return companion.rateMakeOut_3h;
+      if (timeFrame === 'FULL_NIGHT' && companion.rateMakeOut_fn && companion.rateMakeOut_fn > 0) return companion.rateMakeOut_fn;
+    } else if (service === 'LIVE_TOGETHER') {
+      if (timeFrame.startsWith('CUSTOM_') && companion.customLiveTogetherRates) {
+        const idx = parseInt(timeFrame.split('_')[1]);
+        if (companion.customLiveTogetherRates[idx]) {
+          return companion.customLiveTogetherRates[idx].rate;
+        }
+      }
+      if (timeFrame === '2_DAYS' && companion.rateLiveTogether_2d && companion.rateLiveTogether_2d > 0) return companion.rateLiveTogether_2d;
+      if (timeFrame === '7_DAYS' && companion.rateLiveTogether_7d && companion.rateLiveTogether_7d > 0) return companion.rateLiveTogether_7d;
+      if (timeFrame === '15_DAYS' && companion.rateLiveTogether_15d && companion.rateLiveTogether_15d > 0) return companion.rateLiveTogether_15d;
+      if (timeFrame === '1_MONTH' && companion.rateLiveTogether_1m && companion.rateLiveTogether_1m > 0) return companion.rateLiveTogether_1m;
+    }
+  }
+
   let baseRate = hourlyRate || 10000;
   
   if (service === 'REAL') {
@@ -116,6 +158,7 @@ interface BookingModalProps {
   locations?: any[];
   initialLocationId?: string;
   onGoToMembership?: () => void;
+  userLevel?: MemberLevel;
 }
 
 export default function BookingModal({
@@ -132,7 +175,8 @@ export default function BookingModal({
   onSubmit,
   locations = [],
   initialLocationId,
-  onGoToMembership
+  onGoToMembership,
+  userLevel = 'FREE'
 }: BookingModalProps) {
   // Filter active gateways
   const activeGateways = paymentGateways.filter(g => g.isActive);
@@ -178,6 +222,35 @@ export default function BookingModal({
   // Step 5: Secure Contact Channel (PHONE, WHATSAPP, TELEGRAM) & Deficit Payment Gateway (if applicable)
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [selectedService, setSelectedService] = useState<'REAL' | 'CAM' | 'MAKE_OUT' | 'LIVE_TOGETHER'>('REAL');
+
+  // Automatically fallback selectedService to the first available active service
+  useEffect(() => {
+    if (companion) {
+      const isReal = companion.isRealActive !== false;
+      const isCam = companion.isCamActive !== false;
+      const isMakeOut = companion.isMakeOutActive !== false;
+      const isLive = companion.isLiveTogetherActive !== false;
+
+      if (selectedService === 'REAL' && !isReal) {
+        if (isCam) setSelectedService('CAM');
+        else if (isMakeOut) setSelectedService('MAKE_OUT');
+        else if (isLive) setSelectedService('LIVE_TOGETHER');
+      } else if (selectedService === 'CAM' && !isCam) {
+        if (isReal) setSelectedService('REAL');
+        else if (isMakeOut) setSelectedService('MAKE_OUT');
+        else if (isLive) setSelectedService('LIVE_TOGETHER');
+      } else if (selectedService === 'MAKE_OUT' && !isMakeOut) {
+        if (isReal) setSelectedService('REAL');
+        else if (isCam) setSelectedService('CAM');
+        else if (isLive) setSelectedService('LIVE_TOGETHER');
+      } else if (selectedService === 'LIVE_TOGETHER' && !isLive) {
+        if (isReal) setSelectedService('REAL');
+        else if (isCam) setSelectedService('CAM');
+        else if (isMakeOut) setSelectedService('MAKE_OUT');
+      }
+    }
+  }, [companion, selectedService]);
+
   const [selectedTimeFrame, setSelectedTimeFrame] = useState<'30_MIN' | '1_HOUR' | '2_HOURS' | '3_HOURS' | 'FULL_NIGHT' | '2_DAYS' | '7_DAYS' | '15_DAYS' | '1_MONTH'>('2_HOURS');
   const [coordinatesType, setCoordinatesType] = useState<'INCALL' | 'OUTCALL'>('INCALL');
 
@@ -508,17 +581,29 @@ export default function BookingModal({
   const handleServiceChange = (service: 'REAL' | 'CAM' | 'MAKE_OUT' | 'LIVE_TOGETHER') => {
     setSelectedService(service);
     if (service === 'CAM') {
-      setSelectedTimeFrame('30_MIN');
+      if (companion?.customCamRates && companion.customCamRates.length > 0) {
+        setSelectedTimeFrame('CUSTOM_0');
+      } else {
+        setSelectedTimeFrame('30_MIN');
+      }
     } else if (service === 'MAKE_OUT') {
       setSelectedTimeFrame('2_HOURS');
       setCoordinatesType('OUTCALL');
       setSpecificAddress('');
     } else if (service === 'LIVE_TOGETHER') {
-      setSelectedTimeFrame('2_DAYS');
+      if (companion?.customLiveTogetherRates && companion.customLiveTogetherRates.length > 0) {
+        setSelectedTimeFrame('CUSTOM_0');
+      } else {
+        setSelectedTimeFrame('2_DAYS');
+      }
       setCoordinatesType('INCALL');
       setSpecificAddress(sanctuaries[0]?.address || '');
     } else {
-      setSelectedTimeFrame('2_HOURS');
+      if (companion?.customRealRates && companion.customRealRates.length > 0) {
+        setSelectedTimeFrame('CUSTOM_0');
+      } else {
+        setSelectedTimeFrame('2_HOURS');
+      }
       setCoordinatesType('INCALL');
       setSpecificAddress(sanctuaries[0]?.address || '');
     }
@@ -526,6 +611,18 @@ export default function BookingModal({
 
   // Convert selectedTimeFrame enum to display string
   const getDurationString = () => {
+    if (selectedTimeFrame.startsWith('CUSTOM_')) {
+      const idx = parseInt(selectedTimeFrame.split('_')[1]);
+      if (selectedService === 'REAL' && companion.customRealRates?.[idx]) {
+        return companion.customRealRates[idx].duration || `Custom Slot ${idx + 1}`;
+      }
+      if (selectedService === 'CAM' && companion.customCamRates?.[idx]) {
+        return companion.customCamRates[idx].duration || `Custom Slot ${idx + 1}`;
+      }
+      if (selectedService === 'LIVE_TOGETHER' && companion.customLiveTogetherRates?.[idx]) {
+        return companion.customLiveTogetherRates[idx].duration || `Custom Slot ${idx + 1}`;
+      }
+    }
     switch (selectedTimeFrame) {
       case '30_MIN': return '30 Minutes';
       case '1_HOUR': return '1 Hour';
@@ -852,34 +949,51 @@ export default function BookingModal({
                     </p>
                   </div>
 
-                  {/* Demo Complete & Membership CTA */}
-                  <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl space-y-3 text-left shadow-[0_0_20px_rgba(245,158,11,0.08)]">
-                    <div className="flex items-center gap-1.5 text-amber-400">
-                      <span className="text-sm">⭐</span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-300">
-                        Trial Experience Complete / ডেমো সম্পন্ন
-                      </span>
+                  {/* Demo Complete / VIP Dispatch Confirmation */}
+                  {userLevel !== 'FREE' ? (
+                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl space-y-3 text-left shadow-[0_0_20px_rgba(16,185,129,0.08)]">
+                      <div className="flex items-center gap-1.5 text-emerald-400">
+                        <span className="text-sm">👑</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300">
+                          Active Dispatch Registered / বুকিং সফল
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-200 font-bold leading-relaxed">
+                        আপনার বুকিং সফলভাবে নিবন্ধিত হয়েছে। আমাদের ডিসপ্যাচ ইউনিট মডেলের সাথে যোগাযোগ করছে। আপনার নির্ধারিত সময় ও ভেন্যুতে মডেল পৌঁছে যাবে।
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-semibold leading-relaxed border-t border-emerald-500/10 pt-2">
+                        (Your booking is registered. Our dispatch center is arranging transport for your chosen model. They will arrive at your venue within the scheduled time.)
+                      </p>
                     </div>
-                    <p className="text-[11px] text-slate-200 font-bold leading-relaxed">
-                      ইহা একটি ডেমো সার্ভিস ছিল। আপনি যদি আসল এবং লাইভ সার্ভিস উপভোগ করতে চান, তবে দয়া করে একটি মেম্বারশিপ প্ল্যান সক্রিয় করুন।
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-semibold leading-relaxed border-t border-amber-500/10 pt-2">
-                      (This was a demo simulation. If you want a real experience with live companions, please acquire a membership.)
-                    </p>
+                  ) : (
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl space-y-3 text-left shadow-[0_0_20px_rgba(245,158,11,0.08)]">
+                      <div className="flex items-center gap-1.5 text-amber-400">
+                        <span className="text-sm">⭐</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-300">
+                          Trial Experience Complete / ডেমো সম্পন্ন
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-200 font-bold leading-relaxed">
+                        ইহা একটি ডেমো সার্ভিস ছিল। আপনি যদি আসল এবং লাইভ সার্ভিস উপভোগ করতে চান, তবে দয়া করে একটি মেম্বারশিপ প্ল্যান সক্রিয় করুন।
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-semibold leading-relaxed border-t border-amber-500/10 pt-2">
+                        (This was a demo simulation. If you want a real experience with live companions, please acquire a membership.)
+                      </p>
 
-                    {onGoToMembership && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleFinalize();
-                          onGoToMembership();
-                        }}
-                        className="w-full mt-1 bg-gradient-to-tr from-[#a67c33] via-[#dbaa61] to-[#f1d087] hover:brightness-110 text-slate-950 font-black uppercase text-[10.5px] tracking-widest py-3 rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-[#dbaa61]/25 flex items-center justify-center gap-2"
-                      >
-                        👑 মেম্বারশিপ নিন (Get Membership)
-                      </button>
-                    )}
-                  </div>
+                      {onGoToMembership && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleFinalize();
+                            onGoToMembership();
+                          }}
+                          className="w-full mt-1 bg-gradient-to-tr from-[#a67c33] via-[#dbaa61] to-[#f1d087] hover:brightness-110 text-slate-950 font-black uppercase text-[10.5px] tracking-widest py-3 rounded-xl transition-all duration-300 cursor-pointer shadow-lg shadow-[#dbaa61]/25 flex items-center justify-center gap-2"
+                        >
+                          👑 মেম্বারশিপ নিন (Get Membership)
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   <div className="pt-2">
                     <button
@@ -907,21 +1021,38 @@ export default function BookingModal({
                     </div>
                   </div>
 
-                  {/* Demo Trial Mode Notice */}
-                  <div className="mb-4 bg-amber-500/10 border border-amber-500/25 rounded-xl p-3.5 flex items-start gap-2.5 shadow-[0_0_15px_rgba(245,158,11,0.05)] animate-fadeIn">
-                    <span className="text-amber-400 text-sm mt-0.5 shrink-0">⚠️</span>
-                    <div className="text-left">
-                      <p className="text-[10px] font-black text-amber-300 uppercase tracking-widest">
-                        Demo Booking Trial Active / ডেমো বুকিং ট্রায়াল
-                      </p>
-                      <p className="text-[10px] text-slate-300 font-bold mt-1 leading-normal">
-                        এটি একটি ডেমো বুকিং প্রক্রিয়া। আসল এবং লাইভ সার্ভিস উপভোগ করতে মেম্বারশিপ প্রয়োজন।
-                      </p>
-                      <p className="text-[8.5px] text-slate-400 font-semibold mt-0.5 leading-normal">
-                        (This is a demo booking simulation. Upgrade to VIP membership to book active models).
-                      </p>
+                  {/* Demo Trial Mode / VIP Status Notice */}
+                  {userLevel !== 'FREE' ? (
+                    <div className="mb-4 bg-emerald-500/10 border border-emerald-500/25 rounded-xl p-3.5 flex items-start gap-2.5 shadow-[0_0_15px_rgba(16,185,129,0.05)] animate-fadeIn">
+                      <span className="text-emerald-400 text-sm mt-0.5 shrink-0">👑</span>
+                      <div className="text-left">
+                        <p className="text-[10px] font-black text-emerald-300 uppercase tracking-widest">
+                          VIP Member Booking Active / ভিআইপি বুকিং সক্রিয়
+                        </p>
+                        <p className="text-[10.5px] text-slate-200 font-bold mt-1 leading-normal">
+                          আপনার {userLevel} মেম্বারশিপটি সক্রিয় রয়েছে। রিয়েল এবং লাইভ মডেল ডিসপ্যাচ প্রটোকল আপনার অ্যাকাউন্টে পুরোপুরি কার্যকর।
+                        </p>
+                        <p className="text-[8.5px] text-slate-400 font-semibold mt-0.5 leading-normal">
+                          (Your {userLevel} membership is active. Live dispatch protocol and real companion routing are fully operational).
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="mb-4 bg-amber-500/10 border border-amber-500/25 rounded-xl p-3.5 flex items-start gap-2.5 shadow-[0_0_15px_rgba(245,158,11,0.05)] animate-fadeIn">
+                      <span className="text-amber-400 text-sm mt-0.5 shrink-0">⚠️</span>
+                      <div className="text-left">
+                        <p className="text-[10px] font-black text-amber-300 uppercase tracking-widest">
+                          Demo Booking Trial Active / ডেমো বুকিং ট্রায়াল
+                        </p>
+                        <p className="text-[10px] text-slate-300 font-bold mt-1 leading-normal">
+                          এটি একটি ডেমো বুকিং প্রক্রিয়া। আসল এবং লাইভ সার্ভিস উপভোগ করতে মেম্বারশিপ প্রয়োজন।
+                        </p>
+                        <p className="text-[8.5px] text-slate-400 font-semibold mt-0.5 leading-normal">
+                          (This is a demo booking simulation. Upgrade to VIP membership to book active models).
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {hotelCost > 0 && (
                     <div className="mb-4 text-[10px] text-blue-300 bg-blue-950/25 border border-blue-500/15 rounded-xl py-2.5 px-4 flex justify-between font-mono animate-fadeIn">
@@ -953,60 +1084,76 @@ export default function BookingModal({
                       return (
                         <div className="grid grid-cols-2 gap-3">
                           {/* REAL SERVICE VIEW */}
-                          <button
-                            type="button"
-                            onClick={() => handleServiceChange('REAL')}
-                            className={`p-5 rounded-xl border text-center flex flex-col items-center justify-center space-y-2 transition-all duration-300 group cursor-pointer ${
-                              selectedService === 'REAL'
-                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                            }`}
-                          >
-                            <User className={`w-6 h-6 ${selectedService === 'REAL' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                            <span className="text-xs font-black uppercase tracking-wider text-white">REAL</span>
-                          </button>
+                          {companion.isRealActive !== false && (
+                            <button
+                              type="button"
+                              onClick={() => handleServiceChange('REAL')}
+                              className={`p-5 rounded-xl border text-center flex flex-col items-center justify-center space-y-2 transition-all duration-300 group cursor-pointer ${
+                                selectedService === 'REAL'
+                                  ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                  : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                              } ${
+                                (companion.isCamActive === false && companion.isMakeOutActive === false && companion.isLiveTogetherActive === false) ? 'col-span-2' : ''
+                              }`}
+                            >
+                              <User className={`w-6 h-6 ${selectedService === 'REAL' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                              <span className="text-xs font-black uppercase tracking-wider text-white">REAL</span>
+                            </button>
+                          )}
 
                           {/* CAM SERVICE VIEW */}
-                          <button
-                            type="button"
-                            onClick={() => handleServiceChange('CAM')}
-                            className={`p-5 rounded-xl border text-center flex flex-col items-center justify-center space-y-2 transition-all duration-300 group cursor-pointer ${
-                              selectedService === 'CAM'
-                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                            }`}
-                          >
-                            <Video className={`w-6 h-6 ${selectedService === 'CAM' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                            <span className="text-xs font-black uppercase tracking-wider text-white leading-none">CAM</span>
-                          </button>
+                          {companion.isCamActive !== false && (
+                            <button
+                              type="button"
+                              onClick={() => handleServiceChange('CAM')}
+                              className={`p-5 rounded-xl border text-center flex flex-col items-center justify-center space-y-2 transition-all duration-300 group cursor-pointer ${
+                                selectedService === 'CAM'
+                                  ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                  : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                              } ${
+                                (companion.isRealActive === false && companion.isMakeOutActive === false && companion.isLiveTogetherActive === false) ? 'col-span-2' : ''
+                              }`}
+                            >
+                              <Video className={`w-6 h-6 ${selectedService === 'CAM' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                              <span className="text-xs font-black uppercase tracking-wider text-white leading-none">CAM</span>
+                            </button>
+                          )}
 
                           {/* MAKE OUT SERVICE VIEW */}
-                          <button
-                            type="button"
-                            onClick={() => handleServiceChange('MAKE_OUT')}
-                            className={`p-5 rounded-xl border text-center flex flex-col items-center justify-center space-y-2 transition-all duration-300 group cursor-pointer ${
-                              selectedService === 'MAKE_OUT'
-                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                            }`}
-                          >
-                            <Heart className={`w-6 h-6 ${selectedService === 'MAKE_OUT' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                            <span className="text-xs font-black uppercase tracking-wider text-white leading-none">MAKE OUT</span>
-                          </button>
+                          {companion.isMakeOutActive !== false && (
+                            <button
+                              type="button"
+                              onClick={() => handleServiceChange('MAKE_OUT')}
+                              className={`p-5 rounded-xl border text-center flex flex-col items-center justify-center space-y-2 transition-all duration-300 group cursor-pointer ${
+                                selectedService === 'MAKE_OUT'
+                                  ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                  : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                              } ${
+                                (companion.isRealActive === false && companion.isCamActive === false && companion.isLiveTogetherActive === false) ? 'col-span-2' : ''
+                              }`}
+                            >
+                              <Heart className={`w-6 h-6 ${selectedService === 'MAKE_OUT' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                              <span className="text-xs font-black uppercase tracking-wider text-white leading-none">MAKE OUT</span>
+                            </button>
+                          )}
 
                           {/* LIVE TOGETHER VIEW */}
-                          <button
-                            type="button"
-                            onClick={() => handleServiceChange('LIVE_TOGETHER')}
-                            className={`p-5 rounded-xl border text-center flex flex-col items-center justify-center space-y-2 transition-all duration-300 group cursor-pointer ${
-                              selectedService === 'LIVE_TOGETHER'
-                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                            }`}
-                          >
-                            <Users className={`w-6 h-6 ${selectedService === 'LIVE_TOGETHER' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                            <span className="text-xs font-black uppercase tracking-wider text-white leading-none">LIVE TOGETHER</span>
-                          </button>
+                          {companion.isLiveTogetherActive !== false && (
+                            <button
+                              type="button"
+                              onClick={() => handleServiceChange('LIVE_TOGETHER')}
+                              className={`p-5 rounded-xl border text-center flex flex-col items-center justify-center space-y-2 transition-all duration-300 group cursor-pointer ${
+                                selectedService === 'LIVE_TOGETHER'
+                                  ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                  : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                              } ${
+                                (companion.isRealActive === false && companion.isCamActive === false && companion.isMakeOutActive === false) ? 'col-span-2' : ''
+                              }`}
+                            >
+                              <Users className={`w-6 h-6 ${selectedService === 'LIVE_TOGETHER' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                              <span className="text-xs font-black uppercase tracking-wider text-white leading-none">LIVE TOGETHER</span>
+                            </button>
+                          )}
                         </div>
                       );
                     })()}
@@ -1038,170 +1185,233 @@ export default function BookingModal({
                     </span>
 
                     {selectedService === 'CAM' ? (
-                      /* CAM Service Timeframes: 30 minutes, 1 hour, 2 hours */
-                      <div className="grid grid-cols-3 gap-3">
-                        {/* 30 MINUTES */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTimeFrame('30_MIN')}
-                          className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
-                            selectedTimeFrame === '30_MIN'
-                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                          }`}
-                        >
-                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '30_MIN' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                          <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">30 MIN</span>
-                        </button>
-
-                        {/* 1 HOUR */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTimeFrame('1_HOUR')}
-                          className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
-                            selectedTimeFrame === '1_HOUR'
-                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                          }`}
-                        >
-                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '1_HOUR' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                          <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">1 HOUR</span>
-                        </button>
-
-                        {/* 2 HOURS */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTimeFrame('2_HOURS')}
-                          className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
-                            selectedTimeFrame === '2_HOURS'
-                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                          }`}
-                        >
-                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '2_HOURS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                          <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">2 HOURS</span>
-                        </button>
-                      </div>
-                    ) : selectedService === 'LIVE_TOGETHER' ? (
-                      /* LIVE TOGETHER Timeframes: 2 Days, 7 Days, 15 Days, 1 Month */
-                      <div className="grid grid-cols-2 gap-3">
-                        {/* 2 DAYS */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTimeFrame('2_DAYS')}
-                          className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
-                            selectedTimeFrame === '2_DAYS'
-                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                          }`}
-                        >
-                          <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '2_DAYS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                          <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">2 DAYS</span>
-                        </button>
-
-                        {/* 7 DAYS */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTimeFrame('7_DAYS')}
-                          className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
-                            selectedTimeFrame === '7_DAYS'
-                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                          }`}
-                        >
-                          <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '7_DAYS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                          <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">7 DAYS</span>
-                        </button>
-
-                        {/* 15 DAYS */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTimeFrame('15_DAYS')}
-                          className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
-                            selectedTimeFrame === '15_DAYS'
-                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                          }`}
-                        >
-                          <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '15_DAYS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                          <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">15 DAYS</span>
-                        </button>
-
-                        {/* 1 MONTH */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTimeFrame('1_MONTH')}
-                          className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
-                            selectedTimeFrame === '1_MONTH'
-                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                          }`}
-                        >
-                          <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '1_MONTH' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                          <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">1 MONTH</span>
-                        </button>
-                      </div>
-                    ) : (
-                      /* Organized exactly like the request: 3 cells in row 1, 1 cell on left in row 2 */
-                      <div className="grid grid-cols-3 gap-3">
-                        {/* 1 HOUR */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTimeFrame('1_HOUR')}
-                          className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
-                            selectedTimeFrame === '1_HOUR'
-                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                          }`}
-                        >
-                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '1_HOUR' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                          <span className="text-[10px] font-black uppercase tracking-wider">1 HOUR</span>
-                        </button>
-
-                        {/* 2 HOURS */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTimeFrame('2_HOURS')}
-                          className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
-                            selectedTimeFrame === '2_HOURS'
-                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                          }`}
-                        >
-                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '2_HOURS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                          <span className="text-[10px] font-black uppercase tracking-wider">2 HOURS</span>
-                        </button>
-
-                        {/* 3 HOURS */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTimeFrame('3_HOURS')}
-                          className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
-                            selectedTimeFrame === '3_HOURS'
-                              ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
-                              : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                          }`}
-                        >
-                          <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '3_HOURS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                          <span className="text-[10px] font-black uppercase tracking-wider">3 HOURS</span>
-                        </button>
-
-                        {/* FULL NIGHT */}
-                        {selectedService !== 'MAKE_OUT' && (
+                      companion.customCamRates && companion.customCamRates.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          {companion.customCamRates.map((slot, idx) => (
+                            <button
+                              key={slot.id || idx}
+                              type="button"
+                              onClick={() => setSelectedTimeFrame(`CUSTOM_${idx}`)}
+                              className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                                selectedTimeFrame === `CUSTOM_${idx}`
+                                  ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                  : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                              }`}
+                            >
+                              <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === `CUSTOM_${idx}` ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                              <span className="text-[10px] font-black uppercase tracking-wider block mb-0.5">{slot.duration || `Option ${idx + 1}`}</span>
+                              <span className="text-[11px] font-bold text-emerald-400 font-mono">৳{slot.rate?.toLocaleString()}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        /* CAM Service Timeframes: 30 minutes, 1 hour, 2 hours */
+                        <div className="grid grid-cols-3 gap-3">
+                          {/* 30 MINUTES */}
                           <button
                             type="button"
-                            onClick={() => setSelectedTimeFrame('FULL_NIGHT')}
+                            onClick={() => setSelectedTimeFrame('30_MIN')}
                             className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
-                              selectedTimeFrame === 'FULL_NIGHT'
+                              selectedTimeFrame === '30_MIN'
                                 ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
                                 : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
                             }`}
                           >
-                            <Moon className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === 'FULL_NIGHT' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                            <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">FULL NIGHT</span>
+                            <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '30_MIN' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                            <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">30 MIN</span>
                           </button>
-                        )}
-                      </div>
+
+                          {/* 1 HOUR */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTimeFrame('1_HOUR')}
+                            className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                              selectedTimeFrame === '1_HOUR'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                            }`}
+                          >
+                            <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '1_HOUR' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                            <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">1 HOUR</span>
+                          </button>
+
+                          {/* 2 HOURS */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTimeFrame('2_HOURS')}
+                            className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                              selectedTimeFrame === '2_HOURS'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                            }`}
+                          >
+                            <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '2_HOURS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                            <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">2 HOURS</span>
+                          </button>
+                        </div>
+                      )
+                    ) : selectedService === 'LIVE_TOGETHER' ? (
+                      companion.customLiveTogetherRates && companion.customLiveTogetherRates.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          {companion.customLiveTogetherRates.map((slot, idx) => (
+                            <button
+                              key={slot.id || idx}
+                              type="button"
+                              onClick={() => setSelectedTimeFrame(`CUSTOM_${idx}`)}
+                              className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                                selectedTimeFrame === `CUSTOM_${idx}`
+                                  ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                  : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                              }`}
+                            >
+                              <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === `CUSTOM_${idx}` ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                              <span className="text-[10px] font-black uppercase tracking-wider block mb-0.5">{slot.duration || `Option ${idx + 1}`}</span>
+                              <span className="text-[11px] font-bold text-emerald-400 font-mono">৳{slot.rate?.toLocaleString()}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        /* LIVE TOGETHER Timeframes: 2 Days, 7 Days, 15 Days, 1 Month */
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* 2 DAYS */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTimeFrame('2_DAYS')}
+                            className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                              selectedTimeFrame === '2_DAYS'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                            }`}
+                          >
+                            <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '2_DAYS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                            <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">2 DAYS</span>
+                          </button>
+
+                          {/* 7 DAYS */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTimeFrame('7_DAYS')}
+                            className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                              selectedTimeFrame === '7_DAYS'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                            }`}
+                          >
+                            <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '7_DAYS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                            <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">7 DAYS</span>
+                          </button>
+
+                          {/* 15 DAYS */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTimeFrame('15_DAYS')}
+                            className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                              selectedTimeFrame === '15_DAYS'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                            }`}
+                          >
+                            <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '15_DAYS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                            <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">15 DAYS</span>
+                          </button>
+
+                          {/* 1 MONTH */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTimeFrame('1_MONTH')}
+                            className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                              selectedTimeFrame === '1_MONTH'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                            }`}
+                          >
+                            <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '1_MONTH' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                            <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">1 MONTH</span>
+                          </button>
+                        </div>
+                      )
+                    ) : (
+                      selectedService === 'REAL' && companion.customRealRates && companion.customRealRates.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          {companion.customRealRates.map((slot, idx) => (
+                            <button
+                              key={slot.id || idx}
+                              type="button"
+                              onClick={() => setSelectedTimeFrame(`CUSTOM_${idx}`)}
+                              className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                                selectedTimeFrame === `CUSTOM_${idx}`
+                                  ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                  : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                              }`}
+                            >
+                              <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === `CUSTOM_${idx}` ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                              <span className="text-[10px] font-black uppercase tracking-wider block mb-0.5">{slot.duration || `Option ${idx + 1}`}</span>
+                              <span className="text-[11px] font-bold text-emerald-400 font-mono">৳{slot.rate?.toLocaleString()}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        /* Organized exactly like the request: 3 cells in row 1, 1 cell on left in row 2 */
+                        <div className="grid grid-cols-3 gap-3">
+                          {/* 1 HOUR */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTimeFrame('1_HOUR')}
+                            className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                              selectedTimeFrame === '1_HOUR'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                            }`}
+                          >
+                            <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '1_HOUR' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                            <span className="text-[10px] font-black uppercase tracking-wider">1 HOUR</span>
+                          </button>
+
+                          {/* 2 HOURS */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTimeFrame('2_HOURS')}
+                            className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                              selectedTimeFrame === '2_HOURS'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                            }`}
+                          >
+                            <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '2_HOURS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                            <span className="text-[10px] font-black uppercase tracking-wider">2 HOURS</span>
+                          </button>
+
+                          {/* 3 HOURS */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTimeFrame('3_HOURS')}
+                            className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                              selectedTimeFrame === '3_HOURS'
+                                ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                            }`}
+                          >
+                            <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '3_HOURS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                            <span className="text-[10px] font-black uppercase tracking-wider">3 HOURS</span>
+                          </button>
+
+                          {/* FULL NIGHT */}
+                          {selectedService !== 'MAKE_OUT' && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedTimeFrame('FULL_NIGHT')}
+                              className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                                selectedTimeFrame === 'FULL_NIGHT'
+                                  ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                  : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                              }`}
+                            >
+                              <Moon className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === 'FULL_NIGHT' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                              <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">FULL NIGHT</span>
+                            </button>
+                          )}
+                        </div>
+                      )
                     )}
                   </div>
 
@@ -2267,14 +2477,15 @@ export default function BookingModal({
                                     key={g.id}
                                     type="button"
                                     onClick={() => setDeficitMethod(g.name)}
-                                    className={`py-1.5 px-1 truncate rounded-lg text-[9.5px] font-black uppercase text-center transition cursor-pointer border ${
+                                    className={`py-1.5 px-1.5 truncate rounded-lg text-[9.5px] font-black uppercase text-center transition cursor-pointer border flex items-center justify-center gap-1.5 ${
                                       isSelected 
                                         ? bgActive
                                         : 'bg-slate-900 border-blue-500/10 text-slate-400 hover:text-slate-200 hover:bg-slate-850'
                                     }`}
                                     title={`${g.name} (${g.walletType})`}
                                   >
-                                    {g.name}
+                                    <GatewayLogo gateway={g} className="w-3.5 h-3.5" />
+                                    <span className="truncate">{g.name}</span>
                                   </button>
                                 );
                               })}
@@ -2283,16 +2494,23 @@ export default function BookingModal({
 
                           {/* Phone details copying capsule */}
                           <div className="bg-slate-950 p-2.5 rounded-lg border border-amber-500/10 text-xs flex justify-between items-center">
-                            <div className="text-left">
-                              <span className="text-slate-550 block text-[8px] uppercase tracking-wider font-extrabold">
-                                Receiver {selectedGateway?.name || 'Receiver'} Mobile
-                              </span>
-                              <span className="text-white font-mono font-bold tracking-wider text-xs select-all">
-                                {selectedGateway?.number || '+৮৮০১৭১২-৩৪৫৬৭৮'}
-                              </span>
-                              <span className="block text-[8px] text-[#f7b749] uppercase tracking-widest mt-0.5">
-                                Mode: {selectedGateway?.walletType || 'Personal'}
-                              </span>
+                            <div className="flex items-center gap-2.5 text-left min-w-0">
+                              {selectedGateway && (
+                                <div className="w-8 h-8 rounded bg-black/50 border border-white/5 p-1 flex items-center justify-center shrink-0">
+                                  <GatewayLogo gateway={selectedGateway} className="w-full h-full" />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <span className="text-slate-550 block text-[8px] uppercase tracking-wider font-extrabold truncate">
+                                  Receiver {selectedGateway?.name || 'Receiver'} Mobile
+                                </span>
+                                <span className="text-white font-mono font-bold tracking-wider text-xs select-all">
+                                  {selectedGateway?.number || '+৮৮০১৭১২-৩৪৫৬৭৮'}
+                                </span>
+                                <span className="block text-[8px] text-[#f7b749] uppercase tracking-widest mt-0.5">
+                                  Mode: {selectedGateway?.walletType || 'Personal'}
+                                </span>
+                              </div>
                             </div>
                             <button
                               type="button"
