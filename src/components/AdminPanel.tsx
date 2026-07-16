@@ -1043,6 +1043,19 @@ export default function AdminPanel({
     }
   };
 
+  const handleResetAgent2FA = async (username: string) => {
+    if (!window.confirm(`আপনি কি সত্যিই এজেন্ট @${username} এর গুগল অথেন্টিকেটর ২-স্টেপ নিরাপত্তা সিক্রেট রিসেট করতে চান? রিসেট করলে তিনি তার পরবর্তী লগইনে নতুন করে অথেন্টিকেটর কি সেট করতে পারবেন।`)) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'agent_totp_secrets', username.trim().toLowerCase()));
+      alert(`✅ এজেন্ট @${username} এর গুগল ২FA সিক্রেট সফলভাবে রিসেট করা হয়েছে!`);
+    } catch (err) {
+      console.error(err);
+      alert('২FA রিসেট করতে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।');
+    }
+  };
+
   // Render High Security Portal Gate if not authenticated - MOVED BELOW HOOKS TO COMPLY WITH REACT HOOK RULES
 
   // Tabs configured to align with User's specific requirements
@@ -9511,6 +9524,7 @@ Body Touch Premium Network`;
                   };
                   return {
                     username: agent.username || '',
+                    password: agent.password || '',
                     fullName: agent.fullName || '',
                     phone: agent.phone || '',
                     email: agent.email || '',
@@ -9622,6 +9636,7 @@ Body Touch Premium Network`;
                                 <th className="py-2.5 px-3 text-right text-rose-400">Total Withdrawn</th>
                                 <th className="py-2.5 px-3 text-right">Pending Payout</th>
                                 <th className="py-2.5 px-3 text-right text-emerald-400 font-bold">Balance Available</th>
+                                <th className="py-2.5 px-3 text-right">Actions</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/40 text-[11px] font-semibold text-slate-300">
@@ -9639,6 +9654,9 @@ Body Touch Premium Network`;
                                           {user.phone} {user.email && `| ${user.email}`}
                                         </div>
                                       )}
+                                      <div className="text-[9.5px] text-slate-400 mt-1 font-mono">
+                                        PIN: <span className="text-amber-500 font-bold">{user.password || 'Not Set'}</span>
+                                      </div>
                                     </td>
                                     <td className="py-3 px-3 text-center">
                                       <span className={`px-2 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider ${
@@ -9659,6 +9677,16 @@ Body Touch Premium Network`;
                                     <td className="py-3 px-3 text-right font-mono text-amber-400">৳{user.pendingAmount.toLocaleString()}</td>
                                     <td className="py-3 px-3 text-right font-mono text-emerald-400 font-extrabold text-xs">
                                       ৳{(availableBal < 0 ? 0 : availableBal).toLocaleString()}
+                                    </td>
+                                    <td className="py-3 px-3 text-right">
+                                      <button
+                                        onClick={() => handleResetAgent2FA(user.username)}
+                                        className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded text-[9px] font-black uppercase tracking-wider transition active:scale-95 flex items-center gap-1 ml-auto cursor-pointer"
+                                        title="Reset Agent Google 2FA Authenticator"
+                                      >
+                                        <RefreshCw className="w-2.5 h-2.5 shrink-0" />
+                                        Reset 2FA
+                                      </button>
                                     </td>
                                   </tr>
                                 );

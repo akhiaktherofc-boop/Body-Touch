@@ -30,7 +30,8 @@ import {
   Nfc
 } from 'lucide-react';
 import { Companion, ReferralRecord, WithdrawalRecord, MemberLevel, Booking } from '../types';
-import { db, collection, setDoc, doc } from '../firebase';
+import { db, collection, setDoc, doc, getDoc } from '../firebase';
+import * as OTPAuth from 'otpauth';
 
 // Custom high-fidelity brand SVGs for MFS gateways
 const BkashLogo = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -87,10 +88,18 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
   // Login Form States
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPass, setLoginPass] = useState('');
+  const [regPass, setRegPass] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [regFullName, setRegFullName] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regEmail, setRegEmail] = useState('');
+
+  // 2-Step Verification States
+  const [authStep, setAuthStep] = useState<'credentials' | 'totp_setup' | 'totp_verify'>('credentials');
+  const [totpSecret, setTotpSecret] = useState('');
+  const [totpInputCode, setTotpInputCode] = useState('');
+  const [tempAgentUsername, setTempAgentUsername] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   // Dashboard States
   const [activeTab, setActiveTab] = useState<'dashboard' | 'referrals' | 'withdrawals' | 'recruit'>('dashboard');
@@ -136,7 +145,7 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
   const [copiedLink, setCopiedLink] = useState<'client' | 'model' | null>(null);
 
   // Sync Agent local session helper
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginUsername.trim() || !loginPass.trim()) {
       triggerToast('দয়া করে সঠিক তথ্য দিয়ে লগইন করুন।', 'error');
@@ -144,45 +153,196 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
     }
 
     const cleanUsername = loginUsername.trim().toLowerCase();
-    
-    // Auto-create or login agent securely (for simplicity and maximum usability, we accept any username but persist it)
-    localStorage.setItem('bt_agent_logged_in', 'true');
-    localStorage.setItem('bt_agent_username', cleanUsername);
-    setIsLoggedIn(true);
-    setAgentUsername(cleanUsername);
-    triggerToast(`এজেন্ট পোর্টাল সফলভাবে লগইন হয়েছে: ${cleanUsername}`, 'success');
+    const cleanPassword = loginPass.trim();
+
+    try {
+      setIsSending(true);
+      const agentDocRef = doc(db, 'agents', cleanUsername);
+      const agentSnap = await getDoc(agentDocRef);
+
+      if (!agentSnap.exists()) {
+        triggerToast('ইউজারনেমটি পাওয়া যায়নি! দয়া করে প্রথমে নিবন্ধন (Register) করুন।', 'error');
+        setIsSending(false);
+        return;
+      }
+
+      const agentData = agentSnap.data() || {};
+      
+      // Fallback: If agent exists but doesn't have a password set yet, set the entered password as their password so they don't get locked out!
+      if (!agentData.password) {
+        const updatedData = { ...agentData, password: cleanPassword };
+        await setDoc(agentDocRef, updatedData);
+      } else if (agentData.password !== cleanPassword) {
+        triggerToast('ভুল পাসকোড / পাসওয়ার্ড! অনুগ্রহ করে সঠিক তথ্য দিন।', 'error');
+        setIsSending(false);
+        return;
+      }
+
+      // Credentials are correct, check for TOTP 2FA Secret
+      const totpSnap = await getDoc(doc(db, 'agent_totp_secrets', cleanUsername));
+      setTempAgentUsername(cleanUsername);
+      setTotpInputCode('');
+
+      if (totpSnap.exists()) {
+        // Enrolled already, prompt for TOTP Code
+        setTotpSecret(totpSnap.data().secret);
+        setAuthStep('totp_verify');
+        triggerToast('গুগল অথেন্টিকেটর অ্যাপ থেকে ৬ সংখ্যার ২FA কোডটি প্রদান করুন।', 'info');
+      } else {
+        // Setup a new TOTP secret
+        const charSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        let randomSecret = '';
+        for (let i = 0; i < 16; i++) {
+          randomSecret += charSet.charAt(Math.floor(Math.random() * charSet.length));
+        }
+        setTotpSecret(randomSecret);
+        setAuthStep('totp_setup');
+        triggerToast('নিরাপত্তা সুনিশ্চিত করতে গুগল অথেন্টিকেটর ২FA সেটআপ করুন।', 'info');
+      }
+    } catch (err) {
+      console.warn('Failed to login agent:', err);
+      triggerToast('লগইন ব্যর্থ হয়েছে! দয়া করে আবার চেষ্টা করুন।', 'error');
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginUsername.trim() || !regFullName.trim() || !regPhone.trim()) {
+    if (!loginUsername.trim() || !regFullName.trim() || !regPhone.trim() || !regPass.trim()) {
       triggerToast('দয়া করে সব আবশ্যক ক্ষেত্র পূরণ করুন।', 'error');
       return;
     }
 
     const cleanUsername = loginUsername.trim().toLowerCase();
-    
-    // Save to Firestore and LocalStorage
-    const agentDetails = {
-      username: cleanUsername,
-      fullName: regFullName.trim(),
-      phone: regPhone.trim(),
-      email: regEmail.trim(),
-      role: 'agent',
-      dateRegistered: new Date().toLocaleString()
-    };
 
     try {
-      setDoc(doc(db, 'agents', cleanUsername), agentDetails);
+      setIsSending(true);
+      const agentDocRef = doc(db, 'agents', cleanUsername);
+      const agentSnap = await getDoc(agentDocRef);
+
+      if (agentSnap.exists()) {
+        triggerToast('এই ইউজারনেমটি ইতিমধ্যে নিবন্ধিত! অনুগ্রহ করে অন্য ইউজারনেম ব্যবহার করুন বা লগইন করুন।', 'error');
+        setIsSending(false);
+        return;
+      }
+      
+      // Save to Firestore and LocalStorage
+      const agentDetails = {
+        username: cleanUsername,
+        password: regPass.trim(),
+        fullName: regFullName.trim(),
+        phone: regPhone.trim(),
+        email: regEmail.trim(),
+        role: 'agent',
+        dateRegistered: new Date().toLocaleString()
+      };
+
+      await setDoc(agentDocRef, agentDetails);
+
+      // Transition straight to TOTP Setup
+      const charSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+      let randomSecret = '';
+      for (let i = 0; i < 16; i++) {
+        randomSecret += charSet.charAt(Math.floor(Math.random() * charSet.length));
+      }
+      setTotpSecret(randomSecret);
+      setTempAgentUsername(cleanUsername);
+      setTotpInputCode('');
+      setAuthStep('totp_setup');
+      triggerToast('অ্যাকাউন্ট তৈরি হয়েছে! নিরাপত্তা নিশ্চিত করতে গুগল টু-ফ্যাক্টর অথেনটিকেশন সেটআপ করুন।', 'success');
     } catch (err) {
       console.warn('Failed to save agent to firestore:', err);
+      triggerToast('নিবন্ধন ব্যর্থ হয়েছে! দয়া করে আবার চেষ্টা করুন।', 'error');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleVerifyTOTPSetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!totpInputCode.trim()) {
+      triggerToast('৬ সংখ্যার কোডটি প্রবেশ করান।', 'error');
+      return;
     }
 
-    localStorage.setItem('bt_agent_logged_in', 'true');
-    localStorage.setItem('bt_agent_username', cleanUsername);
-    setIsLoggedIn(true);
-    setAgentUsername(cleanUsername);
-    triggerToast(`এজেন্ট অ্যাকাউন্ট সফলভাবে নিবন্ধিত হয়েছে!`, 'success');
+    try {
+      setIsSending(true);
+      const totp = new OTPAuth.TOTP({
+        issuer: 'BodyTouch_Agent',
+        label: tempAgentUsername,
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+        secret: OTPAuth.Secret.fromBase32(totpSecret)
+      });
+
+      const isValid = totp.validate({ token: totpInputCode.trim(), window: 1 }) !== null;
+
+      if (isValid) {
+        // Save verified secret in Firestore
+        await setDoc(doc(db, 'agent_totp_secrets', tempAgentUsername), {
+          secret: totpSecret,
+          verifiedAt: new Date().toISOString()
+        });
+
+        // Complete Login
+        localStorage.setItem('bt_agent_logged_in', 'true');
+        localStorage.setItem('bt_agent_username', tempAgentUsername);
+        setIsLoggedIn(true);
+        setAgentUsername(tempAgentUsername);
+        setTotpInputCode('');
+        setAuthStep('credentials');
+        triggerToast('গুগল টু-ফ্যাক্টর অথেনটিকেশন সেটআপ ও সফল লগইন সম্পন্ন হয়েছে!', 'success');
+      } else {
+        triggerToast('ভুল কোড! অনুগ্রহ করে অ্যাপে দেখানো সঠিক ৬ সংখ্যার ডাইনামিক কোডটি দিন।', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      triggerToast('অথেনটিকেশন সেটআপে সমস্যা হয়েছে। আবার চেষ্টা করুন।', 'error');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleVerifyTOTPActive = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!totpInputCode.trim()) {
+      triggerToast('৬ সংখ্যার কোডটি প্রবেশ করান।', 'error');
+      return;
+    }
+
+    try {
+      setIsSending(true);
+      const totp = new OTPAuth.TOTP({
+        issuer: 'BodyTouch_Agent',
+        label: tempAgentUsername,
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+        secret: OTPAuth.Secret.fromBase32(totpSecret)
+      });
+
+      const isValid = totp.validate({ token: totpInputCode.trim(), window: 1 }) !== null;
+
+      if (isValid) {
+        // Complete Login
+        localStorage.setItem('bt_agent_logged_in', 'true');
+        localStorage.setItem('bt_agent_username', tempAgentUsername);
+        setIsLoggedIn(true);
+        setAgentUsername(tempAgentUsername);
+        setTotpInputCode('');
+        setAuthStep('credentials');
+        triggerToast('২FA যাচাইকরণ ও লগইন সফল হয়েছে!', 'success');
+      } else {
+        triggerToast('ভুল ২-স্টেপ কোড! গুগল অথেন্টিকেটর অ্যাপে দেখানো বর্তমান ডাইনামিক কোডটি সঠিকভাবে টাইপ করুন।', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      triggerToast('কোড যাচাইকরণে ত্রুটি হয়েছে। আবার চেষ্টা করুন।', 'error');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleLogout = () => {
@@ -425,16 +585,145 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                   Body Touch Partner Portals
                 </h1>
                 <p className="text-[10px] md:text-xs text-amber-500/80 font-bold uppercase tracking-widest">
-                  এজেন্ট ও রিক্রুটার প্যানেল
+                  Agent & Recruiter Panel
                 </p>
               </div>
 
-              {isRegistering ? (
+              {authStep === 'totp_setup' ? (
+                /* Google Authenticator Enrollment Stage */
+                <form onSubmit={handleVerifyTOTPSetup} className="space-y-5 text-center">
+                  <div className="bg-[#dbaa61]/5 border border-[#dbaa61]/20 rounded-2xl p-4 text-left space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-amber-500/10 text-[#dbaa61]">
+                        <Key className="w-4 h-4" />
+                      </div>
+                      <span className="text-[11px] font-black uppercase text-[#dbaa61] tracking-wider">
+                        2-Step Security Setup
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      Open <strong className="text-white font-black">Google Authenticator</strong> or <strong className="text-white font-black">Microsoft Authenticator</strong> on your mobile phone and add the Secret Key below:
+                    </p>
+
+                    {/* Key copy area */}
+                    <div className="bg-slate-950 border border-blue-900/30 rounded-xl p-3 flex items-center justify-between gap-2 mt-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Secret Verification Key</div>
+                        <div className="text-xs font-mono font-bold text-amber-500 select-all tracking-wider break-all mt-0.5">
+                          {totpSecret}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(totpSecret);
+                          triggerToast('Secret Key copied successfully!', 'success');
+                        }}
+                        className="p-2 bg-[#dbaa61]/10 hover:bg-[#dbaa61]/20 text-[#dbaa61] rounded-lg transition active:scale-95 shrink-0"
+                        title="Copy Secret Key"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="text-[10px] text-amber-500/80 font-black leading-relaxed">
+                      ⚠️ Note: You can manually add the key to your Authenticator app using Account Name: "BodyTouch_Agent ({tempAgentUsername})".
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 text-left">
+                    <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
+                      Enter 6-Digit Verification Code
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      value={totpInputCode}
+                      onChange={(e) => setTotpInputCode(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder=""
+                      className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-2.5 px-4 text-center text-lg font-mono tracking-[0.3em] font-black focus:outline-none transition-all placeholder:tracking-normal placeholder:font-sans placeholder:text-sm"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2 pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSending}
+                      className="w-full bg-gradient-to-tr from-[#a67c33] to-[#dbaa61] hover:brightness-110 disabled:brightness-75 text-slate-950 font-black text-xs uppercase tracking-widest py-3.5 rounded-xl transition duration-300 shadow-lg shadow-[#dbaa61]/10 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <ShieldCheck className="w-4 h-4 animate-pulse" />
+                      {isSending ? 'Verifying...' : 'Verify & Enroll'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setAuthStep('credentials')}
+                      className="w-full bg-[#0f121d] border border-slate-800 hover:bg-slate-900 text-slate-400 font-bold text-xs uppercase py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : authStep === 'totp_verify' ? (
+                /* Google Authenticator Regular Login Verification Stage */
+                <form onSubmit={handleVerifyTOTPActive} className="space-y-5 text-center">
+                  <div className="bg-blue-950/20 border border-blue-900/35 rounded-2xl p-4 text-left space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
+                        <Key className="w-4 h-4" />
+                      </div>
+                      <span className="text-[11px] font-black uppercase text-blue-400 tracking-wider">
+                        Two-Step 2FA Verification
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      To ensure security, please enter the current 6-digit dynamic code generated by your registered <strong className="text-white font-black">Google Authenticator</strong> app below.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5 text-left">
+                    <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
+                      Enter 6-Digit Verification OTP
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      value={totpInputCode}
+                      onChange={(e) => setTotpInputCode(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder=""
+                      className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-3 px-4 text-center text-xl font-mono tracking-[0.4em] font-black focus:outline-none transition-all placeholder:tracking-normal placeholder:font-sans placeholder:text-sm"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2 pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSending}
+                      className="w-full bg-gradient-to-tr from-[#a67c33] to-[#dbaa61] hover:brightness-110 disabled:brightness-75 text-slate-950 font-black text-xs uppercase tracking-widest py-3.5 rounded-xl transition duration-300 shadow-lg shadow-[#dbaa61]/10 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      {isSending ? 'Verifying...' : 'Confirm Login'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setAuthStep('credentials')}
+                      className="w-full bg-[#0f121d] border border-slate-800 hover:bg-slate-900 text-slate-400 font-bold text-xs uppercase py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      Go Back
+                    </button>
+                  </div>
+                </form>
+              ) : isRegistering ? (
                 /* Registration Gate */
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div className="space-y-1">
                     <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
-                      এজেন্ট ইউজারনেম (Agent Username) *
+                      Agent Username *
                     </label>
                     <div className="relative">
                       <User className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
@@ -443,7 +732,7 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                         required
                         value={loginUsername}
                         onChange={(e) => setLoginUsername(e.target.value)}
-                        placeholder="e.g. tasnim_ref" 
+                        placeholder="" 
                         className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-2.5 pl-10 pr-4 text-xs font-mono focus:outline-none transition-all"
                       />
                     </div>
@@ -451,60 +740,79 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
 
                   <div className="space-y-1">
                     <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
-                      পূর্ণ নাম (Full Name) *
+                      Full Name *
                     </label>
                     <input 
                       type="text" 
                       required
                       value={regFullName}
                       onChange={(e) => setRegFullName(e.target.value)}
-                      placeholder="e.g. Md. Tasnim Ahmed" 
+                      placeholder="" 
                       className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-2.5 px-4 text-xs focus:outline-none transition-all"
                     />
                   </div>
 
                   <div className="space-y-1">
                     <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
-                      মোবাইল নাম্বার (Phone) *
+                      Phone Number *
                     </label>
                     <input 
                       type="tel" 
                       required
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
-                      placeholder="e.g. 01712345678" 
+                      placeholder="" 
                       className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-2.5 px-4 text-xs font-mono focus:outline-none transition-all"
                     />
                   </div>
 
                   <div className="space-y-1">
                     <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
-                      ইমেইল (Email - Optional)
+                      Email (Optional)
                     </label>
                     <input 
                       type="email" 
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="e.g. agent@bodytouch.com" 
+                      placeholder="" 
                       className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-2.5 px-4 text-xs font-mono focus:outline-none transition-all"
                     />
                   </div>
 
+                  <div className="space-y-1">
+                    <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
+                      Secure Password *
+                    </label>
+                    <div className="relative">
+                      <Key className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="password" 
+                        required
+                        value={regPass}
+                        onChange={(e) => setRegPass(e.target.value)}
+                        placeholder="" 
+                        className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-2.5 pl-10 pr-4 text-xs font-mono focus:outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
                   <button
                     type="submit"
-                    className="w-full bg-gradient-to-tr from-[#a67c33] to-[#dbaa61] hover:brightness-110 text-slate-950 font-black text-xs uppercase tracking-widest py-3.5 rounded-xl transition duration-300 shadow-lg shadow-[#dbaa61]/10 flex items-center justify-center gap-2 cursor-pointer mt-2"
+                    disabled={isSending}
+                    className="w-full bg-gradient-to-tr from-[#a67c33] to-[#dbaa61] hover:brightness-110 disabled:brightness-75 text-slate-950 font-black text-xs uppercase tracking-widest py-3.5 rounded-xl transition duration-300 shadow-lg shadow-[#dbaa61]/10 flex items-center justify-center gap-2 cursor-pointer mt-2"
                   >
                     <UserPlus className="w-4 h-4" />
-                    রজিস্টার করুন (Register Partner)
+                    {isSending ? 'Processing...' : 'Register Partner'}
                   </button>
 
-                  <div className="text-center pt-2">
+                  <div className="text-center pt-4 pb-1">
                     <button 
                       type="button" 
                       onClick={() => setIsRegistering(false)} 
-                      className="text-xs text-slate-400 hover:text-white transition"
+                      className="text-xs text-slate-300 hover:text-white transition duration-200 cursor-pointer py-2 px-4 rounded-xl bg-slate-900/40 hover:bg-slate-900/60 border border-slate-800 hover:border-slate-700 active:scale-95 flex flex-col sm:flex-row items-center justify-center gap-1 mx-auto min-h-[46px] w-full shadow-md shadow-black/10 transition-all"
                     >
-                      ইতিমধ্যে অ্যাকাউন্ট আছে? <span className="text-[#dbaa61] font-bold">লগইন করুন</span>
+                      <span>Already have an account?</span>
+                      <span className="text-[#dbaa61] font-extrabold underline decoration-[#dbaa61] decoration-2">Login Here</span>
                     </button>
                   </div>
                 </form>
@@ -513,7 +821,7 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-1">
                     <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
-                      পার্টনার ইউজারনেম (Partner Username)
+                      Partner Username
                     </label>
                     <div className="relative">
                       <User className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
@@ -522,7 +830,7 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                         required
                         value={loginUsername}
                         onChange={(e) => setLoginUsername(e.target.value)}
-                        placeholder="e.g. tasnim_ref" 
+                        placeholder="" 
                         className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-2.5 pl-10 pr-4 text-xs font-mono focus:outline-none transition-all"
                       />
                     </div>
@@ -530,7 +838,7 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
 
                   <div className="space-y-1">
                     <label className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider">
-                      সিকিউরিটি পিন / পাসকোড (PIN / Passcode)
+                      Secure Password
                     </label>
                     <div className="relative">
                       <Key className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
@@ -539,7 +847,7 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                         required
                         value={loginPass}
                         onChange={(e) => setLoginPass(e.target.value)}
-                        placeholder="••••••" 
+                        placeholder="" 
                         className="w-full bg-slate-950 border border-blue-900/40 focus:border-[#dbaa61] text-white rounded-xl py-2.5 pl-10 pr-4 text-xs font-mono focus:outline-none transition-all"
                       />
                     </div>
@@ -547,19 +855,21 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
 
                   <button
                     type="submit"
-                    className="w-full bg-gradient-to-tr from-[#a67c33] to-[#dbaa61] hover:brightness-110 text-slate-950 font-black text-xs uppercase tracking-widest py-3.5 rounded-xl transition duration-300 shadow-lg shadow-[#dbaa61]/10 flex items-center justify-center gap-2 cursor-pointer mt-2"
+                    disabled={isSending}
+                    className="w-full bg-gradient-to-tr from-[#a67c33] to-[#dbaa61] hover:brightness-110 disabled:brightness-75 text-slate-950 font-black text-xs uppercase tracking-widest py-3.5 rounded-xl transition duration-300 shadow-lg shadow-[#dbaa61]/10 flex items-center justify-center gap-2 cursor-pointer mt-2"
                   >
                     <ShieldCheck className="w-4 h-4" />
-                    লগইন করুন (Access Portal)
+                    {isSending ? 'Processing...' : 'Access Portal'}
                   </button>
 
-                  <div className="text-center pt-2">
+                  <div className="text-center pt-4 pb-1">
                     <button 
                       type="button" 
                       onClick={() => setIsRegistering(true)} 
-                      className="text-xs text-slate-400 hover:text-white transition"
+                      className="text-xs text-[#dbaa61] hover:text-white transition duration-200 cursor-pointer py-2 px-4 rounded-xl bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/10 hover:border-amber-500/20 active:scale-95 flex flex-col sm:flex-row items-center justify-center gap-1 mx-auto min-h-[46px] w-full shadow-md shadow-amber-500/5 hover:shadow-amber-500/10 transition-all"
                     >
-                      নতুন পার্টনার অ্যাকাউন্ট খুলতে চান? <span className="text-[#dbaa61] font-bold">এখানে ক্লিক করুন</span>
+                      <span>Want to open a partner account?</span>
+                      <span className="font-extrabold underline decoration-[#dbaa61] decoration-2">Click Here</span>
                     </button>
                   </div>
                 </form>
