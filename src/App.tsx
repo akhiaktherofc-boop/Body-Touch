@@ -177,6 +177,16 @@ export default function App() {
     return getStoredItem('bt_phone');
   });
 
+  const [gender, setGender] = useState<'male' | 'female' | ''>(() => {
+    return (getStoredItem('bt_gender') as any) || '';
+  });
+
+  const [editGender, setEditGender] = useState<'male' | 'female' | ''>(gender);
+
+  useEffect(() => {
+    setEditGender(gender);
+  }, [gender]);
+
   const [avatarUrl, setAvatarUrl] = useState<string>(() => {
     return getStoredItem('bt_avatar_url');
   });
@@ -509,9 +519,22 @@ export default function App() {
     return ['Female Model', 'Male Model', 'Sperm Donor'];
   });
 
+  const visibleCategories = useMemo(() => {
+    if (isLoggedIn && gender === 'male') {
+      return ['Female Model'];
+    }
+    return categories;
+  }, [categories, gender, isLoggedIn]);
+
   const [selectedSegment, setSelectedSegment] = useState<string>(() => {
     return (getStoredItem('bt_selected_segment') as any) || 'Female Model';
   });
+
+  useEffect(() => {
+    if (!visibleCategories.includes(selectedSegment)) {
+      setSelectedSegment(visibleCategories[0] || 'Female Model');
+    }
+  }, [visibleCategories, selectedSegment]);
 
   const [accountMode, setAccountMode] = useState<'client' | 'partner'>(() => {
     return (getStoredItem('bt_account_mode') as any) || 'client';
@@ -1160,6 +1183,10 @@ export default function App() {
   }, [phone, rememberMe]);
 
   useEffect(() => {
+    storage.setItem('bt_gender', gender);
+  }, [gender, rememberMe]);
+
+  useEffect(() => {
     storage.setItem('bt_avatar_url', avatarUrl);
   }, [avatarUrl, rememberMe]);
 
@@ -1226,6 +1253,9 @@ export default function App() {
             setEmail(cloudUser.email);
             setEditEmail(cloudUser.email);
           }
+          if (cloudUser.gender) {
+            setGender(cloudUser.gender);
+          }
         } else {
           // Setup stats on first cloud login
           const initialDetails = {
@@ -1234,7 +1264,8 @@ export default function App() {
             email,
             phone,
             userLevel,
-            walletBalance
+            walletBalance,
+            gender
           };
           saveCloudUser(initialDetails);
         }
@@ -1251,11 +1282,12 @@ export default function App() {
         email,
         phone,
         userLevel,
-        walletBalance
+        walletBalance,
+        gender
       };
       saveCloudUser(stats);
     }
-  }, [userLevel, walletBalance, fullName, phone, email, isLoggedIn, username]);
+  }, [userLevel, walletBalance, fullName, phone, email, gender, isLoggedIn, username]);
 
   // Fetch Settings from Firestore on mount
   useEffect(() => {
@@ -3003,6 +3035,7 @@ Body Touch Security Core
     setFullName(editFullName.trim());
     setEmail(editEmail.trim());
     setPhone(editPhone.trim());
+    setGender(editGender);
     triggerToast('🎉 Profile updated successfully!', 'success');
   };
 
@@ -3106,7 +3139,8 @@ https://service.bodytouch.com
       'bt_selected_segment',
       'bt_account_mode',
       'bt_reviews',
-      'bt_remember_me'
+      'bt_remember_me',
+      'bt_gender'
     ];
 
     keys.forEach(key => {
@@ -3119,6 +3153,7 @@ https://service.bodytouch.com
     setFullName('');
     setEmail('');
     setPhone('');
+    setGender('');
     setAvatarUrl('');
     setUserLevel('FREE');
     setWalletBalance(0);
@@ -3166,6 +3201,7 @@ https://service.bodytouch.com
     rememberMe?: boolean;
     isSignUp?: boolean;
     role?: string;
+    gender?: 'male' | 'female';
   }) => {
     const isRemembered = credentials.rememberMe !== false;
     setRememberMe(isRemembered);
@@ -3182,6 +3218,9 @@ https://service.bodytouch.com
     setEditEmail(credentials.email);
     setPhone(credentials.phone);
     setEditPhone(credentials.phone);
+    if (credentials.gender) {
+      setGender(credentials.gender);
+    }
     setIsLoggedIn(true);
 
     const activeStorage = isRemembered ? localStorage : sessionStorage;
@@ -3190,6 +3229,9 @@ https://service.bodytouch.com
     activeStorage.setItem('bt_fullname', credentials.fullName);
     activeStorage.setItem('bt_email', credentials.email);
     activeStorage.setItem('bt_phone', credentials.phone);
+    if (credentials.gender) {
+      activeStorage.setItem('bt_gender', credentials.gender);
+    }
     activeStorage.setItem('bt_user_role', role);
 
     if (credentials.isSignUp) {
@@ -3233,7 +3275,7 @@ https://service.bodytouch.com
     }
 
     // Swap files or clear alternate to prevent overlapping states
-    const targetKeys = ['bt_is_logged_in', 'bt_username', 'bt_fullname', 'bt_email', 'bt_phone', 'bt_user_role'];
+    const targetKeys = ['bt_is_logged_in', 'bt_username', 'bt_fullname', 'bt_email', 'bt_phone', 'bt_user_role', 'bt_gender'];
     targetKeys.forEach(k => {
       if (isRemembered) {
         sessionStorage.removeItem(k);
@@ -4144,7 +4186,7 @@ https://service.bodytouch.com
 
                 {/* Dynamically Managed Category Segments Bar */}
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                  {categories.map((cat) => {
+                  {visibleCategories.map((cat) => {
                     const isActive = selectedSegment === cat;
                     return (
                       <button
@@ -5135,6 +5177,37 @@ https://service.bodytouch.com
                           placeholder="Enter phone number"
                           className="w-full bg-[#04091a] border border-[#101e3d] text-xs text-white rounded-xl px-4 py-3.5 font-bold focus:outline-none focus:border-blue-500 hover:border-blue-900/50 transition-all font-mono"
                         />
+                      </div>
+
+                      {/* GENDER SELECTION FIELD */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-black tracking-widest text-[#5c75ab] uppercase pl-1">
+                          Gender / লিঙ্গ
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setEditGender('female')}
+                            className={`py-3 px-4 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 cursor-pointer ${
+                              editGender === 'female'
+                                ? 'bg-gradient-to-r from-blue-600 to-sky-400 text-slate-950 border-blue-500 font-extrabold shadow-md shadow-blue-500/10'
+                                : 'bg-[#030818]/60 text-slate-400 border-[#101e3d] hover:border-blue-900/40 hover:text-white font-medium'
+                            }`}
+                          >
+                            <span>👩 Female / নারী</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditGender('male')}
+                            className={`py-3 px-4 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 cursor-pointer ${
+                              editGender === 'male'
+                                ? 'bg-gradient-to-r from-blue-600 to-sky-400 text-slate-950 border-blue-500 font-extrabold shadow-md shadow-blue-500/10'
+                                : 'bg-[#030818]/60 text-slate-400 border-[#101e3d] hover:border-blue-900/40 hover:text-white font-medium'
+                            }`}
+                          >
+                            <span>👨 Male / পুরুষ</span>
+                          </button>
+                        </div>
                       </div>
 
                       {/* ACTION SUBMIT BUTTON */}

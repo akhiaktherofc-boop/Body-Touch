@@ -40,6 +40,7 @@ interface LoginGateProps {
     phone: string;
     rememberMe?: boolean;
     isSignUp?: boolean;
+    gender?: 'male' | 'female';
   }) => void;
   telegramBotToken?: string;
   telegramGroupId?: string;
@@ -99,6 +100,7 @@ export default function LoginGate({
   const [newPhone, setNewPhone] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newTelegramId, setNewTelegramId] = useState('');
+  const [newGender, setNewGender] = useState<'male' | 'female'>('female');
   
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -118,6 +120,7 @@ export default function LoginGate({
     telegramId?: string;
     rememberMe?: boolean;
     password?: string;
+    gender?: 'male' | 'female';
   } | null>(null);
   const [otpError, setOtpError] = useState('');
   const [otpSuccess, setOtpSuccess] = useState('');
@@ -488,6 +491,7 @@ export default function LoginGate({
 
     // Sync to Firestore Cloud DB with modern attributes
     let savedTelegramId = '';
+    let savedGender: 'male' | 'female' = 'female';
     try {
       const docSnap = await getDoc(doc(db, 'users', existingUser.username));
       if (docSnap.exists()) {
@@ -496,10 +500,14 @@ export default function LoginGate({
         if (udata.phone) {
           existingUser.phone = udata.phone;
         }
+        if (udata.gender) {
+          savedGender = udata.gender;
+        }
       }
 
       await setDoc(doc(db, 'users', existingUser.username), {
         ...existingUser,
+        gender: savedGender,
         userLevel: 'FREE',
         walletBalance: 0,
         authMethod: 'instagram',
@@ -558,7 +566,8 @@ export default function LoginGate({
           fullName: userToLogin.fullName,
           email: userToLogin.email,
           phone: userToLogin.phone,
-          rememberMe: rememberMe
+          rememberMe: rememberMe,
+          gender: savedGender
         });
       }, 1200);
     }
@@ -612,6 +621,7 @@ export default function LoginGate({
       let phoneToLogin = '';
       let savedTelegramId = '';
       let storedPassword = '';
+      let genderToLogin: 'male' | 'female' = 'female';
 
       if (userDocSnap.exists()) {
         const udata = userDocSnap.data();
@@ -623,6 +633,9 @@ export default function LoginGate({
         phoneToLogin = udata.phone || '';
         savedTelegramId = udata.telegramId || '';
         storedPassword = udata.password || udata.passwordHash || '';
+        if (udata.gender) {
+          genderToLogin = udata.gender;
+        }
 
         // If no password exists (legacy users registered with Firebase Auth), auto-migrate on first login!
         if (!storedPassword || storedPassword === '[SECURED_BY_FIREBASE_AUTH]') {
@@ -653,7 +666,8 @@ export default function LoginGate({
           email: emailToAuth,
           phone: phoneToLogin || 'N/A',
           telegramId: savedTelegramId,
-          rememberMe: rememberMe
+          rememberMe: rememberMe,
+          gender: genderToLogin
         });
 
         // Send OTP via Email (with PHP fallback)
@@ -692,7 +706,8 @@ export default function LoginGate({
             fullName: fullNameToLogin,
             email: emailToAuth,
             phone: phoneToLogin,
-            rememberMe: rememberMe
+            rememberMe: rememberMe,
+            gender: genderToLogin
           });
         }, 1200);
       }
@@ -836,7 +851,8 @@ export default function LoginGate({
           phone: newPhone.trim(),
           telegramId: newTelegramId.trim(),
           password: newPassword,
-          rememberMe: rememberMe
+          rememberMe: rememberMe,
+          gender: newGender
         });
 
         // Send OTP via Email (with PHP fallback)
@@ -882,6 +898,7 @@ export default function LoginGate({
           email: newEmail.trim().toLowerCase(),
           phone: newPhone.trim(),
           telegramId: newTelegramId.trim(),
+          gender: newGender,
           userLevel: 'FREE',
           walletBalance: 0,
           uid: uid,
@@ -911,7 +928,8 @@ export default function LoginGate({
             email: newEmail.trim().toLowerCase(),
             phone: newPhone.trim(),
             rememberMe: rememberMe,
-            isSignUp: true
+            isSignUp: true,
+            gender: newGender
           });
         }, 1200);
       }
@@ -952,6 +970,7 @@ export default function LoginGate({
           email: pendingCredentials.email,
           phone: pendingCredentials.phone,
           telegramId: pendingCredentials.telegramId || '',
+          gender: pendingCredentials.gender || 'female',
           userLevel: 'FREE',
           walletBalance: 0,
           uid: uid,
@@ -979,7 +998,8 @@ export default function LoginGate({
             email: pendingCredentials.email,
             phone: pendingCredentials.phone,
             rememberMe: pendingCredentials.rememberMe,
-            isSignUp: true
+            isSignUp: true,
+            gender: pendingCredentials.gender
           });
         }, 1200);
       } else {
@@ -990,7 +1010,8 @@ export default function LoginGate({
             fullName: pendingCredentials.fullName,
             email: pendingCredentials.email,
             phone: pendingCredentials.phone,
-            rememberMe: pendingCredentials.rememberMe
+            rememberMe: pendingCredentials.rememberMe,
+            gender: pendingCredentials.gender
           });
         }, 1200);
       }
@@ -1510,6 +1531,37 @@ export default function LoginGate({
                   style={{ paddingLeft: '2.5rem' }}
                   className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
                 />
+              </div>
+            </div>
+
+            {/* Gender Selection */}
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                Gender / লিঙ্গ নির্ধারণ করুন
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setNewGender('female')}
+                  className={`py-3 px-4 rounded-xl text-xs font-bold transition-all border ${
+                    newGender === 'female'
+                      ? 'bg-[#dbaa61] text-slate-950 border-[#dbaa61] shadow-md shadow-[#dbaa61]/10'
+                      : 'bg-[#030818]/60 text-slate-400 border-blue-900/35 hover:border-[#dbaa61]/30 hover:text-white'
+                  }`}
+                >
+                  👩 Female / নারী
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewGender('male')}
+                  className={`py-3 px-4 rounded-xl text-xs font-bold transition-all border ${
+                    newGender === 'male'
+                      ? 'bg-[#dbaa61] text-slate-950 border-[#dbaa61] shadow-md shadow-[#dbaa61]/10'
+                      : 'bg-[#030818]/60 text-slate-400 border-blue-900/35 hover:border-[#dbaa61]/30 hover:text-white'
+                  }`}
+                >
+                  👨 Male / পুরুষ
+                </button>
               </div>
             </div>
 

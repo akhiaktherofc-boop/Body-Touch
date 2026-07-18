@@ -163,6 +163,7 @@ export interface CloudUser {
   phone: string;
   userLevel: 'FREE' | 'REGULAR' | 'PREMIUM' | 'ELITE';
   walletBalance: number;
+  gender?: 'male' | 'female' | '';
 }
 
 export async function getCloudUser(username: string): Promise<CloudUser | null> {

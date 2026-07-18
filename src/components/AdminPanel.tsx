@@ -779,9 +779,80 @@ export default function AdminPanel({
     return list;
   });
 
-  const updateAdminEmails = (updated: AdminUser[]) => {
+  // Realtime subscription to sync allowed admin list from Firestore database
+  useEffect(() => {
+    const colRef = collection(db, 'admin_emails');
+    const unsubscribe = onSnapshot(colRef, async (snapshot) => {
+      const list: AdminUser[] = [];
+      snapshot.forEach((doc: any) => {
+        list.push({ email: doc.id, ...doc.data() });
+      });
+      
+      if (list.length === 0) {
+        const defaultAdmins: AdminUser[] = [
+          { email: '16killer2@gmail.com', telegram: '@secure_super_admin', role: 'super_admin' },
+          { email: 'akhi.akther.ofc@gmail.com', telegram: '@developer_akhi', role: 'super_admin' },
+          { email: 'admin@bodytouch.com', telegram: '@bodytouch_admin', role: 'admin' },
+          { email: 'moderator@bodytouch.com', telegram: '@bodytouch_mod', role: 'moderator' }
+        ];
+        for (const admin of defaultAdmins) {
+          try {
+            await setDoc(doc(db, 'admin_emails', admin.email.toLowerCase()), {
+              telegram: admin.telegram,
+              role: admin.role
+            }, { merge: true });
+          } catch (err) {
+            console.error("Failed to seed admin:", admin.email, err);
+          }
+        }
+      } else {
+        let updatedList = [...list];
+        const super1Idx = updatedList.findIndex(a => a.email.toLowerCase() === '16killer2@gmail.com');
+        if (super1Idx === -1) {
+          updatedList.push({ email: '16killer2@gmail.com', telegram: '@secure_super_admin', role: 'super_admin' });
+        } else {
+          updatedList[super1Idx].role = 'super_admin';
+        }
+
+        const super2Idx = updatedList.findIndex(a => a.email.toLowerCase() === 'akhi.akther.ofc@gmail.com');
+        if (super2Idx === -1) {
+          updatedList.push({ email: 'akhi.akther.ofc@gmail.com', telegram: '@developer_akhi', role: 'super_admin' });
+        } else {
+          updatedList[super2Idx].role = 'super_admin';
+        }
+
+        setAdminEmails(updatedList);
+        localStorage.setItem('bt_admin_emails_v3', JSON.stringify(updatedList));
+      }
+    }, (err) => {
+      console.warn("Error loading admin_emails from Firestore:", err);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const updateAdminEmails = async (updated: AdminUser[]) => {
     setAdminEmails(updated);
     localStorage.setItem('bt_admin_emails_v3', JSON.stringify(updated));
+
+    try {
+      // Delete old admins who are no longer in the list
+      for (const oldAdmin of adminEmails) {
+        const stillExists = updated.some(u => u.email.toLowerCase() === oldAdmin.email.toLowerCase());
+        if (!stillExists) {
+          await deleteDoc(doc(db, 'admin_emails', oldAdmin.email.toLowerCase()));
+        }
+      }
+
+      // Set/update the current ones
+      for (const newAdmin of updated) {
+        await setDoc(doc(db, 'admin_emails', newAdmin.email.toLowerCase()), {
+          telegram: newAdmin.telegram || '',
+          role: newAdmin.role || 'admin'
+        }, { merge: true });
+      }
+    } catch (e) {
+      console.error("Failed to sync updated admin list with Firestore:", e);
+    }
   };
 
   const loggedInAdminRole = useMemo(() => {
@@ -1278,6 +1349,7 @@ export default function AdminPanel({
         name: u.fullName || u.username,
         phone: u.phone || '',
         email: u.email || '',
+        gender: u.gender || '',
         userPhoto: u.userPhoto || u.avatarUrl || '',
         nidFront: u.nidFront || '',
         nidBack: u.nidBack || '',
@@ -3490,9 +3562,16 @@ export default function AdminPanel({
                           <span className="text-xs text-emerald-400 font-mono font-black block mt-1 select-all">{selectedClient.phone}</span>
                         </div>
 
-                        <div className="bg-black/30 border border-white/5 p-3.5 rounded-2xl sm:col-span-2">
+                        <div className="bg-black/30 border border-white/5 p-3.5 rounded-2xl sm:col-span-1">
                           <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">EMAIL ADDRESS / ইমেইল</span>
-                          <span className="text-xs text-blue-400 font-mono font-black block mt-1 select-all">{selectedClient.email}</span>
+                          <span className="text-xs text-blue-400 font-mono font-black block mt-1 select-all">{selectedClient.email || 'No Email'}</span>
+                        </div>
+
+                        <div className="bg-black/30 border border-white/5 p-3.5 rounded-2xl sm:col-span-1">
+                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">GENDER / লিঙ্গ</span>
+                          <span className="text-xs text-[#dbaa61] font-black block mt-1 uppercase">
+                            {selectedClient.gender === 'male' ? '👨 Male / পুরুষ' : selectedClient.gender === 'female' ? '👩 Female / নারী' : 'Not Specified'}
+                          </span>
                         </div>
                       </div>
 
