@@ -35,6 +35,7 @@ import { Companion, ReferralRecord, WithdrawalRecord, MemberLevel, Booking } fro
 import { db, collection, setDoc, doc, getDoc } from '../firebase';
 import * as OTPAuth from 'otpauth';
 import QRCode from 'qrcode';
+import { compressImage } from '../services/imageService';
 
 // Custom high-fidelity brand SVGs for MFS gateways
 const BkashLogo = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -87,6 +88,25 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
   const [agentUsername, setAgentUsername] = useState(() => {
     return localStorage.getItem('bt_agent_username') || '';
   });
+
+  const [agentProfile, setAgentProfile] = useState<any | null>(null);
+
+  // Auto-fetch agent details from Firestore
+  useEffect(() => {
+    if (isLoggedIn && agentUsername) {
+      getDoc(doc(db, 'agents', agentUsername.toLowerCase()))
+        .then((docSnap) => {
+          if (docSnap.exists()) {
+            setAgentProfile(docSnap.data());
+          }
+        })
+        .catch((err) => {
+          console.warn('Failed to fetch agent profile:', err);
+        });
+    } else {
+      setAgentProfile(null);
+    }
+  }, [isLoggedIn, agentUsername]);
 
   // Login Form States
   const [loginUsername, setLoginUsername] = useState('');
@@ -594,21 +614,27 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
     const newPics: string[] = [];
 
     fileList.forEach((file: any) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (reader.result) {
-          newPics.push(reader.result as string);
-        }
-        loadedCount++;
-        if (loadedCount === fileList.length) {
-          setRecPictures(prev => {
-            const combined = [...prev, ...newPics].slice(0, 4);
-            return combined;
-          });
-          setRecPicturesLoading(false);
-        }
-      };
-      reader.readAsDataURL(file);
+      compressImage(file, 600, 600, 0.6)
+        .then((compressed) => {
+          if (compressed) {
+            newPics.push(compressed);
+          }
+          loadedCount++;
+          if (loadedCount === fileList.length) {
+            setRecPictures(prev => {
+              const combined = [...prev, ...newPics].slice(0, 4);
+              return combined;
+            });
+            setRecPicturesLoading(false);
+          }
+        })
+        .catch((err) => {
+          console.warn('Failed to compress portfolio picture:', err);
+          loadedCount++;
+          if (loadedCount === fileList.length) {
+            setRecPicturesLoading(false);
+          }
+        });
     });
   };
 
@@ -1172,14 +1198,14 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
           <div className="space-y-6">
             
             {/* 1. Header Banner */}
-            <div className="bg-gradient-to-b from-[#030a1c] to-[#010512] border border-[#dbaa61]/15 rounded-3xl p-4 sm:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-xl">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-[#a67c33] to-[#dbaa61] p-0.5 flex items-center justify-center shrink-0 shadow animate-pulse">
-                  <div className="w-full h-full rounded-full bg-[#020714] flex items-center justify-center text-[10px] sm:text-xs font-black text-[#dbaa61]">
+            <div className="bg-gradient-to-b from-[#030a1c] to-[#010512] border border-[#dbaa61]/15 rounded-3xl p-4 sm:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-6 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0 w-full">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#a67c33] to-[#dbaa61] p-0.5 flex items-center justify-center shrink-0 shadow">
+                  <div className="w-full h-full rounded-full bg-[#020714] flex items-center justify-center text-xs font-black text-[#dbaa61]">
                     {agentUsername.substring(0,2).toUpperCase()}
                   </div>
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                     <h2 className="text-base sm:text-lg font-black text-white uppercase tracking-tight truncate">
                       Agent: {agentUsername}
@@ -1188,9 +1214,28 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                       Official Partner
                     </span>
                   </div>
-                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-semibold leading-tight mt-0.5">
-                    Body Touch Affiliate, Recruiter & Master Agent Network
-                  </p>
+                  
+                  {/* Elegant Agent Profile Details Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-1 gap-x-4 mt-2 border-t border-blue-900/10 pt-2 text-[10px] sm:text-[11px] text-slate-400">
+                    <div>
+                      <span className="text-slate-500 mr-1 font-bold">নাম (Name):</span>
+                      <span className="text-[#dbaa61] font-bold">{agentProfile?.fullName || '...'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 mr-1 font-bold">মোবাইল (Phone):</span>
+                      <span className="text-white font-mono">{agentProfile?.phone || '...'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 mr-1 font-bold">নিবন্ধন (Date):</span>
+                      <span className="text-slate-300 font-mono text-[9px]">{agentProfile?.dateRegistered ? agentProfile.dateRegistered.split(',')[0] : '...'}</span>
+                    </div>
+                    {agentProfile?.email && (
+                      <div className="sm:col-span-3 mt-0.5">
+                        <span className="text-slate-500 mr-1 font-bold">ইমেইল (Email):</span>
+                        <span className="text-slate-300 font-mono text-[9.5px]">{agentProfile.email}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1897,12 +1942,15 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                                 const file = e.target.files?.[0];
                                 if (file) {
                                   setRecFileLoading(true);
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    setRecPhoto(reader.result as string);
-                                    setRecFileLoading(false);
-                                  };
-                                  reader.readAsDataURL(file);
+                                  compressImage(file, 600, 600, 0.6)
+                                    .then((compressed) => {
+                                      setRecPhoto(compressed);
+                                      setRecFileLoading(false);
+                                    })
+                                    .catch((err) => {
+                                      console.warn('Failed to compress profile photo:', err);
+                                      setRecFileLoading(false);
+                                    });
                                 }
                               }}
                               className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
@@ -2097,12 +2145,15 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                                   const file = e.target.files?.[0];
                                   if (file) {
                                     setRecSelfieLoading(true);
-                                    const reader = new FileReader();
-                                    reader.onloadend = () => {
-                                      setRecSelfie(reader.result as string);
-                                      setRecSelfieLoading(false);
-                                    };
-                                    reader.readAsDataURL(file);
+                                    compressImage(file, 600, 600, 0.6)
+                                      .then((compressed) => {
+                                        setRecSelfie(compressed);
+                                        setRecSelfieLoading(false);
+                                      })
+                                      .catch((err) => {
+                                        console.warn('Failed to compress selfie:', err);
+                                        setRecSelfieLoading(false);
+                                      });
                                   }
                                 }}
                                 className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
@@ -2128,12 +2179,15 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                                   const file = e.target.files?.[0];
                                   if (file) {
                                     setRecNidFrontLoading(true);
-                                    const reader = new FileReader();
-                                    reader.onloadend = () => {
-                                      setRecNidFront(reader.result as string);
-                                      setRecNidFrontLoading(false);
-                                    };
-                                    reader.readAsDataURL(file);
+                                    compressImage(file, 600, 600, 0.6)
+                                      .then((compressed) => {
+                                        setRecNidFront(compressed);
+                                        setRecNidFrontLoading(false);
+                                      })
+                                      .catch((err) => {
+                                        console.warn('Failed to compress NID front:', err);
+                                        setRecNidFrontLoading(false);
+                                      });
                                   }
                                 }}
                                 className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
@@ -2158,12 +2212,15 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                                     const file = e.target.files?.[0];
                                     if (file) {
                                       setRecNidBackLoading(true);
-                                      const reader = new FileReader();
-                                      reader.onloadend = () => {
-                                        setRecNidBack(reader.result as string);
-                                        setRecNidBackLoading(false);
-                                      };
-                                      reader.readAsDataURL(file);
+                                      compressImage(file, 600, 600, 0.6)
+                                        .then((compressed) => {
+                                          setRecNidBack(compressed);
+                                          setRecNidBackLoading(false);
+                                        })
+                                        .catch((err) => {
+                                          console.warn('Failed to compress NID back:', err);
+                                          setRecNidBackLoading(false);
+                                        });
                                     }
                                   }}
                                   className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"

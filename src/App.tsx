@@ -1147,27 +1147,51 @@ export default function App() {
   }, [userLevel, rememberMe]);
 
   useEffect(() => {
-    localStorage.setItem('bt_bookings', JSON.stringify(bookings));
+    try {
+      localStorage.setItem('bt_bookings', JSON.stringify(bookings));
+    } catch (e) {
+      console.warn('Failed to sync bookings to localStorage:', e);
+    }
   }, [bookings]);
 
   useEffect(() => {
-    localStorage.setItem('bt_payments', JSON.stringify(payments));
+    try {
+      localStorage.setItem('bt_payments', JSON.stringify(payments));
+    } catch (e) {
+      console.warn('Failed to sync payments to localStorage:', e);
+    }
   }, [payments]);
 
   useEffect(() => {
-    storage.setItem('bt_wallet_balance', String(walletBalance));
+    try {
+      storage.setItem('bt_wallet_balance', String(walletBalance));
+    } catch (e) {
+      console.warn('Failed to sync wallet balance to storage:', e);
+    }
   }, [walletBalance, rememberMe]);
 
   useEffect(() => {
-    localStorage.setItem('bt_companions', JSON.stringify(companions));
+    try {
+      localStorage.setItem('bt_companions', JSON.stringify(companions));
+    } catch (e) {
+      console.warn('Failed to sync companions to localStorage:', e);
+    }
   }, [companions]);
 
   useEffect(() => {
-    localStorage.setItem('bt_locations', JSON.stringify(locations));
+    try {
+      localStorage.setItem('bt_locations', JSON.stringify(locations));
+    } catch (e) {
+      console.warn('Failed to sync locations to localStorage:', e);
+    }
   }, [locations]);
 
   useEffect(() => {
-    localStorage.setItem('bt_reviews', JSON.stringify(reviews));
+    try {
+      localStorage.setItem('bt_reviews', JSON.stringify(reviews));
+    } catch (e) {
+      console.warn('Failed to sync reviews to localStorage:', e);
+    }
   }, [reviews]);
 
   useEffect(() => {

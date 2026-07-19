@@ -111,7 +111,11 @@ export async function setDoc(docRef: DocRef, data: any, options?: { merge?: bool
       finalData = { ...JSON.parse(existingStr), ...data };
     }
   }
-  localStorage.setItem(key, JSON.stringify(finalData));
+  try {
+    localStorage.setItem(key, JSON.stringify(finalData));
+  } catch (e) {
+    console.error(`[Firebase Emulation] Failed to setDoc for ${key} due to storage quota:`, e);
+  }
   
   setTimeout(() => {
     triggerListeners(docRef.collectionName, docRef.docId);
@@ -122,7 +126,11 @@ export async function addDoc(colRef: CollectionRef, data: any) {
   const docId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
   const key = `bodytouch_db_${colRef.collectionName}_${docId}`;
   const finalData = { ...data, id: docId };
-  localStorage.setItem(key, JSON.stringify(finalData));
+  try {
+    localStorage.setItem(key, JSON.stringify(finalData));
+  } catch (e) {
+    console.error(`[Firebase Emulation] Failed to addDoc for ${key} due to storage quota:`, e);
+  }
   
   setTimeout(() => {
     triggerListeners(colRef.collectionName, docId);
@@ -141,7 +149,11 @@ export async function updateDoc(docRef: DocRef, data: any) {
   if (existingStr) {
     finalData = { ...JSON.parse(existingStr), ...data };
   }
-  localStorage.setItem(key, JSON.stringify(finalData));
+  try {
+    localStorage.setItem(key, JSON.stringify(finalData));
+  } catch (e) {
+    console.error(`[Firebase Emulation] Failed to updateDoc for ${key} due to storage quota:`, e);
+  }
   
   setTimeout(() => {
     triggerListeners(docRef.collectionName, docRef.docId);
