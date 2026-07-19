@@ -1,6 +1,23 @@
 // Client-side local storage-based Pseudo-Firebase database emulation
-// This provides a fully offline, self-contained database matching the Firestore API
+// This provides a fully offline, self-contained database matching the Firestore API,
+// but can seamlessly upgrade to real Cloud Firestore when a firebase_config.json is provided!
 import { io } from 'socket.io-client';
+import { initializeApp, getApps } from 'firebase/app';
+import { 
+  getFirestore, 
+  doc as firestoreDoc, 
+  collection as firestoreCollection, 
+  query as firestoreQuery, 
+  where as firestoreWhere, 
+  limit as firestoreLimit,
+  onSnapshot as firestoreOnSnapshot, 
+  getDoc as firestoreGetDoc, 
+  setDoc as firestoreSetDoc, 
+  addDoc as firestoreAddDoc, 
+  updateDoc as firestoreUpdateDoc, 
+  deleteDoc as firestoreDeleteDoc, 
+  getDocs as firestoreGetDocs 
+} from 'firebase/firestore';
 
 export const db = {
   type: 'local_db'
@@ -9,6 +26,36 @@ export const db = {
 export const auth = {
   currentUser: null
 };
+
+// Global real Firebase handles
+let firebaseApp: any = null;
+let firestoreDb: any = null;
+
+export function getFirestoreDb() {
+  return firestoreDb;
+}
+
+export function isRealFirebaseEnabled(): boolean {
+  return firestoreDb !== null;
+}
+
+// Function to initialize real Firebase if config is available
+export function initializeRealFirebase(config: any) {
+  if (!config || !config.apiKey || !config.projectId) return false;
+  try {
+    if (getApps().length === 0) {
+      firebaseApp = initializeApp(config);
+    } else {
+      firebaseApp = getApps()[0];
+    }
+    firestoreDb = getFirestore(firebaseApp);
+    console.log("[Firebase] Successfully connected to real Cloud Firestore!");
+    return true;
+  } catch (err) {
+    console.error("[Firebase] Failed to initialize real Firebase:", err);
+    return false;
+  }
+}
 
 // Helper to sanitize document identifiers (illegal characters stripped)
 const sanitizeKey = (id: string) => id.replace(/[\/\s?#]/g, '_');
@@ -42,26 +89,44 @@ export class QueryRef {
   }
 }
 
-export function doc(db: any, collectionName: string, docId?: string): DocRef {
+export function doc(db: any, collectionName: string, docId?: string): any {
+  if (firestoreDb) {
+    if (!docId) {
+      throw new Error("doc requires docId");
+    }
+    return firestoreDoc(firestoreDb, collectionName, docId);
+  }
   if (!docId) {
     throw new Error("doc requires docId");
   }
   return new DocRef(db, collectionName, docId);
 }
 
-export function collection(db: any, collectionName: string): CollectionRef {
+export function collection(db: any, collectionName: string): any {
+  if (firestoreDb) {
+    return firestoreCollection(firestoreDb, collectionName);
+  }
   return new CollectionRef(db, collectionName);
 }
 
-export function query(collectionRef: CollectionRef, ...constraints: any[]): QueryRef {
+export function query(collectionRef: any, ...constraints: any[]): any {
+  if (firestoreDb) {
+    return firestoreQuery(collectionRef, ...constraints);
+  }
   return new QueryRef(collectionRef, constraints);
 }
 
 export function where(field: string, op: string, value: any) {
+  if (firestoreDb) {
+    return firestoreWhere(field, op as any, value);
+  }
   return { type: 'where', field, op, value };
 }
 
 export function limit(num: number) {
+  if (firestoreDb) {
+    return firestoreLimit(num);
+  }
   return { type: 'limit', num };
 }
 
@@ -98,6 +163,9 @@ if (typeof window !== 'undefined') {
     });
     
     socket.on("db_changed", (event: { collectionName: string, docId?: string, data?: any, type: 'set' | 'delete' | 'clear' }) => {
+      // If real Firebase is enabled, skip local Socket.io database sync events
+      if (firestoreDb) return;
+
       const { collectionName, docId, data, type } = event;
       if (type === 'set' && docId) {
         const key = `bodytouch_db_${collectionName}_${docId}`;
@@ -125,9 +193,9 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// Perform initial sync with server database on startup
+// Perform initial sync with server database on startup (only if not using real Firebase)
 async function initialSync() {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || firestoreDb) return;
   try {
     const res = await fetch("/api/db/get_all");
     if (res.ok) {
@@ -170,10 +238,64 @@ async function initialSync() {
   }
 }
 
-// Run the initial sync
-initialSync();
+// Auto load/check Firebase Config on startup
+if (typeof window !== 'undefined') {
+  // 1. Check local storage
+  const localConfigStr = localStorage.getItem('bodytouch_firebase_config');
+  if (localConfigStr) {
+    try {
+      const config = JSON.parse(localConfigStr);
+      initializeRealFirebase(config);
+    } catch (e) {
+      console.warn("Failed to parse local Firebase config:", e);
+    }
+  }
 
-export async function getDoc(docRef: DocRef) {
+  // 2. Async check public config file
+  fetch('/firebase_config.json')
+    .then(res => {
+      if (res.ok) return res.json();
+      throw new Error("No config file");
+    })
+    .then(config => {
+      if (config && config.apiKey) {
+        console.log("[Firebase] Found firebase_config.json, initializing real Cloud database...");
+        const success = initializeRealFirebase(config);
+        if (success) {
+          localStorage.setItem('bodytouch_firebase_config', JSON.stringify(config));
+          // If real Firebase successfully loaded, trigger listeners to update views
+          listeners.forEach(listener => {
+            if (listener.isCollection) {
+              const colRef = collection(db, listener.path);
+              getDocs(colRef).then(listener.callback).catch(e => console.error(e));
+            } else {
+              const parts = listener.path.split('/');
+              if (parts.length === 2) {
+                const docRef = doc(db, parts[0], parts[1]);
+                getDoc(docRef).then(listener.callback).catch(e => console.error(e));
+              }
+            }
+          });
+        }
+      }
+    })
+    .catch(() => {
+      // No config file, standard emulation mode is active
+      initialSync();
+    });
+}
+
+export async function getDoc(docRef: any) {
+  if (firestoreDb && !(docRef instanceof DocRef)) {
+    const snap = await firestoreGetDoc(docRef);
+    return {
+      exists: () => snap.exists(),
+      id: snap.id,
+      ref: docRef,
+      data: () => snap.data()
+    };
+  }
+
   const key = `bodytouch_db_${docRef.collectionName}_${docRef.docId}`;
   const dataStr = localStorage.getItem(key);
   const exists = dataStr !== null;
@@ -187,7 +309,12 @@ export async function getDoc(docRef: DocRef) {
 
 export const getDocFromServer = getDoc;
 
-export async function setDoc(docRef: DocRef, data: any, options?: { merge?: boolean }) {
+export async function setDoc(docRef: any, data: any, options?: { merge?: boolean }) {
+  if (firestoreDb && !(docRef instanceof DocRef)) {
+    await firestoreSetDoc(docRef, data, options);
+    return;
+  }
+
   const key = `bodytouch_db_${docRef.collectionName}_${docRef.docId}`;
   let finalData = { ...data };
   if (options?.merge) {
@@ -221,7 +348,15 @@ export async function setDoc(docRef: DocRef, data: any, options?: { merge?: bool
   }
 }
 
-export async function addDoc(colRef: CollectionRef, data: any) {
+export async function addDoc(colRef: any, data: any) {
+  if (firestoreDb && !(colRef instanceof CollectionRef)) {
+    const realDocRef = await firestoreAddDoc(colRef, data);
+    return {
+      id: realDocRef.id,
+      path: realDocRef.path
+    };
+  }
+
   const docId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
   const key = `bodytouch_db_${colRef.collectionName}_${docId}`;
   const finalData = { ...data, id: docId };
@@ -254,7 +389,12 @@ export async function addDoc(colRef: CollectionRef, data: any) {
   };
 }
 
-export async function updateDoc(docRef: DocRef, data: any) {
+export async function updateDoc(docRef: any, data: any) {
+  if (firestoreDb && !(docRef instanceof DocRef)) {
+    await firestoreUpdateDoc(docRef, data);
+    return;
+  }
+
   const key = `bodytouch_db_${docRef.collectionName}_${docRef.docId}`;
   const existingStr = localStorage.getItem(key);
   let finalData = { ...data };
@@ -286,7 +426,12 @@ export async function updateDoc(docRef: DocRef, data: any) {
   }
 }
 
-export async function deleteDoc(docRef: DocRef) {
+export async function deleteDoc(docRef: any) {
+  if (firestoreDb && !(docRef instanceof DocRef)) {
+    await firestoreDeleteDoc(docRef);
+    return;
+  }
+
   const key = `bodytouch_db_${docRef.collectionName}_${docRef.docId}`;
   localStorage.removeItem(key);
   
@@ -307,7 +452,23 @@ export async function deleteDoc(docRef: DocRef) {
   }
 }
 
-export async function getDocs(queryOrRef: CollectionRef | QueryRef) {
+export async function getDocs(queryOrRef: any) {
+  if (firestoreDb && !(queryOrRef instanceof CollectionRef) && !(queryOrRef instanceof QueryRef)) {
+    const snap = await firestoreGetDocs(queryOrRef);
+    const convertedDocs = snap.docs.map((d: any) => ({
+      id: d.id,
+      data: () => d.data()
+    }));
+    return {
+      empty: snap.empty,
+      size: snap.size,
+      docs: convertedDocs,
+      forEach: (cb: (doc: any) => void) => {
+        convertedDocs.forEach(cb);
+      }
+    };
+  }
+
   const isQuery = queryOrRef instanceof QueryRef;
   const colRef = isQuery ? (queryOrRef as QueryRef).collectionRef : (queryOrRef as CollectionRef);
   const prefix = `bodytouch_db_${colRef.collectionName}_`;
@@ -357,10 +518,37 @@ export async function getDocs(queryOrRef: CollectionRef | QueryRef) {
 }
 
 export function onSnapshot(
-  ref: DocRef | CollectionRef,
+  ref: any,
   onNext: (snapshot: any) => void,
   onError?: (error: any) => void
 ) {
+  if (firestoreDb && !(ref instanceof DocRef) && !(ref instanceof CollectionRef)) {
+    const unsubscribe = firestoreOnSnapshot(ref, (snap: any) => {
+      if (snap.docs) {
+        const convertedDocs = snap.docs.map((d: any) => ({
+          id: d.id,
+          data: () => d.data()
+        }));
+        onNext({
+          empty: snap.empty,
+          size: snap.size,
+          docs: convertedDocs,
+          forEach: (cb: (doc: any) => void) => {
+            convertedDocs.forEach(cb);
+          }
+        });
+      } else {
+        onNext({
+          exists: () => snap.exists(),
+          id: snap.id,
+          ref: ref,
+          data: () => snap.data()
+        });
+      }
+    }, onError);
+    return unsubscribe;
+  }
+
   const isCollection = ref instanceof CollectionRef;
   const path = isCollection 
     ? (ref as CollectionRef).collectionName 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, doc, getDoc, setDoc, deleteDoc, getDocFromServer, onSnapshot, collection, addDoc, updateDoc } from '../firebase';
+import { db, doc, getDoc, setDoc, deleteDoc, getDocFromServer, onSnapshot, collection, addDoc, updateDoc, isRealFirebaseEnabled, initializeRealFirebase } from '../firebase';
 import * as OTPAuth from 'otpauth';
 import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel, PromoCode } from '../types';
 import { clearCollection } from '../services/cloudService';
@@ -386,6 +386,67 @@ export default function AdminPanel({
     } catch (e: any) {
       setSmtpSaveError(e.message || 'সেভ করতে ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
     }
+  };
+
+  const handleSaveFirebaseConfig = () => {
+    setFbStatusMessage(null);
+    if (!fbApiKey.trim() || !fbProjectId.trim() || !fbAppId.trim()) {
+      setFbStatusMessage('❌ API Key, Project ID, and App ID are required keys! (অবশ্যই পূরণ করতে হবে)');
+      return;
+    }
+    const config = {
+      apiKey: fbApiKey.trim(),
+      authDomain: fbAuthDomain.trim() || `${fbProjectId.trim()}.firebaseapp.com`,
+      projectId: fbProjectId.trim(),
+      storageBucket: fbStorageBucket.trim() || `${fbProjectId.trim()}.appspot.com`,
+      messagingSenderId: fbMessagingSenderId.trim(),
+      appId: fbAppId.trim()
+    };
+    try {
+      localStorage.setItem('bodytouch_firebase_config', JSON.stringify(config));
+      const success = initializeRealFirebase(config);
+      if (success) {
+        setFbStatusMessage('✅ Firebase configuration saved and loaded! (সফলভাবে ক্লাউড ডেটাবেজে যুক্ত হয়েছে)');
+      } else {
+        setFbStatusMessage('⚠️ Config saved to local memory, but real-time validation failed. Please verify credentials!');
+      }
+    } catch (e: any) {
+      setFbStatusMessage(`❌ Error: ${e.message || 'Failed to initialize Firebase'}`);
+    }
+  };
+
+  const handleClearFirebaseConfig = () => {
+    if (window.confirm('আপনি কি সত্যিই ক্লাউড ডেটাবেজ কানেকশন মুছে ফেলে অফলাইন/হোস্টিংগার লোকাল মেমোরি মোডে ফিরে যেতে চান?')) {
+      localStorage.removeItem('bodytouch_firebase_config');
+      setFbApiKey('');
+      setFbAuthDomain('');
+      setFbProjectId('');
+      setFbStorageBucket('');
+      setFbMessagingSenderId('');
+      setFbAppId('');
+      setFbStatusMessage('⚠️ Disconnected: Cloud sync disabled. Offline/Local memory mode is now active.');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    }
+  };
+
+  const handleDownloadFirebaseConfigJson = () => {
+    const config = {
+      apiKey: fbApiKey.trim(),
+      authDomain: fbAuthDomain.trim() || `${fbProjectId.trim()}.firebaseapp.com`,
+      projectId: fbProjectId.trim(),
+      storageBucket: fbStorageBucket.trim() || `${fbProjectId.trim()}.appspot.com`,
+      messagingSenderId: fbMessagingSenderId.trim(),
+      appId: fbAppId.trim()
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", "firebase_config.json");
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
   };
 
   useEffect(() => {
@@ -1192,6 +1253,51 @@ export default function AdminPanel({
   // Tabs configured to align with User's specific requirements
   const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'memberships' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat' | 'promocodes' | 'model_ledger'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Hostinger Cloud Sync (Firebase) configuration states
+  const [fbApiKey, setFbApiKey] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bodytouch_firebase_config');
+      if (saved) return JSON.parse(saved).apiKey || '';
+    } catch (_) {}
+    return '';
+  });
+  const [fbAuthDomain, setFbAuthDomain] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bodytouch_firebase_config');
+      if (saved) return JSON.parse(saved).authDomain || '';
+    } catch (_) {}
+    return '';
+  });
+  const [fbProjectId, setFbProjectId] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bodytouch_firebase_config');
+      if (saved) return JSON.parse(saved).projectId || '';
+    } catch (_) {}
+    return '';
+  });
+  const [fbStorageBucket, setFbStorageBucket] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bodytouch_firebase_config');
+      if (saved) return JSON.parse(saved).storageBucket || '';
+    } catch (_) {}
+    return '';
+  });
+  const [fbMessagingSenderId, setFbMessagingSenderId] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bodytouch_firebase_config');
+      if (saved) return JSON.parse(saved).messagingSenderId || '';
+    } catch (_) {}
+    return '';
+  });
+  const [fbAppId, setFbAppId] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bodytouch_firebase_config');
+      if (saved) return JSON.parse(saved).appId || '';
+    } catch (_) {}
+    return '';
+  });
+  const [fbStatusMessage, setFbStatusMessage] = useState<string | null>(null);
 
   // States for manual model ledger generator
   const [ledgerModelUsername, setLedgerModelUsername] = useState('');
@@ -7270,6 +7376,183 @@ Body Touch Premium Network`;
                     )}
                   </div>
                 </form>
+              </div>
+
+              {/* =======================================================
+                  HOSTINGER & CLOUDFLARE REAL-TIME CLOUD DATABASE (FIREBASE) SETUP
+                 ======================================================= */}
+              <div className="p-5 bg-[#11131a] rounded-2xl border border-amber-500/10 space-y-5 text-left">
+                <div className="flex items-center justify-between pb-2.5 border-b border-white/5 flex-wrap gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <Database className="w-5 h-5 text-amber-500 animate-pulse" />
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-amber-400">
+                        Hostinger Cloud Sync Setup (ক্লাউড ডাটাবেজ ইন্টিগ্রেশন)
+                      </h4>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        Connect your website to real-time Cloud Firestore database. Syncs agents, companions, and orders instantly across Hostinger and Cloudflare.
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    {isRealFirebaseEnabled() ? (
+                      <span className="text-[9.5px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 py-1.5 px-3 rounded-lg flex items-center gap-1.5 font-mono">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                        🟢 Real Cloud Sync Active
+                      </span>
+                    ) : (
+                      <span className="text-[9.5px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20 py-1.5 px-3 rounded-lg flex items-center gap-1.5 font-mono">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        🟠 Local Offline Mode Active
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-[#0a0c14] border border-blue-500/10 rounded-xl text-[11px] text-slate-400 leading-relaxed font-sans font-medium space-y-1.5">
+                  <p className="text-white font-bold mb-1.5 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    হোস্টিংগার ও ক্লাউডফ্লেয়ার এ রিয়েল-টাইম ডাটা শেয়ারিং এর জন্য নির্দেশাবলি:
+                  </p>
+                  <p>
+                    ১. <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-white hover:underline font-bold">Firebase Console</a> এ গিয়ে সম্পূর্ণ ফ্রি একটি প্রজেক্ট এবং <b>Firestore Database</b> তৈরি করুন। database rules এ গিয়ে test mode সিলেক্ট করুন অথবা রিড/রাইট পারমিশন ট্রু রাখুন।
+                  </p>
+                  <p>
+                    ২. Firebase Project Settings এ গিয়ে একটি <b>Web App (+)</b> যুক্ত করে নিচের ৬টি ক্রেডেনশিয়াল সংগ্রহ করুন।
+                  </p>
+                  <p>
+                    ৩. ক্রেডেনশিয়ালগুলো নিচের বক্সে বসিয়ে <b>Save Connection</b> এ ক্লিক করুন। আপনার এই ব্রাউজারে ক্লাউড কানেকশন একটিভ হয়ে যাবে।
+                  </p>
+                  <p>
+                    ৪. এরপর <b>Download Config File</b> এ ক্লিক করে <code>firebase_config.json</code> ফাইলটি ডাউনলোড করুন।
+                  </p>
+                  <p>
+                    ৫. ফাইলটি আপনার Hostinger এর ফাইলে গিয়ে <b>public_html</b> ডিরেক্টরির ভেতর আপলোড করে দিন। ব্যাস! তাহলে সব ভিজিটর এবং কাস্টমারদের ডাটা সরাসরি আপনার ক্লাউড ফায়ারস্টোরে সেভ হবে এবং সব রিয়েল-টাইমে দেখা যাবে!
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold">
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-slate-350 tracking-wider font-mono">
+                      Firebase API Key (এপিআই কী)
+                    </label>
+                    <input
+                      type="text"
+                      value={fbApiKey}
+                      onChange={(e) => setFbApiKey(e.target.value)}
+                      placeholder="AIzaSy..."
+                      className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-slate-350 tracking-wider font-mono">
+                      Firebase Project ID (প্রজেক্ট আইডি)
+                    </label>
+                    <input
+                      type="text"
+                      value={fbProjectId}
+                      onChange={(e) => setFbProjectId(e.target.value)}
+                      placeholder="bodytouch-app"
+                      className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-slate-350 tracking-wider font-mono">
+                      Firebase App ID (অ্যাপ আইডি)
+                    </label>
+                    <input
+                      type="text"
+                      value={fbAppId}
+                      onChange={(e) => setFbAppId(e.target.value)}
+                      placeholder="1:xxxxxxxx:web:yyyy"
+                      className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-slate-350 tracking-wider font-mono text-slate-500">
+                      Auth Domain (অপショナル)
+                    </label>
+                    <input
+                      type="text"
+                      value={fbAuthDomain}
+                      onChange={(e) => setFbAuthDomain(e.target.value)}
+                      placeholder="bodytouch-app.firebaseapp.com"
+                      className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-800 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-slate-350 tracking-wider font-mono text-slate-500">
+                      Storage Bucket (অপショナル)
+                    </label>
+                    <input
+                      type="text"
+                      value={fbStorageBucket}
+                      onChange={(e) => setFbStorageBucket(e.target.value)}
+                      placeholder="bodytouch-app.appspot.com"
+                      className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-800 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-slate-350 tracking-wider font-mono text-slate-500">
+                      Messaging Sender ID (অপショナル)
+                    </label>
+                    <input
+                      type="text"
+                      value={fbMessagingSenderId}
+                      onChange={(e) => setFbMessagingSenderId(e.target.value)}
+                      placeholder="1234567890"
+                      className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-800 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {fbStatusMessage && (
+                  <div className={`p-3 rounded-xl text-xs font-bold leading-relaxed border ${
+                    fbStatusMessage.startsWith('❌') ? 'bg-rose-950/20 border-rose-500/20 text-rose-450' : 
+                    fbStatusMessage.startsWith('⚠️') ? 'bg-amber-950/20 border-amber-500/20 text-amber-400' :
+                    'bg-emerald-950/20 border-emerald-500/20 text-emerald-400'
+                  }`}>
+                    {fbStatusMessage}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleSaveFirebaseConfig}
+                    className="bg-indigo-600 hover:bg-indigo-550 text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg active:scale-98 font-mono"
+                  >
+                    <Save className="w-4 h-4 text-white" />
+                    Save Connection
+                  </button>
+
+                  {fbApiKey.trim() && (
+                    <button
+                      type="button"
+                      onClick={handleDownloadFirebaseConfigJson}
+                      className="bg-emerald-600 hover:bg-emerald-550 text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg active:scale-98 font-mono"
+                    >
+                      <Upload className="w-4 h-4 text-white" />
+                      Download Config File
+                    </button>
+                  )}
+
+                  {isRealFirebaseEnabled() && (
+                    <button
+                      type="button"
+                      onClick={handleClearFirebaseConfig}
+                      className="bg-rose-950/30 hover:bg-rose-900/40 border border-rose-500/25 text-rose-450 hover:text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 active:scale-98 font-mono"
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-550" />
+                      Disconnect
+                    </button>
+                  )}
+                </div>
               </div>
 
 
