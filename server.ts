@@ -434,6 +434,100 @@ async function startServer() {
 
   app.use(express.json());
 
+  const DB_STORE_FILE = path.join(process.cwd(), "db_store.json");
+
+  function loadDbStore() {
+    try {
+      if (fs.existsSync(DB_STORE_FILE)) {
+        return JSON.parse(fs.readFileSync(DB_STORE_FILE, "utf8"));
+      }
+    } catch (err) {
+      console.error("Failed to load db store:", err);
+    }
+    return {};
+  }
+
+  function saveDbStore(data: any) {
+    try {
+      fs.writeFileSync(DB_STORE_FILE, JSON.stringify(data, null, 2), "utf8");
+    } catch (err) {
+      console.error("Failed to save db store:", err);
+    }
+  }
+
+  // API Routes for Server-side Shared Database Store
+  app.get("/api/db/get_all", (req, res) => {
+    try {
+      const dbStore = loadDbStore();
+      return res.status(200).json(dbStore);
+    } catch (err: any) {
+      console.error("Failed to get db store:", err);
+      return res.status(500).json({ error: err.message || "Failed to load database." });
+    }
+  });
+
+  app.post("/api/db/set_doc", (req, res) => {
+    try {
+      const { collectionName, docId, data, merge } = req.body;
+      if (!collectionName || !docId) {
+        return res.status(400).json({ error: "Missing collectionName or docId" });
+      }
+      
+      const dbStore = loadDbStore();
+      if (!dbStore[collectionName]) {
+        dbStore[collectionName] = {};
+      }
+      
+      if (merge && dbStore[collectionName][docId]) {
+        dbStore[collectionName][docId] = { ...dbStore[collectionName][docId], ...data };
+      } else {
+        dbStore[collectionName][docId] = data;
+      }
+      
+      saveDbStore(dbStore);
+      
+      // Broadcast real-time db change to all connected clients
+      io.emit("db_changed", {
+        collectionName,
+        docId,
+        data: dbStore[collectionName][docId],
+        type: "set"
+      });
+      
+      return res.status(200).json({ success: true });
+    } catch (err: any) {
+      console.error("Failed to set doc on server:", err);
+      return res.status(500).json({ error: err.message || "Failed to save document." });
+    }
+  });
+
+  app.post("/api/db/delete_doc", (req, res) => {
+    try {
+      const { collectionName, docId } = req.body;
+      if (!collectionName || !docId) {
+        return res.status(400).json({ error: "Missing collectionName or docId" });
+      }
+      
+      const dbStore = loadDbStore();
+      if (dbStore[collectionName]) {
+        delete dbStore[collectionName][docId];
+        saveDbStore(dbStore);
+      }
+      
+      // Broadcast real-time delete to all connected clients
+      io.emit("db_changed", {
+        collectionName,
+        docId,
+        type: "delete"
+      });
+      
+      return res.status(200).json({ success: true });
+    } catch (err: any) {
+      console.error("Failed to delete doc on server:", err);
+      return res.status(500).json({ error: err.message || "Failed to delete document." });
+    }
+  });
+
   // Early diagnostic route for internal control plane status check
   app.get("/__aistudio_internal_control_plane/dev/status", (req, res) => {
     res.json({ status: "ok" });

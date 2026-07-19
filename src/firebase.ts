@@ -1,5 +1,6 @@
 // Client-side local storage-based Pseudo-Firebase database emulation
 // This provides a fully offline, self-contained database matching the Firestore API
+import { io } from 'socket.io-client';
 
 export const db = {
   type: 'local_db'
@@ -88,6 +89,90 @@ function triggerListeners(collectionName: string, docId?: string) {
   }
 }
 
+// Establish Socket.io connection for real-time client-to-client updates on Hostinger
+let socket: any = null;
+if (typeof window !== 'undefined') {
+  try {
+    socket = io(window.location.origin, {
+      transports: ["websocket", "polling"]
+    });
+    
+    socket.on("db_changed", (event: { collectionName: string, docId?: string, data?: any, type: 'set' | 'delete' | 'clear' }) => {
+      const { collectionName, docId, data, type } = event;
+      if (type === 'set' && docId) {
+        const key = `bodytouch_db_${collectionName}_${docId}`;
+        localStorage.setItem(key, JSON.stringify(data));
+        triggerListeners(collectionName, docId);
+      } else if (type === 'delete' && docId) {
+        const key = `bodytouch_db_${collectionName}_${docId}`;
+        localStorage.removeItem(key);
+        triggerListeners(collectionName, docId);
+      } else if (type === 'clear') {
+        const prefix = `bodytouch_db_${collectionName}_`;
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(prefix)) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        triggerListeners(collectionName);
+      }
+    });
+  } catch (err) {
+    console.warn("Failed to initialize Socket.io client for database sync:", err);
+  }
+}
+
+// Perform initial sync with server database on startup
+async function initialSync() {
+  if (typeof window === 'undefined') return;
+  try {
+    const res = await fetch("/api/db/get_all");
+    if (res.ok) {
+      const serverDb = await res.json();
+      Object.keys(serverDb).forEach(collectionName => {
+        const collectionData = serverDb[collectionName];
+        const prefix = `bodytouch_db_${collectionName}_`;
+        
+        // Remove existing local storage keys for this collection to ensure accurate state alignment
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(prefix)) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+
+        // Insert fresh server documents
+        Object.keys(collectionData).forEach(docId => {
+          const key = `${prefix}${docId}`;
+          localStorage.setItem(key, JSON.stringify(collectionData[docId]));
+        });
+      });
+      
+      // Trigger all listeners to refresh current active pages
+      listeners.forEach(listener => {
+        if (listener.isCollection) {
+          triggerListeners(listener.path);
+        } else {
+          const parts = listener.path.split('/');
+          if (parts.length === 2) {
+            triggerListeners(parts[0], parts[1]);
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.warn("Initial DB sync failed (normal if server is starting/offline):", err);
+  }
+}
+
+// Run the initial sync
+initialSync();
+
 export async function getDoc(docRef: DocRef) {
   const key = `bodytouch_db_${docRef.collectionName}_${docRef.docId}`;
   const dataStr = localStorage.getItem(key);
@@ -117,9 +202,23 @@ export async function setDoc(docRef: DocRef, data: any, options?: { merge?: bool
     console.error(`[Firebase Emulation] Failed to setDoc for ${key} due to storage quota:`, e);
   }
   
-  setTimeout(() => {
-    triggerListeners(docRef.collectionName, docRef.docId);
-  }, 10);
+  triggerListeners(docRef.collectionName, docRef.docId);
+
+  // Sync to server database in background
+  try {
+    fetch("/api/db/set_doc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        collectionName: docRef.collectionName,
+        docId: docRef.docId,
+        data: finalData,
+        merge: options?.merge
+      })
+    }).catch(err => console.warn("Failed background set_doc sync:", err));
+  } catch (err) {
+    // Non-blocking
+  }
 }
 
 export async function addDoc(colRef: CollectionRef, data: any) {
@@ -132,9 +231,22 @@ export async function addDoc(colRef: CollectionRef, data: any) {
     console.error(`[Firebase Emulation] Failed to addDoc for ${key} due to storage quota:`, e);
   }
   
-  setTimeout(() => {
-    triggerListeners(colRef.collectionName, docId);
-  }, 10);
+  triggerListeners(colRef.collectionName, docId);
+  
+  // Sync to server database in background
+  try {
+    fetch("/api/db/set_doc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        collectionName: colRef.collectionName,
+        docId: docId,
+        data: finalData
+      })
+    }).catch(err => console.warn("Failed background addDoc sync:", err));
+  } catch (err) {
+    // Non-blocking
+  }
   
   return {
     id: docId,
@@ -155,18 +267,44 @@ export async function updateDoc(docRef: DocRef, data: any) {
     console.error(`[Firebase Emulation] Failed to updateDoc for ${key} due to storage quota:`, e);
   }
   
-  setTimeout(() => {
-    triggerListeners(docRef.collectionName, docRef.docId);
-  }, 10);
+  triggerListeners(docRef.collectionName, docRef.docId);
+
+  // Sync to server database in background
+  try {
+    fetch("/api/db/set_doc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        collectionName: docRef.collectionName,
+        docId: docRef.docId,
+        data: finalData,
+        merge: true
+      })
+    }).catch(err => console.warn("Failed background updateDoc sync:", err));
+  } catch (err) {
+    // Non-blocking
+  }
 }
 
 export async function deleteDoc(docRef: DocRef) {
   const key = `bodytouch_db_${docRef.collectionName}_${docRef.docId}`;
   localStorage.removeItem(key);
   
-  setTimeout(() => {
-    triggerListeners(docRef.collectionName, docRef.docId);
-  }, 10);
+  triggerListeners(docRef.collectionName, docRef.docId);
+
+  // Sync to server database in background
+  try {
+    fetch("/api/db/delete_doc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        collectionName: docRef.collectionName,
+        docId: docRef.docId
+      })
+    }).catch(err => console.warn("Failed background deleteDoc sync:", err));
+  } catch (err) {
+    // Non-blocking
+  }
 }
 
 export async function getDocs(queryOrRef: CollectionRef | QueryRef) {
