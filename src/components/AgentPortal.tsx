@@ -36,6 +36,7 @@ import { db, collection, setDoc, doc, getDoc } from '../firebase';
 import * as OTPAuth from 'otpauth';
 import QRCode from 'qrcode';
 import { compressImage } from '../services/imageService';
+import { cleanUndefined } from '../services/cloudService';
 
 // Custom high-fidelity brand SVGs for MFS gateways
 const BkashLogo = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -236,7 +237,7 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
       // Fallback: If agent exists but doesn't have a password set yet, set the entered password as their password so they don't get locked out!
       if (!agentData.password) {
         const updatedData = { ...agentData, password: cleanPassword };
-        await setDoc(agentDocRef, updatedData);
+        await setDoc(agentDocRef, cleanUndefined(updatedData));
       } else if (agentData.password !== cleanPassword) {
         triggerToast('ভুল পাসকোড / পাসওয়ার্ড! অনুগ্রহ করে সঠিক তথ্য দিন।', 'error');
         setIsSending(false);
@@ -303,7 +304,7 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
         dateRegistered: new Date().toLocaleString()
       };
 
-      await setDoc(agentDocRef, agentDetails);
+      await setDoc(agentDocRef, cleanUndefined(agentDetails));
 
       // Transition straight to TOTP Setup
       const charSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -593,7 +594,7 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
     
     // Save to Firestore
     try {
-      setDoc(doc(db, 'withdrawals', newWd.id), newWd);
+      setDoc(doc(db, 'withdrawals', newWd.id), cleanUndefined(newWd));
     } catch (err) {
       console.warn('Failed to sync withdrawal with firestore:', err);
     }
@@ -706,7 +707,7 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
 
     // Save to Firestore
     try {
-      setDoc(doc(db, 'companions', newComp.id), newComp);
+      setDoc(doc(db, 'companions', newComp.id), cleanUndefined(newComp));
     } catch (err) {
       console.warn('Failed to save recruited companion:', err);
     }
