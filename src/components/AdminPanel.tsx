@@ -1762,6 +1762,7 @@ export default function AdminPanel({
   // Location form states
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
   const [showLocationForm, setShowLocationForm] = useState(false);
+  const [adminLocationTab, setAdminLocationTab] = useState<'ALL' | 'HOTELS' | 'SAFE HOUSES'>('ALL');
   const [locName, setLocName] = useState('');
   const [locStar, setLocStar] = useState('5 STAR');
   const [locCity, setLocCity] = useState('Dhaka');
@@ -5970,14 +5971,61 @@ Body Touch Premium Network`;
 
                     {/* Image preset suite */}
                     <div className="space-y-2 sm:col-span-2">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono">Hotel Suite Photo Preset URL *</label>
-                      <input
-                        type="text"
-                        value={locImage}
-                        onChange={(e) => setLocImage(e.target.value)}
-                        placeholder="Paste unsplash hotel room URL"
-                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-650 focus:outline-none focus:border-blue-500"
-                      />
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono font-sans">Hotel Suite Photo * (ছবি আপলোড করুন অথবা লিংক বসান)</label>
+                      
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <input
+                          type="text"
+                          value={locImage}
+                          onChange={(e) => setLocImage(e.target.value)}
+                          placeholder="Paste image URL, or click upload on right..."
+                          className="flex-1 bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-650 focus:outline-none focus:border-blue-500 text-xs"
+                        />
+                        
+                        <div className="relative shrink-0">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            id="hotel-image-upload"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                compressImage(file, 1200, 800, 0.75).then((compressedUrl) => {
+                                  if (compressedUrl) {
+                                    setLocImage(compressedUrl);
+                                  }
+                                });
+                              }
+                            }}
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor="hotel-image-upload"
+                            className="bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300 border border-blue-500/20 text-[10px] font-black uppercase px-4 py-2.5 rounded-xl cursor-pointer transition flex items-center gap-1.5 h-full"
+                          >
+                            <Upload className="w-3.5 h-3.5 text-blue-400" />
+                            Upload Image / ছবি আপলোড
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Preview if uploaded or selected */}
+                      {locImage && (
+                        <div className="flex items-center gap-3 bg-black/40 p-2 rounded-xl border border-blue-500/10 w-fit mt-1">
+                          <img src={locImage} alt="Preview" className="w-12 h-8 rounded-lg object-cover border border-slate-800" />
+                          <div className="text-left">
+                            <span className="block text-[9px] text-[#2ebdff] font-bold uppercase tracking-wider">Hotel Image Preview</span>
+                            <span className="text-[8px] text-slate-500 block max-w-xs truncate">{locImage.startsWith('data:') ? 'Local Image Base64 Data' : locImage}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setLocImage('')}
+                            className="p-1 hover:bg-white/5 rounded text-rose-500 text-xs font-bold transition ml-2 cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      )}
 
                       {/* Presets inside form */}
                       <div className="pt-2">
@@ -6246,9 +6294,38 @@ Body Touch Premium Network`;
                 </form>
               )}
 
+              {/* Category Switcher Toggles (ALL | HOTELS | SAFE HOUSES) */}
+              <div className="flex bg-[#0a0c13] border border-slate-800 p-1 rounded-2xl w-fit shadow-inner">
+                {(['ALL', 'HOTELS', 'SAFE HOUSES'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setAdminLocationTab(tab)}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                      adminLocationTab === tab
+                        ? 'bg-[#181d2a] text-blue-400 border border-blue-500/10 shadow-md font-bold'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {tab === 'ALL' && <Hotel className="w-3 h-3 text-slate-400" />}
+                    {tab === 'HOTELS' && <Hotel className="w-3 h-3 text-amber-500" />}
+                    {tab === 'SAFE HOUSES' && <ShieldCheck className="w-3 h-3 text-blue-400" />}
+                    <span>{tab === 'SAFE HOUSES' ? 'SAFE HOUSES (সেফ হাউস)' : tab === 'HOTELS' ? 'HOTELS (হোটেল)' : 'ALL (সব)'}</span>
+                  </button>
+                ))}
+              </div>
+
               {/* List of active locations */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[480px] overflow-y-auto pr-1 scrollbar-none">
-                {locations.map((loc) => (
+                {locations
+                  .filter((loc) => {
+                    if (adminLocationTab === 'ALL') return true;
+                    const isSafeHouse = loc.star.toUpperCase().includes('SAFE HOUSE');
+                    if (adminLocationTab === 'SAFE HOUSES') return isSafeHouse;
+                    if (adminLocationTab === 'HOTELS') return !isSafeHouse;
+                    return true;
+                  })
+                  .map((loc) => (
                   <div
                     key={loc.id}
                     className="bg-[#11131a] border border-[#1d232a] hover:border-blue-500/20 rounded-2xl p-4 flex gap-3 relative justify-between transition-all"
