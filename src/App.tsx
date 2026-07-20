@@ -906,7 +906,7 @@ export default function App() {
   const filteredHotelLocations = useMemo(() => {
     return locations.filter((loc) => {
       // 1. Filter by location type (Hotels vs Safe Houses)
-      const isSafeHouse = loc.star.toUpperCase().includes('SAFE HOUSE');
+      const isSafeHouse = loc.star && typeof loc.star === 'string' && loc.star.toUpperCase().includes('SAFE HOUSE');
       if (locationTypeTab === 'SAFE HOUSES' && !isSafeHouse) return false;
       if (locationTypeTab === 'HOTELS' && isSafeHouse) return false;
 
@@ -929,7 +929,7 @@ export default function App() {
       // 4. Filter by stars
       if (locationRatingFilter !== 'ALL RATINGS') {
         const starNum = parseInt(locationRatingFilter); // e.g. "5★" -> 5
-        const locStarStr = loc.star.toUpperCase();
+        const locStarStr = (loc.star || '').toUpperCase();
         
         if (starNum === 5) {
           if (!locStarStr.includes('5') && !locStarStr.includes('FIVE')) return false;

@@ -12,14 +12,14 @@ interface LocationCardProps {
 export default function LocationCard({ location, onMapClick, onReserveClick }: LocationCardProps) {
   // Determine premium status badge based on star/price
   const getBadgeInfo = (star: string) => {
-    const s = star.toUpperCase();
+    const s = (star || '').toUpperCase();
     if (s.includes('5 STAR') || s.includes('PREMIUM') || s.includes('VIP')) {
       return { text: 'PREMIUM', classes: 'bg-amber-950/75 text-amber-400 border border-amber-500/30' };
     }
     return { text: 'OPEN', classes: 'bg-emerald-950/75 text-emerald-400 border border-emerald-500/30' };
   };
 
-  const badge = getBadgeInfo(location.star);
+  const badge = getBadgeInfo(location.star || '');
 
   // Clean fallback helper for address subtitle
   const getSubtitle = (name: string, addr: string | undefined, desc: string) => {

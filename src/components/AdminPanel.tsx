@@ -2064,7 +2064,7 @@ export default function AdminPanel({
   const handleEditLocation = (loc: HotelLocation) => {
     setEditingLocationId(loc.id);
     setLocName(loc.name);
-    setLocStar(loc.star);
+    setLocStar(loc.star || '5 STAR');
     setLocCity(loc.location);
     setLocImage(loc.image);
     setLocDesc(loc.description);
@@ -6320,7 +6320,7 @@ Body Touch Premium Network`;
                 {locations
                   .filter((loc) => {
                     if (adminLocationTab === 'ALL') return true;
-                    const isSafeHouse = loc.star.toUpperCase().includes('SAFE HOUSE');
+                    const isSafeHouse = loc.star && typeof loc.star === 'string' && loc.star.toUpperCase().includes('SAFE HOUSE');
                     if (adminLocationTab === 'SAFE HOUSES') return isSafeHouse;
                     if (adminLocationTab === 'HOTELS') return !isSafeHouse;
                     return true;
