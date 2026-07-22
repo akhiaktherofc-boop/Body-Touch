@@ -229,7 +229,7 @@ export default function BookingModal({
       const isReal = companion.isRealActive !== false;
       const isCam = companion.isCamActive !== false;
       const isMakeOut = companion.isMakeOutActive !== false;
-      const isLive = companion.isLiveTogetherActive !== false && (companion.category || 'Female Model') === 'Female Model';
+      const isLive = companion.isLiveTogetherActive !== false && (companion.category || 'Female Model') !== 'Sperm Donor';
 
       if (selectedService === 'REAL' && !isReal) {
         if (isCam) setSelectedService('CAM');
@@ -1138,7 +1138,7 @@ export default function BookingModal({
                           )}
 
                           {/* TOUR VIEW */}
-                          {companion.isLiveTogetherActive !== false && (companion.category || 'Female Model') === 'Female Model' && (
+                          {companion.isLiveTogetherActive !== false && (companion.category || 'Female Model') !== 'Sperm Donor' && (
                             <button
                               type="button"
                               onClick={() => handleServiceChange('LIVE_TOGETHER')}

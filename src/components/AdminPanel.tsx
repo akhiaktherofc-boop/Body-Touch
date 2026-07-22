@@ -1982,7 +1982,7 @@ export default function AdminPanel({
             isRealActive: compIsRealActive,
             isCamActive: compIsCamActive,
             isMakeOutActive: compIsMakeOutActive,
-            isLiveTogetherActive: compCategory === 'Female Model' ? compIsLiveTogetherActive : false,
+            isLiveTogetherActive: compCategory !== 'Sperm Donor' ? compIsLiveTogetherActive : false,
             rateReal_1h: compRateReal_1h !== '' ? Number(compRateReal_1h) : undefined,
             rateReal_2h: compRateReal_2h !== '' ? Number(compRateReal_2h) : undefined,
             rateReal_3h: compRateReal_3h !== '' ? Number(compRateReal_3h) : undefined,
@@ -2040,7 +2040,7 @@ export default function AdminPanel({
         isRealActive: compIsRealActive,
         isCamActive: compIsCamActive,
         isMakeOutActive: compIsMakeOutActive,
-        isLiveTogetherActive: compCategory === 'Female Model' ? compIsLiveTogetherActive : false,
+        isLiveTogetherActive: compCategory !== 'Sperm Donor' ? compIsLiveTogetherActive : false,
         rateReal_1h: compRateReal_1h !== '' ? Number(compRateReal_1h) : undefined,
         rateReal_2h: compRateReal_2h !== '' ? Number(compRateReal_2h) : undefined,
         rateReal_3h: compRateReal_3h !== '' ? Number(compRateReal_3h) : undefined,
@@ -4588,7 +4588,7 @@ export default function AdminPanel({
                       </div>
 
                       {/* 4. TOUR SERVICE CONTROL */}
-                      {compCategory === 'Female Model' && (
+                      {compCategory !== 'Sperm Donor' && (
                         <div className="border border-slate-800/80 rounded-xl p-3 bg-black/40 space-y-3 col-span-1 sm:col-span-2">
                           <div className="flex items-center justify-between border-b border-slate-855 pb-2">
                             <label className="flex items-center space-x-2.5 cursor-pointer select-none">

@@ -295,10 +295,10 @@ export default function CompanionModal({
                     </div>
                   )}
 
-                  {companion.isLiveTogetherActive !== false && (companion.category || 'Female Model') === 'Female Model' && (
+                  {companion.isLiveTogetherActive !== false && (companion.category || 'Female Model') !== 'Sperm Donor' && (
                     <div className="space-y-1.5 animate-fadeIn">
                       <div className="flex justify-between items-center text-xs font-bold bg-black/40 p-2 rounded-xl border border-purple-500/5">
-                        <span className="flex items-center gap-1.5 text-slate-200">
+                        <span className="flex items-center gap-1.5 text-slate-200 font-sans">
                           <Users className="w-3.5 h-3.5 text-purple-405" /> Tour / ট্যুর
                         </span>
                         {(!companion.customLiveTogetherRates || companion.customLiveTogetherRates.length === 0) && (
@@ -320,7 +320,7 @@ export default function CompanionModal({
                     </div>
                   )}
 
-                  {companion.isRealActive === false && companion.isCamActive === false && companion.isMakeOutActive === false && (companion.isLiveTogetherActive === false || (companion.category || 'Female Model') !== 'Female Model') && (
+                  {companion.isRealActive === false && companion.isCamActive === false && companion.isMakeOutActive === false && (companion.isLiveTogetherActive === false || (companion.category || 'Female Model') === 'Sperm Donor') && (
                     <p className="text-[10px] text-rose-500 italic">No services currently enabled by the model.</p>
                   )}
                 </div>
