@@ -541,9 +541,17 @@ html {
 
 /* Secure Blurred Overlay when screenshot/recording is active, or tab loses focus */
 .screenshot-shield-blur {
-  filter: blur(40px) brightness(0.15) !important;
+  filter: blur(55px) brightness(0.04) !important;
   pointer-events: none !important;
-  transition: filter 0.15s cubic-bezier(0.1, 0.9, 0.2, 1) !important;
+  transition: none !important; /* Instant blur to prevent screenshot capture */
+}
+
+@media print {
+  body, html, #root {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
 }
 
 

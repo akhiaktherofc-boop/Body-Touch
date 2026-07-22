@@ -171,6 +171,11 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
   const [recName, setRecName] = useState('');
   const [recAge, setRecAge] = useState('22');
   const [recHeight, setRecHeight] = useState("5'4\"");
+  const [recBust, setRecBust] = useState('');
+  const [recWaist, setRecWaist] = useState('');
+  const [recHip, setRecHip] = useState('');
+  const [recWeight, setRecWeight] = useState('');
+  const [recBodyColor, setRecBodyColor] = useState('');
   const [recRate, setRecRate] = useState('15000');
   const [recSpecialty, setRecSpecialty] = useState('VIP Escort & High Society Dating');
   const [recSubArea, setRecSubArea] = useState('Gulshan');
@@ -179,6 +184,8 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
   const [recPhoto, setRecPhoto] = useState('');
   const [recNid, setRecNid] = useState('');
   const [recCategory, setRecCategory] = useState<'Female Model' | 'Male Model' | 'Sperm Donor'>('Female Model');
+  const [recPenisSize, setRecPenisSize] = useState('');
+  const [recDurationTime, setRecDurationTime] = useState('');
   const [recPhone, setRecPhone] = useState('');
   const [recEmail, setRecEmail] = useState('');
   const [recFileLoading, setRecFileLoading] = useState(false);
@@ -643,15 +650,26 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
     setRecPictures(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Handle Companion Recruitment submission
-  const handleRecruitmentSubmit = (e?: React.FormEvent, isConfirmedPayment = false) => {
-    if (e) e.preventDefault();
-    if (!recName.trim() || !recRate.trim()) {
-      triggerToast('মডেলের নাম এবং রেট দেওয়া আবশ্যক।', 'error');
-      return;
-    }
+    // Handle Companion Recruitment submission
+    const handleRecruitmentSubmit = (e?: React.FormEvent, isConfirmedPayment = false) => {
+      if (e) e.preventDefault();
+      if (!recName.trim() || !recRate.trim()) {
+        triggerToast('মডেলের নাম এবং রেট দেওয়া আবশ্যক।', 'error');
+        return;
+      }
 
-    if (recCategory === 'Male Model' && !isConfirmedPayment) {
+      if (recCategory === 'Male Model') {
+        if (!recPenisSize.trim()) {
+          triggerToast('লিঙ্গের আকার উল্লেখ করা আবশ্যক।', 'error');
+          return;
+        }
+        if (!recDurationTime.trim()) {
+          triggerToast('সহবাসের স্থায়িত্বকাল উল্লেখ করা আবশ্যক।', 'error');
+          return;
+        }
+      }
+
+      if (recCategory === 'Male Model' && !isConfirmedPayment) {
       // Intercept and open the high-fidelity payment modal exactly like client's gateway
       setShowRecPaymentModal(true);
       return;
@@ -677,9 +695,16 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
       isRealActive: recIsRealActive,
       isCamActive: recIsCamActive,
       isMakeOutActive: recIsMakeOutActive,
-      isLiveTogetherActive: recIsLiveTogetherActive,
+      isLiveTogetherActive: recCategory === 'Female Model' ? recIsLiveTogetherActive : false,
       age: parseInt(recAge) || 22,
       height: recHeight,
+      bust: recCategory === 'Female Model' ? (recBust.trim() || undefined) : undefined,
+      waist: recCategory === 'Female Model' ? (recWaist.trim() || undefined) : undefined,
+      hip: recCategory === 'Female Model' ? (recHip.trim() || undefined) : undefined,
+      weight: recCategory === 'Female Model' ? (recWeight.trim() || undefined) : undefined,
+      bodyColor: recCategory === 'Female Model' ? (recBodyColor.trim() || undefined) : undefined,
+      penisSize: recCategory === 'Male Model' ? (recPenisSize.trim() || undefined) : undefined,
+      durationTime: recCategory === 'Male Model' ? (recDurationTime.trim() || undefined) : undefined,
       languages: recLanguages.split(',').map(s => s.trim()),
       specialty: recSpecialty.trim(),
       rate: parseInt(recRate) || 15000,
@@ -722,6 +747,13 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
     setRecName('');
     setRecAge('22');
     setRecHeight("5'4\"");
+    setRecBust('');
+    setRecWaist('');
+    setRecHip('');
+    setRecWeight('');
+    setRecBodyColor('');
+    setRecPenisSize('');
+    setRecDurationTime('');
     setRecRate('15000');
     setRecSpecialty('VIP Escort & High Society Dating');
     setRecSubArea('Gulshan');
@@ -1883,6 +1915,127 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                         </select>
                       </div>
 
+                      {/* Physical Figures - Especially for Female Models */}
+                      {recCategory === 'Female Model' && (
+                        <div className="md:col-span-2 bg-pink-500/5 border border-pink-500/15 p-4 rounded-2xl space-y-3 my-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-pink-400">✨</span>
+                            <h4 className="text-[10px] font-black uppercase text-pink-400 tracking-wider">
+                              ফিমেল মডেল ফিগার পরিমাপ ও গায়ের রং (Body Figure & Appearance Details)
+                            </h4>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                            <div className="space-y-1">
+                              <label className="block text-[8.5px] text-pink-300 font-extrabold uppercase tracking-wider">
+                                স্তন/বুক (Bust - ইঞ্চি)
+                              </label>
+                              <input 
+                                type="text" 
+                                value={recBust}
+                                onChange={(e) => setRecBust(e.target.value)}
+                                placeholder="e.g. 34" 
+                                className="w-full bg-slate-950 border border-pink-900/30 focus:border-[#dbaa61] text-white rounded-xl py-2 px-2.5 text-xs focus:outline-none transition-all font-mono"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="block text-[8.5px] text-pink-300 font-extrabold uppercase tracking-wider">
+                                কোমর (Waist - ইঞ্চি)
+                              </label>
+                              <input 
+                                type="text" 
+                                value={recWaist}
+                                onChange={(e) => setRecWaist(e.target.value)}
+                                placeholder="e.g. 26" 
+                                className="w-full bg-slate-950 border border-pink-900/30 focus:border-[#dbaa61] text-white rounded-xl py-2 px-2.5 text-xs focus:outline-none transition-all font-mono"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="block text-[8.5px] text-pink-300 font-extrabold uppercase tracking-wider">
+                                নিতম্ব (Hips - ইঞ্চি)
+                              </label>
+                              <input 
+                                type="text" 
+                                value={recHip}
+                                onChange={(e) => setRecHip(e.target.value)}
+                                placeholder="e.g. 36" 
+                                className="w-full bg-slate-950 border border-pink-900/30 focus:border-[#dbaa61] text-white rounded-xl py-2 px-2.5 text-xs focus:outline-none transition-all font-mono"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="block text-[8.5px] text-pink-300 font-extrabold uppercase tracking-wider">
+                                ওজন (Weight - কেজি)
+                              </label>
+                              <input 
+                                type="text" 
+                                value={recWeight}
+                                onChange={(e) => setRecWeight(e.target.value)}
+                                placeholder="e.g. 48 kg" 
+                                className="w-full bg-slate-950 border border-pink-900/30 focus:border-[#dbaa61] text-white rounded-xl py-2 px-2.5 text-xs focus:outline-none transition-all font-mono"
+                              />
+                            </div>
+
+                            <div className="space-y-1 col-span-2 sm:col-span-1">
+                              <label className="block text-[8.5px] text-pink-300 font-extrabold uppercase tracking-wider">
+                                গায়ের রং (Skin Tone)
+                              </label>
+                              <input 
+                                type="text" 
+                                value={recBodyColor}
+                                onChange={(e) => setRecBodyColor(e.target.value)}
+                                placeholder="e.g. Bright Fair" 
+                                className="w-full bg-slate-950 border border-pink-900/30 focus:border-[#dbaa61] text-white rounded-xl py-2 px-2.5 text-xs focus:outline-none transition-all"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Penis size & Duration time - For Male Models */}
+                      {recCategory === 'Male Model' && (
+                        <div className="md:col-span-2 bg-indigo-500/5 border border-indigo-500/15 p-4 rounded-2xl space-y-3 my-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-indigo-400">🍆</span>
+                            <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">
+                              মেল মডেলের শারীরিক বিবরণ (Male Model Physical Details)
+                            </h4>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="block text-[8.5px] text-indigo-300 font-extrabold uppercase tracking-wider">
+                                লিঙ্গের আকার (Penis Size - ইঞ্চি/inch) *
+                              </label>
+                              <input 
+                                type="text" 
+                                required
+                                value={recPenisSize}
+                                onChange={(e) => setRecPenisSize(e.target.value)}
+                                placeholder="e.g. 6.5 inch" 
+                                className="w-full bg-slate-950 border border-indigo-900/30 focus:border-[#dbaa61] text-white rounded-xl py-2 px-2.5 text-xs focus:outline-none transition-all font-mono"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="block text-[8.5px] text-indigo-300 font-extrabold uppercase tracking-wider">
+                                সহবাসের স্থায়িত্বকাল (Duration Time) *
+                              </label>
+                              <input 
+                                type="text" 
+                                required
+                                value={recDurationTime}
+                                onChange={(e) => setRecDurationTime(e.target.value)}
+                                placeholder="e.g. 35-45 minutes" 
+                                className="w-full bg-slate-950 border border-indigo-900/30 focus:border-[#dbaa61] text-white rounded-xl py-2 px-2.5 text-xs focus:outline-none transition-all"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="space-y-1">
                         <label className="block text-[9.5px] text-blue-450 font-black uppercase tracking-wider">
                           মডেলের মোবাইল নাম্বার (Contact Phone)
@@ -2093,18 +2246,20 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
                             </div>
                           </label>
 
-                          <label className="flex items-center gap-2 px-3 py-2 bg-slate-950/50 border border-blue-900/25 rounded-xl cursor-pointer hover:border-[#dbaa61]/35 transition">
-                            <input 
-                              type="checkbox"
-                              checked={recIsLiveTogetherActive}
-                              onChange={(e) => setRecIsLiveTogetherActive(e.target.checked)}
-                              className="rounded border-blue-900/40 text-[#dbaa61] focus:ring-[#dbaa61] bg-slate-950 w-4 h-4 cursor-pointer"
-                            />
-                            <div className="text-left">
-                              <span className="text-xs font-bold text-white block">Live Together</span>
-                              <span className="text-[9px] text-slate-400">দীর্ঘস্থায়ী লিভ টুগেদার বা ট্যুর</span>
-                            </div>
-                          </label>
+                          {recCategory === 'Female Model' && (
+                            <label className="flex items-center gap-2 px-3 py-2 bg-slate-950/50 border border-blue-900/25 rounded-xl cursor-pointer hover:border-[#dbaa61]/35 transition">
+                              <input 
+                                type="checkbox"
+                                checked={recIsLiveTogetherActive}
+                                onChange={(e) => setRecIsLiveTogetherActive(e.target.checked)}
+                                className="rounded border-blue-900/40 text-[#dbaa61] focus:ring-[#dbaa61] bg-slate-950 w-4 h-4 cursor-pointer"
+                              />
+                              <div className="text-left">
+                                <span className="text-xs font-bold text-white block">Tour</span>
+                                <span className="text-[9px] text-slate-400">দীর্ঘস্থায়ী ট্যুর কম্পানিয়ন</span>
+                              </div>
+                            </label>
+                          )}
                         </div>
                       </div>
 

@@ -229,7 +229,7 @@ export default function BookingModal({
       const isReal = companion.isRealActive !== false;
       const isCam = companion.isCamActive !== false;
       const isMakeOut = companion.isMakeOutActive !== false;
-      const isLive = companion.isLiveTogetherActive !== false;
+      const isLive = companion.isLiveTogetherActive !== false && (companion.category || 'Female Model') === 'Female Model';
 
       if (selectedService === 'REAL' && !isReal) {
         if (isCam) setSelectedService('CAM');
@@ -561,7 +561,7 @@ export default function BookingModal({
 
   const companionCost = calculateBookingCost(companion.rate, selectedService, selectedTimeFrame, companion);
   const selectedHotelObj = sanctuaries.find(s => s.address === specificAddress || s.name === specificAddress);
-  const hotelCost = (selectedService !== 'CAM' && coordinatesType === 'INCALL') ? (selectedHotelObj?.price || 0) : 0;
+  const hotelCost = (selectedService !== 'CAM' && selectedService !== 'LIVE_TOGETHER' && coordinatesType === 'INCALL') ? (selectedHotelObj?.price || 0) : 0;
   
   const discountAmount = Math.round(companionCost * (promoDiscountPercent / 100));
   const bookingCost = companionCost - discountAmount + hotelCost;
@@ -596,8 +596,8 @@ export default function BookingModal({
       } else {
         setSelectedTimeFrame('2_DAYS');
       }
-      setCoordinatesType('INCALL');
-      setSpecificAddress(sanctuaries[0]?.address || '');
+      setCoordinatesType('OUTCALL');
+      setSpecificAddress('');
     } else {
       if (companion?.customRealRates && companion.customRealRates.length > 0) {
         setSelectedTimeFrame('CUSTOM_0');
@@ -1137,8 +1137,8 @@ export default function BookingModal({
                             </button>
                           )}
 
-                          {/* LIVE TOGETHER VIEW */}
-                          {companion.isLiveTogetherActive !== false && (
+                          {/* TOUR VIEW */}
+                          {companion.isLiveTogetherActive !== false && (companion.category || 'Female Model') === 'Female Model' && (
                             <button
                               type="button"
                               onClick={() => handleServiceChange('LIVE_TOGETHER')}
@@ -1151,7 +1151,7 @@ export default function BookingModal({
                               }`}
                             >
                               <Users className={`w-6 h-6 ${selectedService === 'LIVE_TOGETHER' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                              <span className="text-xs font-black uppercase tracking-wider text-white leading-none">LIVE TOGETHER</span>
+                              <span className="text-xs font-black uppercase tracking-wider text-white leading-none">TOUR / ট্যুর</span>
                             </button>
                           )}
                         </div>
@@ -1271,7 +1271,7 @@ export default function BookingModal({
                           ))}
                         </div>
                       ) : (
-                        /* LIVE TOGETHER Timeframes: 2 Days, 7 Days, 15 Days, 1 Month */
+                        /* TOUR Timeframes: 2 Days, 7 Days, 15 Days, 1 Month */
                         <div className="grid grid-cols-2 gap-3">
                           {/* 2 DAYS */}
                           <button
@@ -1447,7 +1447,24 @@ export default function BookingModal({
                   </div>
 
                   <div className="space-y-4">
-                    {selectedService === 'MAKE_OUT' ? (
+                    {selectedService === 'LIVE_TOGETHER' ? (
+                      <div className="space-y-2 animate-fadeIn">
+                        <span className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider font-mono">
+                          কোথায় নিয়ে যেতে চাচ্ছেন তার ঠিকানা লিখুন / Destination Address (Tour)
+                        </span>
+                        <div className="relative">
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#dbaa61] pointer-events-none" />
+                          <input
+                            type="text"
+                            required
+                            value={specificAddress}
+                            onChange={(e) => setSpecificAddress(e.target.value)}
+                            placeholder="কোথায় নিয়ে যাবেন তার বিস্তারিত ঠিকানা লিখুন (যেমন: কক্সবাজার, গুলশান)..."
+                            className="w-full bg-[#030a1c] border border-[#dbaa61]/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-[#dbaa61]/40 leading-normal font-semibold placeholder:text-slate-600"
+                          />
+                        </div>
+                      </div>
+                    ) : selectedService === 'MAKE_OUT' ? (
                       <div className="space-y-2">
                         <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
                           RESTAURANT LOCATION (OUTCALL ONLY)

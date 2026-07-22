@@ -81,11 +81,11 @@ export default function JoinModal({
     { id: 'facecam_2hours', english: 'Face Cam 2 HOURS', bangla: 'Face Cam 2 HOURS' },
   ];
 
-  const SERVICES_LIVETOGETHER = [
-    { id: 'livetogether_2day', english: 'Live Together 2 Days', bangla: 'Live Together 2 Days' },
-    { id: 'livetogether_7day', english: 'Live Together 7 Days', bangla: 'Live Together 7 Days' },
-    { id: 'livetogether_15day', english: 'Live Together 15 Days', bangla: 'Live Together 15 Days' },
-    { id: 'livetogether_1month', english: 'Live Together 1 Month', bangla: 'Live Together 1 Month' },
+  const SERVICES_TOUR = [
+    { id: 'tour_2day', english: 'Tour 2 Days', bangla: 'Tour 2 Days' },
+    { id: 'tour_7day', english: 'Tour 7 Days', bangla: 'Tour 7 Days' },
+    { id: 'tour_15day', english: 'Tour 15 Days', bangla: 'Tour 15 Days' },
+    { id: 'tour_1month', english: 'Tour 1 Month', bangla: 'Tour 1 Month' },
   ];
 
   // Expanded fields
@@ -111,6 +111,8 @@ export default function JoinModal({
     bloodGroup: '',
     education: '',
     spermCount: '',
+    penisSize: '',
+    durationTime: '',
   });
   
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -432,6 +434,17 @@ export default function JoinModal({
           return;
         }
       }
+      // Only Male models require penisSize & durationTime
+      if (type === 'male') {
+        if (!formData.penisSize.trim()) {
+          setValidationError('Penis Size / লিঙ্গের আকার উল্লেখ করা বাধ্যতামূলক।');
+          return;
+        }
+        if (!formData.durationTime.trim()) {
+          setValidationError('Duration Time / সহবাসের স্থায়িত্বকাল উল্লেখ করা বাধ্যতামূলক।');
+          return;
+        }
+      }
       if (pictures.length < 4) {
         setValidationError('Please upload exactly 4 high-quality portfolio photos.');
         return;
@@ -499,6 +512,8 @@ export default function JoinModal({
       email: formData.email.trim() || (type === 'female' ? `${formData.name.toLowerCase().replace(/\s+/g, '')}@bodytouch-partner.com` : 'code@bodytouch.com'),
       bloodGroup: type === 'donor' ? formData.bloodGroup.trim() : undefined,
       spermCount: type === 'donor' ? formData.spermCount.trim() : undefined,
+      penisSize: type === 'male' ? (formData.penisSize.trim() || undefined) : undefined,
+      durationTime: type === 'male' ? (formData.durationTime.trim() || undefined) : undefined,
       nidFront: nidFront || undefined,
       nidBack: nidBack || undefined,
       selfie: selfie || undefined,
@@ -539,6 +554,8 @@ export default function JoinModal({
       bloodGroup: '',
       education: '',
       spermCount: '',
+      penisSize: '',
+      durationTime: '',
     });
     setPictures([]);
     setNidFront(null);
@@ -1169,6 +1186,38 @@ export default function JoinModal({
                           value={formData.hip}
                           onChange={(e) => setFormData({ ...formData, hip: e.target.value })}
                           className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl px-3 py-3.5 font-bold focus:outline-none transition-all text-center font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Male Model Specific Body Details */}
+                  {type === 'male' && (
+                    <div className="grid grid-cols-2 gap-4 pb-2">
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                          Penis Size / লিঙ্গের আকার (ইঞ্চি) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. 6.5 inch"
+                          value={formData.penisSize}
+                          onChange={(e) => setFormData({ ...formData, penisSize: e.target.value })}
+                          className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl px-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                          Duration Time / সহবাসের স্থায়িত্বকাল *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. 35-45 min"
+                          value={formData.durationTime}
+                          onChange={(e) => setFormData({ ...formData, durationTime: e.target.value })}
+                          className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl px-4 py-3.5 font-bold focus:outline-none transition-all"
                         />
                       </div>
                     </div>

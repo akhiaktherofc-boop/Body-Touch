@@ -84,7 +84,7 @@ export default function LocationCard({ location, onMapClick, onReserveClick }: L
       {/* Top Banner & Photo Section */}
       <div className="relative h-48 bg-[#020510] overflow-hidden group">
         <img
-          src={location.image}
+          src={location.image || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=600'}
           alt={location.name}
           className="w-full h-full object-cover opacity-80 group-hover:opacity-95 group-hover:scale-103 transition-all duration-500 ease-out"
           referrerPolicy="no-referrer"

@@ -43,7 +43,7 @@ export default function CompanionCard({ companion, onSelect }: CompanionCardProp
     >
       <div className="relative h-56 bg-slate-950 group overflow-hidden">
         <img
-          src={companion.image}
+          src={companion.image || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=600'}
           alt={companion.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ease-out"
           referrerPolicy="no-referrer"

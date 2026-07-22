@@ -188,9 +188,21 @@ export default function CompanionModal({
                       </div>
                     )}
                     {companion.hip && (
-                      <div className="text-left col-span-2">
+                      <div className="text-left">
                         <span className="block text-[8px] text-slate-400 uppercase font-black">Hip measurement</span>
                         <span className="text-slate-200 text-xs block font-bold">{companion.hip}</span>
+                      </div>
+                    )}
+                    {companion.penisSize && (
+                      <div className="text-left">
+                        <span className="block text-[8px] text-indigo-400 uppercase font-black">Penis Size / লিঙ্গের আকার</span>
+                        <span className="text-indigo-400 text-xs block font-bold">{companion.penisSize}</span>
+                      </div>
+                    )}
+                    {companion.durationTime && (
+                      <div className="text-left">
+                        <span className="block text-[8px] text-indigo-400 uppercase font-black">Duration / স্থায়িত্বকাল</span>
+                        <span className="text-indigo-400 text-xs block font-bold">{companion.durationTime}</span>
                       </div>
                     )}
                   </div>
@@ -283,11 +295,11 @@ export default function CompanionModal({
                     </div>
                   )}
 
-                  {companion.isLiveTogetherActive !== false && (
+                  {companion.isLiveTogetherActive !== false && (companion.category || 'Female Model') === 'Female Model' && (
                     <div className="space-y-1.5 animate-fadeIn">
                       <div className="flex justify-between items-center text-xs font-bold bg-black/40 p-2 rounded-xl border border-purple-500/5">
                         <span className="flex items-center gap-1.5 text-slate-200">
-                          <Users className="w-3.5 h-3.5 text-purple-405" /> Live Together
+                          <Users className="w-3.5 h-3.5 text-purple-405" /> Tour / ট্যুর
                         </span>
                         {(!companion.customLiveTogetherRates || companion.customLiveTogetherRates.length === 0) && (
                           <span className="text-emerald-450 font-mono font-extrabold">
@@ -308,7 +320,7 @@ export default function CompanionModal({
                     </div>
                   )}
 
-                  {companion.isRealActive === false && companion.isCamActive === false && companion.isMakeOutActive === false && companion.isLiveTogetherActive === false && (
+                  {companion.isRealActive === false && companion.isCamActive === false && companion.isMakeOutActive === false && (companion.isLiveTogetherActive === false || (companion.category || 'Female Model') !== 'Female Model') && (
                     <p className="text-[10px] text-rose-500 italic">No services currently enabled by the model.</p>
                   )}
                 </div>

@@ -326,9 +326,12 @@ export default function App() {
     };
     animFrameId = requestAnimationFrame(forceMaxFPS);
 
+    // Check if running inside an iframe (like AI Studio preview)
+    const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+
     // 2. Tab Visibility and Focus loss listeners to block background screenshots and multitasking preview snaps
     const handleFocusLoss = () => {
-      if (isExcluded) return;
+      if (isExcluded || isInIframe) return;
       setIsScreenProtected(true);
     };
 
@@ -339,8 +342,10 @@ export default function App() {
       }
       // Small timeout to let user focus back safely without abrupt flickering
       setTimeout(() => {
-        setIsScreenProtected(false);
-      }, 500);
+        if (document.hasFocus() && !document.hidden) {
+          setIsScreenProtected(false);
+        }
+      }, 300);
     };
 
     const handleVisibilityChange = () => {
@@ -349,17 +354,31 @@ export default function App() {
         return;
       }
       if (document.hidden) {
-        setIsScreenProtected(true);
+        if (!isInIframe) {
+          setIsScreenProtected(true);
+        }
       } else {
         setTimeout(() => {
-          setIsScreenProtected(false);
-        }, 500);
+          if (document.hasFocus() && !document.hidden) {
+            setIsScreenProtected(false);
+          }
+        }, 300);
       }
     };
 
     window.addEventListener('blur', handleFocusLoss);
     window.addEventListener('focus', handleFocusGain);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Periodic synchronization checker to guarantee shield stays active if focus is lost in standalone mode
+    const securityInterval = setInterval(() => {
+      if (isExcluded || isInIframe) return;
+      if (!document.hasFocus() || document.hidden) {
+        if (!isScreenProtected) {
+          setIsScreenProtected(true);
+        }
+      }
+    }, 250);
 
     // 3. Block keyboard shortcuts for screenshots, print, save, developer tools, etc.
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -370,6 +389,15 @@ export default function App() {
         e.preventDefault();
         setIsScreenProtected(true);
         triggerToast('⚠️ স্ক্রিনশট অবরুদ্ধ! Screenshots are restricted for privacy safety.', 'error');
+        setTimeout(() => setIsScreenProtected(false), 3000);
+        return false;
+      }
+
+      // Windows/browser screenshot tools (Meta + Shift + S / Ctrl + Shift + S)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 's' || e.key === 'S' || e.keyCode === 83)) {
+        e.preventDefault();
+        setIsScreenProtected(true);
+        triggerToast('⚠️ স্ক্রিনশট অবরুদ্ধ! Screenshots are restricted.', 'error');
         setTimeout(() => setIsScreenProtected(false), 3000);
         return false;
       }
@@ -389,7 +417,7 @@ export default function App() {
       }
 
       // Cmd + Shift + 3 or 4 or 5 (macOS Screenshots)
-      if ((e.metaKey && e.shiftKey) && (e.key === '3' || e.key === '4' || e.key === '5')) {
+      if ((e.metaKey && e.shiftKey) && (e.key === '3' || e.key === '4' || e.key === '5' || e.keyCode === 51 || e.keyCode === 52 || e.keyCode === 53)) {
         e.preventDefault();
         setIsScreenProtected(true);
         triggerToast('⚠️ স্ক্রিনশট অবরুদ্ধ! macOS shortcuts are restricted.', 'error');
@@ -397,13 +425,38 @@ export default function App() {
         return false;
       }
 
-      // Ctrl + Shift + I or Cmd + Option + I (DevTools)
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'i') {
-        triggerToast('🛡️ Security Protocol Active.', 'success');
+      // F12 or Ctrl + Shift + I or Cmd + Option + I (DevTools)
+      if (e.key === 'F12' || e.keyCode === 123 || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'i' || e.key === 'I' || e.keyCode === 73))) {
+        e.preventDefault();
+        setIsScreenProtected(true);
+        triggerToast('🛡️ Security Protocol: Developer Tools are restricted.', 'error');
+        setTimeout(() => setIsScreenProtected(false), 3000);
+        return false;
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (isExcluded) return;
+
+      if (e.key === 'PrintScreen' || e.keyCode === 44) {
+        setIsScreenProtected(true);
+        setTimeout(() => setIsScreenProtected(false), 3000);
+      }
+    };
+
+    // Xiaomi/Oppo/Realme etc. 3-finger swipe screenshot protection
+    const handleTouchStart = (e: TouchEvent) => {
+      if (isExcluded) return;
+      if (e.touches && e.touches.length >= 3) {
+        setIsScreenProtected(true);
+        triggerToast('⚠️ স্ক্রিনশট অবরুদ্ধ! Three-finger gesture detected.', 'error');
+        setTimeout(() => setIsScreenProtected(false), 3000);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('keyup', handleKeyUp, true);
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
 
     // 4. Block context menu specifically on images/banners/photos to prevent download, but allow text copy
     const handleContextMenu = (e: MouseEvent) => {
@@ -445,10 +498,13 @@ export default function App() {
     // Clean up event listeners on unmount
     return () => {
       cancelAnimationFrame(animFrameId);
+      clearInterval(securityInterval);
       window.removeEventListener('blur', handleFocusLoss);
       window.removeEventListener('focus', handleFocusGain);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('keyup', handleKeyUp, true);
+      window.removeEventListener('touchstart', handleTouchStart);
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('dragstart', handleDragStart, true);
     };
@@ -522,6 +578,10 @@ export default function App() {
   const visibleCategories = useMemo(() => {
     if (isLoggedIn && gender === 'male') {
       return ['Female Model'];
+    }
+    if (isLoggedIn && gender === 'female') {
+      // Return only Male Model and Sperm Donor categories as requested
+      return categories.filter(cat => cat === 'Male Model' || cat === 'Sperm Donor');
     }
     return categories;
   }, [categories, gender, isLoggedIn]);
@@ -6389,31 +6449,6 @@ https://service.bodytouch.com
       </AnimatePresence>
 
     </div>
-
-    {isScreenProtected && !(isAdminOpen || isModelPortalOpen || isAgentOpen) && (
-      <div className="fixed inset-0 z-[9999999] bg-[#000000]/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center select-none pointer-events-auto">
-        <div className="max-w-md bg-[#020716] border-2 border-red-500/40 rounded-3xl p-8 shadow-2xl shadow-red-500/10 animate-pulse">
-          <div className="w-16 h-16 bg-red-500/15 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/30">
-            {/* Shield Alert Icon */}
-            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0-6V9m0-6H6a2 2 0 00-2 2v6a7 7 0 007 7h2a7 7 0 007-7V5a2 2 0 00-2-2h-6z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-black text-white tracking-wide mb-3">
-            🔒 SECURITY SHIELD ACTIVE
-          </h2>
-          <p className="text-amber-400 font-bold text-sm mb-4">
-            SCREENSHOTS & RECORDINGS RESTRICTED
-          </p>
-          <p className="text-slate-200 text-xs leading-relaxed font-semibold mb-6">
-            আপনার গোপনীয়তা এবং তথ্যের সুরক্ষার জন্য স্ক্রিনশট, স্ক্রিন রেকর্ডিং অথবা ব্রাউজার পরিবর্তন করা সাময়িকভাবে অবরুদ্ধ করা হয়েছে। অনুগ্রহ করে স্বাভাবিক ব্রাউজিংয়ে ফিরে যান।
-          </p>
-          <div className="text-[10px] text-slate-500 font-mono">
-            SECURITY STATE: SHIELDED • 120 FPS ENGINE ONLINE
-          </div>
-        </div>
-      </div>
-    )}
   </>
 );
 }

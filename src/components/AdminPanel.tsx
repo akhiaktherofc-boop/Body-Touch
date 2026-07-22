@@ -1516,9 +1516,11 @@ export default function AdminPanel({
         phone: u.phone || '',
         email: u.email || '',
         gender: u.gender || '',
-        userPhoto: u.userPhoto || u.avatarUrl || '',
+        userPhoto: u.userPhoto || u.avatarUrl || u.photoURL || '',
         nidFront: u.nidFront || '',
         nidBack: u.nidBack || '',
+        birthday: u.birthday || u.age || '',
+        authMethod: u.authMethod || '',
         isBlocked: u.isBlocked || false,
         bookingsCount: 0,
         bookings: []
@@ -1712,6 +1714,8 @@ export default function AdminPanel({
   const [compBust, setCompBust] = useState('');
   const [compWaist, setCompWaist] = useState('');
   const [compHip, setCompHip] = useState('');
+  const [compPenisSize, setCompPenisSize] = useState('');
+  const [compDurationTime, setCompDurationTime] = useState('');
   const [compLanguages, setCompLanguages] = useState('English, Bengali');
   const [compSpecialty, setCompSpecialty] = useState('');
   const [compRate, setCompRate] = useState(8000);
@@ -1724,6 +1728,7 @@ export default function AdminPanel({
   const [compImage, setCompImage] = useState('');
   const [compCategory, setCompCategory] = useState<string>('Female Model');
   const [compPictures, setCompPictures] = useState<string[]>([]);
+  const [compTag, setCompTag] = useState('');
 
   // Service toggle checkboxes
   const [compIsRealActive, setCompIsRealActive] = useState(true);
@@ -1748,7 +1753,7 @@ export default function AdminPanel({
   const [compRateMakeOut_3h, setCompRateMakeOut_3h] = useState<string | number>('');
   const [compRateMakeOut_fn, setCompRateMakeOut_fn] = useState<string | number>('');
 
-  // Custom Live Together duration rates
+  // Custom Tour duration rates
   const [compRateLiveTogether_2d, setCompRateLiveTogether_2d] = useState<string | number>('');
   const [compRateLiveTogether_7d, setCompRateLiveTogether_7d] = useState<string | number>('');
   const [compRateLiveTogether_15d, setCompRateLiveTogether_15d] = useState<string | number>('');
@@ -1829,6 +1834,8 @@ export default function AdminPanel({
     setCompBust(comp.bust || '');
     setCompWaist(comp.waist || '');
     setCompHip(comp.hip || '');
+    setCompPenisSize(comp.penisSize || '');
+    setCompDurationTime(comp.durationTime || '');
     setCompLanguages(comp.languages.join(', '));
     setCompSpecialty(comp.specialty);
     setCompRate(comp.rate);
@@ -1868,6 +1875,7 @@ export default function AdminPanel({
     setCompImage(comp.image);
     setCompCategory(comp.category || 'Female Model');
     setCompPictures(comp.pictures || []);
+    setCompTag(comp.tag || '');
     setCompCustomRealRates(comp.customRealRates || []);
     setCompCustomCamRates(comp.customCamRates || []);
     setCompCustomLiveTogetherRates(comp.customLiveTogetherRates || []);
@@ -1886,6 +1894,8 @@ export default function AdminPanel({
     setCompBust('');
     setCompWaist('');
     setCompHip('');
+    setCompPenisSize('');
+    setCompDurationTime('');
     setCompLanguages('English, Bengali');
     setCompSpecialty('');
     setCompRate(8000);
@@ -1896,6 +1906,7 @@ export default function AdminPanel({
     setCompCustomRealRates([]);
     setCompCustomCamRates([]);
     setCompCustomLiveTogetherRates([]);
+    setCompTag('');
 
     // Service toggles reset
     setCompIsRealActive(true);
@@ -1937,7 +1948,7 @@ export default function AdminPanel({
     if (!compName.trim()) return;
 
     const languagesArray = compLanguages.split(',').map(lang => lang.trim()).filter(Boolean);
-    const finalImage = compImage.trim() || PRESET_MODEL_IMAGES[Math.floor(Math.random() * PRESET_MODEL_IMAGES.length)];
+    const finalImage = compImage.trim();
 
     const rReal = compRateReal !== '' ? Number(compRateReal) : undefined;
     const rCam = compRateCam !== '' ? Number(compRateCam) : undefined;
@@ -1951,6 +1962,7 @@ export default function AdminPanel({
           return {
             ...comp,
             name: compName,
+            tag: compTag.trim() || comp.tag,
             age: Number(compAge),
             height: compHeight,
             bodyColor: compBodyColor || undefined,
@@ -1958,6 +1970,8 @@ export default function AdminPanel({
             bust: compBust || undefined,
             waist: compWaist || undefined,
             hip: compHip || undefined,
+            penisSize: compCategory === 'Male Model' ? (compPenisSize || undefined) : undefined,
+            durationTime: compCategory === 'Male Model' ? (compDurationTime || undefined) : undefined,
             languages: languagesArray,
             specialty: compSpecialty,
             rate: Number(compRate),
@@ -1968,7 +1982,7 @@ export default function AdminPanel({
             isRealActive: compIsRealActive,
             isCamActive: compIsCamActive,
             isMakeOutActive: compIsMakeOutActive,
-            isLiveTogetherActive: compIsLiveTogetherActive,
+            isLiveTogetherActive: compCategory === 'Female Model' ? compIsLiveTogetherActive : false,
             rateReal_1h: compRateReal_1h !== '' ? Number(compRateReal_1h) : undefined,
             rateReal_2h: compRateReal_2h !== '' ? Number(compRateReal_2h) : undefined,
             rateReal_3h: compRateReal_3h !== '' ? Number(compRateReal_3h) : undefined,
@@ -2000,7 +2014,7 @@ export default function AdminPanel({
     } else {
       // Create new
       const newId = 'comp-' + Date.now();
-      const newTag = '# ' + Math.floor(100000 + Math.random() * 900000);
+      const newTag = compTag.trim() || ('# ' + Math.floor(100000 + Math.random() * 900000));
       const newComp: Companion = {
         id: newId,
         name: compName,
@@ -2014,6 +2028,8 @@ export default function AdminPanel({
         bust: compBust || undefined,
         waist: compWaist || undefined,
         hip: compHip || undefined,
+        penisSize: compCategory === 'Male Model' ? (compPenisSize || undefined) : undefined,
+        durationTime: compCategory === 'Male Model' ? (compDurationTime || undefined) : undefined,
         languages: languagesArray,
         specialty: compSpecialty || 'Executive High-Society VIP Hostess',
         rate: Number(compRate),
@@ -2024,7 +2040,7 @@ export default function AdminPanel({
         isRealActive: compIsRealActive,
         isCamActive: compIsCamActive,
         isMakeOutActive: compIsMakeOutActive,
-        isLiveTogetherActive: compIsLiveTogetherActive,
+        isLiveTogetherActive: compCategory === 'Female Model' ? compIsLiveTogetherActive : false,
         rateReal_1h: compRateReal_1h !== '' ? Number(compRateReal_1h) : undefined,
         rateReal_2h: compRateReal_2h !== '' ? Number(compRateReal_2h) : undefined,
         rateReal_3h: compRateReal_3h !== '' ? Number(compRateReal_3h) : undefined,
@@ -2140,7 +2156,7 @@ export default function AdminPanel({
     e.preventDefault();
     if (!locName.trim()) return;
 
-    const finalImage = locImage.trim() || PRESET_HOTEL_IMAGES[Math.floor(Math.random() * PRESET_HOTEL_IMAGES.length)];
+    const finalImage = locImage.trim();
 
     const extraData = {
       distance: locDistance.trim(),
@@ -3810,6 +3826,20 @@ export default function AdminPanel({
                             {selectedClient.gender === 'male' ? '👨 Male / পুরুষ' : selectedClient.gender === 'female' ? '👩 Female / নারী' : 'Not Specified'}
                           </span>
                         </div>
+
+                        <div className="bg-black/30 border border-white/5 p-3.5 rounded-2xl sm:col-span-1">
+                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">BIRTHDAY OR AGE / বয়স ও জন্ম তারিখ</span>
+                          <span className="text-xs text-white font-black block mt-1 uppercase">
+                            {selectedClient.birthday || 'Not Specified'}
+                          </span>
+                        </div>
+
+                        <div className="bg-black/30 border border-white/5 p-3.5 rounded-2xl sm:col-span-1">
+                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">AUTHENTICATED METHOD / লগইন টাইপ</span>
+                          <span className="text-xs text-cyan-400 font-bold block mt-1 uppercase">
+                            {selectedClient.authMethod || 'Password'}
+                          </span>
+                        </div>
                       </div>
 
                       {/* NID Section */}
@@ -4176,6 +4206,18 @@ export default function AdminPanel({
                       />
                     </div>
 
+                    {/* Model Code (Tag) */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase font-mono">Model Code / মডেল কোড (e.g. # 550800)</label>
+                      <input
+                        type="text"
+                        value={compTag}
+                        onChange={(e) => setCompTag(e.target.value)}
+                        placeholder="e.g. # 550800 (or leave blank to auto-generate)"
+                        className="w-full bg-[#11131a] border border-[#ac843c]/40 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
                     {/* Badge Tier */}
                     <div className="space-y-1.5">
                       <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase font-mono">Select Category * / ৪টি ক্যাটাগরি</label>
@@ -4289,6 +4331,34 @@ export default function AdminPanel({
                         className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500"
                       />
                     </div>
+
+                    {/* Penis Size (For Male Model) */}
+                    {compCategory === 'Male Model' && (
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-black tracking-widest text-indigo-400 uppercase">Penis Size / লিঙ্গের আকার</label>
+                        <input
+                          type="text"
+                          value={compPenisSize}
+                          onChange={(e) => setCompPenisSize(e.target.value)}
+                          placeholder="e.g. 6.5 inch"
+                          className="w-full bg-[#11131a] border border-indigo-950/40 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500 font-mono"
+                        />
+                      </div>
+                    )}
+
+                    {/* Duration Time (For Male Model) */}
+                    {compCategory === 'Male Model' && (
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-black tracking-widest text-indigo-400 uppercase">Duration Time / সহবাসের স্থায়িত্বকাল</label>
+                        <input
+                          type="text"
+                          value={compDurationTime}
+                          onChange={(e) => setCompDurationTime(e.target.value)}
+                          placeholder="e.g. 35-45 mins"
+                          className="w-full bg-[#11131a] border border-indigo-950/40 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                    )}
 
                     {/* CORE SERVICE ACTIVATIONS & CUSTOM FEE STRUCTURES */}
                     <div className="sm:col-span-2 p-5 bg-[#030a1c]/65 border border-blue-500/15 rounded-2xl space-y-5">
@@ -4420,7 +4490,7 @@ export default function AdminPanel({
                                       className="flex-1 bg-[#11131a] border border-slate-800 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
                                     />
                                     <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-800">
-                                      <span className="text-slate-500 text-[10px]">৳</span>
+                                      <span className="text-slate-550 text-[10px]">৳</span>
                                       <input
                                         type="number"
                                         value={slot.rate || ''}
@@ -4517,85 +4587,87 @@ export default function AdminPanel({
                         )}
                       </div>
 
-                      {/* 4. LIVE TOGETHER SERVICE CONTROL */}
-                      <div className="border border-slate-800/80 rounded-xl p-3 bg-black/40 space-y-3">
-                        <div className="flex items-center justify-between border-b border-slate-855 pb-2">
-                          <label className="flex items-center space-x-2.5 cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={compIsLiveTogetherActive}
-                              onChange={(e) => setCompIsLiveTogetherActive(e.target.checked)}
-                              className="w-4 h-4 rounded text-purple-500 bg-[#11131a] border-slate-800 focus:ring-purple-500 focus:ring-opacity-25"
-                            />
-                            <span className="text-xs font-black uppercase tracking-wider text-slate-250">Live Together (Stayover Companion)</span>
-                          </label>
-                          <span className={`text-[8px] px-2 py-0.5 rounded font-black tracking-wider ${compIsLiveTogetherActive ? 'bg-purple-500/10 text-purple-450 border border-purple-500/20' : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'}`}>
-                            {compIsLiveTogetherActive ? 'ACTIVE' : 'DISABLED'}
-                          </span>
-                        </div>
+                      {/* 4. TOUR SERVICE CONTROL */}
+                      {compCategory === 'Female Model' && (
+                        <div className="border border-slate-800/80 rounded-xl p-3 bg-black/40 space-y-3 col-span-1 sm:col-span-2">
+                          <div className="flex items-center justify-between border-b border-slate-855 pb-2">
+                            <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={compIsLiveTogetherActive}
+                                onChange={(e) => setCompIsLiveTogetherActive(e.target.checked)}
+                                className="w-4 h-4 rounded text-purple-500 bg-[#11131a] border-slate-800 focus:ring-purple-500 focus:ring-opacity-25"
+                              />
+                              <span className="text-xs font-black uppercase tracking-wider text-slate-250">Tour / ট্যুর (Stayover Companion)</span>
+                            </label>
+                            <span className={`text-[8px] px-2 py-0.5 rounded font-black tracking-wider ${compIsLiveTogetherActive ? 'bg-purple-500/10 text-purple-450 border border-purple-500/20' : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'}`}>
+                              {compIsLiveTogetherActive ? 'ACTIVE' : 'DISABLED'}
+                            </span>
+                          </div>
 
-                        {compIsLiveTogetherActive && (
-                          <div className="space-y-3">
-                            <span className="block text-[8px] font-bold text-slate-400 tracking-wider">📍 LIVE TOGETHER DURATION RATES (৳ Taka):</span>
-                            
-                            <div className="space-y-2">
-                              {(compCustomLiveTogetherRates || []).length === 0 ? (
-                                <p className="text-[9px] text-slate-500 italic">No custom rates added yet.</p>
-                              ) : (
-                                (compCustomLiveTogetherRates || []).map((slot, idx) => (
-                                  <div key={slot.id || idx} className="flex gap-2 items-center bg-black/40 border border-slate-800 rounded-lg p-2">
-                                    <input
-                                      type="text"
-                                      value={slot.duration}
-                                      onChange={(e) => {
-                                        const newList = [...(compCustomLiveTogetherRates || [])];
-                                        newList[idx] = { ...newList[idx], duration: e.target.value };
-                                        setCompCustomLiveTogetherRates(newList);
-                                      }}
-                                      placeholder="e.g. 2 Days"
-                                      className="flex-1 bg-[#11131a] border border-slate-800 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
-                                    />
-                                    <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-800">
-                                      <span className="text-slate-550 text-[10px]">৳</span>
+                          {compIsLiveTogetherActive && (
+                            <div className="space-y-3">
+                              <span className="block text-[8px] font-bold text-slate-400 tracking-wider">📍 TOUR DURATION RATES (৳ Taka) / ট্যুর রেট:</span>
+                              
+                              <div className="space-y-2">
+                                {(compCustomLiveTogetherRates || []).length === 0 ? (
+                                  <p className="text-[9px] text-slate-500 italic">No custom rates added yet.</p>
+                                ) : (
+                                  (compCustomLiveTogetherRates || []).map((slot, idx) => (
+                                    <div key={slot.id || idx} className="flex gap-2 items-center bg-black/40 border border-slate-800 rounded-lg p-2">
                                       <input
-                                        type="number"
-                                        value={slot.rate || ''}
+                                        type="text"
+                                        value={slot.duration}
                                         onChange={(e) => {
                                           const newList = [...(compCustomLiveTogetherRates || [])];
-                                          newList[idx] = { ...newList[idx], rate: Number(e.target.value) };
+                                          newList[idx] = { ...newList[idx], duration: e.target.value };
                                           setCompCustomLiveTogetherRates(newList);
                                         }}
-                                        placeholder="0"
-                                        className="w-20 bg-[#11131a] border border-slate-800 rounded px-2 py-0.5 text-xs text-emerald-400 font-mono font-bold focus:outline-none text-right"
+                                        placeholder="e.g. 2 Days"
+                                        className="flex-1 bg-[#11131a] border border-slate-800 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
                                       />
+                                      <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-800">
+                                        <span className="text-slate-550 text-[10px]">৳</span>
+                                        <input
+                                          type="number"
+                                          value={slot.rate || ''}
+                                          onChange={(e) => {
+                                            const newList = [...(compCustomLiveTogetherRates || [])];
+                                            newList[idx] = { ...newList[idx], rate: Number(e.target.value) };
+                                            setCompCustomLiveTogetherRates(newList);
+                                          }}
+                                          placeholder="0"
+                                          className="w-20 bg-[#11131a] border border-slate-800 rounded px-2 py-0.5 text-xs text-emerald-400 font-mono font-bold focus:outline-none text-right"
+                                        />
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newList = (compCustomLiveTogetherRates || []).filter((_, i) => i !== idx);
+                                          setCompCustomLiveTogetherRates(newList);
+                                        }}
+                                        className="text-red-500 hover:text-red-400 p-1 text-sm transition active:scale-90"
+                                      >
+                                        ✕
+                                      </button>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const newList = (compCustomLiveTogetherRates || []).filter((_, i) => i !== idx);
-                                        setCompCustomLiveTogetherRates(newList);
-                                      }}
-                                      className="text-red-500 hover:text-red-400 p-1 text-sm transition active:scale-90"
-                                    >
-                                      ✕
-                                    </button>
-                                  </div>
-                                ))
-                              )}
-                            </div>
+                                  ))
+                                )}
+                              </div>
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setCompCustomLiveTogetherRates([...(compCustomLiveTogetherRates || []), { id: Math.random().toString(), duration: '', rate: 0 }]);
-                              }}
-                              className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-purple-500/30 text-slate-400 hover:text-white text-[9px] font-black uppercase tracking-wider py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                            >
-                              ➕ Add Live Together Rate Option (+ নতুন রেট যোগ করুন)
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCompCustomLiveTogetherRates([...(compCustomLiveTogetherRates || []), { id: Math.random().toString(), duration: '', rate: 0 }]);
+                                }}
+                                className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-purple-500/30 text-slate-400 hover:text-white text-[9px] font-black uppercase tracking-wider py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                ➕ Add Tour Rate Option (+ নতুন ট্যুর রেট যোগ করুন)
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* City */}
@@ -4689,9 +4761,9 @@ export default function AdminPanel({
                           />
                         </div>
 
-                        {/* Custom Rate: LIVE TOGETHER */}
+                        {/* Custom Rate: TOUR */}
                         <div className="space-y-1">
-                          <label className="block text-[9px] font-black tracking-widest text-slate-400 uppercase">Live Together Rate (৳/hr)</label>
+                          <label className="block text-[9px] font-black tracking-widest text-slate-400 uppercase">Tour / ট্যুর Rate (৳/hr)</label>
                           <input
                             type="number"
                             placeholder="Defaults to standard hourly rate"
@@ -5104,7 +5176,7 @@ export default function AdminPanel({
                                 />
                               </div>
                               <div>
-                                <label className="block text-slate-400 font-bold mb-1 font-mono">Live Together (৳/day)</label>
+                                <label className="block text-slate-400 font-bold mb-1 font-mono">Tour / ট্যুর (৳/day)</label>
                                 <input
                                   type="number"
                                   placeholder="e.g. 15000"
@@ -6332,7 +6404,7 @@ Body Touch Premium Network`;
                   >
                     <div className="flex gap-3">
                       <div className="w-20 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 border border-slate-800">
-                        <img src={loc.image} alt={loc.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        <img src={loc.image || PRESET_HOTEL_IMAGES[0]} alt={loc.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       </div>
                       <div className="text-left flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -9161,7 +9233,7 @@ Body Touch Premium Network`;
                               {/* Phone and Email */}
                               <div className="grid grid-cols-2 gap-3 text-xs">
                                 <div className="bg-[#11131a] p-2.5 rounded-xl border border-slate-900 text-left">
-                                  <span className="text-slate-500 text-[8px] uppercase block font-mono">Mobile Number</span>
+                                  <span className="text-slate-550 text-[8px] uppercase block font-mono">Mobile Number</span>
                                   <span className="text-blue-400 font-mono font-bold font-black tracking-normal select-all">{comp.phone || '01XXXXXXXXX'}</span>
                                 </div>
                                 <div className="bg-[#11131a] p-2.5 rounded-xl border border-slate-900 text-left">
@@ -9169,7 +9241,6 @@ Body Touch Premium Network`;
                                   <span className="text-[#2ebdff] font-mono font-bold tracking-tight select-all text-[11px] block truncate">{comp.email || 'N/A'}</span>
                                 </div>
                               </div>
-
                               {/* Model Portfolio Photos Gallery */}
                               {(() => {
                                 const reviewPics = getCompanionPictures(comp.pictures || [], comp.image);
@@ -11233,32 +11304,51 @@ Body Touch Premium Network`;
 
       </div>
 
-      {/* FLOATING HIGHLIGHTED CHAT BUTTON (Bottom Right) */}
+      {/* FLOATING HIGHLIGHTED CHAT BUTTON (Bottom Right - Logo Styled like Client Panel's Message Logo) */}
       <div className="fixed bottom-6 right-6 z-50">
         <button
           onClick={() => setActiveTab('livechat')}
-          className="relative flex flex-col items-center justify-center w-16 h-16 rounded-[22px] bg-gradient-to-tr from-[#a67c33] via-[#dbaa61] to-[#f1d087] border-2 border-black/10 hover:scale-110 hover:rotate-2 active:scale-95 transition-all duration-300 cursor-pointer group shadow-[0_4px_24px_rgba(219,170,97,0.35)]"
+          className="relative flex flex-col items-center justify-center w-16 h-16 rounded-full bg-gradient-to-tr from-[#1e40af] via-[#3b82f6] to-[#60a5fa] border border-blue-400/20 hover:scale-110 hover:rotate-2 active:scale-95 transition-all duration-300 cursor-pointer group shadow-[0_4px_24px_rgba(37,99,235,0.45)]"
           aria-label="Live Support Chat"
         >
           {/* Pulsing Outer Rings */}
-          <span className="absolute inset-0 rounded-[22px] bg-[#dbaa61]/25 animate-ping opacity-75 pointer-events-none" />
+          <span className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping opacity-75 pointer-events-none" />
 
-          {/* Exact winking smiley from image but smaller */}
-          <svg viewBox="0 0 100 100" className="w-9 h-9 select-none pointer-events-none transition-transform duration-300 group-hover:scale-110">
-            {/* Left eye */}
-            <circle cx="34" cy="36" r="7.5" fill="black" />
-            {/* Right eye (wink) */}
-            <rect x="52" y="32" width="18" height="6.5" rx="2" transform="rotate(-3 61 35)" fill="black" />
-            {/* Mouth loop tongue lick */}
+          {/* Overlapping black chat speech bubbles with custom mask gap */}
+          <svg viewBox="0 0 100 100" className="w-8.5 h-8.5 select-none pointer-events-none transition-transform duration-300 group-hover:scale-110">
+            <defs>
+              <mask id="chat-bubble-mask-admin">
+                {/* Everything white is kept */}
+                <rect width="100" height="100" fill="white" />
+                {/* Black area is removed (the left bubble + stroke gap) */}
+                <path 
+                  d="M 41 28 C 52.5 28 62 35.5 62 45 C 62 51.5 56.5 57 49 59.5 L 47 66 L 41.5 62 C 41 62.1 40.5 62.1 40 62.1 C 28.5 62.1 19 54.5 19 45 C 19 35.5 28.5 28 40 28 Z" 
+                  fill="black" 
+                  stroke="black" 
+                  strokeWidth="6" 
+                  strokeLinejoin="round" 
+                />
+              </mask>
+            </defs>
+            
+            {/* Right Bubble (behind) masked */}
             <path 
-              d="M 33 52 C 40 64, 53 64, 58 54 C 61 50, 63 43, 59 42 C 55 41, 53 48, 54 53 C 55 58, 59 58, 61 53" 
-              stroke="black" 
-              strokeWidth="6" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-              fill="none"
+              d="M 59 40 C 68.5 40 76 46.5 76 54.5 C 76 60 72.5 65 67 67.5 L 68.5 74 L 62.5 70.5 C 62 70.6 61.5 70.6 61 70.6 C 49.5 70.6 42 64 42 54.5 C 42 46.5 49.5 40 59 40 Z" 
+              fill="black" 
+              mask="url(#chat-bubble-mask-admin)" 
+            />
+            
+            {/* Left Bubble (front) */}
+            <path 
+              d="M 41 28 C 52.5 28 62 35.5 62 45 C 62 51.5 56.5 57 49 59.5 L 47 66 L 41.5 62 C 41 62.1 40.5 62.1 40 62.1 C 28.5 62.1 19 54.5 19 45 C 19 35.5 28.5 28 40 28 Z" 
+              fill="black" 
             />
           </svg>
+
+          {/* Green Online status dot at bottom right */}
+          <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#020714] flex items-center justify-center shadow-lg">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+          </span>
 
           {/* Dynamic Highlight badge */}
           <span className="absolute -top-1 -right-1 flex h-4 w-4">

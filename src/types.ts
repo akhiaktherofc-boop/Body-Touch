@@ -19,7 +19,7 @@ export interface Companion {
   rateReal?: number;         // Custom base rate for Real service
   rateCam?: number;          // Custom base rate for Cam service
   rateMakeOut?: number;      // Custom base rate for Make out service
-  rateLiveTogether?: number;  // Custom base rate for Live together service
+  rateLiveTogether?: number;  // Custom base rate for Tour service
   city?: string;
   category?: string;
   status?: 'Pending' | 'Approved' | 'Declined';
@@ -27,6 +27,8 @@ export interface Companion {
   phone?: string;
   bloodGroup?: string;
   spermCount?: string;
+  penisSize?: string;        // Penis Size / লিঙ্গের আকার
+  durationTime?: string;     // Duration Time / সহবাসের স্থায়িত্বকাল
   nidFront?: string;
   nidBack?: string;
   selfie?: string;
@@ -54,7 +56,7 @@ export interface Companion {
   rateMakeOut_3h?: number;
   rateMakeOut_fn?: number;
 
-  // Live Together service duration rates
+  // Tour service duration rates
   rateLiveTogether_2d?: number;
   rateLiveTogether_7d?: number;
   rateLiveTogether_15d?: number;
