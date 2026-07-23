@@ -1,5 +1,5 @@
 # Deployment workflow for Hostinger
-name: Build Verification
+name: Build and Deploy to Hostinger
 
 on:
   push:
@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-verify:
-    name: Build & Verify Project
+  build-and-deploy:
+    name: Build & Deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -33,5 +33,22 @@ jobs:
 
       - name: Copy .htaccess to dist
         run: cp .htaccess dist/ || true
+
+      - name: 📂 Sync files to Hostinger via FTP
+        # Only run deployment if FTP secrets are configured in GitHub Settings -> Secrets
+        if: env.FTP_SERVER != '' && env.FTP_USERNAME != ''
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dist/
+          # Change this to your target directory on Hostinger (e.g. /public_html/ or /)
+          server-dir: /public_html/
+          state-name: .ftp-deploy-sync-state.json
+
 
 
