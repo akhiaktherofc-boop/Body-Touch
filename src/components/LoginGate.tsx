@@ -1691,29 +1691,23 @@ export default function LoginGate({
               <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
                 Gender / লিঙ্গ নির্ধারণ করুন
               </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setNewGender('female')}
-                  className={`py-3 px-4 rounded-xl text-xs font-bold transition-all border ${
-                    newGender === 'female'
-                      ? 'bg-[#dbaa61] text-slate-950 border-[#dbaa61] shadow-md shadow-[#dbaa61]/10'
-                      : 'bg-[#030818]/60 text-slate-400 border-blue-900/35 hover:border-[#dbaa61]/30 hover:text-white'
-                  }`}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <User className="w-4 h-4 text-[#dbaa61]/70" />
+                </div>
+                <select
+                  value={newGender}
+                  onChange={(e) => setNewGender(e.target.value as 'male' | 'female')}
+                  className="w-full bg-[#030818] border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-10 py-3.5 font-bold focus:outline-none transition-all appearance-none cursor-pointer"
                 >
-                  👩 Female / নারী
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewGender('male')}
-                  className={`py-3 px-4 rounded-xl text-xs font-bold transition-all border ${
-                    newGender === 'male'
-                      ? 'bg-[#dbaa61] text-slate-950 border-[#dbaa61] shadow-md shadow-[#dbaa61]/10'
-                      : 'bg-[#030818]/60 text-slate-400 border-blue-900/35 hover:border-[#dbaa61]/30 hover:text-white'
-                  }`}
-                >
-                  👨 Male / পুরুষ
-                </button>
+                  <option value="female" className="bg-[#030818] text-white">👩 Female / নারী</option>
+                  <option value="male" className="bg-[#030818] text-white">👨 Male / পুরুষ</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#dbaa61]/70">
+                  <svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
               </div>
             </div>
 
