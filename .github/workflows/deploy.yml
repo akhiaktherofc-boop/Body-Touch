@@ -36,11 +36,8 @@ jobs:
 
       - name: 📂 Sync files to Hostinger via FTP
         # Only run deployment if FTP secrets are configured in GitHub Settings -> Secrets
-        if: env.FTP_SERVER != '' && env.FTP_USERNAME != ''
+        if: ${{ secrets.FTP_SERVER != '' && secrets.FTP_USERNAME != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        env:
-          FTP_SERVER: ${{ secrets.FTP_SERVER }}
-          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
