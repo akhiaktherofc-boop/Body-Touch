@@ -35,8 +35,6 @@ jobs:
         run: cp .htaccess dist/ || true
 
       - name: 📂 Sync files to Hostinger via FTP
-        # Only run deployment if FTP secrets are configured in GitHub Settings -> Secrets
-        if: ${{ secrets.FTP_SERVER != '' && secrets.FTP_USERNAME != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
