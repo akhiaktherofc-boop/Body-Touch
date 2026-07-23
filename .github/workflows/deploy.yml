@@ -34,10 +34,18 @@ jobs:
       - name: Copy .htaccess to dist
         run: cp .htaccess dist/ || true
 
+      - name: Clean FTP Server Hostname
+        id: clean_ftp
+        run: |
+          RAW_SERVER="${{ secrets.FTP_SERVER }}"
+          # Remove ftp:// or ftps:// prefix if present
+          CLEANED_SERVER=$(echo "$RAW_SERVER" | sed -E 's|^ftps?://||' | sed -E 's|/$||')
+          echo "server=$CLEANED_SERVER" >> $GITHUB_OUTPUT
+
       - name: 📂 Sync files to Hostinger via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
+          server: ${{ steps.clean_ftp.outputs.server }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
