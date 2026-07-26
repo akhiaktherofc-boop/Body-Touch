@@ -1814,6 +1814,30 @@ export default function AdminPanel({
   const [compPictures, setCompPictures] = useState<string[]>([]);
   const [compTag, setCompTag] = useState('');
 
+  // Helpers to parse comma/semicolon-separated areas from compCity
+  const getSelectedAreas = (): string[] => {
+    if (!compCity) return [];
+    return compCity.split(/[;,]/).map(s => s.trim()).filter(Boolean);
+  };
+
+  const handleToggleArea = (area: string) => {
+    const current = getSelectedAreas();
+    const existsIndex = current.findIndex(a => a.toLowerCase() === area.toLowerCase());
+    let updated: string[];
+    if (existsIndex > -1) {
+      updated = current.filter((_, i) => i !== existsIndex);
+    } else {
+      updated = [...current, area];
+    }
+    setCompCity(updated.join(', '));
+  };
+
+  const handleRemoveArea = (area: string) => {
+    const current = getSelectedAreas();
+    const updated = current.filter(a => a.toLowerCase() !== area.toLowerCase());
+    setCompCity(updated.join(', '));
+  };
+
   // Service toggle checkboxes
   const [compIsRealActive, setCompIsRealActive] = useState(true);
   const [compIsCamActive, setCompIsCamActive] = useState(true);
@@ -5001,36 +5025,142 @@ export default function AdminPanel({
                       )}
                     </div>
 
-                    {/* City */}
-                    <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Operational City Area (শহর ও এলাকা)</label>
-                      <select
-                        value={compCity}
-                        onChange={(e) => setCompCity(e.target.value)}
-                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 cursor-pointer text-xs font-bold"
-                      >
-                        <option value="" className="bg-[#11131a] text-white font-sans font-bold">Select Area / এলাকা সিলেক্ট করুন</option>
-                        {structuredCities && structuredCities.length > 0 ? (
-                          structuredCities.map((p) => (
-                            <optgroup key={p.id} label={p.name.toUpperCase()} className="bg-[#11131a] text-[#dbaa61] font-bold font-sans">
-                              {p.subAreas.map((sub) => (
-                                <option key={`${sub}, ${p.name}`} value={`${sub}, ${p.name}`} className="bg-[#11131a] text-white font-sans font-bold">
-                                  {sub.toUpperCase()} ({p.name.toUpperCase()})
-                                </option>
-                              ))}
-                              {p.subAreas.length === 0 && (
-                                <option value={p.name} className="bg-[#11131a] text-white font-sans font-bold">{p.name.toUpperCase()}</option>
-                              )}
-                            </optgroup>
-                          ))
+                    {/* Multi-Select Operational Areas */}
+                    <div className="space-y-2 bg-[#0d0e14]/50 border border-slate-800 p-4 rounded-2xl">
+                      <div className="flex justify-between items-center">
+                        <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">
+                          Operational Areas / এলাকা সমূহ (একাধিক সিলেক্ট করতে পারেন)
+                        </label>
+                        <span className="text-[9px] bg-blue-500/10 text-blue-400 font-bold px-2 py-0.5 rounded border border-blue-500/20 font-mono">
+                          {getSelectedAreas().length} selected
+                        </span>
+                      </div>
+
+                      {/* Display Selected Areas as Tags */}
+                      <div className="flex flex-wrap gap-1.5 min-h-[40px] p-2.5 bg-[#11131a] rounded-xl border border-slate-900">
+                        {getSelectedAreas().length === 0 ? (
+                          <span className="text-[10px] text-slate-500 italic py-1 pl-1">
+                            No areas selected yet. Click pills below to select operational zones.
+                          </span>
                         ) : (
-                          cities.map((city) => (
-                            <option key={city} value={city} className="bg-[#11131a] text-white font-sans font-bold">
-                              {city.toUpperCase()}
-                            </option>
+                          getSelectedAreas().map((area) => (
+                            <span
+                              key={area}
+                              className="inline-flex items-center gap-1 text-[10px] font-black bg-[#dbaa61]/10 text-[#dbaa61] px-2 py-1 rounded-lg border border-[#dbaa61]/25 uppercase font-mono"
+                            >
+                              {area}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveArea(area)}
+                                className="text-rose-400 hover:text-rose-300 font-black ml-1 text-xs cursor-pointer focus:outline-none transition-all"
+                              >
+                                ✕
+                              </button>
+                            </span>
                           ))
                         )}
-                      </select>
+                      </div>
+
+                      {/* Filter/Custom Area Input */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          id="custom-area-input"
+                          placeholder="Type custom area and press Enter / কাস্টম এলাকা লিখুন"
+                          className="flex-1 bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 font-bold"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const val = e.currentTarget.value.trim();
+                              if (val) {
+                                handleToggleArea(val);
+                                e.currentTarget.value = '';
+                              }
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = document.getElementById('custom-area-input') as HTMLInputElement;
+                            if (el && el.value.trim()) {
+                              handleToggleArea(el.value.trim());
+                              el.value = '';
+                            }
+                          }}
+                          className="bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] font-black tracking-wider uppercase px-4 py-2 rounded-xl transition cursor-pointer"
+                        >
+                          Add (যুক্ত করুন)
+                        </button>
+                      </div>
+
+                      {/* Structured Cities Selection List */}
+                      <div className="space-y-3 pt-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-none">
+                        {structuredCities && structuredCities.length > 0 ? (
+                          structuredCities.map((p) => (
+                            <div key={p.id} className="space-y-1.5 border-t border-slate-900 pt-2.5 first:border-0 first:pt-0">
+                              <h4 className="text-[9px] font-black tracking-widest text-[#dbaa61] uppercase font-mono pl-0.5">
+                                {p.name.toUpperCase()} REGION
+                              </h4>
+                              <div className="flex flex-wrap gap-1.5">
+                                {p.subAreas.map((sub) => {
+                                  const areaLabel = `${sub}, ${p.name}`;
+                                  const isSel = getSelectedAreas().some(
+                                    (a) => a.toLowerCase() === areaLabel.toLowerCase() || a.toLowerCase() === sub.toLowerCase()
+                                  );
+                                  return (
+                                    <button
+                                      key={sub}
+                                      type="button"
+                                      onClick={() => handleToggleArea(areaLabel)}
+                                      className={`px-2 py-1 rounded-lg text-[10px] font-extrabold uppercase transition-all duration-150 cursor-pointer border ${
+                                        isSel
+                                          ? 'bg-blue-500/15 text-blue-400 border-blue-500/35 shadow-[0_0_10px_rgba(59,130,246,0.1)]'
+                                          : 'bg-[#141620] hover:bg-[#1c1e2d] text-slate-400 hover:text-white border-slate-800/80'
+                                      }`}
+                                    >
+                                      {sub}
+                                    </button>
+                                  );
+                                })}
+                                {p.subAreas.length === 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleArea(p.name)}
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-extrabold uppercase transition-all duration-150 cursor-pointer border ${
+                                      getSelectedAreas().some((a) => a.toLowerCase() === p.name.toLowerCase())
+                                        ? 'bg-blue-500/15 text-blue-400 border-blue-500/35'
+                                        : 'bg-[#141620] hover:bg-[#1c1e2d] text-slate-400 hover:text-white border-slate-800/80'
+                                    }`}
+                                  >
+                                    {p.name}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {cities.map((city) => {
+                              const isSel = getSelectedAreas().some((a) => a.toLowerCase() === city.toLowerCase());
+                              return (
+                                <button
+                                  key={city}
+                                  type="button"
+                                  onClick={() => handleToggleArea(city)}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-extrabold uppercase transition-all duration-150 cursor-pointer border ${
+                                    isSel
+                                      ? 'bg-blue-500/15 text-blue-400 border-blue-500/35'
+                                      : 'bg-[#141620] hover:bg-[#1c1e2d] text-slate-400 hover:text-white border-slate-800/80'
+                                  }`}
+                                >
+                                  {city}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Rate per Hour */}

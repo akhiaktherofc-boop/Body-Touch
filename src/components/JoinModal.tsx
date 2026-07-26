@@ -124,6 +124,30 @@ export default function JoinModal({
   const [showOtpScreen, setShowOtpScreen] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
 
+  // Multi-select helpers for Join Operational Areas
+  const getSelectedJoinAreas = (): string[] => {
+    if (!formData.location) return [];
+    return formData.location.split(/[;,]/).map(s => s.trim()).filter(Boolean);
+  };
+
+  const handleToggleJoinArea = (area: string) => {
+    const current = getSelectedJoinAreas();
+    const existsIndex = current.findIndex(a => a.toLowerCase() === area.toLowerCase());
+    let updated: string[];
+    if (existsIndex > -1) {
+      updated = current.filter((_, i) => i !== existsIndex);
+    } else {
+      updated = [...current, area];
+    }
+    setFormData({ ...formData, location: updated.join(', ') });
+  };
+
+  const handleRemoveJoinArea = (area: string) => {
+    const current = getSelectedJoinAreas();
+    const updated = current.filter(a => a.toLowerCase() !== area.toLowerCase());
+    setFormData({ ...formData, location: updated.join(', ') });
+  };
+
   // Payment states for Model Registration (৳3,000 Fee)
   const [showPaymentScreen, setShowPaymentScreen] = useState(false);
   const [payeePhone, setPayeePhone] = useState('');
@@ -1223,49 +1247,152 @@ export default function JoinModal({
                     </div>
                   )}
 
-                  {/* Location Area (Full width now that Hourly Remuneration is removed) */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
-                      Operational City Area *
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                        <MapPin className="w-4 h-4 text-[#dbaa61]/70" />
+                  {/* Multi-Select Operational Areas */}
+                  <div className="space-y-2 bg-[#02050e]/60 border border-blue-950/40 p-4 rounded-2xl">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                        Operational Areas / এলাকা সমূহ (একাধিক সিলেক্ট করতে পারেন) *
+                      </label>
+                      <span className="text-[9px] bg-[#dbaa61]/10 text-[#dbaa61] font-bold px-2 py-0.5 rounded border border-[#dbaa61]/20 font-mono">
+                        {getSelectedJoinAreas().length} selected
+                      </span>
+                    </div>
+
+                    {/* Display Selected Areas as Tags */}
+                    <div className="flex flex-wrap gap-1.5 min-h-[40px] p-2.5 bg-[#030818]/80 rounded-xl border border-blue-950/40">
+                      {getSelectedJoinAreas().length === 0 ? (
+                        <span className="text-[10px] text-slate-500 italic py-1 pl-1">
+                          No areas selected yet. Click pills below to select operational zones.
+                        </span>
+                      ) : (
+                        getSelectedJoinAreas().map((area) => (
+                          <span
+                            key={area}
+                            className="inline-flex items-center gap-1 text-[10px] font-black bg-[#dbaa61]/10 text-[#dbaa61] px-2 py-1 rounded-lg border border-[#dbaa61]/25 uppercase font-mono"
+                          >
+                            {area}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveJoinArea(area)}
+                              className="text-rose-400 hover:text-rose-300 font-black ml-1 text-xs cursor-pointer focus:outline-none transition-all"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Filter/Custom Area Input */}
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                          <MapPin className="w-3.5 h-3.5 text-[#dbaa61]/70" />
+                        </div>
+                        <input
+                          type="text"
+                          id="custom-join-area-input"
+                          placeholder="Type custom area & press Enter / কাস্টম এলাকা"
+                          className="w-full bg-[#030818] border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-8 pr-4 py-3.5 font-bold focus:outline-none transition-all"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const val = e.currentTarget.value.trim();
+                              if (val) {
+                                handleToggleJoinArea(val);
+                                e.currentTarget.value = '';
+                              }
+                            }
+                          }}
+                        />
                       </div>
-                      <select
-                        value={formData.location}
-                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                        style={{ paddingLeft: '2.5rem' }}
-                        className="w-full bg-[#030818] border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all cursor-pointer"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = document.getElementById('custom-join-area-input') as HTMLInputElement;
+                          if (el && el.value.trim()) {
+                            handleToggleJoinArea(el.value.trim());
+                            el.value = '';
+                          }
+                        }}
+                        className="bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] font-black tracking-wider uppercase px-4 py-2 rounded-xl transition cursor-pointer font-bold"
                       >
-                        <option value="" className="bg-[#030818] text-white font-sans font-bold">Select Area</option>
-                        {structuredCities && structuredCities.length > 0 ? (
-                          structuredCities.map((p) => (
-                            <optgroup key={p.id} label={`${p.name.toUpperCase()} (District/City)`} className="bg-[#030818] text-[#dbaa61] font-bold font-sans">
-                              {p.subAreas.map((sub) => (
-                                <option key={`${sub}, ${p.name}`} value={`${sub}, ${p.name}`} className="bg-[#030818] text-white font-sans font-bold">
-                                  {sub.toUpperCase()} ({p.name.toUpperCase()})
-                                </option>
-                              ))}
+                        Add
+                      </button>
+                    </div>
+
+                    {/* Structured Cities Selection List */}
+                    <div className="space-y-3 pt-2 max-h-[180px] overflow-y-auto pr-1 scrollbar-none">
+                      {structuredCities && structuredCities.length > 0 ? (
+                        structuredCities.map((p) => (
+                          <div key={p.id} className="space-y-1.5 border-t border-blue-950/20 pt-2.5 first:border-0 first:pt-0">
+                            <h4 className="text-[9px] font-black tracking-widest text-[#dbaa61] uppercase font-mono pl-0.5">
+                              {p.name.toUpperCase()} REGION
+                            </h4>
+                            <div className="flex flex-wrap gap-1.5">
+                              {p.subAreas.map((sub) => {
+                                const areaLabel = `${sub}, ${p.name}`;
+                                const isSel = getSelectedJoinAreas().some(
+                                  (a) => a.toLowerCase() === areaLabel.toLowerCase() || a.toLowerCase() === sub.toLowerCase()
+                                );
+                                return (
+                                  <button
+                                    key={sub}
+                                    type="button"
+                                    onClick={() => handleToggleJoinArea(areaLabel)}
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-extrabold uppercase transition-all duration-150 cursor-pointer border ${
+                                      isSel
+                                        ? 'bg-[#dbaa61]/15 text-[#dbaa61] border-[#dbaa61]/40 shadow-[0_0_10px_rgba(219,170,97,0.1)]'
+                                        : 'bg-[#030818] hover:bg-[#081230] text-slate-400 hover:text-white border-blue-900/20'
+                                    }`}
+                                  >
+                                    {sub}
+                                  </button>
+                                );
+                              })}
                               {p.subAreas.length === 0 && (
-                                <option value={p.name.toUpperCase()} className="bg-[#030818] text-white font-sans font-bold">{p.name.toUpperCase()}</option>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleJoinArea(p.name)}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-extrabold uppercase transition-all duration-150 cursor-pointer border ${
+                                    getSelectedJoinAreas().some((a) => a.toLowerCase() === p.name.toLowerCase())
+                                      ? 'bg-[#dbaa61]/15 text-[#dbaa61] border-[#dbaa61]/40'
+                                      : 'bg-[#030818] hover:bg-[#081230] text-slate-400 hover:text-white border-blue-900/20'
+                                  }`}
+                                >
+                                  {p.name}
+                                </button>
                               )}
-                            </optgroup>
-                          ))
-                        ) : (
-                          (cities && cities.length > 0 ? cities : [
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {(cities && cities.length > 0 ? cities : [
                             'DHAKA METROPOLIS',
                             'BANANI / GULSHAN',
                             'UTTARA / MIRPUR',
                             'CHATTOGRAM CITY',
                             'SYLHET OVERSEAS'
-                          ]).map((city) => (
-                            <option key={city} value={city.toUpperCase()} className="bg-[#030818] text-white font-sans font-bold">
-                              {city.toUpperCase()}
-                            </option>
-                          ))
-                        )}
-                      </select>
+                          ]).map((city) => {
+                            const isSel = getSelectedJoinAreas().some((a) => a.toLowerCase() === city.toLowerCase());
+                            return (
+                              <button
+                                key={city}
+                                type="button"
+                                onClick={() => handleToggleJoinArea(city)}
+                                className={`px-2 py-1 rounded-lg text-[10px] font-extrabold uppercase transition-all duration-150 cursor-pointer border ${
+                                  isSel
+                                    ? 'bg-[#dbaa61]/15 text-[#dbaa61] border-[#dbaa61]/40'
+                                    : 'bg-[#030818] hover:bg-[#081230] text-slate-400 hover:text-white border-blue-900/20'
+                                }`}
+                              >
+                                {city}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
 
