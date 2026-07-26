@@ -703,14 +703,14 @@ export default function LoginGate({
       if (userDocSnap.exists()) {
         const udata = userDocSnap.data();
         if (udata && udata.isBlocked) {
-          setErrorMsg('⛔ আপনার অ্যাকাউন্টটি অ্যাডমিন দ্বারা ব্লক করা হয়েছে! (Your account has been blocked by the Administrator.)');
+          setErrorMsg('⛔ Your account has been blocked by the Administrator.');
           setGoogleModal(false);
           return;
         }
 
-        // If gender and birthday are present, login immediately!
-        if (udata && udata.gender && (udata.birthday || udata.age)) {
-          setSuccessMsg('গুগল সাইন-ইন সফল হয়েছে! পোর্টাল আনলক করা হচ্ছে... (Google authentication successful!)');
+        // If gender is present, login immediately!
+        if (udata && udata.gender) {
+          setSuccessMsg('Google authentication successful! Unlocking portal...');
           setGoogleModal(false);
           setTimeout(() => {
             onLoginSuccess({
@@ -726,7 +726,7 @@ export default function LoginGate({
         }
       }
 
-      // Either user doesn't exist, or has missing profile fields (gender or birthday)
+      // Either user doesn't exist, or has missing profile fields (gender)
       setGoogleName(name);
       setGoogleEmail(email);
       setGooglePhoto(photo);
@@ -734,24 +734,20 @@ export default function LoginGate({
       setSuccessMsg('');
     } catch (err: any) {
       console.error('[Google Sign In Error]', err);
-      setErrorMsg('গুগল সাইন-ইন ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
+      setErrorMsg('Google Sign-In failed. Please try again.');
     }
   };
 
   const handleGoogleProfileComplete = async () => {
     if (!googleGender) {
-      setErrorMsg('দয়া করে আপনার লিঙ্গ নির্বাচন করুন! (Please select your gender.)');
-      return;
-    }
-    if (!googleBirthday.trim()) {
-      setErrorMsg('দয়া করে আপনার জন্ম তারিখ বা বয়স প্রদান করুন! (Please enter your birthday or age.)');
+      setErrorMsg('Please select your gender.');
       return;
     }
 
     const username = googleEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 
     try {
-      setSuccessMsg('আপনার প্রোফাইল সংরক্ষণ করা হচ্ছে... (Saving user profile...)');
+      setSuccessMsg('Saving user profile...');
       
       const userDocRef = doc(db, 'users', username);
       const userData = {
@@ -762,7 +758,7 @@ export default function LoginGate({
         userPhoto: googlePhoto,
         photoURL: googlePhoto,
         gender: googleGender,
-        birthday: googleBirthday,
+        birthday: 'N/A', // No longer required for Google Login users
         authMethod: 'google',
         createdAt: new Date().toISOString(),
         walletBalance: 0
@@ -770,7 +766,7 @@ export default function LoginGate({
 
       await setDoc(userDocRef, userData, { merge: true });
 
-      setSuccessMsg('গুগল সাইন-ইন সফল হয়েছে! পোর্টাল আনলক করা হচ্ছে... (Profile saved successfully!)');
+      setSuccessMsg('Google sign-in successful! Unlocking portal...');
       setGoogleModal(false);
       
       setTimeout(() => {
@@ -1989,7 +1985,7 @@ export default function LoginGate({
 
 
 
-              {/* Step 3: Complete Gender and Birthday Profile Details */}
+              {/* Step 3: Complete Gender Profile Details */}
               {googleStep === 'complete_profile' && (
                 <div className="space-y-4">
                   <div className="space-y-1">
@@ -1997,7 +1993,7 @@ export default function LoginGate({
                       <UserCheck className="w-5 h-5 text-[#e0b46d]" />
                       <h3 className="text-lg font-bold tracking-tight leading-snug">Complete Profile</h3>
                     </div>
-                    <p className="text-xs text-slate-300">লিঙ্গ ও বয়স নির্ধারণ করুন (Set gender & birthday to activate profile)</p>
+                    <p className="text-xs text-slate-300">Set gender to activate profile</p>
                   </div>
 
                   <div className="bg-[#020614]/60 border border-[#dbaa61]/25 p-3 rounded-2xl flex items-center gap-3">
@@ -2012,7 +2008,7 @@ export default function LoginGate({
                     {/* Gender Selection */}
                     <div>
                       <label className="block text-[9.5px] font-black uppercase tracking-wider text-[#e0b46d] mb-2 pl-0.5">
-                        SELECT YOUR GENDER / আপনার লিঙ্গ
+                        SELECT YOUR GENDER
                       </label>
                       <div className="grid grid-cols-2 gap-2.5">
                         <button
@@ -2021,7 +2017,7 @@ export default function LoginGate({
                           className={`py-3 px-4 rounded-xl border font-bold text-xs transition cursor-pointer flex flex-col items-center justify-center gap-1.5 ${googleGender === 'male' ? 'border-[#dbaa61] bg-[#dbaa61]/15 text-[#f1d087] font-black' : 'border-slate-700 hover:border-slate-500 text-slate-300'}`}
                         >
                           <span className="text-xl">👨</span>
-                          <span className="text-xs">Male / পুরুষ</span>
+                          <span className="text-xs">Male</span>
                         </button>
                         <button
                           type="button"
@@ -2029,37 +2025,19 @@ export default function LoginGate({
                           className={`py-3 px-4 rounded-xl border font-bold text-xs transition cursor-pointer flex flex-col items-center justify-center gap-1.5 ${googleGender === 'female' ? 'border-[#dbaa61] bg-[#dbaa61]/15 text-[#f1d087] font-black' : 'border-slate-700 hover:border-slate-500 text-slate-300'}`}
                         >
                           <span className="text-xl">👩</span>
-                          <span className="text-xs">Female / নারী</span>
+                          <span className="text-xs">Female</span>
                         </button>
                       </div>
-                    </div>
-
-                    {/* Date of Birth or Age Input */}
-                    <div>
-                      <label className="block text-[9.5px] font-black uppercase tracking-wider text-[#e0b46d] mb-1.5 pl-0.5 flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-[#e0b46d]" />
-                        <span className="text-[#e0b46d]">DATE OF BIRTH OR AGE / বয়স ও জন্ম তারিখ</span>
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={googleBirthday}
-                        onChange={(e) => setGoogleBirthday(e.target.value)}
-                        className="w-full border border-[#dbaa61]/25 bg-[#020614] text-xs text-white font-bold px-3 py-2.5 rounded-xl focus:bg-[#040b24] focus:outline-none focus:border-[#e0b46d] transition-all font-mono"
-                      />
-                      <p className="text-[9px] text-slate-400 mt-1 pl-1">
-                        Please provide valid birthdate details. We require clients to be 18+ years of age.
-                      </p>
                     </div>
                   </div>
 
                   <button
                     type="button"
-                    disabled={!googleGender || !googleBirthday}
+                    disabled={!googleGender}
                     onClick={handleGoogleProfileComplete}
                     className="w-full bg-gradient-to-r from-[#a67c33] via-[#dbaa61] to-[#f1d087] hover:brightness-110 text-slate-950 font-black text-xs py-3.5 rounded-xl tracking-wider uppercase transition shadow-lg shadow-[#dbaa61]/15 disabled:opacity-50 mt-2 cursor-pointer"
                   >
-                    CONFIRM & ENTER PORTAL / সাইন-ইন সম্পূর্ণ করুন
+                    CONFIRM & ENTER PORTAL
                   </button>
                 </div>
               )}
