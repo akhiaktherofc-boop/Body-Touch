@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, doc, getDoc, setDoc, deleteDoc, getDocFromServer, onSnapshot, collection, addDoc, updateDoc, isRealFirebaseEnabled, initializeRealFirebase } from '../firebase';
 import * as OTPAuth from 'otpauth';
@@ -56,7 +56,9 @@ import {
   Phone,
   MapPin,
   Tag,
-  Percent
+  Percent,
+  Bell,
+  UserPlus
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import AdminLiveChat from './AdminLiveChat';
@@ -1254,6 +1256,11 @@ export default function AdminPanel({
   const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'memberships' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat' | 'promocodes' | 'model_ledger'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
+  // New Client real-time notifications
+  const [liveNotifications, setLiveNotifications] = useState<any[]>([]);
+  const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
+  const isFirstLoadUsers = useRef(true);
+
   // Hostinger Cloud Sync (Firebase) configuration states
   const [fbApiKey, setFbApiKey] = useState(() => {
     try {
@@ -1449,6 +1456,54 @@ export default function AdminPanel({
       snapshot.forEach((doc: any) => {
         usersList.push({ id: doc.id, username: doc.id, ...doc.data() });
       });
+
+      if (!isFirstLoadUsers.current) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const userData = change.doc.data();
+            const displayName = userData.fullName || userData.username || change.doc.id || 'New Client';
+            const userEmail = userData.email || 'No email';
+            
+            // Create notification item
+            const newNotification = {
+              id: `${change.doc.id}-${Date.now()}`,
+              title: 'New Client Registered',
+              message: `Client "${displayName}" (${userEmail}) just registered on the portal.`,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              avatar: userData.photoURL || userData.userPhoto || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
+              read: false,
+              username: change.doc.id
+            };
+
+            setLiveNotifications((prev) => [newNotification, ...prev]);
+
+            // Play clean modern dual-tone notification chime using browser AudioContext
+            try {
+              const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+              const oscillator = audioCtx.createOscillator();
+              const gainNode = audioCtx.createGain();
+              
+              oscillator.connect(gainNode);
+              gainNode.connect(audioCtx.destination);
+              
+              oscillator.type = 'sine';
+              oscillator.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+              oscillator.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+              
+              gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+              gainNode.gain.exponentialRampToValueAtTime(0.005, audioCtx.currentTime + 0.35);
+              
+              oscillator.start();
+              oscillator.stop(audioCtx.currentTime + 0.35);
+            } catch (soundErr) {
+              console.warn('Could not play notification sound:', soundErr);
+            }
+          }
+        });
+      } else {
+        isFirstLoadUsers.current = false;
+      }
+
       setAllRegisteredUsers(usersList);
     }, (err) => {
       console.warn("Error loading users inside AdminPanel:", err);
@@ -3165,6 +3220,72 @@ export default function AdminPanel({
     );
   }
 
+  // Render floating toasts for real-time new client registrations
+  const renderFloatingToasts = () => {
+    const activeToasts = liveNotifications.filter(n => !n.read).slice(0, 3);
+    
+    return (
+      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 max-w-sm w-full px-4 sm:px-0 pointer-events-none">
+        <AnimatePresence>
+          {activeToasts.map((toast) => (
+            <motion.div
+              key={`toast-${toast.id}`}
+              initial={{ opacity: 0, x: 100, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 100, scale: 0.9 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+              className="pointer-events-auto bg-[#0a0b11] border-2 border-[#dbaa61]/40 p-4 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.85)] flex gap-3 items-start relative overflow-hidden backdrop-blur-md"
+            >
+              <div className="absolute top-0 left-0 bottom-0 w-1 bg-amber-500" />
+              
+              <img
+                src={toast.avatar}
+                alt=""
+                className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-850"
+                referrerPolicy="no-referrer"
+              />
+              <div className="flex-1 text-left min-w-0 pr-3">
+                <div className="flex items-center gap-1.5 mb-1 text-amber-400 font-extrabold text-[10px] tracking-wider uppercase">
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Real-time Alert</span>
+                </div>
+                <h4 className="font-bold text-xs text-white truncate mb-1">{toast.title}</h4>
+                <p className="text-[11px] text-slate-300 leading-relaxed font-medium">{toast.message}</p>
+                <div className="mt-2.5 flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setLiveNotifications(prev => prev.map(n => n.id === toast.id ? { ...n, read: true } : n));
+                      setActiveTab('clients');
+                    }}
+                    className="bg-gradient-to-r from-[#a67c33] to-[#dbaa61] hover:brightness-110 text-slate-950 font-black text-[9px] tracking-wider uppercase px-3 py-1.5 rounded-lg transition-all duration-150 cursor-pointer"
+                  >
+                    View Details
+                  </button>
+                  <button
+                    onClick={() => {
+                      setLiveNotifications(prev => prev.map(n => n.id === toast.id ? { ...n, read: true } : n));
+                    }}
+                    className="text-slate-400 hover:text-white font-bold text-[9px] px-2 py-1.5 transition cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setLiveNotifications(prev => prev.map(n => n.id === toast.id ? { ...n, read: true } : n));
+                }}
+                className="text-slate-500 hover:text-slate-300 transition shrink-0 p-1 rounded-lg hover:bg-slate-900 absolute top-2 right-2 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
   const adminTabsList = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients' as const, label: 'Deposits', icon: Users, badgeCount: pendingPaymentsList.length },
@@ -3249,7 +3370,99 @@ export default function AdminPanel({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 relative">
+          {/* Notifications Bell Icon */}
+          <div className="relative">
+            <button
+              onClick={() => setShowNotificationsDropdown(!showNotificationsDropdown)}
+              className={`p-2.5 rounded-xl border transition-all duration-200 cursor-pointer active:scale-95 flex items-center justify-center relative ${
+                showNotificationsDropdown 
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-400' 
+                  : 'bg-[#12141c] border-slate-800/80 hover:border-slate-700 text-slate-300 hover:text-white'
+              }`}
+              title="Real-time Notifications"
+            >
+              <Bell className="w-4 h-4" />
+              {liveNotifications.filter(n => !n.read).length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-650 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center animate-bounce shadow-lg shadow-red-600/30 leading-none">
+                  {liveNotifications.filter(n => !n.read).length}
+                </span>
+              )}
+            </button>
+
+            {/* Notifications Dropdown */}
+            <AnimatePresence>
+              {showNotificationsDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#090b11] border border-[#dbaa61]/25 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.85)] z-50 overflow-hidden font-sans"
+                >
+                  <div className="p-4 border-b border-[#1c2333] flex items-center justify-between bg-[#0e101a]">
+                    <div className="flex items-center gap-2">
+                      <Bell className="w-4 h-4 text-[#dbaa61]" />
+                      <span className="font-extrabold text-xs tracking-wider uppercase text-white">Live Client Alerts</span>
+                    </div>
+                    {liveNotifications.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setLiveNotifications([]);
+                          setShowNotificationsDropdown(false);
+                        }}
+                        className="text-[10px] font-black tracking-wider uppercase text-slate-400 hover:text-white transition cursor-pointer"
+                      >
+                        Clear All
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-72 overflow-y-auto divide-y divide-[#161a24] scrollbar-thin scrollbar-thumb-slate-850">
+                    {liveNotifications.length === 0 ? (
+                      <div className="p-8 text-center text-slate-500 text-xs flex flex-col items-center gap-2">
+                        <UserPlus className="w-8 h-8 text-slate-600" />
+                        <p className="font-bold">No new client notifications yet.</p>
+                        <p className="text-[10px] text-slate-600 leading-normal">They will appear and chime here as soon as a new user signs up!</p>
+                      </div>
+                    ) : (
+                      liveNotifications.map((noti) => (
+                        <div
+                          key={noti.id}
+                          onClick={() => {
+                            // Mark as read
+                            setLiveNotifications(prev => prev.map(n => n.id === noti.id ? { ...n, read: true } : n));
+                            // Go to clients tab
+                            setActiveTab('clients');
+                            setShowNotificationsDropdown(false);
+                          }}
+                          className={`p-3.5 flex gap-3 cursor-pointer hover:bg-slate-900/50 transition-all text-left ${!noti.read ? 'bg-[#dbaa61]/5 border-l-2 border-[#dbaa61]' : ''}`}
+                        >
+                          <img
+                            src={noti.avatar}
+                            alt=""
+                            className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-800"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 mb-0.5">
+                              <span className="font-bold text-xs text-white truncate">{noti.title}</span>
+                              <span className="text-[9px] text-slate-500 font-mono shrink-0">{noti.time}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-300 leading-relaxed font-medium mb-1.5">{noti.message}</p>
+                            <span className="inline-flex bg-amber-500/10 text-[#dbaa61] text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
+                              Review Client Details
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           <span className="hidden sm:flex bg-[#0d0a05] border border-amber-500/15 text-[#dbaa61] text-[9.5px] font-mono px-3 py-1 rounded-md items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
             Staff Portal
@@ -11561,6 +11774,9 @@ Body Touch Premium Network`;
           </div>
         </div>
       )}
+
+      {/* Real-time Client Alerts Toasts Container */}
+      {renderFloatingToasts()}
 
     </div>
   );
