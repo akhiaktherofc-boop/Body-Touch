@@ -114,6 +114,21 @@ export default function App() {
     return localStorage.getItem(key) || sessionStorage.getItem(key) || defaultValue;
   };
 
+  const toBanglaDigits = (num: number): string => {
+    try {
+      const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+      return num.toLocaleString('en-US').split('').map(char => {
+        const idx = parseInt(char);
+        if (!isNaN(idx) && idx >= 0 && idx <= 9) {
+          return bnDigits[idx];
+        }
+        return char;
+      }).join('');
+    } catch (e) {
+      return String(num);
+    }
+  };
+
   const storage = rememberMe ? localStorage : sessionStorage;
 
   // State Initialization from Session/LocalStorage
@@ -122,6 +137,7 @@ export default function App() {
   });
 
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
+  const [isProfileLoaded, setIsProfileLoaded] = useState<boolean>(false);
 
   const [userRole, setUserRole] = useState<string>(() => {
     return getStoredItem('bt_user_role', '');
@@ -1323,6 +1339,8 @@ export default function App() {
   // Load and sync user profile securely from Firestore when username changes or they log in
   useEffect(() => {
     if (isLoggedIn && username) {
+      setIsProfileLoaded(false);
+      setIsCloudSynced(false);
       getCloudUser(username).then((cloudUser) => {
         if (cloudUser) {
           if (cloudUser.userLevel) setUserLevel(cloudUser.userLevel);
@@ -1355,19 +1373,21 @@ export default function App() {
           };
           saveCloudUser(initialDetails);
         }
+        setIsProfileLoaded(true);
         setIsCloudSynced(true);
       }).catch(e => {
         console.warn('[CloudDB] Sync cloud stats failed:', e);
-        setIsCloudSynced(true); // set to true as fallback to allow local modifications
+        // Safely keep isCloudSynced and isProfileLoaded as false to prevent overwriting cloud data with local defaults
       });
     } else {
+      setIsProfileLoaded(false);
       setIsCloudSynced(false);
     }
   }, [isLoggedIn, username]);
 
   // Sync user profile updates to Firestore
   useEffect(() => {
-    if (isLoggedIn && username && isCloudSynced) {
+    if (isLoggedIn && username && isCloudSynced && isProfileLoaded) {
       const stats = {
         username,
         fullName,
@@ -1379,11 +1399,11 @@ export default function App() {
       };
       saveCloudUser(stats);
     }
-  }, [userLevel, walletBalance, fullName, phone, email, gender, isLoggedIn, username, isCloudSynced]);
+  }, [userLevel, walletBalance, fullName, phone, email, gender, isLoggedIn, username, isCloudSynced, isProfileLoaded]);
 
   // Dynamic self-healing auto-reconciliation of userLevel and walletBalance based on the payment ledger
   useEffect(() => {
-    if (isLoggedIn && username && isCloudSynced && payments.length > 0) {
+    if (isLoggedIn && username && payments.length > 0) {
       // Filter payments belonging to the current user with case-insensitive username match
       const userApprovedPayments = payments.filter(
         (p) => p.username && p.username.toLowerCase() === username.toLowerCase() && p.status === 'Approved'
@@ -1446,7 +1466,7 @@ export default function App() {
         console.log(`[Self-Healing Ledger Recovery] Restored user @${username}: Balance from ${walletBalance} to ${ledgerBalance}, Level from ${userLevel} to ${ledgerLevel}`);
       }
     }
-  }, [isLoggedIn, username, isCloudSynced, payments, walletBalance, userLevel]);
+  }, [isLoggedIn, username, payments, walletBalance, userLevel]);
 
   // Fetch Settings from Firestore on mount
   useEffect(() => {
@@ -3895,7 +3915,7 @@ https://service.bodytouch.com
             >
               <Wallet className="w-3.5 h-3.5 text-blue-400" />
               <span className="text-blue-300 font-bold border-r border-blue-500/15 pr-1.5 h-3.5 flex items-center">৳</span>
-              <span className="text-white font-extrabold">{walletBalance.toLocaleString('bn-BD')}</span>
+              <span className="text-white font-extrabold">{toBanglaDigits(walletBalance)}</span>
             </button>
 
             {/* Smart Notification Bell */}
