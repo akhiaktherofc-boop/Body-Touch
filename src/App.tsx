@@ -121,6 +121,8 @@ export default function App() {
     return getStoredItem('bt_is_logged_in') === 'true';
   });
 
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
+
   const [userRole, setUserRole] = useState<string>(() => {
     return getStoredItem('bt_user_role', '');
   });
@@ -1353,13 +1355,19 @@ export default function App() {
           };
           saveCloudUser(initialDetails);
         }
-      }).catch(e => console.warn('[CloudDB] Sync cloud stats failed:', e));
+        setIsCloudSynced(true);
+      }).catch(e => {
+        console.warn('[CloudDB] Sync cloud stats failed:', e);
+        setIsCloudSynced(true); // set to true as fallback to allow local modifications
+      });
+    } else {
+      setIsCloudSynced(false);
     }
   }, [isLoggedIn, username]);
 
   // Sync user profile updates to Firestore
   useEffect(() => {
-    if (isLoggedIn && username) {
+    if (isLoggedIn && username && isCloudSynced) {
       const stats = {
         username,
         fullName,
@@ -1371,7 +1379,7 @@ export default function App() {
       };
       saveCloudUser(stats);
     }
-  }, [userLevel, walletBalance, fullName, phone, email, gender, isLoggedIn, username]);
+  }, [userLevel, walletBalance, fullName, phone, email, gender, isLoggedIn, username, isCloudSynced]);
 
   // Fetch Settings from Firestore on mount
   useEffect(() => {
@@ -3241,6 +3249,7 @@ https://service.bodytouch.com
     setAvatarUrl('');
     setUserLevel('FREE');
     setWalletBalance(0);
+    setIsCloudSynced(false);
     setBookings([]);
     setPayments([
       {
