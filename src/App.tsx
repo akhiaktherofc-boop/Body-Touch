@@ -1381,6 +1381,73 @@ export default function App() {
     }
   }, [userLevel, walletBalance, fullName, phone, email, gender, isLoggedIn, username, isCloudSynced]);
 
+  // Dynamic self-healing auto-reconciliation of userLevel and walletBalance based on the payment ledger
+  useEffect(() => {
+    if (isLoggedIn && username && isCloudSynced && payments.length > 0) {
+      // Filter payments belonging to the current user with case-insensitive username match
+      const userApprovedPayments = payments.filter(
+        (p) => p.username && p.username.toLowerCase() === username.toLowerCase() && p.status === 'Approved'
+      );
+
+      // 1. Recalculate ledger balance
+      let totalIn = 0;
+      let totalOut = 0;
+
+      const bnToEn: Record<string, string> = {
+        '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4',
+        '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9'
+      };
+
+      userApprovedPayments.forEach((p) => {
+        const isBooking = p.tierName.toLowerCase().includes('booking');
+        const isWithdraw = p.tierName.toLowerCase().includes('withdraw');
+        
+        const rawPrice = p.price.replace(/[-৳,]/g, '');
+        const normalizedPrice = rawPrice.split('').map(c => bnToEn[c] || c).join('');
+        const numPrice = Math.abs(parseInt(normalizedPrice) || 0);
+
+        const isNegative = p.price.startsWith('-') || isWithdraw || isBooking;
+
+        if (isNegative) {
+          totalOut += numPrice;
+        } else {
+          totalIn += numPrice;
+        }
+      });
+
+      const ledgerBalance = Math.max(0, totalIn - totalOut);
+
+      // 2. Determine highest level based on approved membership payments
+      let ledgerLevel: MemberLevel = 'FREE';
+      
+      const hasElite = userApprovedPayments.some((p) => p.tierName.toUpperCase() === 'ELITE');
+      const hasPremium = userApprovedPayments.some((p) => p.tierName.toUpperCase() === 'PREMIUM');
+      const hasRegular = userApprovedPayments.some((p) => p.tierName.toUpperCase() === 'REGULAR');
+
+      if (hasElite) ledgerLevel = 'ELITE';
+      else if (hasPremium) ledgerLevel = 'PREMIUM';
+      else if (hasRegular) ledgerLevel = 'REGULAR';
+
+      // Compare with current states and recover if Firestore or state was cleared, corrupted or out of sync
+      let needsStateUpdate = false;
+      
+      if (ledgerBalance > walletBalance) {
+        setWalletBalance(ledgerBalance);
+        needsStateUpdate = true;
+      }
+      
+      const levelsOrder: Record<MemberLevel, number> = { FREE: 0, REGULAR: 1, PREMIUM: 2, ELITE: 3 };
+      if (levelsOrder[ledgerLevel] > levelsOrder[userLevel]) {
+        setUserLevel(ledgerLevel);
+        needsStateUpdate = true;
+      }
+
+      if (needsStateUpdate) {
+        console.log(`[Self-Healing Ledger Recovery] Restored user @${username}: Balance from ${walletBalance} to ${ledgerBalance}, Level from ${userLevel} to ${ledgerLevel}`);
+      }
+    }
+  }, [isLoggedIn, username, isCloudSynced, payments, walletBalance, userLevel]);
+
   // Fetch Settings from Firestore on mount
   useEffect(() => {
     const fetchAppSettings = async () => {
