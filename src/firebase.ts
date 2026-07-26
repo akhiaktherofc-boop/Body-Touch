@@ -477,6 +477,18 @@ export async function getDocs(queryOrRef: any) {
       docs: convertedDocs,
       forEach: (cb: (doc: any) => void) => {
         convertedDocs.forEach(cb);
+      },
+      docChanges: () => {
+        if (snap.docChanges && typeof snap.docChanges === 'function') {
+          return snap.docChanges().map((change: any) => ({
+            type: change.type,
+            doc: {
+              id: change.doc.id,
+              data: () => change.doc.data()
+            }
+          }));
+        }
+        return [];
       }
     };
   }
@@ -525,7 +537,8 @@ export async function getDocs(queryOrRef: any) {
     docs: finalDocs,
     forEach: (cb: (doc: any) => void) => {
       finalDocs.forEach(cb);
-    }
+    },
+    docChanges: () => []
   };
 }
 
@@ -547,6 +560,18 @@ export function onSnapshot(
           docs: convertedDocs,
           forEach: (cb: (doc: any) => void) => {
             convertedDocs.forEach(cb);
+          },
+          docChanges: () => {
+            if (snap.docChanges && typeof snap.docChanges === 'function') {
+              return snap.docChanges().map((change: any) => ({
+                type: change.type,
+                doc: {
+                  id: change.doc.id,
+                  data: () => change.doc.data()
+                }
+              }));
+            }
+            return [];
           }
         });
       } else {

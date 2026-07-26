@@ -1267,6 +1267,7 @@ export default function AdminPanel({
   const [liveNotifications, setLiveNotifications] = useState<any[]>([]);
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
   const isFirstLoadUsers = useRef(true);
+  const previousUserIds = useRef<Set<string>>(new Set());
 
   // Hostinger Cloud Sync (Firebase) configuration states
   const [fbApiKey, setFbApiKey] = useState(() => {
@@ -1484,21 +1485,21 @@ export default function AdminPanel({
       });
 
       if (!isFirstLoadUsers.current) {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added') {
-            const userData = change.doc.data();
-            const displayName = userData.fullName || userData.username || change.doc.id || 'New Client';
+        // Find newly added users by checking which IDs were not in our previous Set
+        usersList.forEach((userData) => {
+          if (!previousUserIds.current.has(userData.id)) {
+            const displayName = userData.fullName || userData.username || userData.id || 'New Client';
             const userEmail = userData.email || 'No email';
             
             // Create notification item
             const newNotification = {
-              id: `${change.doc.id}-${Date.now()}`,
+              id: `${userData.id}-${Date.now()}`,
               title: 'New Client Registered',
               message: `Client "${displayName}" (${userEmail}) just registered on the portal.`,
               time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               avatar: userData.photoURL || userData.userPhoto || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
               read: false,
-              username: change.doc.id
+              username: userData.id
             };
 
             setLiveNotifications((prev) => [newNotification, ...prev]);
@@ -1530,6 +1531,8 @@ export default function AdminPanel({
         isFirstLoadUsers.current = false;
       }
 
+      // Update previousUserIds Set with the current list of IDs
+      previousUserIds.current = new Set(usersList.map(u => u.id));
       setAllRegisteredUsers(usersList);
     }, (err) => {
       console.warn("Error loading users inside AdminPanel:", err);
