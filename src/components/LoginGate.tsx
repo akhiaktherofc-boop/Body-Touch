@@ -586,6 +586,110 @@ export default function LoginGate({
     }
   };
 
+  // Load Google Identity Services dynamically
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+      
+      script.onload = () => {
+        try {
+          initializeGoogleSignIn();
+        } catch (err) {
+          console.warn("Failed to auto-initialize Google Sign-In:", err);
+        }
+      };
+
+      return () => {
+        const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+        if (existingScript) {
+          document.head.removeChild(existingScript);
+        }
+      };
+    }
+  }, []);
+
+  // Re-initialize GSI whenever the Google modal is shown on Step 1
+  useEffect(() => {
+    if (googleModal && googleStep === 'select_account') {
+      const timer = setTimeout(() => {
+        initializeGoogleSignIn();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [googleModal, googleStep]);
+
+  const initializeGoogleSignIn = () => {
+    const win = window as any;
+    if (win.google && win.google.accounts) {
+      const clientId = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '9579879038-ja6iglju7l5658qgchsk30io8n4i8j8s.apps.googleusercontent.com';
+      
+      win.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: handleGoogleCredentialResponse,
+        auto_select: false,
+        cancel_on_tap_outside: true
+      });
+
+      const container = document.getElementById('google-signin-btn-container');
+      if (container) {
+        const btnWidth = (container.clientWidth && container.clientWidth > 150) ? container.clientWidth : 280;
+        win.google.accounts.id.renderButton(container, {
+          theme: 'filled_blue',
+          size: 'large',
+          type: 'standard',
+          shape: 'rectangular',
+          text: 'signin_with',
+          logo_alignment: 'left',
+          width: btnWidth
+        });
+      }
+    }
+  };
+
+  const handleGoogleCredentialResponse = async (response: any) => {
+    const idToken = response.credential;
+    if (!idToken) return;
+
+    setErrorMsg('');
+    setSuccessMsg('গুগল অ্যাকাউন্ট যাচাই করা হচ্ছে... (Verifying secure Google identity...)');
+    
+    try {
+      // Use /api/auth/verify_google in dev environment, or fallback to verify_google.php in production (Hostinger)
+      const isProduction = !window.location.hostname.includes('run.app') && 
+                           !window.location.hostname.includes('localhost') && 
+                           !window.location.hostname.includes('127.0.0.1');
+      const verifyEndpoint = isProduction ? '/verify_google.php' : '/api/auth/verify_google';
+
+      const verifyRes = await fetch(verifyEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: idToken })
+      });
+
+      if (!verifyRes.ok) {
+        const errData = await verifyRes.json().catch(() => ({}));
+        throw new Error(errData.message || 'Verification failed');
+      }
+
+      const resData = await verifyRes.json();
+      if (resData.status === 'success' && resData.user) {
+        const googleUser = resData.user;
+        // Launch standard init which handles registration checking & routing to next step
+        handleGoogleSignInInit(googleUser.name, googleUser.email, googleUser.picture);
+      } else {
+        throw new Error(resData.message || 'Invalid server verification payload');
+      }
+    } catch (err: any) {
+      console.error('[Google Secure Auth Error]', err);
+      setErrorMsg(`গুগল সাইন-ইন ব্যর্থ হয়েছে: ${err.message || 'ক্রিপ্টোগ্রাফিক যাচাইকরণে সমস্যা হয়েছে।'}`);
+      setSuccessMsg('');
+    }
+  };
+
   const handleGoogleSignInInit = async (name: string, email: string, photo: string) => {
     setErrorMsg('');
     setSuccessMsg('');
@@ -1823,11 +1927,12 @@ export default function LoginGate({
             className="fixed inset-0 bg-[#020510]/95 backdrop-blur-md flex items-center justify-center p-4 z-50 selection:bg-blue-600 selection:text-white"
           >
             <motion.div
+              id="join-modal-container"
               initial={{ scale: 0.95, y: 15, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.95, y: 15, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-              className="bg-white text-slate-800 border border-slate-200 rounded-3xl max-w-sm w-full p-6 sm:p-7 space-y-5 shadow-2xl relative font-sans overflow-hidden text-left"
+              className="rounded-3xl max-w-sm w-full p-6 sm:p-7 space-y-5 shadow-2xl relative font-sans overflow-hidden text-left border"
             >
               {/* Top Google Branding Header */}
               <div className="flex justify-between items-start">
@@ -1850,253 +1955,97 @@ export default function LoginGate({
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                     />
                   </svg>
-                  <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest font-mono">Google Accounts</span>
+                  <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest font-mono">Google Accounts</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setGoogleModal(false)}
-                  className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                  className="p-1 rounded-full hover:bg-[#dbaa61]/15 text-slate-400 hover:text-white transition cursor-pointer"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-4 h-4 text-[#e0b46d]" />
                 </button>
               </div>
 
               {/* Step 1: Select Account */}
               {googleStep === 'select_account' && (
                 <div className="space-y-4">
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-bold text-slate-900 tracking-tight leading-snug">Choose an account</h3>
-                    <p className="text-xs text-slate-500">to continue to <span className="font-bold text-blue-600">bodyTOUCH Portal</span></p>
+                  <div className="space-y-1 text-left">
+                    <h3 className="text-lg font-bold tracking-tight leading-snug">Sign in with Google</h3>
+                    <p className="text-xs text-slate-300">Secure connection to <span className="font-bold text-blue-400">bodyTOUCH Portal</span></p>
                   </div>
 
-                  <div className="divide-y divide-slate-100 border border-slate-150 rounded-2xl overflow-hidden bg-slate-50/50">
-                    {/* Presets */}
-                    <button
-                      type="button"
-                      onClick={() => handleGoogleSignInInit(
-                        'Akhi Akther', 
-                        'akhi.akther.ofc@gmail.com', 
-                        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150'
-                      )}
-                      className="w-full p-3.5 hover:bg-slate-100/80 transition text-left flex items-center gap-3.5 cursor-pointer"
-                    >
-                      <img 
-                        src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150" 
-                        alt="Akhi Akther" 
-                        className="w-8.5 h-8.5 rounded-full object-cover border border-slate-200" 
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-slate-800 leading-normal truncate">Akhi Akther</p>
-                        <p className="text-[10px] text-slate-500 leading-tight truncate">akhi.akther.ofc@gmail.com</p>
-                      </div>
-                      <span className="text-[8px] bg-emerald-100 text-emerald-800 border border-emerald-200 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">Logged In</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleGoogleSignInInit(
-                        '16killer2', 
-                        '16killer2@gmail.com', 
-                        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150'
-                      )}
-                      className="w-full p-3.5 hover:bg-slate-100/80 transition text-left flex items-center gap-3.5 cursor-pointer"
-                    >
-                      <img 
-                        src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150" 
-                        alt="Admin" 
-                        className="w-8.5 h-8.5 rounded-full object-cover border border-slate-200" 
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-slate-800 leading-normal truncate">Admin / 16killer2</p>
-                        <p className="text-[10px] text-slate-500 leading-tight truncate">16killer2@gmail.com</p>
-                      </div>
-                      <span className="text-[8px] bg-indigo-100 text-indigo-800 border border-indigo-200 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">Admin</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleGoogleSignInInit(
-                        'Guest User', 
-                        'guest.user@gmail.com', 
-                        'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150'
-                      )}
-                      className="w-full p-3.5 hover:bg-slate-100/80 transition text-left flex items-center gap-3.5 cursor-pointer"
-                    >
-                      <img 
-                        src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150" 
-                        alt="Guest" 
-                        className="w-8.5 h-8.5 rounded-full object-cover border border-slate-200" 
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-slate-800 leading-normal truncate">Guest User</p>
-                        <p className="text-[10px] text-slate-500 leading-tight truncate">guest.user@gmail.com</p>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setGoogleName('');
-                        setGoogleEmail('');
-                        setGooglePhoto('https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150');
-                        setGoogleStep('use_custom');
-                      }}
-                      className="w-full p-3.5 hover:bg-slate-100/80 transition text-left flex items-center gap-3.5 cursor-pointer text-blue-600 font-bold text-xs"
-                    >
-                      <span className="w-8.5 h-8.5 rounded-full bg-blue-50 border border-dashed border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
-                        +
-                      </span>
-                      <div className="flex-1">
-                        Use another Google Account / অন্য অ্যাকাউন্ট
-                      </div>
-                    </button>
+                  {/* Primary Official Google Sign-In Button */}
+                  <div className="py-4 px-2 border border-[#dbaa61]/25 rounded-2xl bg-[#020614]/60 flex flex-col items-center justify-center min-h-[80px] gap-3">
+                    <div id="google-signin-btn-container" className="w-full flex justify-center"></div>
                   </div>
 
-                  <p className="text-[9.5px] text-slate-400 leading-relaxed text-center">
-                    To continue, Google will share your name, email address, profile picture, and language preference with bodyTOUCH.
+
+
+                  <p className="text-[9.5px] text-slate-400 leading-relaxed text-left">
+                    To continue, Google will share your verified name, email address, profile picture, and language preference with bodyTOUCH.
                   </p>
                 </div>
               )}
 
-              {/* Step 2: Use Custom Account */}
-              {googleStep === 'use_custom' && (
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-bold text-slate-900 tracking-tight leading-snug">Sign in</h3>
-                    <p className="text-xs text-slate-500">with your customized Google Account</p>
-                  </div>
 
-                  <div className="space-y-3.5">
-                    <div>
-                      <label className="block text-[9px] font-black uppercase tracking-wider text-slate-500 mb-1 pl-0.5">Google Display Name</label>
-                      <input
-                        type="text"
-                        required
-                        value={googleName}
-                        onChange={(e) => setGoogleName(e.target.value)}
-                        placeholder="Akhi Akther"
-                        className="w-full border border-slate-250 bg-slate-50 text-xs text-slate-800 font-bold px-3 py-2.5 rounded-xl focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[9px] font-black uppercase tracking-wider text-slate-500 mb-1 pl-0.5">Gmail Address</label>
-                      <input
-                        type="email"
-                        required
-                        value={googleEmail}
-                        onChange={(e) => setGoogleEmail(e.target.value)}
-                        placeholder="yourname@gmail.com"
-                        className="w-full border border-slate-250 bg-slate-50 text-xs text-slate-800 font-bold px-3 py-2.5 rounded-xl focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[9px] font-black uppercase tracking-wider text-slate-500 mb-2 pl-0.5">Choose Avatar Profile Photo</label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {[
-                          { id: 'f1', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150' },
-                          { id: 'f2', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150' },
-                          { id: 'm1', url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150' },
-                          { id: 'm2', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150' }
-                        ].map((avatar) => (
-                          <button
-                            key={avatar.id}
-                            type="button"
-                            onClick={() => setGooglePhoto(avatar.url)}
-                            className={`rounded-full overflow-hidden w-11 h-11 border-2 transition cursor-pointer relative shrink-0 ${googlePhoto === avatar.url ? 'border-blue-500 scale-105 shadow-md shadow-blue-500/15' : 'border-slate-200 hover:border-slate-300'}`}
-                          >
-                            <img src={avatar.url} alt="preset" className="w-full h-full object-cover" />
-                            {googlePhoto === avatar.url && (
-                              <div className="absolute inset-0 bg-blue-500/25 flex items-center justify-center text-white">
-                                <svg className="w-3.5 h-3.5 stroke-[3.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                              </div>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setGoogleStep('select_account')}
-                      className="text-xs text-slate-500 hover:text-slate-800 font-bold cursor-pointer"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!googleName.trim() || !googleEmail.trim().includes('@')}
-                      onClick={() => handleGoogleSignInInit(googleName, googleEmail, googlePhoto)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-blue-600/10 active:scale-95 transition disabled:opacity-50 cursor-pointer"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* Step 3: Complete Gender and Birthday Profile Details */}
               {googleStep === 'complete_profile' && (
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-blue-600">
-                      <UserCheck className="w-5 h-5" />
-                      <h3 className="text-lg font-bold text-slate-950 tracking-tight leading-snug">Complete Profile</h3>
+                    <div className="flex items-center gap-2 text-[#e0b46d]">
+                      <UserCheck className="w-5 h-5 text-[#e0b46d]" />
+                      <h3 className="text-lg font-bold tracking-tight leading-snug">Complete Profile</h3>
                     </div>
-                    <p className="text-xs text-slate-500">লিঙ্গ ও বয়স নির্ধারণ করুন (Set gender & birthday to activate profile)</p>
+                    <p className="text-xs text-slate-300">লিঙ্গ ও বয়স নির্ধারণ করুন (Set gender & birthday to activate profile)</p>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-150 p-3 rounded-2xl flex items-center gap-3">
-                    <img src={googlePhoto} alt="Google Photo" className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0" />
+                  <div className="bg-[#020614]/60 border border-[#dbaa61]/25 p-3 rounded-2xl flex items-center gap-3">
+                    <img src={googlePhoto} alt="Google Photo" className="w-10 h-10 rounded-full object-cover border border-[#dbaa61]/35 shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-extrabold text-slate-800 truncate">{googleName}</p>
-                      <p className="text-[10px] text-slate-500 truncate">{googleEmail}</p>
+                      <p className="text-xs font-extrabold text-white truncate">{googleName}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{googleEmail}</p>
                     </div>
                   </div>
 
                   <div className="space-y-4">
                     {/* Gender Selection */}
                     <div>
-                      <label className="block text-[9.5px] font-black uppercase tracking-wider text-slate-600 mb-2 pl-0.5">
+                      <label className="block text-[9.5px] font-black uppercase tracking-wider text-[#e0b46d] mb-2 pl-0.5">
                         SELECT YOUR GENDER / আপনার লিঙ্গ
                       </label>
                       <div className="grid grid-cols-2 gap-2.5">
                         <button
                           type="button"
                           onClick={() => setGoogleGender('male')}
-                          className={`py-3 px-4 rounded-xl border font-bold text-xs transition cursor-pointer flex flex-col items-center justify-center gap-1.5 ${googleGender === 'male' ? 'border-blue-500 bg-blue-50 text-blue-700 font-black' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}
+                          className={`py-3 px-4 rounded-xl border font-bold text-xs transition cursor-pointer flex flex-col items-center justify-center gap-1.5 ${googleGender === 'male' ? 'border-[#dbaa61] bg-[#dbaa61]/15 text-[#f1d087] font-black' : 'border-slate-700 hover:border-slate-500 text-slate-300'}`}
                         >
                           <span className="text-xl">👨</span>
-                          <span>Male / পুরুষ</span>
+                          <span className="text-xs">Male / পুরুষ</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setGoogleGender('female')}
-                          className={`py-3 px-4 rounded-xl border font-bold text-xs transition cursor-pointer flex flex-col items-center justify-center gap-1.5 ${googleGender === 'female' ? 'border-pink-500 bg-pink-50 text-pink-700 font-black' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}
+                          className={`py-3 px-4 rounded-xl border font-bold text-xs transition cursor-pointer flex flex-col items-center justify-center gap-1.5 ${googleGender === 'female' ? 'border-[#dbaa61] bg-[#dbaa61]/15 text-[#f1d087] font-black' : 'border-slate-700 hover:border-slate-500 text-slate-300'}`}
                         >
                           <span className="text-xl">👩</span>
-                          <span>Female / নারী</span>
+                          <span className="text-xs">Female / নারী</span>
                         </button>
                       </div>
                     </div>
 
                     {/* Date of Birth or Age Input */}
                     <div>
-                      <label className="block text-[9.5px] font-black uppercase tracking-wider text-slate-600 mb-1.5 pl-0.5 flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                        <span>DATE OF BIRTH OR AGE / বয়স ও জন্ম তারিখ</span>
+                      <label className="block text-[9.5px] font-black uppercase tracking-wider text-[#e0b46d] mb-1.5 pl-0.5 flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-[#e0b46d]" />
+                        <span className="text-[#e0b46d]">DATE OF BIRTH OR AGE / বয়স ও জন্ম তারিখ</span>
                       </label>
                       <input
                         type="date"
                         required
                         value={googleBirthday}
                         onChange={(e) => setGoogleBirthday(e.target.value)}
-                        className="w-full border border-slate-250 bg-slate-50 text-xs text-slate-800 font-bold px-3 py-2.5 rounded-xl focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono"
+                        className="w-full border border-[#dbaa61]/25 bg-[#020614] text-xs text-white font-bold px-3 py-2.5 rounded-xl focus:bg-[#040b24] focus:outline-none focus:border-[#e0b46d] transition-all font-mono"
                       />
                       <p className="text-[9px] text-slate-400 mt-1 pl-1">
                         Please provide valid birthdate details. We require clients to be 18+ years of age.
@@ -2108,7 +2057,7 @@ export default function LoginGate({
                     type="button"
                     disabled={!googleGender || !googleBirthday}
                     onClick={handleGoogleProfileComplete}
-                    className="w-full bg-blue-600 hover:bg-blue-750 text-white font-black text-xs py-3.5 rounded-xl tracking-wider uppercase transition shadow-lg shadow-blue-600/15 disabled:opacity-50 mt-2 cursor-pointer"
+                    className="w-full bg-gradient-to-r from-[#a67c33] via-[#dbaa61] to-[#f1d087] hover:brightness-110 text-slate-950 font-black text-xs py-3.5 rounded-xl tracking-wider uppercase transition shadow-lg shadow-[#dbaa61]/15 disabled:opacity-50 mt-2 cursor-pointer"
                   >
                     CONFIRM & ENTER PORTAL / সাইন-ইন সম্পূর্ণ করুন
                   </button>

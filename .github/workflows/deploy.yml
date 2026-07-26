@@ -39,8 +39,33 @@ jobs:
         env:
           RAW_SERVER: ${{ secrets.FTP_SERVER }}
         run: |
-          # Remove ftp:// or ftps:// prefix if present
-          CLEANED_SERVER=$(echo "$RAW_SERVER" | sed -E 's|^ftps?://||' | sed -E 's|/$||')
+          # Trim leading/trailing whitespace and remove carriage returns
+          CLEANED_SERVER=$(echo "$RAW_SERVER" | xargs | sed -E 's|\r||g')
+          # Strip ftp:// or ftps:// prefix if present
+          CLEANED_SERVER=$(echo "$CLEANED_SERVER" | sed -E 's|^ftps?://||')
+          # Strip any trailing path or slash (e.g. ftp.example.com/subfolder -> ftp.example.com)
+          CLEANED_SERVER=$(echo "$CLEANED_SERVER" | cut -d'/' -f1)
+          # Strip port suffix if present (e.g. ftp.example.com:21 -> ftp.example.com)
+          CLEANED_SERVER=$(echo "$CLEANED_SERVER" | cut -d':' -f1)
+
+          echo "Cleaned server string: '$CLEANED_SERVER'"
+
+          # Check if the hostname is resolvable using getent.
+          # If it is not resolvable and starts with ftp., fallback to the main domain.
+          if ! getent hosts "$CLEANED_SERVER" > /dev/null 2>&1; then
+            echo "Warning: Cleaned hostname '$CLEANED_SERVER' cannot be resolved via DNS."
+            if [[ "$CLEANED_SERVER" == ftp.* ]]; then
+              FALLBACK_SERVER="${CLEANED_SERVER#ftp.}"
+              echo "Attempting to resolve root domain fallback: '$FALLBACK_SERVER'..."
+              if getent hosts "$FALLBACK_SERVER" > /dev/null 2>&1; then
+                echo "Success: Fallback root domain '$FALLBACK_SERVER' resolved successfully! Using it."
+                CLEANED_SERVER="$FALLBACK_SERVER"
+              else
+                echo "Warning: Fallback root domain '$FALLBACK_SERVER' is also unresolvable."
+              fi
+            fi
+          fi
+
           echo "server=$CLEANED_SERVER" >> $GITHUB_OUTPUT
 
       - name: 📂 Sync files to Hostinger via FTP

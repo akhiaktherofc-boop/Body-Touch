@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // 2. Load your actual Google Client ID
 // (Replace this placeholder with the secure client ID from your Google Cloud Console)
-define('GOOGLE_CLIENT_ID', isset($_ENV['GOOGLE_CLIENT_ID']) ? $_ENV['GOOGLE_CLIENT_ID'] : 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com');
+define('GOOGLE_CLIENT_ID', isset($_ENV['GOOGLE_CLIENT_ID']) ? $_ENV['GOOGLE_CLIENT_ID'] : '9579879038-ja6iglju7l5658qgchsk30io8n4i8j8s.apps.googleusercontent.com');
 
 // Get raw input stream (works for JSON content types payload)
 $rawInput = file_get_contents('php://input');

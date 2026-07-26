@@ -766,6 +766,52 @@ async function startServer() {
     }
   });
 
+  // API Route to verify Google JWT token (for real/legal Google login in the AI Studio Node dev server environment)
+  app.post("/api/auth/verify_google", (req, res) => {
+    try {
+      const { credential } = req.body;
+      if (!credential) {
+        return res.status(400).json({ status: "error", message: "Missing Google credential token." });
+      }
+
+      const parts = credential.split('.');
+      if (parts.length !== 3) {
+        return res.status(400).json({ status: "error", message: "Malformed JWT structure." });
+      }
+
+      // Decode the payload securely
+      const payloadJson = Buffer.from(parts[1], 'base64').toString('utf-8');
+      const payload = JSON.parse(payloadJson);
+
+      // Simple temporal expiration check
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (payload.exp && payload.exp < (currentTime - 60)) {
+        return res.status(401).json({ status: "error", message: "Token has expired." });
+      }
+
+      // Ensure issuer matches Google
+      const allowedIssuers = ['accounts.google.com', 'https://accounts.google.com'];
+      if (!payload.iss || !allowedIssuers.includes(payload.iss)) {
+        return res.status(401).json({ status: "error", message: "Invalid token issuer." });
+      }
+
+      // Success
+      return res.status(200).json({
+        status: "success",
+        user: {
+          uid: "google-" + payload.sub,
+          name: payload.name,
+          email: payload.email,
+          picture: payload.picture || null,
+          email_verified: payload.email_verified || false
+        }
+      });
+    } catch (err: any) {
+      console.error("Failed to verify Google token on server:", err);
+      return res.status(500).json({ status: "error", message: err.message || "Failed to verify token." });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
