@@ -2102,18 +2102,11 @@ export default function BookingModal({
 
                                     <div className="w-full pt-3 border-t border-[#dbaa61]/10 flex flex-col items-center space-y-2 mt-2">
                                       <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider font-mono">
-                                        Camera not working?
+                                        Security Notice / নিরাপত্তা নোটিশ
                                       </span>
-                                      <label className="px-5 py-2.5 bg-[#030a1c] border border-[#dbaa61]/25 hover:border-[#dbaa61]/45 hover:bg-[#dbaa61]/5 text-[#dbaa61] hover:text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest flex items-center gap-1.5 transition duration-200 cursor-pointer shadow-md">
-                                        <Camera className="w-3.5 h-3.5 text-[#dbaa61]" />
-                                        <span>Upload Selfie</span>
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          className="hidden"
-                                          onChange={(e) => handleFileChange(e, setUserPhoto)}
-                                        />
-                                      </label>
+                                      <p className="text-[9px] text-rose-400 font-black uppercase tracking-wider text-center max-w-xs leading-normal">
+                                        🚫 Photo Upload is strictly disabled to prevent bypass/spoofing attacks. Real-time live camera capture is 100% mandatory.
+                                      </p>
                                     </div>
                                   </div>
                                 )}
