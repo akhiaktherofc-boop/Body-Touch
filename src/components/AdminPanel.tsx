@@ -1253,8 +1253,15 @@ export default function AdminPanel({
   // Render High Security Portal Gate if not authenticated - MOVED BELOW HOOKS TO COMPLY WITH REACT HOOK RULES
 
   // Tabs configured to align with User's specific requirements
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'memberships' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat' | 'promocodes' | 'model_ledger'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'memberships' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat' | 'promocodes' | 'model_ledger' | 'broadcast_notifications'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Broadcast & Push Notification states
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastType, setBroadcastType] = useState<'info' | 'success' | 'alert' | 'booking' | 'system'>('info');
+  const [broadcastTargetUser, setBroadcastTargetUser] = useState(''); // empty for all users (global)
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
 
   // New Client real-time notifications
   const [liveNotifications, setLiveNotifications] = useState<any[]>([]);
@@ -1441,6 +1448,25 @@ export default function AdminPanel({
       setRegisteredAgents(agentsList);
     }, (err) => {
       console.warn("Error loading agents inside AdminPanel:", err);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const [adminNotifications, setAdminNotifications] = useState<any[]>([]);
+
+  // Subscribe to notifications collection in DB to fetch pushed notifications
+  useEffect(() => {
+    const colRef = collection(db, 'notifications');
+    const unsubscribe = onSnapshot(colRef, (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach((doc: any) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      // Sort by timestamp descending
+      list.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+      setAdminNotifications(list);
+    }, (err) => {
+      console.warn("Error loading notifications inside AdminPanel:", err);
     });
     return () => unsubscribe();
   }, []);
@@ -2131,6 +2157,74 @@ export default function AdminPanel({
     onUpdateCompanions(filtered);
   };
 
+  // Toggle companion block status
+  const handleToggleBlockCompanion = (comp: any) => {
+    const nextBlocked = !comp.isBlocked;
+    const updated = companions.map(c => {
+      if (c.id === comp.id) {
+        return { ...c, isBlocked: nextBlocked };
+      }
+      return c;
+    });
+    onUpdateCompanions(updated);
+  };
+
+  // Broadcast push notification form submit handler
+  const handleSendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
+      alert("Please fill in both title and message body / শিরোনাম ও বার্তা পূরণ করুন।");
+      return;
+    }
+    
+    setIsSendingBroadcast(true);
+    try {
+      const notifId = `broadcast_${Date.now()}`;
+      const payload: any = {
+        id: notifId,
+        title: broadcastTitle.trim(),
+        message: broadcastMessage.trim(),
+        type: broadcastType,
+        timestamp: new Date().toISOString(),
+        isRead: false
+      };
+      
+      if (broadcastTargetUser.trim()) {
+        payload.username = broadcastTargetUser.trim();
+      }
+      
+      await setDoc(doc(db, 'notifications', notifId), payload);
+      
+      alert(broadcastTargetUser 
+        ? `Direct notification sent successfully to "${broadcastTargetUser}"! / "${broadcastTargetUser}" কে নোটিফিকেশন পাঠানো হয়েছে!`
+        : "Global broadcast notification sent successfully to all clients! / সবার জন্য নোটিফিকেশন পাঠানো হয়েছে!"
+      );
+      
+      // Reset form fields
+      setBroadcastTitle('');
+      setBroadcastMessage('');
+      setBroadcastTargetUser('');
+    } catch (err: any) {
+      console.error("Error sending push notification:", err);
+      alert("Failed to send notification: " + err.message);
+    } finally {
+      setIsSendingBroadcast(false);
+    }
+  };
+
+  // Delete/recall a previously sent notification
+  const handleDeleteNotification = async (id: string) => {
+    const consent = window.confirm("Are you sure you want to recall/delete this notification? / আপনি কি এই নোটিফিকেশনটি মুছে ফেলতে চান?");
+    if (!consent) return;
+    
+    try {
+      await deleteDoc(doc(db, 'notifications', id));
+    } catch (err: any) {
+      console.error("Error deleting notification:", err);
+      alert("Failed to delete notification: " + err.message);
+    }
+  };
+
   // Triggered when editing a hotel location
   const handleEditLocation = (loc: HotelLocation) => {
     setEditingLocationId(loc.id);
@@ -2722,6 +2816,25 @@ export default function AdminPanel({
               </div>
               <span className="text-[10px] bg-emerald-500/10 text-emerald-400 font-bold font-mono px-1.5 py-0.5 rounded border border-emerald-500/25">
                 Live
+              </span>
+            </button>
+
+            {/* Broadcast Push Alerts Tab */}
+            <button
+              type="button"
+              onClick={() => handleNavItemClick('broadcast_notifications')}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
+                activeTab === 'broadcast_notifications'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
+                  : 'hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Megaphone className={`w-4 h-4 shrink-0 ${activeTab === 'broadcast_notifications' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
+                <span>Push Notifications (পুশ এলার্ট)</span>
+              </div>
+              <span className="text-[10px] bg-amber-500/10 text-amber-400 font-bold font-mono px-1.5 py-0.5 rounded border border-amber-500/25">
+                Alerts
               </span>
             </button>
           </nav>
@@ -3539,6 +3652,7 @@ export default function AdminPanel({
                 {activeTab === 'promocodes' && 'Promo Codes Manager (প্রোমো কোড ম্যানেজার)'}
                 {activeTab === 'livechat' && 'Live Support Chat Console'}
                 {activeTab === 'model_ledger' && 'Model Ledger & Financial Audit'}
+                {activeTab === 'broadcast_notifications' && 'Broadcasting & Push Notifications (পুশ নোটিফিকেশন)'}
               </h1>
               <p className="text-xs text-slate-400 font-medium mt-1">
                 {activeTab === 'shortlinks' && 'View, test, and copy user registration and application forms for different model types.'}
@@ -3558,6 +3672,7 @@ export default function AdminPanel({
                 {activeTab === 'promocodes' && 'Create, activate, deactivate, and track custom discount and acquisition promo codes.'}
                 {activeTab === 'livechat' && 'Chat with premium and elite customers in real-time, answer questions, and assist in reservation booking.'}
                 {activeTab === 'model_ledger' && 'Add manual dispatch ledger records, audit model balances, and track withdrawable payouts.'}
+                {activeTab === 'broadcast_notifications' && 'Send in-app notifications and urgent global alerts directly to all users or specific clients.'}
               </p>
             </div>
 
@@ -5197,7 +5312,11 @@ export default function AdminPanel({
                       {companions.filter(c => c.status !== 'Pending' && c.status !== 'Declined' && (c.category || 'Female Model') === partnerCategoryFilter).map((comp) => (
                     <div
                       key={comp.id}
-                      className="bg-[#11131a] border border-[#1d232a] hover:border-blue-500/30 rounded-2xl p-4 flex gap-3 relative justify-between transition-all"
+                      className={`border rounded-2xl p-4 flex gap-3 relative justify-between transition-all ${
+                        comp.isBlocked 
+                          ? 'bg-rose-950/10 border-rose-900/40 opacity-75' 
+                          : 'bg-[#11131a] border-[#1d232a] hover:border-blue-500/30'
+                      }`}
                     >
                       <div className="flex gap-3">
                         <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-slate-900 border border-slate-800">
@@ -5209,6 +5328,11 @@ export default function AdminPanel({
                             <span className="text-[8px] bg-blue-500/15 text-blue-400 font-mono font-black tracking-normal px-1 rounded-sm uppercase shrink-0">
                               {comp.badge}
                             </span>
+                            {comp.isBlocked && (
+                              <span className="text-[8px] bg-rose-500/20 text-rose-400 border border-rose-500/30 font-mono font-black tracking-normal px-1 rounded-sm uppercase shrink-0">
+                                ⛔ Blocked
+                              </span>
+                            )}
                           </div>
                           <p className="text-[9px] text-slate-500 font-extrabold mt-0.5">
                             {comp.city || 'Dhaka'} • {comp.age} Yrs • {comp.height}
@@ -5239,6 +5363,18 @@ export default function AdminPanel({
                       </div>
 
                       <div className="flex flex-col gap-1.5 justify-center">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleBlockCompanion(comp)}
+                          title={comp.isBlocked ? "Unblock Companion / ব্লক খুলুন" : "Block Companion / ব্লক করুন"}
+                          className={`p-2 rounded-lg border transition cursor-pointer ${
+                            comp.isBlocked
+                              ? 'bg-emerald-950/20 border-emerald-900 text-emerald-450 hover:text-white hover:bg-emerald-900/45'
+                              : 'bg-[#181a24] border-slate-800 text-amber-500 hover:text-white hover:bg-amber-950/30'
+                          }`}
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleEditCompanion(comp)}
@@ -11511,6 +11647,179 @@ Body Touch Premium Network`;
 
           {activeTab === 'livechat' && (
             <AdminLiveChat />
+          )}
+
+          {activeTab === 'broadcast_notifications' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                {/* Left: Compose Form */}
+                <div className="lg:col-span-5 bg-[#0f111a] border border-[#1c2333] rounded-3xl p-6 shadow-xl relative overflow-hidden text-left">
+                  <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600" />
+                  
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-[#dbaa61]">
+                      <Megaphone className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-black text-white uppercase tracking-wider">Compose Push Alert</h2>
+                      <p className="text-[10px] text-slate-500 font-bold mt-0.5 font-sans">নতুন বার্তা বা এলার্ট তৈরি করুন</p>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleSendBroadcast} className="space-y-5">
+                    
+                    {/* Target Client dropdown */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Target Client / প্রাপক</label>
+                        <span className="text-[9px] text-slate-500 font-bold">Default: All Users (সবার জন্য)</span>
+                      </div>
+                      <select
+                        value={broadcastTargetUser}
+                        onChange={(e) => setBroadcastTargetUser(e.target.value)}
+                        className="w-full bg-[#11131a] border border-[#1c2333] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 transition-colors"
+                      >
+                        <option value="">📢 All Users (Global Broadcast / সবার জন্য)</option>
+                        {allRegisteredUsers.map(user => (
+                          <option key={user.id} value={user.username || user.id}>
+                            👤 {user.fullName || user.username || user.id} ({user.username || 'No Username'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Alert Type */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Alert Type / ধরন</label>
+                      <select
+                        value={broadcastType}
+                        onChange={(e) => setBroadcastType(e.target.value as any)}
+                        className="w-full bg-[#11131a] border border-[#1c2333] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 transition-colors"
+                      >
+                        <option value="info">ℹ️ Info (সাধারণ তথ্য)</option>
+                        <option value="success">✅ Success (সফলতা)</option>
+                        <option value="alert">⚠️ Urgent Alert (জরুরি এলার্ট)</option>
+                        <option value="booking">📅 Booking Update (বুকিং আপডেট)</option>
+                        <option value="system">⚙️ System Alert (সিস্টেম এলার্ট)</option>
+                      </select>
+                    </div>
+
+                    {/* Notification Title */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Alert Title / শিরোনাম *</label>
+                      <input
+                        type="text"
+                        required
+                        value={broadcastTitle}
+                        onChange={(e) => setBroadcastTitle(e.target.value)}
+                        placeholder="e.g. Server Maintenance / VIP Escorts Added"
+                        className="w-full bg-[#11131a] border border-[#1c2333] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
+                      />
+                    </div>
+
+                    {/* Notification Message */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Alert Message / বিস্তারিত বার্তা *</label>
+                      <textarea
+                        required
+                        rows={4}
+                        value={broadcastMessage}
+                        onChange={(e) => setBroadcastMessage(e.target.value)}
+                        placeholder="Dear VIP clients, we have just onboarded 5 premium international models. Check them out on the catalog!"
+                        className="w-full bg-[#11131a] border border-[#1c2333] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors resize-none"
+                      />
+                    </div>
+
+                    {/* Send Button */}
+                    <button
+                      type="submit"
+                      disabled={isSendingBroadcast}
+                      className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-amber-850/40 text-black text-xs font-black tracking-wider uppercase py-3 rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{isSendingBroadcast ? 'Broadcasting Alert...' : 'Broadcast Alert (এলার্ট পাঠান)'}</span>
+                    </button>
+
+                  </form>
+                </div>
+
+                {/* Right: Notification History list */}
+                <div className="lg:col-span-7 bg-[#0f111a] border border-[#1c2333] rounded-3xl p-6 shadow-xl text-left">
+                  <div className="flex items-center justify-between mb-5 border-b border-[#1c2333]/60 pb-4">
+                    <div>
+                      <h2 className="text-sm font-black text-white uppercase tracking-wider">Alert History & Status</h2>
+                      <p className="text-[10px] text-slate-500 font-bold mt-0.5">পূর্বে পাঠানো নোটিফিকেশন সমূহ</p>
+                    </div>
+                    <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono font-bold">
+                      {adminNotifications.length} Alerts
+                    </span>
+                  </div>
+
+                  {adminNotifications.length === 0 ? (
+                    <div className="py-12 text-center text-slate-500 select-none">
+                      <Bell className="w-8 h-8 mx-auto text-slate-600 mb-2.5" />
+                      <p className="text-xs font-black uppercase tracking-wide">No Notifications Dispatched</p>
+                      <p className="text-[10px] mt-0.5">Create your first push notification using the composer form.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3.5 max-h-[500px] overflow-y-auto pr-1.5 scrollbar-none">
+                      {adminNotifications.map((notif) => {
+                        // determine styles based on notification type
+                        let badgeBg = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+                        if (notif.type === 'success') badgeBg = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                        if (notif.type === 'alert') badgeBg = 'bg-red-500/15 text-red-400 border-red-500/30';
+                        if (notif.type === 'booking') badgeBg = 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+                        if (notif.type === 'system') badgeBg = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+
+                        return (
+                          <div
+                            key={notif.id}
+                            className="bg-[#11131a] border border-[#1d232a] hover:border-slate-800 rounded-2xl p-4 flex gap-3 items-start justify-between transition-all"
+                          >
+                            <div className="space-y-1.5 flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-[8px] font-mono font-black uppercase px-1.5 py-0.5 rounded border ${badgeBg}`}>
+                                  {notif.type || 'info'}
+                                </span>
+                                
+                                {notif.username ? (
+                                  <span className="text-[8.5px] bg-[#dbaa61]/10 text-[#dbaa61] font-mono font-extrabold px-1.5 rounded uppercase border border-[#dbaa61]/20">
+                                    👤 {notif.username}
+                                  </span>
+                                ) : (
+                                  <span className="text-[8.5px] bg-slate-800 text-slate-300 font-mono font-extrabold px-1.5 rounded uppercase border border-slate-700/50">
+                                    📢 Global
+                                  </span>
+                                )}
+
+                                <span className="text-[9px] text-slate-500 font-mono font-bold">
+                                  {new Date(notif.timestamp || 0).toLocaleString()}
+                                </span>
+                              </div>
+
+                              <h3 className="text-xs font-black text-white leading-snug">{notif.title}</h3>
+                              <p className="text-[11px] text-slate-400 font-sans leading-relaxed break-words">{notif.message}</p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteNotification(notif.id)}
+                              title="Recall & Delete / নোটিফিকেশনটি প্রত্যাহার ও ডিলিট করুন"
+                              className="p-1.5 rounded-lg bg-[#181a24] border border-slate-800 text-rose-500 hover:text-white hover:bg-rose-950/30 transition cursor-pointer shrink-0 ml-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                </div>
+
+              </div>
+            </div>
           )}
 
         </div>

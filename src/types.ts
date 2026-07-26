@@ -67,6 +67,7 @@ export interface Companion {
   isCamActive?: boolean;
   isMakeOutActive?: boolean;
   isLiveTogetherActive?: boolean;
+  isBlocked?: boolean;
 
   // Dynamic custom rate lists
   customRealRates?: { id: string; duration: string; rate: number }[];
