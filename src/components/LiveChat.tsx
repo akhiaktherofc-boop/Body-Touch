@@ -14,6 +14,7 @@ interface LiveChatProps {
   fullName: string;
   avatarUrl?: string;
   phone?: string;
+  socketServerUrl?: string;
   onGoToMembership: () => void;
   onClose?: () => void;
 }
@@ -35,6 +36,7 @@ export default function LiveChat({
   fullName,
   avatarUrl,
   phone,
+  socketServerUrl,
   onGoToMembership,
   onClose
 }: LiveChatProps) {
@@ -106,9 +108,18 @@ export default function LiveChat({
       return;
     }
 
-    // Connect to the same origin
-    const socket: Socket = io(window.location.origin, {
-      transports: ["websocket", "polling"]
+    // Connect to the custom server URL or same origin
+    const customSocketUrl = socketServerUrl || localStorage.getItem('bt_socket_server_url') || '';
+    const connectUrl = customSocketUrl || window.location.origin;
+    
+    console.log(`[LiveChat] Initializing socket connection to: ${connectUrl}`);
+    const socket: Socket = io(connectUrl, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000
     });
     socketRef.current = socket;
 

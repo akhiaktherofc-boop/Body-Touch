@@ -159,8 +159,17 @@ let socket: any = null;
 export function startSocketConnection() {
   if (typeof window === 'undefined' || socket) return;
   try {
-    socket = io(window.location.origin, {
-      transports: ["websocket", "polling"]
+    const customSocketUrl = localStorage.getItem('bt_socket_server_url') || '';
+    const connectUrl = customSocketUrl || window.location.origin;
+    
+    console.log(`[Firebase Socket Sync] Connecting to: ${connectUrl}`);
+    socket = io(connectUrl, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000
     });
     
     socket.on("db_changed", (event: { collectionName: string, docId?: string, data?: any, type: 'set' | 'delete' | 'clear' }) => {

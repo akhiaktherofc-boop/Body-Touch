@@ -146,6 +146,10 @@ export default function App() {
     return getStoredItem('bt_is_logged_in') === 'true';
   });
 
+  const [socketServerUrl, setSocketServerUrl] = useState<string>(() => {
+    return localStorage.getItem('bt_socket_server_url') || '';
+  });
+
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
   const [isProfileLoaded, setIsProfileLoaded] = useState<boolean>(false);
 
@@ -1534,6 +1538,18 @@ export default function App() {
           if (data.url !== undefined) {
             setGoogleSheetUrl(data.url);
             localStorage.setItem('bt_google_sheet_url', data.url);
+          }
+        }
+
+        // 4. Fetch Chat Socket Settings
+        const chatRef = doc(db, 'settings', 'chat_settings');
+        const chatSnap = await getDoc(chatRef);
+        if (isCancelled) return;
+        if (chatSnap.exists()) {
+          const data = chatSnap.data();
+          if (data.socketServerUrl !== undefined) {
+            setSocketServerUrl(data.socketServerUrl);
+            localStorage.setItem('bt_socket_server_url', data.socketServerUrl);
           }
         }
       } catch (err) {
@@ -6599,6 +6615,7 @@ https://service.bodytouch.com
                 fullName={fullName}
                 avatarUrl={avatarUrl}
                 phone={phone}
+                socketServerUrl={socketServerUrl}
                 onGoToMembership={() => {
                   handleTabSwitch('membership');
                   setIsChatOpen(false);

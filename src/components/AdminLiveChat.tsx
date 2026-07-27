@@ -47,7 +47,11 @@ interface ChatMessage {
   timestamp: number;
 }
 
-export default function AdminLiveChat() {
+interface AdminLiveChatProps {
+  socketServerUrl?: string;
+}
+
+export default function AdminLiveChat({ socketServerUrl }: AdminLiveChatProps) {
   const [activeChats, setActiveChats] = useState<ActiveChatSession[]>([]);
   const [selectedUser, setSelectedUser] = useState<ActiveChatSession | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -107,9 +111,18 @@ export default function AdminLiveChat() {
   }, [callState]);
 
   useEffect(() => {
-    // Establish socket connection to the same origin
-    const socket: Socket = io(window.location.origin, {
-      transports: ["websocket", "polling"]
+    // Connect to the custom server URL or same origin
+    const customSocketUrl = socketServerUrl || localStorage.getItem('bt_socket_server_url') || '';
+    const connectUrl = customSocketUrl || window.location.origin;
+    
+    console.log(`[AdminLiveChat] Initializing socket connection to: ${connectUrl}`);
+    const socket: Socket = io(connectUrl, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000
     });
     socketRef.current = socket;
 

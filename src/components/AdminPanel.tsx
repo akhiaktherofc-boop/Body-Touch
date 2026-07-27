@@ -279,6 +279,11 @@ export default function AdminPanel({
   const [smtpOtpSecure, setSmtpOtpSecure] = useState(false);
   const [smtpOtpFromEmail, setSmtpOtpFromEmail] = useState('');
 
+  // Live Chat Socket Settings States
+  const [socketServerUrl, setSocketServerUrl] = useState('');
+  const [isSavingSocketUrl, setIsSavingSocketUrl] = useState(false);
+  const [socketUrlSaveSuccess, setSocketUrlSaveSuccess] = useState(false);
+
   useEffect(() => {
     const fetchSmtpSettings = async () => {
       let loaded = false;
@@ -333,6 +338,18 @@ export default function AdminPanel({
         } catch (err) {
           console.error('[AdminPanel] Fallback fetch from get-smtp-settings failed:', err);
         }
+      }
+      // Load Live Chat settings
+      try {
+        const chatSnap = await getDoc(doc(db, 'settings', 'chat_settings'));
+        if (chatSnap.exists()) {
+          const chatData = chatSnap.data();
+          if (chatData.socketServerUrl) {
+            setSocketServerUrl(chatData.socketServerUrl);
+          }
+        }
+      } catch (chatErr) {
+        console.warn('[AdminPanel] Failed to load chat settings from Firestore:', chatErr);
       }
     };
     fetchSmtpSettings();
@@ -430,6 +447,42 @@ export default function AdminPanel({
       setTimeout(() => {
         window.location.reload();
       }, 1500);
+    }
+  };
+
+  const handleSaveSocketSettings = async () => {
+    setIsSavingSocketUrl(true);
+    setSocketUrlSaveSuccess(false);
+    try {
+      await setDoc(doc(db, 'settings', 'chat_settings'), {
+        socketServerUrl: socketServerUrl.trim()
+      }, { merge: true });
+      localStorage.setItem('bt_socket_server_url', socketServerUrl.trim());
+      setSocketUrlSaveSuccess(true);
+      setTimeout(() => setSocketUrlSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error('[AdminPanel] Failed to save chat settings:', err);
+      alert('Error saving socket URL: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsSavingSocketUrl(false);
+    }
+  };
+
+  const handleClearSocketSettings = async () => {
+    if (confirm("Are you sure you want to reset the Live Chat Socket Server URL to default (same origin)?")) {
+      setIsSavingSocketUrl(true);
+      try {
+        await setDoc(doc(db, 'settings', 'chat_settings'), {
+          socketServerUrl: ""
+        }, { merge: true });
+        setSocketServerUrl("");
+        localStorage.removeItem('bt_socket_server_url');
+        alert("Live Chat Socket URL reset to default!");
+      } catch (err) {
+        console.error('[AdminPanel] Failed to reset chat settings:', err);
+      } finally {
+        setIsSavingSocketUrl(false);
+      }
     }
   };
 
@@ -7366,6 +7419,64 @@ Body Touch Premium Network`;
                 </div>
               </div>
 
+              {/* Live Chat Socket.io Server Settings Card */}
+              <div className="p-4.5 bg-[#14151e] rounded-2xl border border-amber-500/10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase text-amber-400 flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 animate-pulse" />
+                    Live Chat Socket.io Server Settings (লাইভ চ্যাট সকেট সার্ভার সেটিংস)
+                  </h4>
+                  {socketUrlSaveSuccess && (
+                    <motion.span
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider font-mono flex items-center gap-1"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Saved & Synced!
+                    </motion.span>
+                  )}
+                </div>
+                <p className="text-slate-400 text-xs leading-relaxed text-left">
+                  Configure your custom Socket.io server connection URL below to keep your Live Chat connection <strong className="text-amber-400">always active and connected</strong>. If running on a non-standard port or customized subdomain (e.g., <code>https://yourdomain.com:3000</code>), update it below. Leave blank to automatically fallback to the web app's origin domain (default).
+                </p>
+
+                <div className="space-y-1.5 text-left">
+                  <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
+                    Socket Server Custom URL (সকেট সার্ভার কাস্টম ইউআরএল)
+                  </label>
+                  <input
+                    type="text"
+                    value={socketServerUrl}
+                    onChange={(e) => setSocketServerUrl(e.target.value)}
+                    placeholder="e.g. https://bodytouchbd.com:3000 (অথবা খালি রাখুন)"
+                    className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    disabled={isSavingSocketUrl}
+                    onClick={handleSaveSocketSettings}
+                    className="bg-amber-600 hover:bg-amber-550 text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg shadow-amber-600/10 active:scale-98 disabled:opacity-50"
+                  >
+                    <CheckCircle className="w-4 h-4 text-white" />
+                    {isSavingSocketUrl ? "Saving..." : "Save Custom Socket Server"}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isSavingSocketUrl}
+                    onClick={handleClearSocketSettings}
+                    className="bg-[#11131a] border border-slate-800 hover:bg-slate-800 text-slate-300 text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 active:scale-98 disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4 text-rose-500" />
+                    Reset to Default / Clear
+                  </button>
+                </div>
+              </div>
+
               {/* SMTP Email SMS Gateway Settings */}
               <div className="p-4.5 bg-[#14151e] rounded-2xl border border-teal-500/10 space-y-4">
                 <div className="flex items-center justify-between">
@@ -11779,7 +11890,7 @@ Body Touch Premium Network`;
           )}
 
           {activeTab === 'livechat' && (
-            <AdminLiveChat />
+            <AdminLiveChat socketServerUrl={socketServerUrl} />
           )}
 
           {activeTab === 'broadcast_notifications' && (
