@@ -68,17 +68,18 @@ jobs:
 
           echo "server=$CLEANED_SERVER" >> $GITHUB_OUTPUT
 
-      - name: 📂 Sync files to Hostinger via FTP
+      - name: 📂 Sync files to Hostinger via SFTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ steps.clean_ftp.outputs.server }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
+          port: 65002
+          protocol: sftp
           local-dir: ./dist/
           # Change this to your target directory on Hostinger (e.g. /public_html/ or /)
           server-dir: /public_html/
           state-name: .ftp-deploy-sync-state.json
-          security: loose
 
 
 
