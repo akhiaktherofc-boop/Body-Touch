@@ -13,7 +13,29 @@ export default defineConfig(() => {
       },
     },
     build: {
-      // Allow default hashing for cache busting
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('firebase')) {
+                return 'firebase-vendor';
+              }
+              if (id.includes('socket.io-client') || id.includes('socket.io')) {
+                return 'socket-vendor';
+              }
+              if (id.includes('motion')) {
+                return 'motion-vendor';
+              }
+              if (id.includes('lucide-react')) {
+                return 'lucide-vendor';
+              }
+              if (id.includes('react') || id.includes('scheduler')) {
+                return 'react-vendor';
+              }
+            }
+          }
+        }
+      }
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

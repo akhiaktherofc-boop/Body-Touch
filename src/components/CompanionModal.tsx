@@ -2,7 +2,7 @@ import { Companion, Review } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Calendar, Globe, Award, Sparkles, Star, User, Video, Heart, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { calculateBookingCost } from './BookingModal';
+import { calculateBookingCost } from '../utils/bookingUtils';
 
 interface CompanionModalProps {
   companion: Companion | null;

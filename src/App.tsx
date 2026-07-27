@@ -58,22 +58,24 @@ import {
   ExternalLink
 } from 'lucide-react';
 
-import emailjs from '@emailjs/browser';
 
 import { Companion, HotelLocation, Booking, PaymentRecord, MemberLevel, EmailLog, Review, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, AppNotification } from './types';
 import { COMPANIONS, LOCATIONS } from './data';
 import CompanionCard from './components/CompanionCard';
-import CompanionModal from './components/CompanionModal';
 import LocationCard from './components/LocationCard';
-import LocationModal from './components/LocationModal';
-import HotelReservationModal from './components/HotelReservationModal';
-import BookingModal, { calculateBookingCost } from './components/BookingModal';
-import CheckoutModal from './components/CheckoutModal';
-import WalletModal from './components/WalletModal';
-import NotificationCenterModal from './components/NotificationCenterModal';
 import Toast from './components/Toast';
 import ImageSlider from './components/ImageSlider';
-import JoinModal from './components/JoinModal';
+
+import { calculateBookingCost } from './utils/bookingUtils';
+
+const CompanionModal = React.lazy(() => import('./components/CompanionModal'));
+const LocationModal = React.lazy(() => import('./components/LocationModal'));
+const HotelReservationModal = React.lazy(() => import('./components/HotelReservationModal'));
+const BookingModal = React.lazy(() => import('./components/BookingModal'));
+const CheckoutModal = React.lazy(() => import('./components/CheckoutModal'));
+const WalletModal = React.lazy(() => import('./components/WalletModal'));
+const NotificationCenterModal = React.lazy(() => import('./components/NotificationCenterModal'));
+const JoinModal = React.lazy(() => import('./components/JoinModal'));
 
 const AdminPanel = React.lazy(() => import('./components/AdminPanel'));
 const LoginGate = React.lazy(() => import('./components/LoginGate'));
@@ -5951,177 +5953,178 @@ https://service.bodytouch.com
       </div>
 
       {/* POPUP MODAL ENGINES */}
+      <Suspense fallback={null}>
+        {/* 1. Companion Profile Details popup */}
+        <CompanionModal
+          companion={selectedCompanion}
+          isOpen={selectedCompanion !== null}
+          onClose={() => setSelectedCompanion(null)}
+          reviews={reviews}
+          onBook={() => {
+            setBookingCompanion(selectedCompanion);
+            setSelectedCompanion(null);
+          }}
+        />
 
-      {/* 1. Companion Profile Details popup */}
-      <CompanionModal
-        companion={selectedCompanion}
-        isOpen={selectedCompanion !== null}
-        onClose={() => setSelectedCompanion(null)}
-        reviews={reviews}
-        onBook={() => {
-          setBookingCompanion(selectedCompanion);
-          setSelectedCompanion(null);
-        }}
-      />
+        {/* 2. Hotel Venue Location details popup */}
+        <LocationModal
+          location={selectedLocation}
+          isOpen={selectedLocation !== null}
+          onClose={() => setSelectedLocation(null)}
+        />
 
-      {/* 2. Hotel Venue Location details popup */}
-      <LocationModal
-        location={selectedLocation}
-        isOpen={selectedLocation !== null}
-        onClose={() => setSelectedLocation(null)}
-      />
+        {/* Hotel Reservation details popup Form */}
+        <HotelReservationModal
+          location={selectedReserveHotel}
+          isOpen={selectedReserveHotel !== null}
+          onClose={() => setSelectedReserveHotel(null)}
+          walletBalance={walletBalance}
+          onReservationSuccess={handleHotelReservationSubmit}
+          triggerToast={triggerToast}
+          defaultPhone={phone}
+        />
 
-      {/* Hotel Reservation details popup Form */}
-      <HotelReservationModal
-        location={selectedReserveHotel}
-        isOpen={selectedReserveHotel !== null}
-        onClose={() => setSelectedReserveHotel(null)}
-        walletBalance={walletBalance}
-        onReservationSuccess={handleHotelReservationSubmit}
-        triggerToast={triggerToast}
-        defaultPhone={phone}
-      />
+        {/* 3. Booking scheduler details popup */}
+        <BookingModal
+          companion={bookingCompanion}
+          isOpen={bookingCompanion !== null}
+          onClose={() => {
+            setBookingCompanion(null);
+            setActiveReserveLocationId(undefined);
+          }}
+          walletBalance={walletBalance}
+          hasBookings={bookings.length > 0}
+          defaultClientName={fullName}
+          defaultClientPhone={phone}
+          defaultClientEmail={email}
+          defaultClientPhoto={avatarUrl}
+          paymentGateways={paymentGateways}
+          onSubmit={handleBookingSubmit}
+          locations={locations}
+          initialLocationId={activeReserveLocationId}
+          onGoToMembership={() => {
+            setBookingCompanion(null);
+            setActiveReserveLocationId(undefined);
+            setActiveTab('membership');
+          }}
+          userLevel={userLevel}
+        />
 
-      {/* 3. Booking scheduler details popup */}
-      <BookingModal
-        companion={bookingCompanion}
-        isOpen={bookingCompanion !== null}
-        onClose={() => {
-          setBookingCompanion(null);
-          setActiveReserveLocationId(undefined);
-        }}
-        walletBalance={walletBalance}
-        hasBookings={bookings.length > 0}
-        defaultClientName={fullName}
-        defaultClientPhone={phone}
-        defaultClientEmail={email}
-        defaultClientPhoto={avatarUrl}
-        paymentGateways={paymentGateways}
-        onSubmit={handleBookingSubmit}
-        locations={locations}
-        initialLocationId={activeReserveLocationId}
-        onGoToMembership={() => {
-          setBookingCompanion(null);
-          setActiveReserveLocationId(undefined);
-          setActiveTab('membership');
-        }}
-        userLevel={userLevel}
-      />
+        {/* 4. Upgrade billing secure gate popup */}
+        <CheckoutModal
+          isOpen={checkoutTier !== null}
+          tierName={checkoutTier?.name || ''}
+          price={checkoutTier?.price || ''}
+          onClose={() => setCheckoutTier(null)}
+          onSubmit={handleCheckoutSubmit}
+        />
 
-      {/* 4. Upgrade billing secure gate popup */}
-      <CheckoutModal
-        isOpen={checkoutTier !== null}
-        tierName={checkoutTier?.name || ''}
-        price={checkoutTier?.price || ''}
-        onClose={() => setCheckoutTier(null)}
-        onSubmit={handleCheckoutSubmit}
-      />
+        {/* Network Registry Applications modal popup */}
+        <JoinModal
+          isOpen={isJoinModalOpen}
+          onClose={() => setIsJoinModalOpen(false)}
+          initialType={joinModalType}
+          cities={cities}
+          structuredCities={structuredCities}
+          telegramHelpline={telegramHelpline}
+          registrationFee={pricingConfig.registrationFee}
+          registrationFeeMale={pricingConfig.registrationFeeMale}
+          registrationFeeSperm={pricingConfig.registrationFeeSperm}
+          onAddCompanion={(newComp) => {
+            setCloudDocument('companions', newComp.id, newComp);
+            setCompanions((prev) => {
+              const exists = prev.some((c) => c.id === newComp.id);
+              if (exists) {
+                return prev.map((c) => (c.id === newComp.id ? newComp : c));
+              }
+              return [newComp, ...prev];
+            });
 
-      {/* Network Registry Applications modal popup */}
-      <JoinModal
-        isOpen={isJoinModalOpen}
-        onClose={() => setIsJoinModalOpen(false)}
-        initialType={joinModalType}
-        cities={cities}
-        structuredCities={structuredCities}
-        telegramHelpline={telegramHelpline}
-        registrationFee={pricingConfig.registrationFee}
-        registrationFeeMale={pricingConfig.registrationFeeMale}
-        registrationFeeSperm={pricingConfig.registrationFeeSperm}
-        onAddCompanion={(newComp) => {
-          setCloudDocument('companions', newComp.id, newComp);
-          setCompanions((prev) => {
-            const exists = prev.some((c) => c.id === newComp.id);
-            if (exists) {
-              return prev.map((c) => (c.id === newComp.id ? newComp : c));
-            }
-            return [newComp, ...prev];
-          });
+            const isInitial = !newComp.specialty.includes('💳 [REGISTRATION FEE PAID]');
+            if (isInitial) {
+              triggerToast('🎉 Career application submitted! Pending verification.', 'success');
 
-          const isInitial = !newComp.specialty.includes('💳 [REGISTRATION FEE PAID]');
-          if (isInitial) {
-            triggerToast('🎉 Career application submitted! Pending verification.', 'success');
+              // Send Telegram Notification to Admin Group Chat ID
+              const regText = `🔔 <b>নতুন মডেল রেজিস্ট্রেশন আবেদন!</b>\n\n` +
+                `👤 নাম: <b>${newComp.name}</b>\n` +
+                `🧬 ক্যাটাগরি: <b>${newComp.category || 'Female Model'}</b>\n` +
+                `📍 শহর: <b>${newComp.city || 'Dhaka'}</b>\n` +
+                `📞 ফোন নাম্বার: <code>${newComp.phone || 'N/A'}</code>\n` +
+                `✈️ টেলিগ্রাম হ্যান্ডেল: <b>${newComp.telegram ? '@' + newComp.telegram.replace('@', '') : 'Not Provided'}</b>\n` +
+                `📐 বয়স: ${newComp.age} বছর | উচ্চতা: ${newComp.height}\n` +
+                `💰 ডিমান্ড রেট: ৳${newComp.rate}/ঘন্টা\n\n` +
+                `<i>অনুমোদনের জন্য ড্যাশবোর্ড পোর্টালে লগইন করুন।</i>`;
+              sendTelegramNotification(regText);
+            } else {
+              triggerToast('💳 Registration fee payment submitted! Proof sent to admin.', 'success');
 
-            // Send Telegram Notification to Admin Group Chat ID
-            const regText = `🔔 <b>নতুন মডেল রেজিস্ট্রেশন আবেদন!</b>\n\n` +
-              `👤 নাম: <b>${newComp.name}</b>\n` +
-              `🧬 ক্যাটাগরি: <b>${newComp.category || 'Female Model'}</b>\n` +
-              `📍 শহর: <b>${newComp.city || 'Dhaka'}</b>\n` +
-              `📞 ফোন নাম্বার: <code>${newComp.phone || 'N/A'}</code>\n` +
-              `✈️ টেলিগ্রাম হ্যান্ডেল: <b>${newComp.telegram ? '@' + newComp.telegram.replace('@', '') : 'Not Provided'}</b>\n` +
-              `📐 বয়স: ${newComp.age} বছর | উচ্চতা: ${newComp.height}\n` +
-              `💰 ডিমান্ড রেট: ৳${newComp.rate}/ঘন্টা\n\n` +
-              `<i>অনুমোদনের জন্য ড্যাশবোর্ড পোর্টালে লগইন করুন।</i>`;
-            sendTelegramNotification(regText);
-          } else {
-            triggerToast('💳 Registration fee payment submitted! Proof sent to admin.', 'success');
-
-            // Record joining metrics for dynamic registration links
-            const sourceLink = sessionStorage.getItem('bt_registration_source');
-            if (sourceLink) {
-              const storedStats = localStorage.getItem('bt_shortlink_stats');
-              let stats = {
-                'join-female-1': { clicks: 0, joins: 0 },
-                'join-female-2': { clicks: 0, joins: 0 },
-                'join-male-1': { clicks: 0, joins: 0 },
-                'join-male-2': { clicks: 0, joins: 0 },
-                'join-sparm-1': { clicks: 0, joins: 0 },
-                'join-sparm-2': { clicks: 0, joins: 0 },
-              };
-              if (storedStats) {
-                try {
-                  stats = { ...stats, ...JSON.parse(storedStats) };
-                } catch (e) {
-                  console.error(e);
+              // Record joining metrics for dynamic registration links
+              const sourceLink = sessionStorage.getItem('bt_registration_source');
+              if (sourceLink) {
+                const storedStats = localStorage.getItem('bt_shortlink_stats');
+                let stats = {
+                  'join-female-1': { clicks: 0, joins: 0 },
+                  'join-female-2': { clicks: 0, joins: 0 },
+                  'join-male-1': { clicks: 0, joins: 0 },
+                  'join-male-2': { clicks: 0, joins: 0 },
+                  'join-sparm-1': { clicks: 0, joins: 0 },
+                  'join-sparm-2': { clicks: 0, joins: 0 },
+                };
+                if (storedStats) {
+                  try {
+                    stats = { ...stats, ...JSON.parse(storedStats) };
+                  } catch (e) {
+                    console.error(e);
+                  }
                 }
+                if (stats[sourceLink]) {
+                  stats[sourceLink].joins += 1;
+                }
+                localStorage.setItem('bt_shortlink_stats', JSON.stringify(stats));
+                setShortLinkStats(stats);
+                window.dispatchEvent(new Event('storage'));
+                sessionStorage.removeItem('bt_registration_source');
               }
-              if (stats[sourceLink]) {
-                stats[sourceLink].joins += 1;
-              }
-              localStorage.setItem('bt_shortlink_stats', JSON.stringify(stats));
-              setShortLinkStats(stats);
-              window.dispatchEvent(new Event('storage'));
-              sessionStorage.removeItem('bt_registration_source');
+
+              // Extract payment details
+              const payDetails = newComp.specialty.includes('💳 [REGISTRATION FEE PAID]\n') 
+                ? newComp.specialty.split('💳 [REGISTRATION FEE PAID]\n')[1] 
+                : 'Proof submitted';
+
+              // Send Telegram Notification to Admin Group Chat ID
+              const payText = `💳 <b>মডেল রেজিস্ট্রেশন পেমেন্ট সফলভাবে জমা দেওয়া হয়েছে!</b>\n\n` +
+                `👤 মডেল নাম: <b>${newComp.name}</b>\n` +
+                `🧬 ক্যাটাগরি: <b>${newComp.category || 'Female Model'}</b>\n` +
+                `📞 ফোন নাম্বার: <code>${newComp.phone || 'N/A'}</code>\n` +
+                `✈️ টেলিগ্রাম হ্যান্ডেল: <b>${newComp.telegram ? '@' + newComp.telegram.replace('@', '') : 'Not Provided'}</b>\n\n` +
+                `💳 <b>পেমেন্ট বিবরণ:</b>\n<code>${payDetails}</code>\n\n` +
+                `<i>দয়া করে ট্রানজেক্শন আইডি ভেরিফাই করে মডেলটি এপ্রুভ করুন।</i>`;
+              sendTelegramNotification(payText);
             }
+          }}
+        />
 
-            // Extract payment details
-            const payDetails = newComp.specialty.includes('💳 [REGISTRATION FEE PAID]\n') 
-              ? newComp.specialty.split('💳 [REGISTRATION FEE PAID]\n')[1] 
-              : 'Proof submitted';
+        {/* 4.5 accounts/discreet ledger history popup */}
+        <WalletModal
+          isOpen={isWalletModalOpen}
+          onClose={() => setIsWalletModalOpen(false)}
+          walletBalance={walletBalance}
+          payments={payments}
+          username={username}
+          onTriggerAllocate={() => setIsAllocateOpen(true)}
+          onTriggerLiquidate={() => setIsLiquidateOpen(true)}
+        />
 
-            // Send Telegram Notification to Admin Group Chat ID
-            const payText = `💳 <b>মডেল রেজিস্ট্রেশন পেমেন্ট সফলভাবে জমা দেওয়া হয়েছে!</b>\n\n` +
-              `👤 মডেল নাম: <b>${newComp.name}</b>\n` +
-              `🧬 ক্যাটাগরি: <b>${newComp.category || 'Female Model'}</b>\n` +
-              `📞 ফোন নাম্বার: <code>${newComp.phone || 'N/A'}</code>\n` +
-              `✈️ টেলিগ্রাম হ্যান্ডেল: <b>${newComp.telegram ? '@' + newComp.telegram.replace('@', '') : 'Not Provided'}</b>\n\n` +
-              `💳 <b>পেমেন্ট বিবরণ:</b>\n<code>${payDetails}</code>\n\n` +
-              `<i>দয়া করে ট্রানজেক্শন আইডি ভেরিফাই করে মডেলটি এপ্রুভ করুন।</i>`;
-            sendTelegramNotification(payText);
-          }
-        }}
-      />
-
-      {/* 4.5 accounts/discreet ledger history popup */}
-      <WalletModal
-        isOpen={isWalletModalOpen}
-        onClose={() => setIsWalletModalOpen(false)}
-        walletBalance={walletBalance}
-        payments={payments}
-        username={username}
-        onTriggerAllocate={() => setIsAllocateOpen(true)}
-        onTriggerLiquidate={() => setIsLiquidateOpen(true)}
-      />
-
-      <NotificationCenterModal
-        isOpen={isNotificationsOpen}
-        onClose={() => setIsNotificationsOpen(false)}
-        notifications={notifications}
-        onMarkAllAsRead={handleMarkAllNotificationsAsRead}
-        onMarkAsRead={handleMarkNotificationAsRead}
-        onClearAll={handleClearAllNotifications}
-        onDeleteNotification={handleDeleteNotification}
-      />
+        <NotificationCenterModal
+          isOpen={isNotificationsOpen}
+          onClose={() => setIsNotificationsOpen(false)}
+          notifications={notifications}
+          onMarkAllAsRead={handleMarkAllNotificationsAsRead}
+          onMarkAsRead={handleMarkNotificationAsRead}
+          onClearAll={handleClearAllNotifications}
+          onDeleteNotification={handleDeleteNotification}
+        />
+      </Suspense>
 
       {/* 5. Allocate deposit fund modal popup */}
       <AnimatePresence>

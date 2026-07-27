@@ -156,7 +156,8 @@ function triggerListeners(collectionName: string, docId?: string) {
 
 // Establish Socket.io connection for real-time client-to-client updates on Hostinger
 let socket: any = null;
-if (typeof window !== 'undefined') {
+export function startSocketConnection() {
+  if (typeof window === 'undefined' || socket) return;
   try {
     socket = io(window.location.origin, {
       transports: ["websocket", "polling"]
@@ -238,63 +239,68 @@ async function initialSync() {
   }
 }
 
-// Auto load/check Firebase Config on startup
+// Auto load/check Firebase Config and socket connections on startup
 if (typeof window !== 'undefined') {
-  // 1. Check local storage
-  const localConfigStr = localStorage.getItem('bodytouch_firebase_config');
-  if (localConfigStr) {
-    try {
-      const config = JSON.parse(localConfigStr);
-      initializeRealFirebase(config);
-    } catch (e) {
-      console.warn("Failed to parse local Firebase config:", e);
-    }
-  }
+  setTimeout(() => {
+    // 1. Connect Socket.io client progressively
+    startSocketConnection();
 
-  // 2. Async check public config file
-  console.log("[Firebase Diagnostics] Checking for public firebase_config.json...");
-  fetch('/firebase_config.json')
-    .then(res => {
-      if (res.ok) {
-        console.log("[Firebase Diagnostics] Successfully fetched firebase_config.json! Status:", res.status);
-        return res.json();
+    // 2. Check local storage
+    const localConfigStr = localStorage.getItem('bodytouch_firebase_config');
+    if (localConfigStr) {
+      try {
+        const config = JSON.parse(localConfigStr);
+        initializeRealFirebase(config);
+      } catch (e) {
+        console.warn("Failed to parse local Firebase config:", e);
       }
-      throw new Error(`Server returned status code: ${res.status}`);
-    })
-    .then(config => {
-      if (config && config.apiKey) {
-        console.log("[Firebase Diagnostics] Valid config detected, initializing real Cloud Firestore Database...");
-        const success = initializeRealFirebase(config);
-        if (success) {
-          console.log("[Firebase Diagnostics] Real Cloud Firestore connected and active!");
-          localStorage.setItem('bodytouch_firebase_config', JSON.stringify(config));
-          // If real Firebase successfully loaded, trigger listeners to update views
-          listeners.forEach(listener => {
-            if (listener.isCollection) {
-              const colRef = collection(db, listener.path);
-              getDocs(colRef).then(listener.callback).catch(e => console.error("[Firebase Diagnostics] Error syncing collection listener:", e));
-            } else {
-              const parts = listener.path.split('/');
-              if (parts.length === 2) {
-                const docRef = doc(db, parts[0], parts[1]);
-                getDoc(docRef).then(listener.callback).catch(e => console.error("[Firebase Diagnostics] Error syncing doc listener:", e));
+    }
+
+    // 3. Async check public config file
+    console.log("[Firebase Diagnostics] Checking for public firebase_config.json...");
+    fetch('/firebase_config.json')
+      .then(res => {
+        if (res.ok) {
+          console.log("[Firebase Diagnostics] Successfully fetched firebase_config.json! Status:", res.status);
+          return res.json();
+        }
+        throw new Error(`Server returned status code: ${res.status}`);
+      })
+      .then(config => {
+        if (config && config.apiKey) {
+          console.log("[Firebase Diagnostics] Valid config detected, initializing real Cloud Firestore Database...");
+          const success = initializeRealFirebase(config);
+          if (success) {
+            console.log("[Firebase Diagnostics] Real Cloud Firestore connected and active!");
+            localStorage.setItem('bodytouch_firebase_config', JSON.stringify(config));
+            // If real Firebase successfully loaded, trigger listeners to update views
+            listeners.forEach(listener => {
+              if (listener.isCollection) {
+                const colRef = collection(db, listener.path);
+                getDocs(colRef).then(listener.callback).catch(e => console.error("[Firebase Diagnostics] Error syncing collection listener:", e));
+              } else {
+                const parts = listener.path.split('/');
+                if (parts.length === 2) {
+                  const docRef = doc(db, parts[0], parts[1]);
+                  getDoc(docRef).then(listener.callback).catch(e => console.error("[Firebase Diagnostics] Error syncing doc listener:", e));
+                }
               }
-            }
-          });
+            });
+          } else {
+            console.error("[Firebase Diagnostics] Real Firebase initialization failed. Check your config values inside firebase_config.json.");
+            initialSync();
+          }
         } else {
-          console.error("[Firebase Diagnostics] Real Firebase initialization failed. Check your config values inside firebase_config.json.");
+          console.warn("[Firebase Diagnostics] firebase_config.json fetched, but is missing required fields (e.g. 'apiKey'). Falling back to standard emulation.");
           initialSync();
         }
-      } else {
-        console.warn("[Firebase Diagnostics] firebase_config.json fetched, but is missing required fields (e.g. 'apiKey'). Falling back to standard emulation.");
+      })
+      .catch((err) => {
+        console.log("[Firebase Diagnostics] firebase_config.json fetch bypassed/failed (Emulation database active). Reason:", err.message || err);
+        // No config file, standard emulation mode is active
         initialSync();
-      }
-    })
-    .catch((err) => {
-      console.log("[Firebase Diagnostics] firebase_config.json fetch bypassed/failed (Emulation database active). Reason:", err.message || err);
-      // No config file, standard emulation mode is active
-      initialSync();
-    });
+      });
+  }, 3500);
 }
 
 export async function getDoc(docRef: any) {
