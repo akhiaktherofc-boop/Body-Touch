@@ -1,0 +1,6 @@
+# bodyTOUCH Portal
+
+Professional and discrete member-centric directory and companion booking platform.
+
+- [Home Portal](https://bodytouch.site)
+- [Member Registration](https://bodytouch.site/register)

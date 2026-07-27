@@ -1601,7 +1601,7 @@ export default function LoginGate({
           <form onSubmit={handleSignInSubmit} className="space-y-5 text-left">
             {/* Email Input */}
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+              <label htmlFor="login_email" className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
                 Email Address / Username
               </label>
               <div className="relative">
@@ -1609,6 +1609,7 @@ export default function LoginGate({
                   <Mail className="w-4 h-4 text-[#dbaa61]/70" />
                 </div>
                 <input
+                  id="login_email"
                   type="text"
                   required
                   value={signInUsername}
@@ -1623,7 +1624,7 @@ export default function LoginGate({
             {/* Password Input */}
             <div className="space-y-1.5 align-left text-left">
               <div className="flex justify-between items-center pl-1">
-                <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase">
+                <label htmlFor="login_password" className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase">
                   Secure Password
                 </label>
               </div>
@@ -1632,6 +1633,7 @@ export default function LoginGate({
                   <Key className="w-4 h-4 text-[#dbaa61]/70" />
                 </div>
                 <input
+                  id="login_password"
                   type={showPassword ? "text" : "password"}
                   required
                   value={signInPassword}
@@ -1642,6 +1644,7 @@ export default function LoginGate({
                 />
                 <button
                   type="button"
+                  aria-label="Toggle password visibility"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white transition duration-150 cursor-pointer"
                 >
@@ -1704,7 +1707,7 @@ export default function LoginGate({
           <form onSubmit={handleSignUpSubmit} className="space-y-4.5 text-left">
             {/* New Username */}
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+              <label htmlFor="signup_username" className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
                 Choose Unique Username
               </label>
               <div className="relative">
@@ -1712,6 +1715,7 @@ export default function LoginGate({
                   <User className="w-4 h-4 text-[#dbaa61]/70" />
                 </div>
                 <input
+                  id="signup_username"
                   type="text"
                   required
                   value={newUsername}
@@ -1725,7 +1729,7 @@ export default function LoginGate({
 
             {/* Full Name */}
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+              <label htmlFor="signup_fullname" className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
                 Full Name
               </label>
               <div className="relative">
@@ -1733,6 +1737,7 @@ export default function LoginGate({
                   <Sparkles className="w-4 h-4 text-[#dbaa61]/70" />
                 </div>
                 <input
+                  id="signup_fullname"
                   type="text"
                   required
                   value={newFullName}
@@ -1746,7 +1751,7 @@ export default function LoginGate({
 
             {/* Email */}
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+              <label htmlFor="signup_email" className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
                 Email Address
               </label>
               <div className="relative">
@@ -1754,6 +1759,7 @@ export default function LoginGate({
                   <Mail className="w-4 h-4 text-[#dbaa61]/70" />
                 </div>
                 <input
+                  id="signup_email"
                   type="email"
                   required
                   value={newEmail}
@@ -1767,7 +1773,7 @@ export default function LoginGate({
 
             {/* Phone Number */}
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+              <label htmlFor="signup_phone" className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
                 Phone Number
               </label>
               <div className="relative">
@@ -1775,6 +1781,7 @@ export default function LoginGate({
                   <Phone className="w-4 h-4 text-[#dbaa61]/70" />
                 </div>
                 <input
+                  id="signup_phone"
                   type="text"
                   required
                   value={newPhone}
@@ -1788,7 +1795,7 @@ export default function LoginGate({
 
             {/* Gender Selection */}
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+              <label htmlFor="signup_gender" className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
                 Gender / লিঙ্গ নির্ধারণ করুন
               </label>
               <div className="relative">
@@ -1796,6 +1803,7 @@ export default function LoginGate({
                   <User className="w-4 h-4 text-[#dbaa61]/70" />
                 </div>
                 <select
+                  id="signup_gender"
                   value={newGender}
                   onChange={(e) => setNewGender(e.target.value as 'male' | 'female')}
                   className="w-full bg-[#030818] border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-10 py-3.5 font-bold focus:outline-none transition-all appearance-none cursor-pointer"
@@ -1814,7 +1822,7 @@ export default function LoginGate({
             {/* Telegram Chat ID for Registration if 2FA client mode is active */}
             {false && (
               <div className="space-y-1.5 text-left">
-                <label className="block text-[10px] font-black tracking-widest text-cyan-400 uppercase pl-1 flex justify-between items-center pr-1">
+                <label htmlFor="signup_telegram" className="block text-[10px] font-black tracking-widest text-cyan-400 uppercase pl-1 flex justify-between items-center pr-1">
                   <span>Telegram Chat ID</span>
                   <span className="text-[9px] text-[#ef4444] font-black tracking-widest uppercase">Required</span>
                 </label>
@@ -1823,6 +1831,7 @@ export default function LoginGate({
                     <Send className="w-4 h-4 text-cyan-500/60" />
                   </div>
                   <input
+                    id="signup_telegram"
                     type="text"
                     required
                     value={newTelegramId}
@@ -1837,7 +1846,7 @@ export default function LoginGate({
 
             {/* Security Password */}
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+              <label htmlFor="signup_password" className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
                 Create Secure Password
               </label>
               <div className="relative">
@@ -1845,6 +1854,7 @@ export default function LoginGate({
                   <Key className="w-4 h-4 text-[#dbaa61]/70" />
                 </div>
                 <input
+                  id="signup_password"
                   type={showPassword ? "text" : "password"}
                   required
                   value={newPassword}
@@ -1855,6 +1865,7 @@ export default function LoginGate({
                 />
                 <button
                   type="button"
+                  aria-label="Toggle password visibility"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white transition duration-150 cursor-pointer"
                 >

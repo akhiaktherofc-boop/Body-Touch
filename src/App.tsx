@@ -1180,6 +1180,7 @@ export default function App() {
   const [allocateScreenshot, setAllocateScreenshot] = useState('');
   const [allocateUploading, setAllocateUploading] = useState(false);
   const allocateFileInputRef = useRef<HTMLInputElement | null>(null);
+  const lastSyncedStatsRef = useRef<string>('');
   const [liquidateAmount, setLiquidateAmount] = useState('');
   const [liquidateMethod, setLiquidateMethod] = useState<'BKASH' | 'NAGAD' | 'ROCKET'>('BKASH');
   const [liquidateMobile, setLiquidateMobile] = useState('');
@@ -1360,6 +1361,16 @@ export default function App() {
           if (cloudUser.gender) {
             setGender(cloudUser.gender);
           }
+          // Set initial ref stats to avoid immediate redundant write
+          lastSyncedStatsRef.current = JSON.stringify({
+            username,
+            fullName: cloudUser.fullName || fullName,
+            email: cloudUser.email || email,
+            phone: cloudUser.phone || phone,
+            userLevel: cloudUser.userLevel || userLevel,
+            walletBalance: typeof cloudUser.walletBalance === 'number' ? cloudUser.walletBalance : walletBalance,
+            gender: cloudUser.gender || gender
+          });
         } else {
           // Setup stats on first cloud login
           const initialDetails = {
@@ -1371,6 +1382,7 @@ export default function App() {
             walletBalance,
             gender
           };
+          lastSyncedStatsRef.current = JSON.stringify(initialDetails);
           saveCloudUser(initialDetails);
         }
         setIsProfileLoaded(true);
@@ -1397,6 +1409,11 @@ export default function App() {
         walletBalance,
         gender
       };
+      const statsStr = JSON.stringify(stats);
+      if (lastSyncedStatsRef.current === statsStr) {
+        return; // Avoid redundant network writes when values didn't change
+      }
+      lastSyncedStatsRef.current = statsStr;
       saveCloudUser(stats);
     }
   }, [userLevel, walletBalance, fullName, phone, email, gender, isLoggedIn, username, isCloudSynced, isProfileLoaded]);
