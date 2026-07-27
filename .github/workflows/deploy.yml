@@ -78,6 +78,7 @@ jobs:
           # Change this to your target directory on Hostinger (e.g. /public_html/ or /)
           server-dir: /public_html/
           state-name: .ftp-deploy-sync-state.json
+          security: loose
 
 
 
