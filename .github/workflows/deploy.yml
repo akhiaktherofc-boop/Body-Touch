@@ -73,14 +73,15 @@ jobs:
           echo "server=$CLEANED_SERVER" >> $GITHUB_OUTPUT
 
       - name: 📂 Sync files to Hostinger via SFTP
-        uses: wangyucode/sftp-upload-action@v2.0.2
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
-          host: ${{ steps.clean_ftp.outputs.server }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
+          server: ${{ steps.clean_ftp.outputs.server }}
           port: 65002
-          localDir: './dist'
-          remoteDir: '/public_html'
+          local_path: './dist/*'
+          remote_path: '/public_html'
+          sftp_only: true
 
 
 
