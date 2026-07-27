@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { db, doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot } from './firebase';
 import { 
   bootstrapCollectionIfEmpty, 
@@ -71,15 +71,23 @@ import BookingModal, { calculateBookingCost } from './components/BookingModal';
 import CheckoutModal from './components/CheckoutModal';
 import WalletModal from './components/WalletModal';
 import NotificationCenterModal from './components/NotificationCenterModal';
-import AdminPanel from './components/AdminPanel';
 import Toast from './components/Toast';
 import ImageSlider from './components/ImageSlider';
-import LoginGate from './components/LoginGate';
 import JoinModal from './components/JoinModal';
-import LiveChat from './components/LiveChat';
-import { ModelPortal } from './components/ModelPortal';
-import { AgentPortal } from './components/AgentPortal';
-import { TelegramPage } from './components/TelegramPage';
+
+const AdminPanel = React.lazy(() => import('./components/AdminPanel'));
+const LoginGate = React.lazy(() => import('./components/LoginGate'));
+const LiveChat = React.lazy(() => import('./components/LiveChat'));
+const ModelPortal = React.lazy(() => import('./components/ModelPortal').then(m => ({ default: m.ModelPortal })));
+const AgentPortal = React.lazy(() => import('./components/AgentPortal').then(m => ({ default: m.AgentPortal })));
+const TelegramPage = React.lazy(() => import('./components/TelegramPage').then(m => ({ default: m.TelegramPage })));
+
+const SuspenseFallback = () => (
+  <div className="min-h-screen bg-[#020714] flex flex-col items-center justify-center text-center p-6 w-full">
+    <div className="w-8 h-8 border-2 border-[#dbaa61] border-t-transparent rounded-full animate-spin mb-4" />
+    <span className="text-[10px] font-black tracking-widest text-[#dbaa61] uppercase animate-pulse">Loading secure session...</span>
+  </div>
+);
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -1545,7 +1553,10 @@ export default function App() {
       }
     };
     
-    bootstrapAll();
+    // Defer bootstrapping to idle time or a delay to allow First Contentful Paint (FCP) and initial bundle rendering to be instant
+    const bootstrapTimer = setTimeout(() => {
+      bootstrapAll();
+    }, 1500);
 
     const unsubscribers: (() => void)[] = [];
     
@@ -1628,6 +1639,7 @@ export default function App() {
     }));
 
     return () => {
+      clearTimeout(bootstrapTimer);
       unsubscribers.forEach(unsub => unsub());
     };
   }, []);
@@ -3644,68 +3656,70 @@ https://service.bodytouch.com
           isVisible={toast.isVisible}
           onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
         />
-        <AdminPanel
-          payments={payments}
-          onApprove={handleAdminApprove}
-          onReject={handleAdminReject}
-          isOpen={isAdminOpen}
-          onClose={() => setIsAdminOpen(false)}
-          companions={companions}
-          onUpdateCompanions={handleUpdateCompanions}
-          locations={locations}
-          onUpdateLocations={handleUpdateLocations}
-          bookings={bookings}
-          onApproveBooking={handleAdminApproveBooking}
-          onDeclineBooking={handleAdminDeclineBooking}
-          onMarkOutgoingBooking={handleAdminMarkOutgoingBooking}
-          onMarkCompletedBooking={handleAdminMarkCompletedBooking}
-          emailLogs={emailLogs}
-          onClearEmailLogs={() => {
-            emailLogs.forEach(log => deleteCloudDocument('email_logs', log.id));
-            setEmailLogs([]);
-          }}
-          emailjsServiceId={emailjsServiceId}
-          onSetEmailjsServiceId={setEmailjsServiceId}
-          emailjsTemplateId={emailjsTemplateId}
-          onSetEmailjsTemplateId={setEmailjsTemplateId}
-          emailjsPublicKey={emailjsPublicKey}
-          onSetEmailjsPublicKey={setEmailjsPublicKey}
-          telegramBotToken={telegramBotToken}
-          onSetTelegramBotToken={setTelegramBotToken}
-          telegramGroupId={telegramGroupId}
-          onSetTelegramGroupId={setTelegramGroupId}
-          telegramHelpline={telegramHelpline}
-          onSetTelegramHelpline={setTelegramHelpline}
-          telegram2FAEnabled={telegram2FAEnabled}
-          onSetTelegram2FAEnabled={setTelegram2FAEnabled}
-          telegramSendTarget={telegramSendTarget}
-          onSetTelegramSendTarget={setTelegramSendTarget}
-          telegramBotSelection={telegramBotSelection}
-          onSetTelegramBotSelection={setTelegramBotSelection}
-          onSaveTelegramSettings={handleSaveTelegramSettings}
-          onClearTelegramSettings={handleClearTelegramSettings}
-          onApproveCompanion={handleAdminApproveCompanion}
-          onDeclineCompanion={handleAdminDeclineCompanion}
-          onSendEmail={sendAutoEmail}
-          cities={cities}
-          structuredCities={structuredCities}
-          onUpdateStructuredCities={handleUpdateStructuredCities}
-          paymentGateways={paymentGateways}
-          onUpdatePaymentGateways={setPaymentGateways}
-          shortLinkStats={shortLinkStats}
-          pricingConfig={pricingConfig}
-          onUpdatePricingConfig={handleUpdatePricingConfig}
-          referrals={referrals}
-          onUpdateReferrals={setReferrals}
-          withdrawals={withdrawals}
-          onUpdateWithdrawals={handleUpdateWithdrawals}
-          categories={categories}
-          onUpdateCategories={setCategories}
-          emergencyNotice={emergencyNotice}
-          onSaveEmergencyNotice={handleSaveEmergencyNotice}
-          googleSheetUrl={googleSheetUrl}
-          onSaveGoogleSheetUrl={handleSaveGoogleSheetUrl}
-        />
+        <Suspense fallback={<SuspenseFallback />}>
+          <AdminPanel
+            payments={payments}
+            onApprove={handleAdminApprove}
+            onReject={handleAdminReject}
+            isOpen={isAdminOpen}
+            onClose={() => setIsAdminOpen(false)}
+            companions={companions}
+            onUpdateCompanions={handleUpdateCompanions}
+            locations={locations}
+            onUpdateLocations={handleUpdateLocations}
+            bookings={bookings}
+            onApproveBooking={handleAdminApproveBooking}
+            onDeclineBooking={handleAdminDeclineBooking}
+            onMarkOutgoingBooking={handleAdminMarkOutgoingBooking}
+            onMarkCompletedBooking={handleAdminMarkCompletedBooking}
+            emailLogs={emailLogs}
+            onClearEmailLogs={() => {
+              emailLogs.forEach(log => deleteCloudDocument('email_logs', log.id));
+              setEmailLogs([]);
+            }}
+            emailjsServiceId={emailjsServiceId}
+            onSetEmailjsServiceId={setEmailjsServiceId}
+            emailjsTemplateId={emailjsTemplateId}
+            onSetEmailjsTemplateId={setEmailjsTemplateId}
+            emailjsPublicKey={emailjsPublicKey}
+            onSetEmailjsPublicKey={setEmailjsPublicKey}
+            telegramBotToken={telegramBotToken}
+            onSetTelegramBotToken={setTelegramBotToken}
+            telegramGroupId={telegramGroupId}
+            onSetTelegramGroupId={setTelegramGroupId}
+            telegramHelpline={telegramHelpline}
+            onSetTelegramHelpline={setTelegramHelpline}
+            telegram2FAEnabled={telegram2FAEnabled}
+            onSetTelegram2FAEnabled={setTelegram2FAEnabled}
+            telegramSendTarget={telegramSendTarget}
+            onSetTelegramSendTarget={setTelegramSendTarget}
+            telegramBotSelection={telegramBotSelection}
+            onSetTelegramBotSelection={setTelegramBotSelection}
+            onSaveTelegramSettings={handleSaveTelegramSettings}
+            onClearTelegramSettings={handleClearTelegramSettings}
+            onApproveCompanion={handleAdminApproveCompanion}
+            onDeclineCompanion={handleAdminDeclineCompanion}
+            onSendEmail={sendAutoEmail}
+            cities={cities}
+            structuredCities={structuredCities}
+            onUpdateStructuredCities={handleUpdateStructuredCities}
+            paymentGateways={paymentGateways}
+            onUpdatePaymentGateways={setPaymentGateways}
+            shortLinkStats={shortLinkStats}
+            pricingConfig={pricingConfig}
+            onUpdatePricingConfig={handleUpdatePricingConfig}
+            referrals={referrals}
+            onUpdateReferrals={setReferrals}
+            withdrawals={withdrawals}
+            onUpdateWithdrawals={handleUpdateWithdrawals}
+            categories={categories}
+            onUpdateCategories={setCategories}
+            emergencyNotice={emergencyNotice}
+            onSaveEmergencyNotice={handleSaveEmergencyNotice}
+            googleSheetUrl={googleSheetUrl}
+            onSaveGoogleSheetUrl={handleSaveGoogleSheetUrl}
+          />
+        </Suspense>
       </div>
     );
   }
@@ -3719,18 +3733,20 @@ https://service.bodytouch.com
           isVisible={toast.isVisible}
           onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
         />
-        <ModelPortal
-          bookings={bookings}
-          withdrawals={withdrawals}
-          companions={companions}
-          onLoginSuccess={handleLoginSuccess}
-          isLoggedIn={isLoggedIn}
-          loggedInUsername={username}
-          loggedInUserRole={userRole}
-          onLogout={handleClearSession}
-          onAddWithdrawal={(w) => handleUpdateWithdrawals([w, ...withdrawals])}
-          triggerToast={(msg, type) => triggerToast(msg, type)}
-        />
+        <Suspense fallback={<SuspenseFallback />}>
+          <ModelPortal
+            bookings={bookings}
+            withdrawals={withdrawals}
+            companions={companions}
+            onLoginSuccess={handleLoginSuccess}
+            isLoggedIn={isLoggedIn}
+            loggedInUsername={username}
+            loggedInUserRole={userRole}
+            onLogout={handleClearSession}
+            onAddWithdrawal={(w) => handleUpdateWithdrawals([w, ...withdrawals])}
+            triggerToast={(msg, type) => triggerToast(msg, type)}
+          />
+        </Suspense>
       </div>
     );
   }
@@ -3744,15 +3760,17 @@ https://service.bodytouch.com
           isVisible={toast.isVisible}
           onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
         />
-        <AgentPortal
-          referrals={referrals}
-          withdrawals={withdrawals}
-          companions={companions}
-          bookings={bookings}
-          onAddWithdrawal={(w) => handleUpdateWithdrawals([w, ...withdrawals])}
-          onAddCompanion={(c) => handleUpdateCompanions([c, ...companions])}
-          triggerToast={(msg, type) => triggerToast(msg, type)}
-        />
+        <Suspense fallback={<SuspenseFallback />}>
+          <AgentPortal
+            referrals={referrals}
+            withdrawals={withdrawals}
+            companions={companions}
+            bookings={bookings}
+            onAddWithdrawal={(w) => handleUpdateWithdrawals([w, ...withdrawals])}
+            onAddCompanion={(c) => handleUpdateCompanions([c, ...companions])}
+            triggerToast={(msg, type) => triggerToast(msg, type)}
+          />
+        </Suspense>
       </div>
     );
   }
@@ -3766,13 +3784,15 @@ https://service.bodytouch.com
           isVisible={toast.isVisible}
           onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
         />
-        <TelegramPage
-          onBack={() => {
-            window.location.hash = '';
-            setIsTelegramOpen(false);
-          }}
-          triggerToast={(msg, type) => triggerToast(msg, type)}
-        />
+        <Suspense fallback={<SuspenseFallback />}>
+          <TelegramPage
+            onBack={() => {
+              window.location.hash = '';
+              setIsTelegramOpen(false);
+            }}
+            triggerToast={(msg, type) => triggerToast(msg, type)}
+          />
+        </Suspense>
       </div>
     );
   }
@@ -3788,15 +3808,17 @@ https://service.bodytouch.com
           onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
         />
 
-        <LoginGate 
-          onLoginSuccess={handleLoginSuccess} 
-          telegramBotToken={telegramBotToken}
-          telegramGroupId={telegramGroupId}
-          telegram2FAEnabled={telegram2FAEnabled}
-          telegramSendTarget={telegramSendTarget}
-          telegramBotSelection={telegramBotSelection}
-          emergencyNotice={emergencyNotice}
-        />
+        <Suspense fallback={<SuspenseFallback />}>
+          <LoginGate 
+            onLoginSuccess={handleLoginSuccess} 
+            telegramBotToken={telegramBotToken}
+            telegramGroupId={telegramGroupId}
+            telegram2FAEnabled={telegram2FAEnabled}
+            telegramSendTarget={telegramSendTarget}
+            telegramBotSelection={telegramBotSelection}
+            emergencyNotice={emergencyNotice}
+          />
+        </Suspense>
 
         {isJoinModalOpen && (
           <JoinModal
@@ -6544,19 +6566,26 @@ https://service.bodytouch.com
             transition={{ type: "spring", damping: 30, stiffness: 350 }}
             className="fixed inset-x-0 bottom-0 top-0 sm:top-auto sm:left-auto sm:right-6 sm:bottom-24 z-[100] w-full sm:w-[400px] h-full sm:h-[550px] shadow-2xl flex flex-col rounded-none sm:rounded-2xl overflow-hidden cursor-default pointer-events-auto bg-[#020714]"
           >
-            <LiveChat
-              isLoggedIn={isLoggedIn}
-              userLevel={userLevel}
-              username={username}
-              fullName={fullName}
-              avatarUrl={avatarUrl}
-              phone={phone}
-              onGoToMembership={() => {
-                handleTabSwitch('membership');
-                setIsChatOpen(false);
-              }}
-              onClose={() => setIsChatOpen(false)}
-            />
+            <Suspense fallback={
+              <div className="flex flex-col items-center justify-center h-full p-4 text-center bg-[#020714] text-slate-400">
+                <div className="w-6 h-6 border-2 border-slate-600 border-t-transparent rounded-full animate-spin mb-2" />
+                <span className="text-[10px] tracking-widest uppercase">Connecting Support...</span>
+              </div>
+            }>
+              <LiveChat
+                isLoggedIn={isLoggedIn}
+                userLevel={userLevel}
+                username={username}
+                fullName={fullName}
+                avatarUrl={avatarUrl}
+                phone={phone}
+                onGoToMembership={() => {
+                  handleTabSwitch('membership');
+                  setIsChatOpen(false);
+                }}
+                onClose={() => setIsChatOpen(false)}
+              />
+            </Suspense>
           </motion.div>
         )}
       </AnimatePresence>

@@ -10,6 +10,7 @@ import {
   query, 
   where,
   getDoc,
+  limit,
   db
 } from '../firebase';
 
@@ -92,8 +93,14 @@ export function cleanUndefined(obj: any): any {
  */
 export async function bootstrapCollectionIfEmpty(collectionName: string, defaultData: any[]) {
   try {
+    const localBootstrappedKey = `bt_bootstrapped_col_${collectionName}`;
+    if (localStorage.getItem(localBootstrappedKey) === 'true') {
+      return;
+    }
+
     const colRef = collection(db, collectionName);
-    const snapshot = await getDocs(colRef);
+    const q = query(colRef, limit(1));
+    const snapshot = await getDocs(q);
     if (snapshot.empty && defaultData && defaultData.length > 0) {
       console.log(`[CloudDB] Bootstrapping collection "${collectionName}" with preset items...`);
       for (const item of defaultData) {
@@ -103,6 +110,7 @@ export async function bootstrapCollectionIfEmpty(collectionName: string, default
         await setDoc(docRef, cleanedItem);
       }
     }
+    localStorage.setItem(localBootstrappedKey, 'true');
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, collectionName);
   }
