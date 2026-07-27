@@ -31,8 +31,12 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      - name: Copy .htaccess to dist
-        run: cp .htaccess dist/ || true
+      - name: Copy Server & Config files to dist
+        run: |
+          cp index.js dist/ || true
+          cp package.json dist/ || true
+          cp -r server-dist dist/ || true
+          cp .htaccess dist/ || true
 
       - name: Clean FTP Server Hostname
         id: clean_ftp
