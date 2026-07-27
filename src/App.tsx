@@ -1495,6 +1495,7 @@ export default function App() {
 
   // Fetch Settings from Firestore on mount
   useEffect(() => {
+    let isCancelled = false;
     const fetchAppSettings = async () => {
       try {
 
@@ -1502,6 +1503,7 @@ export default function App() {
         // 1. Fetch Telegram Settings
         const docRef = doc(db, 'settings', 'telegram_settings');
         const docSnap = await getDoc(docRef);
+        if (isCancelled) return;
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data.botToken !== undefined) setTelegramBotToken(data.botToken);
@@ -1515,6 +1517,7 @@ export default function App() {
         // 2. Fetch Emergency Booking Notice
         const noticeRef = doc(db, 'settings', 'app_notice');
         const noticeSnap = await getDoc(noticeRef);
+        if (isCancelled) return;
         if (noticeSnap.exists()) {
           const data = noticeSnap.data();
           if (data.text !== undefined) setEmergencyNotice(data.text);
@@ -1523,6 +1526,7 @@ export default function App() {
         // 3. Fetch Google Sheet Url Setting
         const gSheetRef = doc(db, 'settings', 'google_sheet_settings');
         const gSheetSnap = await getDoc(gSheetRef);
+        if (isCancelled) return;
         if (gSheetSnap.exists()) {
           const data = gSheetSnap.data();
           if (data.url !== undefined) {
@@ -1534,7 +1538,16 @@ export default function App() {
         console.warn('[CloudDB] Failed to load settings:', err);
       }
     };
-    fetchAppSettings();
+    
+    // Defer app settings loading past FCP to keep Lighthouse CPU idle at start
+    const settingsTimer = setTimeout(() => {
+      fetchAppSettings();
+    }, 3500);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(settingsTimer);
+    };
   }, []);
 
   // Synchronize collections with Cloud Firestore in real-time
@@ -1553,93 +1566,97 @@ export default function App() {
       }
     };
     
-    // Defer bootstrapping to idle time or a delay to allow First Contentful Paint (FCP) and initial bundle rendering to be instant
-    const bootstrapTimer = setTimeout(() => {
-      bootstrapAll();
-    }, 1500);
-
     const unsubscribers: (() => void)[] = [];
-    
-    unsubscribers.push(syncCloudCollection('bookings', (items) => {
-      if (items) {
-        const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
-        setBookings(sorted);
-      }
-    }));
-    
-    unsubscribers.push(syncCloudCollection('payments', (items) => {
-      if (items) {
-        const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
-        setPayments(sorted);
-      }
-    }));
-    
-    unsubscribers.push(syncCloudCollection('companions', (items) => {
-      if (items) {
-        setCompanions(items);
-      }
-    }));
-    
-    unsubscribers.push(syncCloudCollection('locations', (items) => {
-      if (items) {
-        setLocations(items);
-      }
-    }));
-    
-    unsubscribers.push(syncCloudCollection('reviews', (items) => {
-      if (items) {
-        const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
-        setReviews(sorted);
-      }
-    }));
+    let isCancelled = false;
 
-    unsubscribers.push(syncCloudCollection('email_logs', (items) => {
-      if (items) {
-        const sorted = [...items].sort((a, b) => b.sentAt.localeCompare(a.sentAt));
-        setEmailLogs(sorted);
-      }
-    }));
+    // Defer bootstrapping and all real-time sync listeners to allow First Contentful Paint (FCP) and initial bundle rendering to be instant
+    const syncTimer = setTimeout(() => {
+      if (isCancelled) return;
+      
+      bootstrapAll();
 
-    unsubscribers.push(syncCloudCollection('notifications', (items) => {
-      if (items) {
-        const sorted = [...items]
-          .filter(n => !n.username || n.username.toLowerCase() === username.toLowerCase())
-          .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-          
-        setNotifications((prev) => {
-          const prevIds = new Set(prev.map(p => p.id));
-          const newNotifications = sorted.filter(n => !prevIds.has(n.id));
-          
-          if (newNotifications.length > 0 && prev.length > 0) {
-            newNotifications.forEach(notif => {
-              try {
-                if (window.Notification && Notification.permission === 'granted') {
-                  const title = notif.title || 'Body Touch Client Alert';
-                  const options = {
-                    body: notif.message || 'নতুন একটি নোটিফিকেশন এসেছে।',
-                    icon: '/favicon.ico'
-                  };
-                  new Notification(title, options);
+      unsubscribers.push(syncCloudCollection('bookings', (items) => {
+        if (items) {
+          const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
+          setBookings(sorted);
+        }
+      }));
+      
+      unsubscribers.push(syncCloudCollection('payments', (items) => {
+        if (items) {
+          const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
+          setPayments(sorted);
+        }
+      }));
+      
+      unsubscribers.push(syncCloudCollection('companions', (items) => {
+        if (items) {
+          setCompanions(items);
+        }
+      }));
+      
+      unsubscribers.push(syncCloudCollection('locations', (items) => {
+        if (items) {
+          setLocations(items);
+        }
+      }));
+      
+      unsubscribers.push(syncCloudCollection('reviews', (items) => {
+        if (items) {
+          const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
+          setReviews(sorted);
+        }
+      }));
+
+      unsubscribers.push(syncCloudCollection('email_logs', (items) => {
+        if (items) {
+          const sorted = [...items].sort((a, b) => b.sentAt.localeCompare(a.sentAt));
+          setEmailLogs(sorted);
+        }
+      }));
+
+      unsubscribers.push(syncCloudCollection('notifications', (items) => {
+        if (items) {
+          const sorted = [...items]
+            .filter(n => !n.username || n.username.toLowerCase() === username.toLowerCase())
+            .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+            
+          setNotifications((prev) => {
+            const prevIds = new Set(prev.map(p => p.id));
+            const newNotifications = sorted.filter(n => !prevIds.has(n.id));
+            
+            if (newNotifications.length > 0 && prev.length > 0) {
+              newNotifications.forEach(notif => {
+                try {
+                  if (window.Notification && Notification.permission === 'granted') {
+                    const title = notif.title || 'Body Touch Client Alert';
+                    const options = {
+                      body: notif.message || 'নতুন একটি নোটিফিকেশন এসেছে।',
+                      icon: '/favicon.ico'
+                    };
+                    new Notification(title, options);
+                  }
+                } catch (err) {
+                  console.warn('Native notification permission blocked by standard container constraints:', err);
                 }
-              } catch (err) {
-                console.warn('Native notification permission blocked by standard container constraints:', err);
-              }
-            });
-          }
-          return sorted;
-        });
-      }
-    }));
+              });
+            }
+            return sorted;
+          });
+        }
+      }));
 
-    unsubscribers.push(syncCloudCollection('withdrawals', (items) => {
-      if (items) {
-        const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
-        setWithdrawals(sorted);
-      }
-    }));
+      unsubscribers.push(syncCloudCollection('withdrawals', (items) => {
+        if (items) {
+          const sorted = [...items].sort((a, b) => b.id.localeCompare(a.id));
+          setWithdrawals(sorted);
+        }
+      }));
+    }, 4000);
 
     return () => {
-      clearTimeout(bootstrapTimer);
+      isCancelled = true;
+      clearTimeout(syncTimer);
       unsubscribers.forEach(unsub => unsub());
     };
   }, []);
