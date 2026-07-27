@@ -73,7 +73,7 @@ jobs:
           echo "server=$CLEANED_SERVER" >> $GITHUB_OUTPUT
 
       - name: 📂 Sync files to Hostinger via SFTP
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        uses: wlixcc/SFTP-Deploy-Action@v3.0.0
         with:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
@@ -81,7 +81,6 @@ jobs:
           port: 65002
           local_path: './dist/*'
           remote_path: '/public_html'
-          sftp_only: true
 
 
 
