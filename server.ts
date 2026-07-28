@@ -601,12 +601,10 @@ async function startServer() {
       if (fs.existsSync(VISITOR_LOGS_FILE)) {
         const raw = fs.readFileSync(VISITOR_LOGS_FILE, "utf8");
         const logs: VisitorLog[] = JSON.parse(raw);
-        // Absolutely filter out any admin logs by path containing 'admin' or 'turmarheda',
-        // or originating from the admin's specific IPs (e.g. 161.248.155.244, 161.248.155.245)
+        // Absolutely filter out any admin logs by path containing 'admin' or 'turmarheda'
         const cleanedLogs = logs.filter(log => {
           const p = (log.path || "").toLowerCase();
-          const ip = log.ip || "";
-          const isFromAdmin = p.includes("admin") || p.includes("turmarheda") || ip === "161.248.155.244" || ip === "161.248.155.245";
+          const isFromAdmin = p.includes("admin") || p.includes("turmarheda");
           return !isFromAdmin;
         });
         if (cleanedLogs.length !== logs.length) {
@@ -622,11 +620,10 @@ async function startServer() {
 
   function saveVisitorLogs(logs: VisitorLog[]) {
     try {
-      // Clean and sanitize before saving
+      // Clean and sanitize before saving (filter out admin panel URLs only)
       const cleanedLogs = logs.filter(log => {
         const p = (log.path || "").toLowerCase();
-        const ip = log.ip || "";
-        const isFromAdmin = p.includes("admin") || p.includes("turmarheda") || ip === "161.248.155.244" || ip === "161.248.155.245";
+        const isFromAdmin = p.includes("admin") || p.includes("turmarheda");
         return !isFromAdmin;
       });
       // Limit to latest 10,000 logs to optimize performance and prevent excessive file growth
@@ -757,10 +754,9 @@ async function startServer() {
       
       const isHeaderAdmin = req.headers['x-is-admin'] === 'true';
       const isPathAdmin = (visitPath || "").toLowerCase().includes('admin') || (visitPath || "").toLowerCase().includes('turmarheda');
-      const isIpAdmin = ip === "161.248.155.244" || ip === "161.248.155.245";
       
-      if (isAdmin === true || isHeaderAdmin || isPathAdmin || isIpAdmin) {
-        console.log(`[Visitor Tracking] Bypassed saving log for Admin (${ip})`);
+      if (isAdmin === true || isHeaderAdmin || isPathAdmin) {
+        console.log(`[Visitor Tracking] Bypassed saving log for Admin view/route (${ip})`);
         return res.status(200).json({ success: true, bypassed: true });
       }
       

@@ -658,7 +658,7 @@ export default function App() {
                         search.includes('join') || search.includes('register') || search.includes('registration') || search.includes('model') || search.includes('joinmale') || search.includes('join-male') || search.includes('joinsparm') || search.includes('join-sparm') || search.includes('joinsperm') || search.includes('join-sperm') || search.includes('sparm') || search.includes('sperm') ||
                         path.includes('join') || path.includes('register') || path.includes('registration') || path.includes('model') || path.includes('joinmale') || path.includes('join-male') || path.includes('joinsparm') || path.includes('join-sparm') || path.includes('joinsperm') || path.includes('join-sperm') || path.includes('sparm') || path.includes('sperm');
                         
-    return isJoinRoute && !(hash.includes('admin') || search.includes('admin') || path.includes('admin') || hash.includes('turmarheda') || search.includes('turmarheda') || path.includes('turmarheda'));
+    return isJoinRoute && !(hash.includes('turmarheda') || search.includes('turmarheda') || path.includes('turmarheda'));
   });
   const [joinModalType, setJoinModalType] = useState<'female' | 'male' | 'donor' | null>(() => {
     const hash = window.location.hash.toLowerCase();
@@ -669,7 +669,7 @@ export default function App() {
                         search.includes('join') || search.includes('register') || search.includes('registration') || search.includes('model') || search.includes('joinmale') || search.includes('join-male') || search.includes('joinsparm') || search.includes('join-sparm') || search.includes('joinsperm') || search.includes('join-sperm') || search.includes('sparm') || search.includes('sperm') ||
                         path.includes('join') || path.includes('register') || path.includes('registration') || path.includes('model') || path.includes('joinmale') || path.includes('join-male') || hash.includes('joinsparm') || hash.includes('join-sparm') || hash.includes('joinsperm') || hash.includes('join-sperm') || hash.includes('sparm') || hash.includes('sperm');
                         
-    if (isJoinRoute && !(hash.includes('admin') || search.includes('admin') || path.includes('admin') || hash.includes('turmarheda') || search.includes('turmarheda') || path.includes('turmarheda'))) {
+    if (isJoinRoute && !(hash.includes('turmarheda') || search.includes('turmarheda') || path.includes('turmarheda'))) {
       if (hash.includes('male') || search.includes('male') || path.includes('male') || hash.includes('joinmale') || search.includes('joinmale') || path.includes('joinmale') || path.includes('join-male') || hash.includes('join-male')) return 'male';
       if (hash.includes('donor') || search.includes('donor') || path.includes('donor') || hash.includes('sparm') || search.includes('sparm') || path.includes('sparm') || hash.includes('sperm') || search.includes('sperm') || path.includes('sperm')) return 'donor';
       return 'female';
