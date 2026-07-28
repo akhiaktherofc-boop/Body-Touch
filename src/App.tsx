@@ -682,6 +682,13 @@ export default function App() {
   const [rateFilter, setRateFilter] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState<'DEMO' | 'REGULAR' | 'PREMIUM' | 'ELITE'>('DEMO');
 
+  // Auto-shift category away from DEMO if user acquires a membership
+  useEffect(() => {
+    if (userLevel !== 'FREE' && selectedCategory === 'DEMO') {
+      setSelectedCategory(userLevel);
+    }
+  }, [userLevel, selectedCategory]);
+
   // Interactive High-end Hotel and Safehouses Filtering States
   const [locationTypeTab, setLocationTypeTab] = useState<'HOTELS' | 'SAFE HOUSES'>('HOTELS');
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
@@ -4551,10 +4558,11 @@ https://service.bodytouch.com
                 {/* Tier Selection Tabs Bar */}
                 <div className="grid grid-cols-4 gap-2.5 p-2 bg-slate-950/60 rounded-[22px] border border-blue-900/30 shadow-[inset_0_1px_4px_rgba(0,0,0,0.6)] gold-breathing-glow">
                   {(['DEMO', 'REGULAR', 'PREMIUM', 'ELITE'] as const).map((cat) => {
-                    const isLocked = cat !== 'DEMO' && 
-                      ((cat === 'REGULAR' && userLevel === 'FREE') ||
-                      (cat === 'PREMIUM' && (userLevel === 'FREE' || userLevel === 'REGULAR')) ||
-                      (cat === 'ELITE' && userLevel !== 'ELITE'));
+                    const isLocked = cat === 'DEMO'
+                      ? (userLevel !== 'FREE')
+                      : ((cat === 'REGULAR' && userLevel === 'FREE') ||
+                         (cat === 'PREMIUM' && (userLevel === 'FREE' || userLevel === 'REGULAR')) ||
+                         (cat === 'ELITE' && userLevel !== 'ELITE'));
                       
                     const isActive = selectedCategory === cat;
 
@@ -4572,10 +4580,14 @@ https://service.bodytouch.com
                         transition={{ type: "spring", stiffness: 450, damping: 14 }}
                         onClick={() => {
                           if (isLocked) {
-                            triggerToast(`🔒 ${cat} level is locked! Please purchase this membership tier first.`, 'error');
-                            setTimeout(() => {
-                              handleTabSwitch('membership');
-                            }, 800);
+                            if (cat === 'DEMO') {
+                              triggerToast('🔒 আপনি মেম্বারশিপ নিয়েছেন, তাই ডেমো ক্যাটাগরি আপনার জন্য ব্লক করা হয়েছে। (You have upgraded to membership, so the demo category is blocked for you.)', 'error');
+                            } else {
+                              triggerToast(`🔒 ${cat} level is locked! Please purchase this membership tier first.`, 'error');
+                              setTimeout(() => {
+                                handleTabSwitch('membership');
+                              }, 800);
+                            }
                             return;
                           }
                           setSelectedCategory(cat);
@@ -4600,10 +4612,16 @@ https://service.bodytouch.com
                 {/* Subtext info for active filter category */}
                 <div className="text-left px-1 text-[10px] text-slate-400 flex items-center justify-between">
                   <span className="font-semibold uppercase tracking-wider text-slate-500 text-[9px]">ACTIVE ACCESS TIER</span>
-                  {selectedCategory !== 'DEMO' && (
+                  {selectedCategory !== 'DEMO' ? (
                     <span className="text-amber-400 font-bold font-mono text-[9px] uppercase tracking-wide">
                       🔒 Require {selectedCategory} Access Pass
                     </span>
+                  ) : (
+                    userLevel !== 'FREE' && (
+                      <span className="text-red-400 font-bold font-mono text-[9px] uppercase tracking-wide">
+                        🔒 DEMO is disabled for active members
+                      </span>
+                    )
                   )}
                 </div>
 
@@ -4637,10 +4655,11 @@ https://service.bodytouch.com
                   ) : (
                     filteredCompanions.map((comp) => {
                       // Check user level authorization to this model
-                      const isModelLocked = selectedCategory !== 'DEMO' && 
-                        ((selectedCategory === 'REGULAR' && userLevel === 'FREE') ||
-                        (selectedCategory === 'PREMIUM' && (userLevel === 'FREE' || userLevel === 'REGULAR')) ||
-                        (selectedCategory === 'ELITE' && userLevel !== 'ELITE'));
+                      const isModelLocked = selectedCategory === 'DEMO'
+                        ? (userLevel !== 'FREE')
+                        : ((selectedCategory === 'REGULAR' && userLevel === 'FREE') ||
+                           (selectedCategory === 'PREMIUM' && (userLevel === 'FREE' || userLevel === 'REGULAR')) ||
+                           (selectedCategory === 'ELITE' && userLevel !== 'ELITE'));
 
                       return (
                         <div
