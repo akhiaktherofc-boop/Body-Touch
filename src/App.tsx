@@ -340,10 +340,34 @@ export default function App() {
       setIsMobile(window.innerWidth < 640);
     };
     window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-    // Track Visitor Telemetry
+  const lastTrackedPathRef = useRef<string>('');
+
+  useEffect(() => {
+    // Track Visitor Telemetry whenever route/section changes
     const trackVisitor = async () => {
       try {
+        let currentPath = '/';
+        if (isAdminOpen) {
+          currentPath = '/admin-panel';
+        } else if (isModelPortalOpen) {
+          currentPath = '/model-portal';
+        } else if (isAgentOpen) {
+          currentPath = '/agent-portal';
+        } else if (isTelegramOpen) {
+          currentPath = '/telegram-portal';
+        } else {
+          currentPath = `/client-site/${activeTab}`;
+        }
+
+        // Avoid double-logging the exact same path in rapid succession
+        if (lastTrackedPathRef.current === currentPath) {
+          return;
+        }
+        lastTrackedPathRef.current = currentPath;
+
         const isUnique = !localStorage.getItem('bt_returning_visitor');
         if (isUnique) {
           localStorage.setItem('bt_returning_visitor', 'true');
@@ -352,7 +376,7 @@ export default function App() {
         const payload = {
           userAgent: navigator.userAgent,
           referer: document.referrer || '',
-          path: window.location.pathname || '/',
+          path: currentPath,
           isUnique
         };
 
@@ -393,10 +417,9 @@ export default function App() {
         console.warn('Failed to send visitor tracking event:', e);
       }
     };
+    
     trackVisitor();
-
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [isAdminOpen, isModelPortalOpen, isAgentOpen, isTelegramOpen, activeTab]);
 
   // 120 FPS Mobile Performance Booster & Screenshot/Screen-Record Deterrence Engine
   useEffect(() => {

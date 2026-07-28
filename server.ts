@@ -627,16 +627,40 @@ async function startServer() {
       return { city: "Localhost", country: "Bangladesh (Dev)", countryCode: "BD", region: "Developer Lab", org: "Local Development Server" };
     }
 
-    // Node 18 compatible abort controller instead of AbortSignal.timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      try { controller.abort(); } catch(e) {}
+    // 1. Primary accurate lookup using ipwho.is
+    const primaryController = new AbortController();
+    const primaryTimeoutId = setTimeout(() => {
+      try { primaryController.abort(); } catch(e) {}
     }, 4000);
 
     try {
-      // Primarly use freeipapi.com as it supports SSL on free requests and returns high detail
-      const response = await fetch(`https://freeipapi.com/api/json/${cleanIp}`, { signal: controller.signal });
-      clearTimeout(timeoutId);
+      const response = await fetch(`https://ipwho.is/${cleanIp}`, { signal: primaryController.signal });
+      clearTimeout(primaryTimeoutId);
+      if (response.ok) {
+        const data: any = await response.json();
+        if (data && data.success !== false) {
+          return {
+            city: data.city || "Unknown City",
+            country: data.country || "Unknown Country",
+            countryCode: data.country_code || "UN",
+            region: data.region || "Unknown Region",
+            org: (data.connection && data.connection.isp) || "Unknown ISP"
+          };
+        }
+      }
+    } catch (err) {
+      console.warn(`[GeoIP] ipwho.is lookup failed for ${cleanIp}, trying freeipapi...`);
+    }
+
+    // 2. Secondary fallback: freeipapi.com
+    const secondaryController = new AbortController();
+    const secondaryTimeoutId = setTimeout(() => {
+      try { secondaryController.abort(); } catch(e) {}
+    }, 4000);
+
+    try {
+      const response = await fetch(`https://freeipapi.com/api/json/${cleanIp}`, { signal: secondaryController.signal });
+      clearTimeout(secondaryTimeoutId);
       if (response.ok) {
         const data: any = await response.json();
         return {
@@ -651,14 +675,13 @@ async function startServer() {
       console.warn(`[GeoIP] freeipapi lookup failed for ${cleanIp}, trying backup...`);
     }
 
-    // Backup lookup
+    // 3. Tertiary fallback: ip-api.com
     const backupController = new AbortController();
     const backupTimeoutId = setTimeout(() => {
       try { backupController.abort(); } catch(e) {}
     }, 4000);
 
     try {
-      // Backup ip-api.com (HTTP only on free tier)
       const backupRes = await fetch(`http://ip-api.com/json/${cleanIp}`, { signal: backupController.signal });
       clearTimeout(backupTimeoutId);
       if (backupRes.ok) {

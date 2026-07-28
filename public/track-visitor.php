@@ -81,8 +81,8 @@ if (empty($cleanIp) || $cleanIp === "::1" || $cleanIp === "127.0.0.1" ||
 }
 
 if (!$isLocal) {
-    // Attempt freeipapi.com
-    $url = "https://freeipapi.com/api/json/" . urlencode($cleanIp);
+    // 1. Primary accurate lookup using ipwho.is
+    $url = "https://ipwho.is/" . urlencode($cleanIp);
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -92,16 +92,45 @@ if (!$isLocal) {
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
+    $resolved = false;
     if ($httpCode === 200 && !empty($response)) {
         $geo = json_decode($response, true);
-        if ($geo) {
-            $city = isset($geo['cityName']) && !empty($geo['cityName']) ? $geo['cityName'] : "Unknown City";
-            $country = isset($geo['countryName']) && !empty($geo['countryName']) ? $geo['countryName'] : "Unknown Country";
-            $countryCode = isset($geo['countryCode']) && !empty($geo['countryCode']) ? $geo['countryCode'] : "UN";
-            $region = isset($geo['regionName']) && !empty($geo['regionName']) ? $geo['regionName'] : "Unknown Region";
+        if ($geo && isset($geo['success']) && $geo['success'] !== false) {
+            $city = isset($geo['city']) && !empty($geo['city']) ? $geo['city'] : "Unknown City";
+            $country = isset($geo['country']) && !empty($geo['country']) ? $geo['country'] : "Unknown Country";
+            $countryCode = isset($geo['country_code']) && !empty($geo['country_code']) ? $geo['country_code'] : "UN";
+            $region = isset($geo['region']) && !empty($geo['region']) ? $geo['region'] : "Unknown Region";
+            $org = isset($geo['connection']['isp']) && !empty($geo['connection']['isp']) ? $geo['connection']['isp'] : "Unknown ISP";
+            $resolved = true;
         }
-    } else {
-        // Fallback to ip-api.com
+    }
+
+    if (!$resolved) {
+        // 2. Secondary fallback: freeipapi.com
+        $urlFallback = "https://freeipapi.com/api/json/" . urlencode($cleanIp);
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $urlFallback);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode === 200 && !empty($response)) {
+            $geo = json_decode($response, true);
+            if ($geo) {
+                $city = isset($geo['cityName']) && !empty($geo['cityName']) ? $geo['cityName'] : "Unknown City";
+                $country = isset($geo['countryName']) && !empty($geo['countryName']) ? $geo['countryName'] : "Unknown Country";
+                $countryCode = isset($geo['countryCode']) && !empty($geo['countryCode']) ? $geo['countryCode'] : "UN";
+                $region = isset($geo['regionName']) && !empty($geo['regionName']) ? $geo['regionName'] : "Unknown Region";
+                $resolved = true;
+            }
+        }
+    }
+
+    if (!$resolved) {
+        // 3. Tertiary fallback: ip-api.com
         $urlBackup = "http://ip-api.com/json/" . urlencode($cleanIp);
         $chBackup = curl_init();
         curl_setopt($chBackup, CURLOPT_URL, $urlBackup);
