@@ -345,15 +345,9 @@ export default function App() {
     const trackVisitor = async () => {
       try {
         const isUnique = !localStorage.getItem('bt_returning_visitor');
-        if (!isUnique) {
-          if (sessionStorage.getItem('bt_session_tracked')) {
-            return;
-          }
-        } else {
+        if (isUnique) {
           localStorage.setItem('bt_returning_visitor', 'true');
         }
-        
-        sessionStorage.setItem('bt_session_tracked', 'true');
         
         await fetch('/api/track-visitor', {
           method: 'POST',

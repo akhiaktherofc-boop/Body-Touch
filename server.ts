@@ -620,13 +620,23 @@ async function startServer() {
   async function resolveIpLocation(ip: string): Promise<{ city: string; country: string; countryCode: string; region: string; org: string }> {
     const defaultLoc = { city: "Unknown City", country: "Unknown Country", countryCode: "UN", region: "Unknown Region", org: "Unknown ISP" };
     
-    if (!ip || ip === "::1" || ip === "127.0.0.1" || ip.startsWith("::ffff:127.0.0.1") || ip.startsWith("10.") || ip.startsWith("192.168.") || ip.startsWith("172.16.")) {
+    if (!ip) return defaultLoc;
+    const cleanIp = ip.replace(/^::ffff:/, '').trim();
+    
+    if (!cleanIp || cleanIp === "::1" || cleanIp === "127.0.0.1" || cleanIp.startsWith("10.") || cleanIp.startsWith("192.168.") || cleanIp.startsWith("172.") || cleanIp.startsWith("169.254.") || cleanIp.startsWith("100.64.")) {
       return { city: "Localhost", country: "Bangladesh (Dev)", countryCode: "BD", region: "Developer Lab", org: "Local Development Server" };
     }
 
+    // Node 18 compatible abort controller instead of AbortSignal.timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      try { controller.abort(); } catch(e) {}
+    }, 4000);
+
     try {
       // Primarly use freeipapi.com as it supports SSL on free requests and returns high detail
-      const response = await fetch(`https://freeipapi.com/api/json/${ip}`, { signal: AbortSignal.timeout(3000) });
+      const response = await fetch(`https://freeipapi.com/api/json/${cleanIp}`, { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (response.ok) {
         const data: any = await response.json();
         return {
@@ -638,12 +648,19 @@ async function startServer() {
         };
       }
     } catch (err) {
-      console.warn(`[GeoIP] freeipapi lookup failed for ${ip}, trying backup...`, err);
+      console.warn(`[GeoIP] freeipapi lookup failed for ${cleanIp}, trying backup...`);
     }
 
+    // Backup lookup
+    const backupController = new AbortController();
+    const backupTimeoutId = setTimeout(() => {
+      try { backupController.abort(); } catch(e) {}
+    }, 4000);
+
     try {
-      // Backup ip-api.com
-      const backupRes = await fetch(`http://ip-api.com/json/${ip}`, { signal: AbortSignal.timeout(3000) });
+      // Backup ip-api.com (HTTP only on free tier)
+      const backupRes = await fetch(`http://ip-api.com/json/${cleanIp}`, { signal: backupController.signal });
+      clearTimeout(backupTimeoutId);
       if (backupRes.ok) {
         const data: any = await backupRes.json();
         if (data.status === "success") {
@@ -657,7 +674,7 @@ async function startServer() {
         }
       }
     } catch (err) {
-      console.warn(`[GeoIP] Backup ip-api lookup failed for ${ip}:`, err);
+      console.warn(`[GeoIP] Backup ip-api lookup failed for ${cleanIp}`);
     }
 
     return defaultLoc;
@@ -694,6 +711,8 @@ async function startServer() {
       const { referer, path: visitPath, isUnique, userAgent } = req.body;
       const rawIp = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket.remoteAddress || '';
       const ip = (typeof rawIp === 'string' ? rawIp.split(',')[0] : String(rawIp)).trim();
+      
+      console.log(`[Visitor Tracking] Incoming tracking request. Raw IP: "${rawIp}", parsed IP: "${ip}", path: "${visitPath}"`);
       
       const geo = await resolveIpLocation(ip);
       const parsedUA = parseUserAgent(userAgent || req.headers['user-agent'] || '');
