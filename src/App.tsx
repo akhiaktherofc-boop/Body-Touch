@@ -346,28 +346,17 @@ export default function App() {
   const lastTrackedPathRef = useRef<string>('');
 
   useEffect(() => {
-    // Persist admin session flag in local/session storage if they access admin
-    const hash = window.location.hash.toLowerCase();
-    const search = window.location.search.toLowerCase();
-    const path = window.location.pathname.toLowerCase();
-    const isAdminRoute = hash.includes('turmarheda') ||
-                         search.includes('turmarheda') ||
-                         path.includes('turmarheda');
-    if (isAdminRoute || isAdminOpen) {
-      localStorage.setItem('bt_is_admin', 'true');
-      sessionStorage.setItem('bt_is_admin', 'true');
-    }
-  }, [isAdminOpen]);
+    // Clear any persistent local/session flags that would block client/model tracking during testing
+    try {
+      localStorage.removeItem('bt_is_admin');
+      sessionStorage.removeItem('bt_is_admin');
+    } catch (_) {}
+  }, []);
 
   useEffect(() => {
     // Track Visitor Telemetry whenever route/section changes
     const trackVisitor = async () => {
       try {
-        // Absolutely skip tracking for Administrator console, admin routes, or flagged admin browsers
-        const isCurrentlyAdmin = localStorage.getItem('bt_is_admin') === 'true' || 
-                                 sessionStorage.getItem('bt_is_admin') === 'true' || 
-                                 isAdminOpen;
-                                 
         const hash = window.location.hash.toLowerCase();
         const search = window.location.search.toLowerCase();
         const path = window.location.pathname.toLowerCase();
@@ -375,8 +364,9 @@ export default function App() {
                              search.includes('turmarheda') ||
                              path.includes('turmarheda');
 
-        if (isCurrentlyAdmin || isAdminRoute) {
-          console.log('[Visitor Tracking] Blocked tracking for Admin IP/device to ensure privacy and avoid noise.');
+        // Block tracking only if currently viewing the admin page or route
+        if (isAdminOpen || isAdminRoute) {
+          console.log('[Visitor Tracking] Blocked tracking for active Admin view/route to ensure privacy.');
           return;
         }
 
