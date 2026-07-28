@@ -346,13 +346,42 @@ export default function App() {
   const lastTrackedPathRef = useRef<string>('');
 
   useEffect(() => {
+    // Persist admin session flag in local/session storage if they access admin
+    const hash = window.location.hash.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    const path = window.location.pathname.toLowerCase();
+    const isAdminRoute = hash.includes('turmarheda') ||
+                         search.includes('turmarheda') ||
+                         path.includes('turmarheda');
+    if (isAdminRoute || isAdminOpen) {
+      localStorage.setItem('bt_is_admin', 'true');
+      sessionStorage.setItem('bt_is_admin', 'true');
+    }
+  }, [isAdminOpen]);
+
+  useEffect(() => {
     // Track Visitor Telemetry whenever route/section changes
     const trackVisitor = async () => {
       try {
+        // Absolutely skip tracking for Administrator console, admin routes, or flagged admin browsers
+        const isCurrentlyAdmin = localStorage.getItem('bt_is_admin') === 'true' || 
+                                 sessionStorage.getItem('bt_is_admin') === 'true' || 
+                                 isAdminOpen;
+                                 
+        const hash = window.location.hash.toLowerCase();
+        const search = window.location.search.toLowerCase();
+        const path = window.location.pathname.toLowerCase();
+        const isAdminRoute = hash.includes('turmarheda') ||
+                             search.includes('turmarheda') ||
+                             path.includes('turmarheda');
+
+        if (isCurrentlyAdmin || isAdminRoute) {
+          console.log('[Visitor Tracking] Blocked tracking for Admin IP/device to ensure privacy and avoid noise.');
+          return;
+        }
+
         let currentPath = '/';
-        if (isAdminOpen) {
-          currentPath = '/admin-panel';
-        } else if (isModelPortalOpen) {
+        if (isModelPortalOpen) {
           currentPath = '/model-portal';
         } else if (isAgentOpen) {
           currentPath = '/agent-portal';
@@ -377,14 +406,18 @@ export default function App() {
           userAgent: navigator.userAgent,
           referer: document.referrer || '',
           path: currentPath,
-          isUnique
+          isUnique,
+          isAdmin: false
         };
 
         let usePhpFallback = false;
         try {
           const response = await fetch('/api/track-visitor', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'X-Is-Admin': 'false'
+            },
             body: JSON.stringify(payload)
           });
           
@@ -409,7 +442,10 @@ export default function App() {
         if (usePhpFallback) {
           await fetch('/track-visitor.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'X-Is-Admin': 'false'
+            },
             body: JSON.stringify(payload)
           });
         }

@@ -599,7 +599,20 @@ async function startServer() {
   function getVisitorLogs(): VisitorLog[] {
     try {
       if (fs.existsSync(VISITOR_LOGS_FILE)) {
-        return JSON.parse(fs.readFileSync(VISITOR_LOGS_FILE, "utf8"));
+        const raw = fs.readFileSync(VISITOR_LOGS_FILE, "utf8");
+        const logs: VisitorLog[] = JSON.parse(raw);
+        // Absolutely filter out any admin logs by path containing 'admin' or 'turmarheda',
+        // or originating from the admin's specific IPs (e.g. 161.248.155.244, 161.248.155.245)
+        const cleanedLogs = logs.filter(log => {
+          const p = (log.path || "").toLowerCase();
+          const ip = log.ip || "";
+          const isFromAdmin = p.includes("admin") || p.includes("turmarheda") || ip === "161.248.155.244" || ip === "161.248.155.245";
+          return !isFromAdmin;
+        });
+        if (cleanedLogs.length !== logs.length) {
+          saveVisitorLogs(cleanedLogs);
+        }
+        return cleanedLogs;
       }
     } catch (err) {
       console.error("Failed to load visitor logs:", err);
@@ -609,8 +622,15 @@ async function startServer() {
 
   function saveVisitorLogs(logs: VisitorLog[]) {
     try {
+      // Clean and sanitize before saving
+      const cleanedLogs = logs.filter(log => {
+        const p = (log.path || "").toLowerCase();
+        const ip = log.ip || "";
+        const isFromAdmin = p.includes("admin") || p.includes("turmarheda") || ip === "161.248.155.244" || ip === "161.248.155.245";
+        return !isFromAdmin;
+      });
       // Limit to latest 10,000 logs to optimize performance and prevent excessive file growth
-      const trimmedLogs = logs.slice(-10000);
+      const trimmedLogs = cleanedLogs.slice(-10000);
       fs.writeFileSync(VISITOR_LOGS_FILE, JSON.stringify(trimmedLogs, null, 2), "utf8");
     } catch (err) {
       console.error("Failed to save visitor logs:", err);
@@ -731,9 +751,18 @@ async function startServer() {
   // API Route to track visitor metrics
   app.post("/api/track-visitor", async (req, res) => {
     try {
-      const { referer, path: visitPath, isUnique, userAgent } = req.body;
+      const { referer, path: visitPath, isUnique, userAgent, isAdmin } = req.body;
       const rawIp = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket.remoteAddress || '';
       const ip = (typeof rawIp === 'string' ? rawIp.split(',')[0] : String(rawIp)).trim();
+      
+      const isHeaderAdmin = req.headers['x-is-admin'] === 'true';
+      const isPathAdmin = (visitPath || "").toLowerCase().includes('admin') || (visitPath || "").toLowerCase().includes('turmarheda');
+      const isIpAdmin = ip === "161.248.155.244" || ip === "161.248.155.245";
+      
+      if (isAdmin === true || isHeaderAdmin || isPathAdmin || isIpAdmin) {
+        console.log(`[Visitor Tracking] Bypassed saving log for Admin (${ip})`);
+        return res.status(200).json({ success: true, bypassed: true });
+      }
       
       console.log(`[Visitor Tracking] Incoming tracking request. Raw IP: "${rawIp}", parsed IP: "${ip}", path: "${visitPath}"`);
       

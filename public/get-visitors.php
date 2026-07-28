@@ -36,7 +36,14 @@ if (file_exists($logFile)) {
     $content = file_get_contents($logFile);
     $decoded = json_decode($content, true);
     if (is_array($decoded)) {
-        $logs = $decoded;
+        // Absolutely filter out any admin entries before returning
+        $logs = array_filter($decoded, function($log) {
+            $p = isset($log['path']) ? strtolower($log['path']) : '';
+            $ip = isset($log['ip']) ? $log['ip'] : '';
+            $isFromAdmin = strpos($p, 'admin') !== false || strpos($p, 'turmarheda') !== false || $ip === '161.248.155.244' || $ip === '161.248.155.245';
+            return !$isFromAdmin;
+        });
+        $logs = array_values($logs);
     }
 }
 

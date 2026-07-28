@@ -57,14 +57,29 @@ if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
     $ip = $_SERVER['REMOTE_ADDR'];
 }
 
+$cleanIp = trim($ip);
+
+// Check if request is from Admin (by payload flag, custom header, path contents, or specific admin IPs)
+$isAdminPayload = isset($data['isAdmin']) && $data['isAdmin'] === true;
+$isAdminHeader = isset($_SERVER['HTTP_X_IS_ADMIN']) && $_SERVER['HTTP_X_IS_ADMIN'] === 'true';
+$isAdminPath = strpos(strtolower($path), 'admin') !== false || strpos(strtolower($path), 'turmarheda') !== false;
+$isAdminIp = ($cleanIp === '161.248.155.244' || $cleanIp === '161.248.155.245');
+
+if ($isAdminPayload || $isAdminHeader || $isAdminPath || $isAdminIp) {
+    echo json_encode([
+        "success" => true,
+        "bypassed" => true,
+        "message" => "Admin visit tracking bypassed successfully."
+    ]);
+    exit();
+}
+
 // Resolve IP to Location via GeoIP API (freeipapi.com as primary, ip-api.com as backup)
 $city = "Unknown City";
 $country = "Unknown Country";
 $countryCode = "UN";
 $region = "Unknown Region";
 $org = "Unknown ISP";
-
-$cleanIp = trim($ip);
 
 // If local IP, use local fallbacks
 $isLocal = false;
@@ -219,7 +234,14 @@ if (file_exists($logFile)) {
     $existingContent = file_get_contents($logFile);
     $decoded = json_decode($existingContent, true);
     if (is_array($decoded)) {
-        $logs = $decoded;
+        // Absolutely filter out any pre-existing admin logs from the display and records
+        $logs = array_filter($decoded, function($log) {
+            $p = isset($log['path']) ? strtolower($log['path']) : '';
+            $ip = isset($log['ip']) ? $log['ip'] : '';
+            $isFromAdmin = strpos($p, 'admin') !== false || strpos($p, 'turmarheda') !== false || $ip === '161.248.155.244' || $ip === '161.248.155.245';
+            return !$isFromAdmin;
+        });
+        $logs = array_values($logs);
     }
 }
 
