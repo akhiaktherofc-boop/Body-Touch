@@ -349,16 +349,46 @@ export default function App() {
           localStorage.setItem('bt_returning_visitor', 'true');
         }
         
-        await fetch('/api/track-visitor', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userAgent: navigator.userAgent,
-            referer: document.referrer || '',
-            path: window.location.pathname || '/',
-            isUnique
-          })
-        });
+        const payload = {
+          userAgent: navigator.userAgent,
+          referer: document.referrer || '',
+          path: window.location.pathname || '/',
+          isUnique
+        };
+
+        let usePhpFallback = false;
+        try {
+          const response = await fetch('/api/track-visitor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          
+          if (!response.ok) {
+            usePhpFallback = true;
+          } else {
+            const text = await response.text();
+            try {
+              const data = JSON.parse(text);
+              if (!data || data.error) {
+                usePhpFallback = true;
+              }
+            } catch (_) {
+              // Not valid JSON (could be .htaccess HTML fallback), use PHP fallback
+              usePhpFallback = true;
+            }
+          }
+        } catch (_) {
+          usePhpFallback = true;
+        }
+
+        if (usePhpFallback) {
+          await fetch('/track-visitor.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }
       } catch (e) {
         console.warn('Failed to send visitor tracking event:', e);
       }

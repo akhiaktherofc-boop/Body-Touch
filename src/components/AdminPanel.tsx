@@ -1341,14 +1341,51 @@ export default function AdminPanel({
   const fetchVisitorLogs = async () => {
     setIsVisitorLogsLoading(true);
     try {
-      const res = await fetch('/api/admin/visitors');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.logs) {
-          // Sort by timestamp descending (newest first)
-          const sorted = [...data.logs].sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-          setVisitorLogs(sorted);
+      let logsData = null;
+      let usePhpFallback = false;
+
+      try {
+        const res = await fetch('/api/admin/visitors');
+        if (res.ok) {
+          const text = await res.text();
+          try {
+            const data = JSON.parse(text);
+            if (data && data.success && data.logs) {
+              logsData = data.logs;
+            } else {
+              usePhpFallback = true;
+            }
+          } catch (_) {
+            usePhpFallback = true;
+          }
+        } else {
+          usePhpFallback = true;
         }
+      } catch (_) {
+        usePhpFallback = true;
+      }
+
+      if (usePhpFallback) {
+        try {
+          const res = await fetch('/get-visitors.php');
+          if (res.ok) {
+            const text = await res.text();
+            try {
+              const data = JSON.parse(text);
+              if (data && data.success && data.logs) {
+                logsData = data.logs;
+              }
+            } catch (_) {}
+          }
+        } catch (phpErr) {
+          console.error('Failed to fetch visitor logs from PHP fallback:', phpErr);
+        }
+      }
+
+      if (logsData) {
+        // Sort by timestamp descending (newest first)
+        const sorted = [...logsData].sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        setVisitorLogs(sorted);
       }
     } catch (e) {
       console.error('Failed to fetch visitor logs:', e);
