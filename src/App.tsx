@@ -1193,6 +1193,61 @@ export default function App() {
   const [liquidateMethod, setLiquidateMethod] = useState<'BKASH' | 'NAGAD' | 'ROCKET'>('BKASH');
   const [liquidateMobile, setLiquidateMobile] = useState('');
 
+  // Manage browser history back button behavior for modals so that hitting "Back" closes active modals/views instead of exiting the page.
+  useEffect(() => {
+    const anyModalOpen = !!(
+      selectedCompanion ||
+      bookingCompanion ||
+      selectedLocation ||
+      selectedReserveHotel ||
+      isJoinModalOpen ||
+      isWalletModalOpen ||
+      isAllocateOpen ||
+      isLiquidateOpen ||
+      isNotificationsOpen
+    );
+
+    const handlePopStateForModals = (e: PopStateEvent) => {
+      // If a modal was open and user hit back, close all modals
+      if (anyModalOpen) {
+        setSelectedCompanion(null);
+        setBookingCompanion(null);
+        setSelectedLocation(null);
+        setSelectedReserveHotel(null);
+        setIsJoinModalOpen(false);
+        setIsWalletModalOpen(false);
+        setIsAllocateOpen(false);
+        setIsLiquidateOpen(false);
+        setIsNotificationsOpen(false);
+      }
+    };
+
+    if (anyModalOpen) {
+      if (!window.history.state || !window.history.state.modalOpen) {
+        window.history.pushState({ modalOpen: true }, '');
+      }
+    } else {
+      if (window.history.state && window.history.state.modalOpen) {
+        window.history.back();
+      }
+    }
+
+    window.addEventListener('popstate', handlePopStateForModals);
+    return () => {
+      window.removeEventListener('popstate', handlePopStateForModals);
+    };
+  }, [
+    selectedCompanion,
+    bookingCompanion,
+    selectedLocation,
+    selectedReserveHotel,
+    isJoinModalOpen,
+    isWalletModalOpen,
+    isAllocateOpen,
+    isLiquidateOpen,
+    isNotificationsOpen
+  ]);
+
   // Auto verifying states per request
   const [verifyingMap, setVerifyingMap] = useState<Record<string, boolean>>({});
 
