@@ -4556,72 +4556,68 @@ https://service.bodytouch.com
               {/* Roster profiles searchable, category-tab grid section */}
               <motion.div id="roster-section" variants={itemVariants} className="space-y-4 text-left pt-2">
                 {/* Tier Selection Tabs Bar */}
-                <div className="grid grid-cols-4 gap-2.5 p-2 bg-slate-950/60 rounded-[22px] border border-blue-900/30 shadow-[inset_0_1px_4px_rgba(0,0,0,0.6)] gold-breathing-glow">
-                  {(['DEMO', 'REGULAR', 'PREMIUM', 'ELITE'] as const).map((cat) => {
-                    const isLocked = cat === 'DEMO'
-                      ? (userLevel !== 'FREE')
-                      : ((cat === 'REGULAR' && userLevel === 'FREE') ||
-                         (cat === 'PREMIUM' && (userLevel === 'FREE' || userLevel === 'REGULAR')) ||
-                         (cat === 'ELITE' && userLevel !== 'ELITE'));
-                      
-                    const isActive = selectedCategory === cat;
+                <div className={`grid ${userLevel !== 'FREE' ? 'grid-cols-3' : 'grid-cols-4'} gap-2.5 p-2 bg-slate-950/60 rounded-[22px] border border-blue-900/30 shadow-[inset_0_1px_4px_rgba(0,0,0,0.6)] gold-breathing-glow`}>
+                  {(['DEMO', 'REGULAR', 'PREMIUM', 'ELITE'] as const)
+                    .filter((cat) => !(cat === 'DEMO' && userLevel !== 'FREE'))
+                    .map((cat) => {
+                      const isLocked = cat === 'DEMO'
+                        ? (userLevel !== 'FREE')
+                        : ((cat === 'REGULAR' && userLevel === 'FREE') ||
+                           (cat === 'PREMIUM' && (userLevel === 'FREE' || userLevel === 'REGULAR')) ||
+                           (cat === 'ELITE' && userLevel !== 'ELITE'));
+                        
+                      const isActive = selectedCategory === cat;
 
-                    return (
-                      <motion.button
-                        key={cat}
-                        whileHover={{ 
-                          y: -4, 
-                          scale: 1.05, 
-                          boxShadow: isActive 
-                            ? "0 10px 25px rgba(0, 229, 255, 0.25)" 
-                            : "0 8px 18px rgba(0, 0, 0, 0.45)"
-                        }}
-                        whileTap={{ scale: 0.96 }}
-                        transition={{ type: "spring", stiffness: 450, damping: 14 }}
-                        onClick={() => {
-                          if (isLocked) {
-                            if (cat === 'DEMO') {
-                              triggerToast('🔒 আপনি মেম্বারশিপ নিয়েছেন, তাই ডেমো ক্যাটাগরি আপনার জন্য ব্লক করা হয়েছে। (You have upgraded to membership, so the demo category is blocked for you.)', 'error');
-                            } else {
-                              triggerToast(`🔒 ${cat} level is locked! Please purchase this membership tier first.`, 'error');
-                              setTimeout(() => {
-                                handleTabSwitch('membership');
-                              }, 800);
+                      return (
+                        <motion.button
+                          key={cat}
+                          whileHover={{ 
+                            y: -4, 
+                            scale: 1.05, 
+                            boxShadow: isActive 
+                              ? "0 10px 25px rgba(0, 229, 255, 0.25)" 
+                              : "0 8px 18px rgba(0, 0, 0, 0.45)"
+                          }}
+                          whileTap={{ scale: 0.96 }}
+                          transition={{ type: "spring", stiffness: 450, damping: 14 }}
+                          onClick={() => {
+                            if (isLocked) {
+                              if (cat === 'DEMO') {
+                                triggerToast('🔒 আপনি মেম্বারশিপ নিয়েছেন, তাই ডেমো ক্যাটাগরি আপনার জন্য ব্লক করা হয়েছে। (You have upgraded to membership, so the demo category is blocked for you.)', 'error');
+                              } else {
+                                triggerToast(`🔒 ${cat} level is locked! Please purchase this membership tier first.`, 'error');
+                                setTimeout(() => {
+                                  handleTabSwitch('membership');
+                                }, 800);
+                              }
+                              return;
                             }
-                            return;
-                          }
-                          setSelectedCategory(cat);
-                        }}
-                        className={`py-4 px-1 rounded-xl text-xs sm:text-sm font-black uppercase tracking-widest transition-all duration-300 flex flex-col items-center justify-center gap-1.5 cursor-pointer border-2 ${
-                          isActive
-                            ? 'bg-gradient-to-tr from-[#051139] to-[#0d226a] border-[#00e5ff] text-[#00e5ff] shadow-[0_0_20px_rgba(0,229,255,0.25)]'
-                            : 'bg-[#03091c]/80 border-blue-500/10 text-slate-400 hover:text-white hover:border-blue-500/25 hover:bg-[#05123b]/90'
-                        }`}
-                      >
-                        <span className="leading-none">{cat}</span>
-                        {isLocked ? (
-                          <Lock className="w-3.5 h-3.5 text-amber-500" />
-                        ) : (
-                          isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff] animate-pulse"></span>
-                        )}
-                      </motion.button>
-                    );
-                  })}
+                            setSelectedCategory(cat);
+                          }}
+                          className={`py-4 px-1 rounded-xl text-xs sm:text-sm font-black uppercase tracking-widest transition-all duration-300 flex flex-col items-center justify-center gap-1.5 cursor-pointer border-2 ${
+                            isActive
+                              ? 'bg-gradient-to-tr from-[#051139] to-[#0d226a] border-[#00e5ff] text-[#00e5ff] shadow-[0_0_20px_rgba(0,229,255,0.25)]'
+                              : 'bg-[#03091c]/80 border-blue-500/10 text-slate-400 hover:text-white hover:border-blue-500/25 hover:bg-[#05123b]/90'
+                          }`}
+                        >
+                          <span className="leading-none">{cat}</span>
+                          {isLocked ? (
+                            <Lock className="w-3.5 h-3.5 text-amber-500" />
+                          ) : (
+                            isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff] animate-pulse"></span>
+                          )}
+                        </motion.button>
+                      );
+                    })}
                 </div>
 
                 {/* Subtext info for active filter category */}
                 <div className="text-left px-1 text-[10px] text-slate-400 flex items-center justify-between">
                   <span className="font-semibold uppercase tracking-wider text-slate-500 text-[9px]">ACTIVE ACCESS TIER</span>
-                  {selectedCategory !== 'DEMO' ? (
+                  {selectedCategory !== 'DEMO' && (
                     <span className="text-amber-400 font-bold font-mono text-[9px] uppercase tracking-wide">
                       🔒 Require {selectedCategory} Access Pass
                     </span>
-                  ) : (
-                    userLevel !== 'FREE' && (
-                      <span className="text-red-400 font-bold font-mono text-[9px] uppercase tracking-wide">
-                        🔒 DEMO is disabled for active members
-                      </span>
-                    )
                   )}
                 </div>
 
