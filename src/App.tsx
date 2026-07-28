@@ -28,6 +28,7 @@ import {
   Camera,
   Send,
   MessageCircle,
+  MessageSquare,
   Info,
   RefreshCw,
   Sparkles,
@@ -327,8 +328,8 @@ export default function App() {
     ];
   });
 
-  const [activeTab, setActiveTab] = useState<'home' | 'membership' | 'assets' | 'network' | 'profile' | 'chat'>('home');
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'home' | 'membership' | 'assets' | 'network' | 'profile'>('home');
+  const [isSupportMenuOpen, setIsSupportMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 640 : false);
   const [showAllActivity, setShowAllActivity] = useState(false);
   const [isScreenProtected, setIsScreenProtected] = useState(false);
@@ -542,16 +543,7 @@ export default function App() {
     };
   }, [isAdminOpen, isModelPortalOpen, isAgentOpen]);
 
-  useEffect(() => {
-    if (isChatOpen && isMobile) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isChatOpen, isMobile]);
+
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(() => {
     const hash = window.location.hash.toLowerCase();
     const search = window.location.search.toLowerCase();
@@ -744,13 +736,6 @@ export default function App() {
     localStorage.setItem('bt_payment_gateways', JSON.stringify(paymentGateways));
   }, [paymentGateways]);
 
-  useEffect(() => {
-    if (activeTab === 'chat') {
-      setActiveTab('home');
-      setIsChatOpen(true);
-    }
-  }, [activeTab]);
-
   // Pricing configuration for dynamic platform amounts
   const [pricingConfig, setPricingConfig] = useState(() => {
     const saved = localStorage.getItem('bt_pricing_config');
@@ -942,6 +927,14 @@ export default function App() {
 
   const [telegramHelpline, setTelegramHelpline] = useState<string>(() => {
     return getStoredItem('bt_telegram_helpline') || 'BodyTouchSupport';
+  });
+
+  const [telegramChannel, setTelegramChannel] = useState<string>(() => {
+    return getStoredItem('bt_telegram_channel') || 'BodyTouchVIP';
+  });
+
+  const [whatsappSupport, setWhatsappSupport] = useState<string>(() => {
+    return getStoredItem('bt_whatsapp_support') || '8801700000000';
   });
 
   const [telegram2FAEnabled, setTelegram2FAEnabled] = useState<boolean>(() => {
@@ -1332,6 +1325,14 @@ export default function App() {
   }, [telegramHelpline, rememberMe]);
 
   useEffect(() => {
+    storage.setItem('bt_telegram_channel', telegramChannel);
+  }, [telegramChannel, rememberMe]);
+
+  useEffect(() => {
+    storage.setItem('bt_whatsapp_support', whatsappSupport);
+  }, [whatsappSupport, rememberMe]);
+
+  useEffect(() => {
     storage.setItem('bt_telegram_2fa_enabled', String(telegram2FAEnabled));
   }, [telegram2FAEnabled, rememberMe]);
 
@@ -1515,6 +1516,8 @@ export default function App() {
           if (data.botToken !== undefined) setTelegramBotToken(data.botToken);
           if (data.groupId !== undefined) setTelegramGroupId(data.groupId);
           if (data.helpline !== undefined) setTelegramHelpline(data.helpline);
+          if (data.telegramChannel !== undefined) setTelegramChannel(data.telegramChannel);
+          if (data.whatsappSupport !== undefined) setWhatsappSupport(data.whatsappSupport);
           if (data.faEnabled !== undefined) setTelegram2FAEnabled(data.faEnabled);
           if (data.sendTarget !== undefined) setTelegramSendTarget(data.sendTarget);
           if (data.botSelection !== undefined) setTelegramBotSelection(data.botSelection);
@@ -2431,6 +2434,8 @@ Website: https://bodytouch.com
         botToken: telegramBotToken,
         groupId: telegramGroupId,
         helpline: telegramHelpline,
+        telegramChannel: telegramChannel,
+        whatsappSupport: whatsappSupport,
         faEnabled: telegram2FAEnabled,
         sendTarget: telegramSendTarget,
         botSelection: telegramBotSelection,
@@ -2451,6 +2456,8 @@ Website: https://bodytouch.com
         botToken: '',
         groupId: '',
         helpline: '',
+        telegramChannel: '',
+        whatsappSupport: '',
         faEnabled: false,
         sendTarget: 'group',
         botSelection: 'default',
@@ -2460,6 +2467,8 @@ Website: https://bodytouch.com
       setTelegramBotToken('');
       setTelegramGroupId('');
       setTelegramHelpline('');
+      setTelegramChannel('');
+      setWhatsappSupport('');
       setTelegram2FAEnabled(false);
       setTelegramSendTarget('group');
       setTelegramBotSelection('default');
@@ -3530,13 +3539,9 @@ https://service.bodytouch.com
   };
 
   // Switch tab scroll to top helper
-  const handleTabSwitch = (tab: 'home' | 'membership' | 'assets' | 'network' | 'profile' | 'chat') => {
-    if (tab === 'chat') {
-      setIsChatOpen(true);
-    } else {
-      setActiveTab(tab);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+  const handleTabSwitch = (tab: 'home' | 'membership' | 'assets' | 'network' | 'profile') => {
+    setActiveTab(tab);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Dynamic customized referral code generator based on username
@@ -3724,6 +3729,10 @@ https://service.bodytouch.com
             onSetTelegramGroupId={setTelegramGroupId}
             telegramHelpline={telegramHelpline}
             onSetTelegramHelpline={setTelegramHelpline}
+            telegramChannel={telegramChannel}
+            onSetTelegramChannel={setTelegramChannel}
+            whatsappSupport={whatsappSupport}
+            onSetWhatsappSupport={setWhatsappSupport}
             telegram2FAEnabled={telegram2FAEnabled}
             onSetTelegram2FAEnabled={setTelegram2FAEnabled}
             telegramSendTarget={telegramSendTarget}
@@ -6319,14 +6328,6 @@ https://service.bodytouch.com
         {isLiquidateOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0"
-              onClick={() => setIsLiquidateOpen(false)}
-            />
-
-            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -6442,31 +6443,7 @@ https://service.bodytouch.com
           </div>
         )}
 
-        {activeTab === 'chat' && (
-          <motion.div
-            key="chat"
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-            exit="hidden"
-            className="max-w-xl mx-auto px-4 pb-28 pt-4"
-          >
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-black text-white uppercase tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
-                Live Chat Support
-              </h2>
-              <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 mt-1">
-                24/7 Premium Concierge Service
-              </p>
-            </div>
-            
-            <p className="text-slate-400 text-xs text-center leading-relaxed">
-              সাপোর্ট চ্যাট নিচের ডানদিকের ভাসমান লোগো থেকে যেকোনো পেইজে বসেই ব্যবহার করতে পারবেন। এটি এখন সম্পূর্ণ পোর্টেবল!
-              <br />
-              (Live Support Chat can now be accessed portably from the floating logo at the bottom right of any screen!)
-            </p>
-          </motion.div>
-        )}
+
       </AnimatePresence>
 
       {/* PERSISTENT STICKY BOTTOM NAVIGATION BAR */}
@@ -6526,106 +6503,136 @@ https://service.bodytouch.com
         </div>
       </footer>
 
-      {/* FLOATING HIGHLIGHTED CHAT BUTTON (Bottom Right - Logo Styled as the 2nd Picture) */}
-      <AnimatePresence>
-        {!isChatOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 20 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="fixed bottom-24 sm:bottom-6 right-4 sm:right-6 z-50"
-          >
-            <button
-              onClick={() => setIsChatOpen(true)}
-              className="relative flex flex-col items-center justify-center w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-[#1e40af] via-[#3b82f6] to-[#60a5fa] border border-blue-400/20 hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer group shadow-[0_4px_16px_rgba(37,99,235,0.4)] sm:shadow-[0_4px_20px_rgba(37,99,235,0.45)]"
-              aria-label="Live Chat"
+      {/* FLOATING HELPLINE & SUPPORT CHANNELS (TELEGRAM CHANNEL, TELEGRAM HELPLINE, WHATSAPP) */}
+      <div className="fixed bottom-24 sm:bottom-6 right-4 sm:right-6 z-50 flex flex-col items-end gap-3 font-sans">
+        
+        {/* Support Options Popup */}
+        <AnimatePresence>
+          {isSupportMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.85, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className="bg-[#040817]/95 border border-[#dbaa61]/30 rounded-3xl p-4 w-64 shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-md flex flex-col gap-3 relative mr-1 sm:mr-0"
             >
-              {/* Pulsing Outer Rings */}
-              <span className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping opacity-75 pointer-events-none" />
-
-              {/* Overlapping black chat speech bubbles with custom mask gap as requested */}
-              <svg viewBox="0 0 100 100" className="w-5.5 h-5.5 sm:w-7.5 sm:h-7.5 select-none pointer-events-none transition-transform duration-300 group-hover:scale-110">
-                <defs>
-                  <mask id="chat-bubble-mask">
-                    {/* Everything white is kept */}
-                    <rect width="100" height="100" fill="white" />
-                    {/* Black area is removed (the left bubble + stroke gap) */}
-                    <path 
-                      d="M 41 28 C 52.5 28 62 35.5 62 45 C 62 51.5 56.5 57 49 59.5 L 47 66 L 41.5 62 C 41 62.1 40.5 62.1 40 62.1 C 28.5 62.1 19 54.5 19 45 C 19 35.5 28.5 28 40 28 Z" 
-                      fill="black" 
-                      stroke="black" 
-                      strokeWidth="6" 
-                      strokeLinejoin="round" 
-                    />
-                  </mask>
-                </defs>
-                
-                {/* Right Bubble (behind) masked */}
-                <path 
-                  d="M 59 40 C 68.5 40 76 46.5 76 54.5 C 76 60 72.5 65 67 67.5 L 68.5 74 L 62.5 70.5 C 62 70.6 61.5 70.6 61 70.6 C 49.5 70.6 42 64 42 54.5 C 42 46.5 49.5 40 59 40 Z" 
-                  fill="black" 
-                  mask="url(#chat-bubble-mask)" 
-                />
-                
-                {/* Left Bubble (front) */}
-                <path 
-                  d="M 41 28 C 52.5 28 62 35.5 62 45 C 62 51.5 56.5 57 49 59.5 L 47 66 L 41.5 62 C 41 62.1 40.5 62.1 40 62.1 C 28.5 62.1 19 54.5 19 45 C 19 35.5 28.5 28 40 28 Z" 
-                  fill="black" 
-                />
-              </svg>
-
-              {/* Green Online status dot at bottom right */}
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 rounded-full bg-emerald-500 border-2 border-[#020714] flex items-center justify-center shadow-lg">
-                <span className="w-0.5 h-0.5 sm:w-1 sm:h-1 rounded-full bg-white animate-pulse" />
-              </span>
-
-              {/* Hover Tooltip */}
-              <div className="absolute right-18 bg-[#020714]/95 backdrop-blur-md border border-[#dbaa61]/30 text-[#dbaa61] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
-                24/7 Live Support (অনলাইন)
+              <div className="text-center border-b border-white/5 pb-2">
+                <p className="text-[#dbaa61] text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1">
+                  <Sparkles className="w-3 h-3 animate-pulse text-[#dbaa61]" />
+                  Support Desk
+                </p>
+                <p className="text-[9px] text-slate-500 font-extrabold uppercase mt-0.5">
+                  24/7 Premium Concierge
+                </p>
               </div>
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
-      {/* FLOATING DRAGGABLE LIVE CHAT SUPPORT OVERLAY (Display over system, placing anywhere) */}
-      <AnimatePresence>
-        {isChatOpen && (
-          <motion.div
-            drag={!isMobile}
-            dragMomentum={false}
-            dragElastic={0.05}
-            initial={isMobile ? { y: '100%', opacity: 1 } : { opacity: 0, scale: 0.9, y: 50 }}
-            animate={isMobile ? { y: 0, opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
-            exit={isMobile ? { y: '100%', opacity: 1 } : { opacity: 0, scale: 0.9, y: 50 }}
-            transition={{ type: "spring", damping: 30, stiffness: 350 }}
-            className="fixed inset-x-0 bottom-0 top-0 sm:top-auto sm:left-auto sm:right-6 sm:bottom-24 z-[100] w-full sm:w-[400px] h-full sm:h-[550px] shadow-2xl flex flex-col rounded-none sm:rounded-2xl overflow-hidden cursor-default pointer-events-auto bg-[#020714]"
-          >
-            <Suspense fallback={
-              <div className="flex flex-col items-center justify-center h-full p-4 text-center bg-[#020714] text-slate-400">
-                <div className="w-6 h-6 border-2 border-slate-600 border-t-transparent rounded-full animate-spin mb-2" />
-                <span className="text-[10px] tracking-widest uppercase">Connecting Support...</span>
-              </div>
-            }>
-              <LiveChat
-                isLoggedIn={isLoggedIn}
-                userLevel={userLevel}
-                username={username}
-                fullName={fullName}
-                avatarUrl={avatarUrl}
-                phone={phone}
-                socketServerUrl={socketServerUrl}
-                onGoToMembership={() => {
-                  handleTabSwitch('membership');
-                  setIsChatOpen(false);
-                }}
-                onClose={() => setIsChatOpen(false)}
-              />
-            </Suspense>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              {/* Telegram Channel Option */}
+              <a
+                href={telegramChannel.startsWith('http') ? telegramChannel : `https://t.me/${telegramChannel.replace('@', '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setIsSupportMenuOpen(false)}
+                className="flex items-center gap-3 p-2.5 rounded-xl bg-blue-950/20 hover:bg-blue-900/30 border border-blue-500/10 hover:border-blue-400/30 transition-all group"
+              >
+                <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                  <Send className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <p className="text-white text-[11px] font-black uppercase tracking-wider">Telegram Channel</p>
+                  <p className="text-[9px] text-blue-400 font-semibold uppercase">Join Official Channel</p>
+                </div>
+                <ExternalLink className="w-3.5 h-3.5 text-slate-500 ml-auto group-hover:text-white transition-colors" />
+              </a>
+
+              {/* Telegram Helpline Option */}
+              <a
+                href={`https://t.me/${telegramHelpline.replace('@', '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setIsSupportMenuOpen(false)}
+                className="flex items-center gap-3 p-2.5 rounded-xl bg-sky-950/20 hover:bg-sky-900/30 border border-sky-500/10 hover:border-sky-400/30 transition-all group"
+              >
+                <div className="w-8 h-8 rounded-full bg-sky-500/10 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform">
+                  <MessageCircle className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <p className="text-white text-[11px] font-black uppercase tracking-wider">Telegram ID</p>
+                  <p className="text-[9px] text-sky-400 font-semibold uppercase">Chat with Helpline</p>
+                </div>
+                <ExternalLink className="w-3.5 h-3.5 text-slate-500 ml-auto group-hover:text-white transition-colors" />
+              </a>
+
+              {/* WhatsApp Option */}
+              <a
+                href={whatsappSupport.startsWith('http') ? whatsappSupport : `https://wa.me/${whatsappSupport.replace('+', '').replace(/\s+/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setIsSupportMenuOpen(false)}
+                className="flex items-center gap-3 p-2.5 rounded-xl bg-emerald-950/20 hover:bg-emerald-900/30 border border-emerald-500/10 hover:border-emerald-400/30 transition-all group"
+              >
+                <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <p className="text-white text-[11px] font-black uppercase tracking-wider">WhatsApp Account</p>
+                  <p className="text-[9px] text-emerald-400 font-semibold uppercase">Instant Chat Link</p>
+                </div>
+                <ExternalLink className="w-3.5 h-3.5 text-slate-500 ml-auto group-hover:text-white transition-colors" />
+              </a>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Support Toggle Button (Styled as premium gold concierge helper) */}
+        <button
+          onClick={() => setIsSupportMenuOpen(!isSupportMenuOpen)}
+          className="relative flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-[#926c36] via-[#dbaa61] to-[#fce2b6] border border-[#dbaa61]/30 hover:scale-115 active:scale-95 transition-all duration-300 cursor-pointer group shadow-[0_4px_25px_rgba(219,170,97,0.4)]"
+          aria-label="Support Center"
+        >
+          {/* Pulsing Ring Effect */}
+          <span className="absolute inset-0 rounded-full bg-amber-500/20 animate-ping opacity-60 pointer-events-none" />
+
+          {/* Dynamic Close/Chat icon */}
+          <AnimatePresence mode="wait">
+            {isSupportMenuOpen ? (
+              <motion.div
+                key="close-icon"
+                initial={{ rotate: -90, opacity: 0 }}
+                animate={{ rotate: 0, opacity: 1 }}
+                exit={{ rotate: 90, opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <X className="w-5.5 h-5.5 text-slate-950 stroke-[3]" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="support-icon"
+                initial={{ rotate: 90, opacity: 0 }}
+                animate={{ rotate: 0, opacity: 1 }}
+                exit={{ rotate: -90, opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex items-center justify-center"
+              >
+                <MessageSquare className="w-6 h-6 text-slate-950 stroke-[2.5]" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Badge indicator */}
+          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-[#020510] flex items-center justify-center">
+            <span className="w-1 h-1 rounded-full bg-white animate-pulse" />
+          </span>
+
+          {/* Support Tooltip label */}
+          {!isSupportMenuOpen && (
+            <div className="absolute right-18 bg-[#020510] border border-[#dbaa61]/30 text-[#dbaa61] text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
+              24/7 SUPPORT HELPLINE (অনলাইন)
+            </div>
+          )}
+        </button>
+      </div>
+
+
 
     </div>
   </>

@@ -92,6 +92,10 @@ interface AdminPanelProps {
   onSetTelegramGroupId: (id: string) => void;
   telegramHelpline?: string;
   onSetTelegramHelpline?: (helpline: string) => void;
+  telegramChannel?: string;
+  onSetTelegramChannel?: (channel: string) => void;
+  whatsappSupport?: string;
+  onSetWhatsappSupport?: (whatsapp: string) => void;
   telegram2FAEnabled?: boolean;
   onSetTelegram2FAEnabled?: (enabled: boolean) => void;
   telegramSendTarget?: 'group' | 'client';
@@ -184,6 +188,10 @@ export default function AdminPanel({
   onSetTelegramGroupId,
   telegramHelpline = 'BodyTouchSupport',
   onSetTelegramHelpline,
+  telegramChannel = 'BodyTouchVIP',
+  onSetTelegramChannel,
+  whatsappSupport = '8801700000000',
+  onSetWhatsappSupport,
   telegram2FAEnabled = true,
   onSetTelegram2FAEnabled,
   telegramSendTarget = 'group',
@@ -7365,6 +7373,34 @@ Body Touch Premium Network`;
                       className="w-full bg-black/40 border border-[#232733] focus:border-indigo-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-400 focus:outline-none text-amber-400"
                     />
                   </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
+                      <Send className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
+                      Telegram Channel Username (টেলিগ্রাম চ্যানেল ইউজারনেম)
+                    </label>
+                    <input
+                      type="text"
+                      value={telegramChannel}
+                      onChange={(e) => onSetTelegramChannel?.(e.target.value)}
+                      placeholder="e.g. BodyTouchVIP (no @)"
+                      className="w-full bg-black/40 border border-[#232733] focus:border-indigo-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-400 focus:outline-none text-blue-400"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
+                      <MessageSquare className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+                      WhatsApp Support Phone / Link (হোয়াটসঅ্যাপ নাম্বার/লিংক)
+                    </label>
+                    <input
+                      type="text"
+                      value={whatsappSupport}
+                      onChange={(e) => onSetWhatsappSupport?.(e.target.value)}
+                      placeholder="e.g. +8801700000000"
+                      className="w-full bg-black/40 border border-[#232733] focus:border-indigo-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-400 focus:outline-none text-emerald-400"
+                    />
+                  </div>
                 </div>
 
                 {/* BOT & HELPLINE ADD/REMOVE CONTROL BUTTONS */}
@@ -7393,6 +7429,8 @@ Body Touch Premium Network`;
                         onSetTelegramBotToken('');
                         onSetTelegramGroupId('');
                         if (onSetTelegramHelpline) onSetTelegramHelpline('');
+                        if (onSetTelegramChannel) onSetTelegramChannel('');
+                        if (onSetWhatsappSupport) onSetWhatsappSupport('');
                         alert("⚠️ Disconnected: All Telegram Bot tokens, Chat IDs, and active helpline links have been completely removed and deleted from system memory!");
                       }
                     }}
