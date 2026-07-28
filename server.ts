@@ -575,6 +575,175 @@ async function startServer() {
     }
   });
 
+  // Visitor Tracking Data Structures & Local Database Storage
+  interface VisitorLog {
+    id: string;
+    ip: string;
+    city: string;
+    country: string;
+    countryCode: string;
+    region: string;
+    org: string;
+    browser: string;
+    os: string;
+    userAgent: string;
+    referer: string;
+    path: string;
+    timestamp: string;
+    date: string; // YYYY-MM-DD (Bangladesh Time)
+    isUnique: boolean;
+  }
+
+  const VISITOR_LOGS_FILE = path.join(process.cwd(), "visitor_logs.json");
+
+  function getVisitorLogs(): VisitorLog[] {
+    try {
+      if (fs.existsSync(VISITOR_LOGS_FILE)) {
+        return JSON.parse(fs.readFileSync(VISITOR_LOGS_FILE, "utf8"));
+      }
+    } catch (err) {
+      console.error("Failed to load visitor logs:", err);
+    }
+    return [];
+  }
+
+  function saveVisitorLogs(logs: VisitorLog[]) {
+    try {
+      // Limit to latest 10,000 logs to optimize performance and prevent excessive file growth
+      const trimmedLogs = logs.slice(-10000);
+      fs.writeFileSync(VISITOR_LOGS_FILE, JSON.stringify(trimmedLogs, null, 2), "utf8");
+    } catch (err) {
+      console.error("Failed to save visitor logs:", err);
+    }
+  }
+
+  async function resolveIpLocation(ip: string): Promise<{ city: string; country: string; countryCode: string; region: string; org: string }> {
+    const defaultLoc = { city: "Unknown City", country: "Unknown Country", countryCode: "UN", region: "Unknown Region", org: "Unknown ISP" };
+    
+    if (!ip || ip === "::1" || ip === "127.0.0.1" || ip.startsWith("::ffff:127.0.0.1") || ip.startsWith("10.") || ip.startsWith("192.168.") || ip.startsWith("172.16.")) {
+      return { city: "Localhost", country: "Bangladesh (Dev)", countryCode: "BD", region: "Developer Lab", org: "Local Development Server" };
+    }
+
+    try {
+      // Primarly use freeipapi.com as it supports SSL on free requests and returns high detail
+      const response = await fetch(`https://freeipapi.com/api/json/${ip}`, { signal: AbortSignal.timeout(3000) });
+      if (response.ok) {
+        const data: any = await response.json();
+        return {
+          city: data.cityName || "Unknown City",
+          country: data.countryName || "Unknown Country",
+          countryCode: data.countryCode || "UN",
+          region: data.regionName || "Unknown Region",
+          org: "Public Internet IP"
+        };
+      }
+    } catch (err) {
+      console.warn(`[GeoIP] freeipapi lookup failed for ${ip}, trying backup...`, err);
+    }
+
+    try {
+      // Backup ip-api.com
+      const backupRes = await fetch(`http://ip-api.com/json/${ip}`, { signal: AbortSignal.timeout(3000) });
+      if (backupRes.ok) {
+        const data: any = await backupRes.json();
+        if (data.status === "success") {
+          return {
+            city: data.city || "Unknown City",
+            country: data.country || "Unknown Country",
+            countryCode: data.countryCode || "UN",
+            region: data.regionName || "Unknown Region",
+            org: data.isp || "Unknown ISP"
+          };
+        }
+      }
+    } catch (err) {
+      console.warn(`[GeoIP] Backup ip-api lookup failed for ${ip}:`, err);
+    }
+
+    return defaultLoc;
+  }
+
+  function parseUserAgent(ua: string) {
+    if (!ua) return { browser: "Unknown Browser", os: "Unknown OS" };
+    
+    let browser = "Other Browser";
+    let os = "Other OS";
+
+    // Parse OS
+    if (/windows/i.test(ua)) os = "Windows";
+    else if (/macintosh|mac os x/i.test(ua) && !/iphone|ipad|ipod/i.test(ua)) os = "macOS";
+    else if (/iphone|ipad|ipod/i.test(ua)) os = "iOS";
+    else if (/android/i.test(ua)) os = "Android";
+    else if (/linux/i.test(ua)) os = "Linux";
+
+    // Parse Browser
+    if (/firefox|fxios/i.test(ua)) browser = "Firefox";
+    else if (/opera|opr/i.test(ua)) browser = "Opera";
+    else if (/chrome|crios/i.test(ua)) {
+      if (/edg/i.test(ua)) browser = "Edge";
+      else browser = "Chrome";
+    }
+    else if (/safari/i.test(ua)) browser = "Safari";
+    
+    return { browser, os };
+  }
+
+  // API Route to track visitor metrics
+  app.post("/api/track-visitor", async (req, res) => {
+    try {
+      const { referer, path: visitPath, isUnique, userAgent } = req.body;
+      const rawIp = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket.remoteAddress || '';
+      const ip = (typeof rawIp === 'string' ? rawIp.split(',')[0] : String(rawIp)).trim();
+      
+      const geo = await resolveIpLocation(ip);
+      const parsedUA = parseUserAgent(userAgent || req.headers['user-agent'] || '');
+      
+      const now = new Date();
+      // Adjust timezone to Bangladesh (GMT+6)
+      const bdOffset = 6 * 60 * 60 * 1000;
+      const bdTime = new Date(now.getTime() + bdOffset);
+      const bdDateString = bdTime.toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      const newLog: VisitorLog = {
+        id: "vis_" + Math.random().toString(36).substring(2, 11),
+        ip,
+        city: geo.city,
+        country: geo.country,
+        countryCode: geo.countryCode,
+        region: geo.region,
+        org: geo.org,
+        browser: parsedUA.browser,
+        os: parsedUA.os,
+        userAgent: userAgent || req.headers['user-agent'] || '',
+        referer: referer || "Direct / Bookmark",
+        path: visitPath || "/",
+        timestamp: now.toISOString(),
+        date: bdDateString,
+        isUnique: isUnique === true
+      };
+      
+      const logs = getVisitorLogs();
+      logs.push(newLog);
+      saveVisitorLogs(logs);
+      
+      return res.status(200).json({ success: true, visitor: geo });
+    } catch (err: any) {
+      console.error("Failed to track visitor:", err);
+      return res.status(500).json({ error: err.message || "Failed to log visit" });
+    }
+  });
+
+  // API Route to retrieve visitor history for Administrator Console
+  app.get("/api/admin/visitors", (req, res) => {
+    try {
+      const logs = getVisitorLogs();
+      return res.status(200).json({ success: true, logs });
+    } catch (err: any) {
+      console.error("Failed to fetch visitor logs:", err);
+      return res.status(500).json({ error: err.message || "Failed to retrieve logs" });
+    }
+  });
+
   // API Route to send verification email (OTP) via Nodemailer
   app.post("/api/send-otp-email", async (req, res) => {
     const { email, username, code, smtp } = req.body;

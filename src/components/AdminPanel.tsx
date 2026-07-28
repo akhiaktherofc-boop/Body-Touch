@@ -1314,7 +1314,7 @@ export default function AdminPanel({
   // Render High Security Portal Gate if not authenticated - MOVED BELOW HOOKS TO COMPLY WITH REACT HOOK RULES
 
   // Tabs configured to align with User's specific requirements
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'memberships' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat' | 'promocodes' | 'model_ledger' | 'broadcast_notifications'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'memberships' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat' | 'promocodes' | 'model_ledger' | 'broadcast_notifications' | 'visitors'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Broadcast & Push Notification states
@@ -1329,6 +1329,39 @@ export default function AdminPanel({
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
   const isFirstLoadUsers = useRef(true);
   const previousUserIds = useRef<Set<string>>(new Set());
+
+  // Visitor Telemetry & History Log States
+  const [visitorLogs, setVisitorLogs] = useState<any[]>([]);
+  const [isVisitorLogsLoading, setIsVisitorLogsLoading] = useState(false);
+  const [visitorDateFilterType, setVisitorDateFilterType] = useState<'all' | 'today' | 'custom'>('all');
+  const [visitorStartDate, setVisitorStartDate] = useState('');
+  const [visitorEndDate, setVisitorEndDate] = useState('');
+  const [visitorSearchQuery, setVisitorSearchQuery] = useState('');
+
+  const fetchVisitorLogs = async () => {
+    setIsVisitorLogsLoading(true);
+    try {
+      const res = await fetch('/api/admin/visitors');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.logs) {
+          // Sort by timestamp descending (newest first)
+          const sorted = [...data.logs].sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+          setVisitorLogs(sorted);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch visitor logs:', e);
+    } finally {
+      setIsVisitorLogsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'visitors') {
+      fetchVisitorLogs();
+    }
+  }, [activeTab]);
 
   // Hostinger Cloud Sync (Firebase) configuration states
   const [fbApiKey, setFbApiKey] = useState(() => {
@@ -2613,6 +2646,22 @@ export default function AdminPanel({
               <ChevronRight className="w-3.5 h-3.5 opacity-40" />
             </button>
 
+            {/* Visitor Traffic */}
+            <button
+              onClick={() => handleNavItemClick('visitors')}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
+                activeTab === 'visitors'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
+                  : 'hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Globe className={`w-4 h-4 shrink-0 ${activeTab === 'visitors' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
+                <span>Visitor Traffic (ভিজিটর ট্রাফিক)</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+            </button>
+
             {/* Client Management */}
             <button
               onClick={() => handleNavItemClick('clients')}
@@ -3741,6 +3790,7 @@ export default function AdminPanel({
                 {activeTab === 'livechat' && 'Live Support Chat Console'}
                 {activeTab === 'model_ledger' && 'Model Ledger & Financial Audit'}
                 {activeTab === 'broadcast_notifications' && 'Broadcasting & Push Notifications (পুশ নোটিফিকেশন)'}
+                {activeTab === 'visitors' && 'Visitor Traffic Analytics (ভিজিটর ট্রাফিক)'}
               </h1>
               <p className="text-xs text-slate-400 font-medium mt-1">
                 {activeTab === 'shortlinks' && 'View, test, and copy user registration and application forms for different model types.'}
@@ -3761,6 +3811,7 @@ export default function AdminPanel({
                 {activeTab === 'livechat' && 'Chat with premium and elite customers in real-time, answer questions, and assist in reservation booking.'}
                 {activeTab === 'model_ledger' && 'Add manual dispatch ledger records, audit model balances, and track withdrawable payouts.'}
                 {activeTab === 'broadcast_notifications' && 'Send in-app notifications and urgent global alerts directly to all users or specific clients.'}
+                {activeTab === 'visitors' && 'Monitor and audit website traffic volume, unique user sessions, geographic locations, and historic visit dates.'}
               </p>
             </div>
 
@@ -12100,6 +12151,430 @@ Body Touch Premium Network`;
 
                 </div>
 
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'visitors' && (
+            <div className="space-y-6 text-left">
+              {/* Analytics Summary Cards (Premium Bento Grid) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {/* Metric 1: Total Pageviews */}
+                <div className="bg-[#0f111a] border border-[#1c2333] p-5 rounded-3xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 h-1 bg-amber-500 w-1/3" />
+                  <span className="block text-[10px] font-black tracking-wider text-slate-500 uppercase">Total Pageviews (মোট পেজভিউ)</span>
+                  <div className="flex items-baseline gap-2 mt-2">
+                    <span className="text-2xl font-black text-white font-mono">{visitorLogs.length}</span>
+                    <span className="text-[10px] text-emerald-400 font-bold">hits</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-2 font-medium font-sans">Accumulated server-side tracked page hits.</p>
+                </div>
+
+                {/* Metric 2: Unique Visitors */}
+                <div className="bg-[#0f111a] border border-[#1c2333] p-5 rounded-3xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 h-1 bg-[#dbaa61] w-1/2" />
+                  <span className="block text-[10px] font-black tracking-wider text-slate-500 uppercase">Unique Sessions (ইউনিক ভিজিটর)</span>
+                  <div className="flex items-baseline gap-2 mt-2">
+                    <span className="text-2xl font-black text-amber-200 font-mono">
+                      {visitorLogs.filter(v => v.isUnique).length}
+                    </span>
+                    <span className="text-[10px] text-amber-500 font-bold">visitors</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-2 font-medium font-sans">Distinct browser sessions logged on mount.</p>
+                </div>
+
+                {/* Metric 3: Today's Visitors */}
+                <div className="bg-[#0f111a] border border-[#1c2333] p-5 rounded-3xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 h-1 bg-emerald-500 w-2/3" />
+                  <span className="block text-[10px] font-black tracking-wider text-slate-500 uppercase">Today's Hits (আজকের ট্রাফিক)</span>
+                  <div className="flex items-baseline gap-2 mt-2">
+                    <span className="text-2xl font-black text-emerald-400 font-mono">
+                      {(() => {
+                        const todayStr = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString().split('T')[0];
+                        return visitorLogs.filter(v => v.date === todayStr).length;
+                      })()}
+                    </span>
+                    <span className="text-[10px] text-emerald-500 font-bold">pageviews</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-2 font-medium font-sans">Page views tracked in Bangladesh Standard Time.</p>
+                </div>
+
+                {/* Metric 4: Top Location */}
+                <div className="bg-[#0f111a] border border-[#1c2333] p-5 rounded-3xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 h-1 bg-blue-500 w-3/4" />
+                  <span className="block text-[10px] font-black tracking-wider text-slate-500 uppercase">Top Country (প্রধান দেশ)</span>
+                  <div className="flex items-baseline gap-2 mt-2">
+                    <span className="text-lg font-black text-blue-300 uppercase tracking-tight truncate max-w-full font-mono">
+                      {(() => {
+                        const counts: { [key: string]: number } = {};
+                        visitorLogs.forEach(v => {
+                          if (v.country) counts[v.country] = (counts[v.country] || 0) + 1;
+                        });
+                        const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+                        return top ? `${top[0]} (${top[1]})` : "None";
+                      })()}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-2 font-medium font-sans">Region contributing the highest overall traffic.</p>
+                </div>
+              </div>
+
+              {/* Advanced Filter, Search & Custom Date Picker Panel */}
+              <div className="bg-[#0f111a] border border-[#1c2333] rounded-3xl p-6 space-y-6">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[#dbaa61]">
+                      <Globe className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-white uppercase tracking-wider font-sans">Log Filters & Custom Range</h3>
+                      <p className="text-[10px] text-slate-500 font-bold mt-0.5">ফিল্টার করুন এবং নির্দিষ্ট তারিখ অনুযায়ী ভিজিটর হিস্ট্রি দেখুন</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Filter Type Buttons */}
+                    <button
+                      onClick={() => {
+                        setVisitorDateFilterType('all');
+                        setVisitorStartDate('');
+                        setVisitorEndDate('');
+                      }}
+                      className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all border cursor-pointer ${
+                        visitorDateFilterType === 'all'
+                          ? 'bg-amber-500/10 border-amber-500/30 text-[#dbaa61]'
+                          : 'bg-black/30 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      All Time (সব সময়)
+                    </button>
+                    <button
+                      onClick={() => {
+                        const todayStr = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString().split('T')[0];
+                        setVisitorDateFilterType('today');
+                        setVisitorStartDate(todayStr);
+                        setVisitorEndDate(todayStr);
+                      }}
+                      className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all border cursor-pointer ${
+                        visitorDateFilterType === 'today'
+                          ? 'bg-amber-500/10 border-amber-500/30 text-[#dbaa61]'
+                          : 'bg-black/30 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Today (আজকে)
+                    </button>
+                    <button
+                      onClick={() => setVisitorDateFilterType('custom')}
+                      className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all border cursor-pointer ${
+                        visitorDateFilterType === 'custom'
+                          ? 'bg-amber-500/10 border-amber-500/30 text-[#dbaa61]'
+                          : 'bg-black/30 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Custom Date (তারিখ নির্ধারণ)
+                    </button>
+
+                    <button
+                      onClick={fetchVisitorLogs}
+                      disabled={isVisitorLogsLoading}
+                      className="ml-2 p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition disabled:opacity-50 flex items-center gap-1 cursor-pointer"
+                      title="Reload Log Data"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isVisitorLogsLoading ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Date Picker Range Inputs (Conditional) */}
+                {visitorDateFilterType === 'custom' && (
+                  <div className="p-4 bg-black/20 border border-slate-800/60 rounded-2xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="space-y-1.5 text-left">
+                      <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Start Date (শুরুর তারিখ)</label>
+                      <input
+                        type="date"
+                        value={visitorStartDate}
+                        onChange={(e) => setVisitorStartDate(e.target.value)}
+                        className="w-full bg-[#141722] border border-slate-800 text-white font-mono text-xs rounded-xl p-2.5 focus:outline-none focus:border-amber-500/40"
+                      />
+                    </div>
+                    <div className="space-y-1.5 text-left">
+                      <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">End Date (শেষের তারিখ)</label>
+                      <input
+                        type="date"
+                        value={visitorEndDate}
+                        onChange={(e) => setVisitorEndDate(e.target.value)}
+                        className="w-full bg-[#141722] border border-slate-800 text-white font-mono text-xs rounded-xl p-2.5 focus:outline-none focus:border-amber-500/40"
+                      />
+                    </div>
+                    <div>
+                      <button
+                        onClick={() => {
+                          if (!visitorStartDate || !visitorEndDate) {
+                            alert('দয়া করে শুরুর এবং শেষের তারিখ সিলেক্ট করুন।');
+                          } else {
+                            fetchVisitorLogs();
+                          }
+                        }}
+                        className="w-full h-10 px-4 bg-gradient-to-tr from-amber-600 to-amber-500 hover:brightness-110 text-white text-xs font-black uppercase tracking-wider rounded-xl transition cursor-pointer active:scale-95 font-sans"
+                      >
+                        Apply Filter (প্রয়োগ করুন)
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Global Search Filter Input */}
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input
+                    type="text"
+                    value={visitorSearchQuery}
+                    onChange={(e) => setVisitorSearchQuery(e.target.value)}
+                    placeholder="Search by IP address, country name, city, browser, or path (আইপি, দেশ বা শহর দিয়ে খুঁজুন)..."
+                    className="w-full pl-10 pr-4 py-3 bg-[#131520] border border-slate-800 text-slate-200 text-xs rounded-2xl focus:outline-none focus:border-amber-500/40"
+                  />
+                </div>
+              </div>
+
+              {/* Geographic Hotspots Breakdown (Bento Columns) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Countries List */}
+                <div className="bg-[#0f111a] border border-[#1c2333] rounded-3xl p-5 text-left">
+                  <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-4 pb-2 border-b border-white/5 font-sans">
+                    Top Countries (প্রধান দেশসমূহ)
+                  </h4>
+                  <div className="space-y-3.5 max-h-[240px] overflow-y-auto scrollbar-thin">
+                    {(() => {
+                      const counts: { [key: string]: { hits: number; uniques: number; code: string } } = {};
+                      visitorLogs.forEach(v => {
+                        const c = v.country || "Unknown Country";
+                        if (!counts[c]) {
+                          counts[c] = { hits: 0, uniques: 0, code: v.countryCode || "UN" };
+                        }
+                        counts[c].hits++;
+                        if (v.isUnique) counts[c].uniques++;
+                      });
+                      const sorted = Object.entries(counts).sort((a, b) => b[1].hits - a[1].hits);
+                      
+                      if (sorted.length === 0) {
+                        return <p className="text-[10px] text-slate-500 py-4 font-mono font-bold text-center">No location metrics captured yet.</p>;
+                      }
+                      
+                      return sorted.map(([country, stat], index) => {
+                        const percent = Math.min(100, Math.round((stat.hits / (visitorLogs.length || 1)) * 100));
+                        return (
+                          <div key={country} className="space-y-1">
+                            <div className="flex justify-between items-center text-[11px]">
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-500 font-mono font-bold">#{index + 1}</span>
+                                <span className="font-bold text-white">{country}</span>
+                                <span className="text-[9px] bg-slate-800 px-1 py-0.2 rounded font-mono font-bold text-slate-400 uppercase">{stat.code}</span>
+                              </div>
+                              <span className="text-slate-400 font-mono font-black">
+                                {stat.hits} hits <span className="text-slate-500">/</span> {stat.uniques} unique
+                              </span>
+                            </div>
+                            <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
+                              <div className="h-full bg-amber-500 rounded-full" style={{ width: `${percent}%` }} />
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+
+                {/* Visited Paths List */}
+                <div className="bg-[#0f111a] border border-[#1c2333] rounded-3xl p-5 text-left">
+                  <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-4 pb-2 border-b border-white/5 font-sans">
+                    Popular Paths & Pages (জনপ্রিয় পেজসমূহ)
+                  </h4>
+                  <div className="space-y-3.5 max-h-[240px] overflow-y-auto scrollbar-thin">
+                    {(() => {
+                      const counts: { [key: string]: number } = {};
+                      visitorLogs.forEach(v => {
+                        const p = v.path || "/";
+                        counts[p] = (counts[p] || 0) + 1;
+                      });
+                      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+                      
+                      if (sorted.length === 0) {
+                        return <p className="text-[10px] text-slate-500 py-4 font-mono font-bold text-center">No path tracking data logged.</p>;
+                      }
+                      
+                      return sorted.map(([path, hits], index) => {
+                        const percent = Math.min(100, Math.round((hits / (visitorLogs.length || 1)) * 100));
+                        return (
+                          <div key={path} className="space-y-1">
+                            <div className="flex justify-between items-center text-[11px]">
+                              <div className="flex items-center gap-2 truncate max-w-[70%]">
+                                <span className="text-slate-500 font-mono font-bold">#{index + 1}</span>
+                                <span className="font-mono text-xs text-amber-200/90 truncate">{path}</span>
+                              </div>
+                              <span className="text-slate-400 font-mono font-black shrink-0">{hits} pageviews</span>
+                            </div>
+                            <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
+                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${percent}%` }} />
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Master Traffic Log Table */}
+              <div className="bg-[#0f111a] border border-[#1c2333] rounded-3xl overflow-hidden shadow-xl">
+                <div className="p-5 border-b border-white/5 flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-white font-sans">
+                    Detailed History Logs (বিস্তারিত ভিজিটর লগ)
+                  </h4>
+                  <span className="text-[10px] bg-[#dbaa61]/10 text-[#dbaa61] font-mono font-bold px-2 py-0.5 rounded border border-[#dbaa61]/20">
+                    {
+                      (() => {
+                        let filtered = [...visitorLogs];
+                        if (visitorDateFilterType === 'today') {
+                          const todayStr = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString().split('T')[0];
+                          filtered = filtered.filter(v => v.date === todayStr);
+                        } else if (visitorDateFilterType === 'custom' && visitorStartDate && visitorEndDate) {
+                          filtered = filtered.filter(v => {
+                            return v.date >= visitorStartDate && v.date <= visitorEndDate;
+                          });
+                        }
+                        
+                        if (visitorSearchQuery.trim()) {
+                          const q = visitorSearchQuery.toLowerCase();
+                          filtered = filtered.filter(v => 
+                            (v.ip && v.ip.toLowerCase().includes(q)) ||
+                            (v.country && v.country.toLowerCase().includes(q)) ||
+                            (v.city && v.city.toLowerCase().includes(q)) ||
+                            (v.browser && v.browser.toLowerCase().includes(q)) ||
+                            (v.path && v.path.toLowerCase().includes(q))
+                          );
+                        }
+                        
+                        return filtered.length;
+                      })()
+                    } records found
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse font-sans">
+                    <thead>
+                      <tr className="bg-black/30 border-b border-white/5 text-[10px] text-slate-500 font-black uppercase tracking-widest">
+                        <th className="p-4 pl-6">IP / Network Provider</th>
+                        <th className="p-4">Geographic Location</th>
+                        <th className="p-4">Browser & OS</th>
+                        <th className="p-4">Visited Path</th>
+                        <th className="p-4">Referrer Domain</th>
+                        <th className="p-4 pr-6 text-right">Visit Timestamp</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.03]">
+                      {(() => {
+                        let filtered = [...visitorLogs];
+                        if (visitorDateFilterType === 'today') {
+                          const todayStr = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString().split('T')[0];
+                          filtered = filtered.filter(v => v.date === todayStr);
+                        } else if (visitorDateFilterType === 'custom' && visitorStartDate && visitorEndDate) {
+                          filtered = filtered.filter(v => {
+                            return v.date >= visitorStartDate && v.date <= visitorEndDate;
+                          });
+                        }
+                        
+                        if (visitorSearchQuery.trim()) {
+                          const q = visitorSearchQuery.toLowerCase();
+                          filtered = filtered.filter(v => 
+                            (v.ip && v.ip.toLowerCase().includes(q)) ||
+                            (v.country && v.country.toLowerCase().includes(q)) ||
+                            (v.city && v.city.toLowerCase().includes(q)) ||
+                            (v.browser && v.browser.toLowerCase().includes(q)) ||
+                            (v.path && v.path.toLowerCase().includes(q))
+                          );
+                        }
+
+                        if (filtered.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={6} className="p-10 text-center text-slate-500 font-bold font-mono text-[11px]">
+                                No matched visitor sessions logged for the selected dates.
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return filtered.map((log) => {
+                          const logTime = new Date(log.timestamp);
+                          const formattedTime = logTime.toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: true
+                          });
+
+                          return (
+                            <tr key={log.id} className="hover:bg-white/[0.01] transition-colors">
+                              {/* IP & ISP */}
+                              <td className="p-4 pl-6 space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono text-xs font-black text-amber-200">{log.ip}</span>
+                                  {log.isUnique && (
+                                    <span className="bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase tracking-widest px-1 rounded border border-emerald-500/20">
+                                      Unique
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="block text-[9px] text-slate-500 font-bold max-w-[180px] truncate font-sans" title={log.org}>
+                                  {log.org || 'Local Dev Server'}
+                                </span>
+                              </td>
+
+                              {/* Location */}
+                              <td className="p-4 space-y-1">
+                                <div className="flex items-center gap-1.5 font-bold text-white">
+                                  <span>{log.city || 'Localhost'}</span>
+                                </div>
+                                <span className="block text-[9px] text-slate-400 font-medium font-sans">
+                                  {log.region ? `${log.region}, ` : ''}{log.country || 'Bangladesh'}
+                                </span>
+                              </td>
+
+                              {/* Browser & OS */}
+                              <td className="p-4 space-y-1">
+                                <span className="block text-xs font-bold text-slate-300">{log.browser || 'Other'}</span>
+                                <span className="block text-[9px] text-slate-500 font-black uppercase tracking-wider font-mono">{log.os || 'Unknown OS'}</span>
+                              </td>
+
+                              {/* Path */}
+                              <td className="p-4">
+                                <span className="font-mono text-xs bg-slate-900/60 border border-slate-800 px-2 py-1 rounded text-blue-300 max-w-[120px] truncate block" title={log.path}>
+                                  {log.path || '/'}
+                                </span>
+                              </td>
+
+                              {/* Referrer */}
+                              <td className="p-4">
+                                <span className="text-slate-400 max-w-[140px] truncate block font-sans" title={log.referer}>
+                                  {log.referer || 'Direct / Bookmark'}
+                                </span>
+                              </td>
+
+                              {/* Timestamp */}
+                              <td className="p-4 pr-6 text-right font-mono text-slate-400 text-xs font-medium">
+                                <span className="block text-slate-300">{formattedTime}</span>
+                                <span className="block text-[9px] text-slate-500 font-bold mt-0.5 font-sans">BST / GMT+6</span>
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

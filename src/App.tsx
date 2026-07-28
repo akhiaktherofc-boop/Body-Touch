@@ -340,6 +340,37 @@ export default function App() {
       setIsMobile(window.innerWidth < 640);
     };
     window.addEventListener('resize', handleResize);
+
+    // Track Visitor Telemetry
+    const trackVisitor = async () => {
+      try {
+        const isUnique = !localStorage.getItem('bt_returning_visitor');
+        if (!isUnique) {
+          if (sessionStorage.getItem('bt_session_tracked')) {
+            return;
+          }
+        } else {
+          localStorage.setItem('bt_returning_visitor', 'true');
+        }
+        
+        sessionStorage.setItem('bt_session_tracked', 'true');
+        
+        await fetch('/api/track-visitor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userAgent: navigator.userAgent,
+            referer: document.referrer || '',
+            path: window.location.pathname || '/',
+            isUnique
+          })
+        });
+      } catch (e) {
+        console.warn('Failed to send visitor tracking event:', e);
+      }
+    };
+    trackVisitor();
+
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
