@@ -1353,8 +1353,8 @@ export default function AdminPanel({
   const [visitorEndDate, setVisitorEndDate] = useState('');
   const [visitorSearchQuery, setVisitorSearchQuery] = useState('');
 
-  const fetchVisitorLogs = async () => {
-    setIsVisitorLogsLoading(true);
+  const fetchVisitorLogs = async (quiet = false) => {
+    if (!quiet) setIsVisitorLogsLoading(true);
     try {
       let logsData = null;
       let usePhpFallback = false;
@@ -1405,13 +1405,42 @@ export default function AdminPanel({
     } catch (e) {
       console.error('Failed to fetch visitor logs:', e);
     } finally {
-      setIsVisitorLogsLoading(false);
+      if (!quiet) setIsVisitorLogsLoading(false);
     }
   };
 
   useEffect(() => {
     if (activeTab === 'visitors') {
       fetchVisitorLogs();
+      
+      // Quiet background polling to fetch fresh updates from server
+      const serverPollInterval = setInterval(() => {
+        fetchVisitorLogs(true);
+      }, 3000);
+
+      // Local second-by-second countdown ticker for ultra-smooth UI increments
+      const localTickInterval = setInterval(() => {
+        setVisitorLogs((prevLogs) => {
+          if (!prevLogs || prevLogs.length === 0) return prevLogs;
+          return prevLogs.map((log) => {
+            const isLive = log.timestamp 
+              ? (Math.abs(Date.now() - new Date(log.timestamp).getTime()) < 25000) 
+              : false;
+            if (isLive) {
+              return {
+                ...log,
+                duration: (log.duration || 0) + 1
+              };
+            }
+            return log;
+          });
+        });
+      }, 1000);
+
+      return () => {
+        clearInterval(serverPollInterval);
+        clearInterval(localTickInterval);
+      };
     }
   }, [activeTab]);
 
