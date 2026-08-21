@@ -1722,6 +1722,18 @@ export default function App() {
             localStorage.setItem('bt_socket_server_url', data.socketServerUrl);
           }
         }
+
+        // 5. Fetch Payment Gateways Settings from Cloud Firestore
+        const gatewayRef = doc(db, 'settings', 'payment_gateways');
+        const gatewaySnap = await getDoc(gatewayRef);
+        if (isCancelled) return;
+        if (gatewaySnap.exists()) {
+          const data = gatewaySnap.data();
+          if (Array.isArray(data.gateways)) {
+            setPaymentGateways(data.gateways);
+            localStorage.setItem('bt_payment_gateways', JSON.stringify(data.gateways));
+          }
+        }
       } catch (err) {
         console.warn('[CloudDB] Failed to load settings:', err);
       }
@@ -2643,6 +2655,21 @@ Website: https://bodytouch.com
     } catch (err) {
       console.error(err);
       triggerToast("❌ Error disconnecting: " + (err instanceof Error ? err.message : String(err)), "error");
+    }
+  };
+
+  const handleUpdatePaymentGateways = async (updated: PaymentGateway[]) => {
+    setPaymentGateways(updated);
+    localStorage.setItem('bt_payment_gateways', JSON.stringify(updated));
+    try {
+      const docRef = doc(db, 'settings', 'payment_gateways');
+      await setDoc(docRef, {
+        gateways: updated,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      console.log('[Payment Gateways] Successfully synchronized with Cloud Firestore.');
+    } catch (err) {
+      console.error('[Payment Gateways] Error saving to Firestore:', err);
     }
   };
 
@@ -3915,7 +3942,7 @@ https://service.bodytouch.com
             structuredCities={structuredCities}
             onUpdateStructuredCities={handleUpdateStructuredCities}
             paymentGateways={paymentGateways}
-            onUpdatePaymentGateways={setPaymentGateways}
+            onUpdatePaymentGateways={handleUpdatePaymentGateways}
             shortLinkStats={shortLinkStats}
             pricingConfig={pricingConfig}
             onUpdatePricingConfig={handleUpdatePricingConfig}
@@ -6217,6 +6244,7 @@ https://service.bodytouch.com
           price={checkoutTier?.price || ''}
           onClose={() => setCheckoutTier(null)}
           onSubmit={handleCheckoutSubmit}
+          paymentGateways={paymentGateways}
         />
 
         {/* Network Registry Applications modal popup */}
@@ -6230,6 +6258,7 @@ https://service.bodytouch.com
           registrationFee={pricingConfig.registrationFee}
           registrationFeeMale={pricingConfig.registrationFeeMale}
           registrationFeeSperm={pricingConfig.registrationFeeSperm}
+          paymentGateways={paymentGateways}
           onAddCompanion={(newComp) => {
             setCloudDocument('companions', newComp.id, newComp);
             setCompanions((prev) => {

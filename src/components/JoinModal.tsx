@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, User, Briefcase, Camera, Send, Check, Trash2, ShieldCheck, UploadCloud, Copy, Info, Phone, Mail, MessageSquare, Calendar, Ruler, Scale, MapPin, Languages, Activity, Droplet } from 'lucide-react';
-import { Companion, ParentArea } from '../types';
+import { Companion, ParentArea, PaymentGateway } from '../types';
 import { compressImage } from '../services/imageService';
 
 // Custom high-fidelity brand SVGs for MFS gateways
@@ -38,6 +38,7 @@ interface JoinModalProps {
   registrationFee?: number;
   registrationFeeMale?: number;
   registrationFeeSperm?: number;
+  paymentGateways?: PaymentGateway[];
 }
 
 export default function JoinModal({ 
@@ -50,7 +51,8 @@ export default function JoinModal({
   telegramHelpline = 'BodyTouchSupport',
   registrationFee = 3000,
   registrationFeeMale = 3000,
-  registrationFeeSperm = 3000
+  registrationFeeSperm = 3000,
+  paymentGateways = []
 }: JoinModalProps) {
   const [type, setType] = useState<'female' | 'male' | 'donor'>(initialType || 'female');
 
@@ -163,6 +165,13 @@ export default function JoinModal({
   const [gatewaysList, setGatewaysList] = useState<any[]>([]);
 
   React.useEffect(() => {
+    if (Array.isArray(paymentGateways) && paymentGateways.length > 0) {
+      const active = paymentGateways.filter((g: any) => g.isActive !== false);
+      if (active.length > 0) {
+        setGatewaysList(active);
+        return;
+      }
+    }
     const saved = localStorage.getItem('bt_payment_gateways');
     if (saved) {
       try {
@@ -201,7 +210,7 @@ export default function JoinModal({
         instructions: 'Please perform a "Send Money" transaction to this Rocket Personal number.',
       }
     ]);
-  }, [isOpen, showPaymentScreen]);
+  }, [isOpen, showPaymentScreen, paymentGateways]);
 
   const [selectedGateway, setSelectedGateway] = useState<any>(null);
 
