@@ -345,6 +345,15 @@ export default function App() {
   }, []);
 
   const lastTrackedPathRef = useRef<string>('');
+  const [currentHash, setCurrentHash] = useState(() => window.location.hash.toLowerCase());
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setCurrentHash(window.location.hash.toLowerCase());
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   useEffect(() => {
     // Clear any persistent local/session flags that would block client/model tracking during testing
@@ -372,7 +381,10 @@ export default function App() {
         }
 
         let currentPath = '/';
-        if (isModelPortalOpen) {
+        const targetHashes = ['#join', '#register', '#joinmale', '#join-male', '#joinsparm', '#join-sparm'];
+        if (targetHashes.includes(currentHash)) {
+          currentPath = `/#${currentHash.replace('#', '')}`;
+        } else if (isModelPortalOpen) {
           currentPath = '/model-portal';
         } else if (isAgentOpen) {
           currentPath = '/agent-portal';
@@ -446,7 +458,7 @@ export default function App() {
     };
     
     trackVisitor();
-  }, [isAdminOpen, isModelPortalOpen, isAgentOpen, isTelegramOpen, activeTab]);
+  }, [isAdminOpen, isModelPortalOpen, isAgentOpen, isTelegramOpen, activeTab, currentHash]);
 
   // 120 FPS Mobile Performance Booster & Screenshot/Screen-Record Deterrence Engine
   useEffect(() => {
