@@ -368,23 +368,32 @@ export default function LiveLivenessVerification({ onVerificationSuccess, onCanc
 
       <div className="w-full flex flex-col items-center space-y-4">
         
-        {/* Unconditional circular camera viewer to prevent mounting races */}
-        <div className="relative w-[210px] h-[210px] rounded-full overflow-hidden bg-black border-4 border-yellow-600/40 shadow-xl shadow-black/80 flex items-center justify-center">
+        {/* Unconditional modern camera card viewer with WebKit hardware-acceleration fix */}
+        <div 
+          className="relative w-full max-w-[260px] aspect-[4/3] rounded-2xl overflow-hidden bg-black border-2 border-yellow-600/40 shadow-xl shadow-black/80 flex items-center justify-center"
+          style={{ WebkitTransform: 'translate3d(0,0,0)', transform: 'translate3d(0,0,0)' }}
+        >
           
-          {/* REAL LIVE CAMERA STREAM WITH AUTO RE-MOUNTING KEY */}
+          {/* REAL LIVE CAMERA STREAM (No key re-mounting to prevent black-screen race) */}
           <video
-            key={stream ? stream.id : 'no-stream'}
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            style={{ transform: 'scaleX(-1)', objectFit: 'cover', width: '100%', height: '100%' }}
+            style={{ 
+              transform: 'scaleX(-1) translate3d(0,0,0)', 
+              WebkitTransform: 'scaleX(-1) translate3d(0,0,0)', 
+              objectFit: 'cover', 
+              width: '100%', 
+              height: '100%',
+              display: 'block' 
+            }}
             onLoadedMetadata={(e) => {
               e.currentTarget.play().catch(err => {
                 console.error("Video element play request failed:", err);
               });
             }}
-            className="bg-slate-950 block" 
+            className="bg-slate-950" 
           />
           <canvas ref={canvasRef} className="hidden" />
 
@@ -393,8 +402,13 @@ export default function LiveLivenessVerification({ onVerificationSuccess, onCanc
             <div className="absolute left-0 right-0 h-0.5 bg-yellow-500 shadow-[0_0_10px_#eab308] animate-bounce pointer-events-none top-1/3" />
           )}
 
-          {/* Circular border masking */}
-          <div className="absolute inset-0 border-[16px] border-black/45 pointer-events-none" />
+          {/* Biometric overlay brackets */}
+          <div className="absolute inset-4 border border-yellow-500/20 rounded-lg pointer-events-none flex items-center justify-center">
+            <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-yellow-500/60" />
+            <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-yellow-500/60" />
+            <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-yellow-500/60" />
+            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-yellow-500/60" />
+          </div>
 
           {/* Verification loading state overlay */}
           {verificationState === 'loading' && (
