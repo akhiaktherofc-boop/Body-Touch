@@ -346,6 +346,7 @@ export default function App() {
 
   const lastTrackedPathRef = useRef<string>('');
   const visitorLogIdRef = useRef<string | null>(null);
+  const isPhpFallbackRef = useRef<boolean>(false);
   const sessionSecondsRef = useRef<number>(0);
   const [currentHash, setCurrentHash] = useState(() => window.location.hash.toLowerCase());
 
@@ -356,7 +357,8 @@ export default function App() {
       
       // Ping the server every 1 second to update active session duration exactly
       if (visitorLogIdRef.current) {
-        fetch('/api/track-duration', {
+        const endpoint = isPhpFallbackRef.current ? '/track-duration.php' : '/api/track-duration';
+        fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -472,14 +474,28 @@ export default function App() {
         }
 
         if (usePhpFallback) {
-          await fetch('/track-visitor.php', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'X-Is-Admin': 'false'
-            },
-            body: JSON.stringify(payload)
-          });
+          isPhpFallbackRef.current = true;
+          try {
+            const phpResponse = await fetch('/track-visitor.php', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'X-Is-Admin': 'false'
+              },
+              body: JSON.stringify(payload)
+            });
+            if (phpResponse.ok) {
+              const phpText = await phpResponse.text();
+              try {
+                const phpData = JSON.parse(phpText);
+                if (phpData && phpData.visitor && phpData.visitor.id) {
+                  visitorLogIdRef.current = phpData.visitor.id;
+                }
+              } catch (_) {}
+            }
+          } catch (phpErr) {
+            console.warn('Failed PHP visitor fallback tracker:', phpErr);
+          }
         }
       } catch (e) {
         console.warn('Failed to send visitor tracking event:', e);
