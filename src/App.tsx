@@ -351,12 +351,11 @@ export default function App() {
 
   // Page active session duration (time on page) heartbeat loop
   useEffect(() => {
-    sessionSecondsRef.current = 0;
     const interval = setInterval(() => {
       sessionSecondsRef.current += 1;
       
-      // Ping the server every 2 seconds to update active session duration
-      if (sessionSecondsRef.current % 2 === 0 && visitorLogIdRef.current) {
+      // Ping the server every 1 second to update active session duration exactly
+      if (visitorLogIdRef.current) {
         fetch('/api/track-duration', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -371,7 +370,7 @@ export default function App() {
     return () => {
       clearInterval(interval);
     };
-  }, [activeTab, currentHash]);
+  }, []);
 
   useEffect(() => {
     const handleHashChange = () => {

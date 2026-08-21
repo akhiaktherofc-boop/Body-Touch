@@ -12803,32 +12803,34 @@ Body Touch Premium Network`;
                                     ? (Math.abs(Date.now() - new Date(log.timestamp).getTime()) < 25000) 
                                     : false;
                                   
-                                  const durationVal = log.duration;
+                                  const durationVal = log.duration || 0;
 
-                                  if (durationVal && durationVal > 0) {
-                                    return (
-                                      <span className={`font-mono text-[10px] font-black px-2 py-0.5 rounded border bg-emerald-500/10 text-emerald-400 border-emerald-500/20 ${isLive ? 'animate-pulse' : ''}`}>
-                                        {durationVal < 60 
-                                          ? `${durationVal}s` 
-                                          : `${Math.floor(durationVal / 60)}m ${durationVal % 60}s`
-                                        }
-                                        {isLive && ' • Live'}
-                                      </span>
-                                    );
-                                  }
+                                  const formatDuration = (val: number) => {
+                                    if (val <= 0) return "1s";
+                                    const h = Math.floor(val / 3600);
+                                    const m = Math.floor((val % 3600) / 60);
+                                    const s = val % 60;
+                                    
+                                    if (h > 0) {
+                                      return `${h}h ${m}m ${s}s`;
+                                    }
+                                    if (m > 0) {
+                                      return `${m}m ${s}s`;
+                                    }
+                                    return `${s}s`;
+                                  };
 
                                   if (isLive) {
                                     return (
                                       <span className="font-mono text-[10px] font-black px-2 py-0.5 rounded border bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse">
-                                        Live / 1s
+                                        {formatDuration(durationVal)} • Live
                                       </span>
                                     );
                                   }
 
-                                  // Realistic completed fallback for historical sessions instead of showing "1s"
                                   return (
                                     <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded border bg-slate-500/5 text-slate-400 border-slate-500/10">
-                                      12s+ (Completed)
+                                      {formatDuration(durationVal)}
                                     </span>
                                   );
                                 })()}
