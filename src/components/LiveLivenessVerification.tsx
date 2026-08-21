@@ -23,17 +23,6 @@ export default function LiveLivenessVerification({ onVerificationSuccess, onCanc
   const animationRef = useRef<number | null>(null);
   const prevFrameDataRef = useRef<Uint8ClampedArray | null>(null);
 
-  // Bulletproof Callback Ref to bind camera stream to DOM node immediately on render
-  const setVideoRef = (node: HTMLVideoElement | null) => {
-    videoRef.current = node;
-    if (node && stream) {
-      node.srcObject = stream;
-      // Force instant playback
-      node.play().catch(err => {
-        console.warn("Callback Ref video playback play() call was deferred:", err);
-      });
-    }
-  };
 
   const isIframe = window.self !== window.top;
 
@@ -66,20 +55,22 @@ export default function LiveLivenessVerification({ onVerificationSuccess, onCanc
     };
   }, [onVerificationSuccess]);
 
-  // Bind the camera stream to the video element as soon as it mounts or updates!
+  // Bind the camera stream to the video element safely ONLY when the stream reference actually changes!
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-      
-      // Ensure the video plays immediately
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(err => {
-          console.warn("Autoplay was blocked or interrupted, retrying playback on interaction...", err);
-        });
+    const video = videoRef.current;
+    if (video && stream) {
+      if (video.srcObject !== stream) {
+        video.srcObject = stream;
+        
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(err => {
+            console.warn("Autoplay was blocked or interrupted, retrying playback on interaction...", err);
+          });
+        }
       }
     }
-  }, [stream, verificationState]);
+  }, [stream]);
 
   // Generate 3 random actions on start
   const generateActions = () => {
@@ -383,7 +374,7 @@ export default function LiveLivenessVerification({ onVerificationSuccess, onCanc
           {/* REAL LIVE CAMERA STREAM WITH AUTO RE-MOUNTING KEY */}
           <video
             key={stream ? stream.id : 'no-stream'}
-            ref={setVideoRef}
+            ref={videoRef}
             autoPlay
             playsInline
             muted
