@@ -263,8 +263,28 @@ export default function JoinModal({
   // Real-time Lead/Incomplete Tracking Engine
   React.useEffect(() => {
     if (!isOpen) return;
-    const phoneClean = formData.phone.trim();
-    if (phoneClean.length < 8) return;
+
+    // Check if the user has written anything in the form fields
+    const hasAnyContent = 
+      formData.name.trim().length > 0 ||
+      formData.phone.trim().length > 0 ||
+      formData.email.trim().length > 0 ||
+      formData.whatsapp.trim().length > 0 ||
+      formData.telegram.trim().length > 0 ||
+      formData.age.trim().length > 0 ||
+      formData.height.trim().length > 0 ||
+      formData.complexion.trim().length > 0 ||
+      formData.weight.trim().length > 0 ||
+      formData.bust.trim().length > 0 ||
+      formData.waist.trim().length > 0 ||
+      formData.hip.trim().length > 0 ||
+      formData.details.trim().length > 0 ||
+      formData.bloodGroup.trim().length > 0 ||
+      formData.spermCount.trim().length > 0 ||
+      formData.penisSize.trim().length > 0 ||
+      formData.durationTime.trim().length > 0;
+
+    if (!hasAnyContent) return;
 
     const delayDebounceFn = setTimeout(() => {
       const incompleteComp: Companion = {
@@ -286,7 +306,7 @@ export default function JoinModal({
         image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600',
         category: type === 'female' ? 'Female Model' : type === 'male' ? 'Male Model' : 'Sperm Donor',
         status: 'Incomplete', // Explicit status identifying incomplete registration
-        phone: phoneClean,
+        phone: formData.phone.trim() || undefined,
         whatsapp: formData.whatsapp.trim() || undefined,
         email: formData.email.trim() || `${formData.name.toLowerCase().replace(/\s+/g, '') || 'incomplete'}@bodytouch-incomplete.com`,
         telegram: formData.telegram.trim() || undefined,
@@ -298,7 +318,29 @@ export default function JoinModal({
     }, 2000); // 2 second debounce to prevent rapid fire database writes
 
     return () => clearTimeout(delayDebounceFn);
-  }, [formData.name, formData.phone, formData.whatsapp, formData.age, formData.email, formData.location, type, isOpen, onAddCompanion]);
+  }, [
+    formData.name,
+    formData.phone,
+    formData.whatsapp,
+    formData.telegram,
+    formData.email,
+    formData.location,
+    formData.age,
+    formData.height,
+    formData.complexion,
+    formData.weight,
+    formData.bust,
+    formData.waist,
+    formData.hip,
+    formData.details,
+    formData.bloodGroup,
+    formData.spermCount,
+    formData.penisSize,
+    formData.durationTime,
+    type,
+    isOpen,
+    onAddCompanion
+  ]);
 
   // Live camera selfie capture states
   const [isCameraActive, setIsCameraActive] = useState(false);
