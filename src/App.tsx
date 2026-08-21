@@ -6446,11 +6446,26 @@ https://service.bodytouch.com
                   </div>
 
                   {/* Send details instruction */}
-                  <div className="bg-[#030a1c] border border-blue-500/15 p-3 rounded-xl text-left">
-                    <p className="text-[10px] text-slate-300 leading-normal font-semibold">
-                      💸 Please Send Money to: <strong className="text-white font-mono">+8801712-345678</strong> (Personal)
-                    </p>
-                  </div>
+                  {(() => {
+                    const activeGw = paymentGateways.find(
+                      (g) => g.method === allocateMethod && g.isActive !== false
+                    );
+                    const num = activeGw ? activeGw.number : (allocateMethod === 'BKASH' ? '01712-345678' : allocateMethod === 'NAGAD' ? '01912-345678' : '01812-345678');
+                    const wType = activeGw ? activeGw.walletType : 'Personal';
+                    const inst = activeGw ? activeGw.instructions : `দয়া করে এই ${allocateMethod} নম্বরে পেমেন্ট সম্পন্ন করুন।`;
+                    return (
+                      <div className="bg-[#030a1c] border border-blue-500/15 p-3 rounded-xl text-left space-y-1">
+                        <p className="text-[10px] text-slate-300 leading-normal font-semibold">
+                          💸 Please Send Money to: <strong className="text-white font-mono">{num}</strong> ({wType})
+                        </p>
+                        {inst && (
+                          <p className="text-[9px] text-slate-400 leading-normal font-medium">
+                            ℹ️ {inst}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <div>
                     <label className="block text-[9px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">
