@@ -374,9 +374,11 @@ export default function App() {
                              search.includes('turmarheda') ||
                              path.includes('turmarheda');
 
-        // Block tracking only if currently viewing the admin page or route
-        if (isAdminOpen || isAdminRoute) {
-          console.log('[Visitor Tracking] Blocked tracking for active Admin view/route to ensure privacy.');
+        const isUserAdmin = userRole === 'super_admin' || userRole === 'admin' || userRole === 'moderator';
+
+        // Block tracking only if currently viewing the admin page or route OR if logged in as an Admin
+        if (isAdminOpen || isAdminRoute || isUserAdmin) {
+          console.log('[Visitor Tracking] Blocked tracking for active Admin session/view/route to ensure privacy.');
           return;
         }
 
@@ -458,7 +460,7 @@ export default function App() {
     };
     
     trackVisitor();
-  }, [isAdminOpen, isModelPortalOpen, isAgentOpen, isTelegramOpen, activeTab, currentHash]);
+  }, [isAdminOpen, isModelPortalOpen, isAgentOpen, isTelegramOpen, activeTab, currentHash, userRole]);
 
   // 120 FPS Mobile Performance Booster & Screenshot/Screen-Record Deterrence Engine
   useEffect(() => {
