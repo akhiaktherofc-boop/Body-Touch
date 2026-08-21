@@ -378,20 +378,22 @@ export default function LiveLivenessVerification({ onVerificationSuccess, onCanc
       <div className="w-full flex flex-col items-center space-y-4">
         
         {/* Unconditional circular camera viewer to prevent mounting races */}
-        <div className="relative w-full max-w-[220px] aspect-square rounded-full overflow-hidden bg-black border-4 border-yellow-600/40 shadow-xl shadow-black/80">
+        <div className="relative w-[210px] h-[210px] rounded-full overflow-hidden bg-black border-4 border-yellow-600/40 shadow-xl shadow-black/80 flex items-center justify-center">
           
-          {/* REAL LIVE CAMERA STREAM */}
+          {/* REAL LIVE CAMERA STREAM WITH AUTO RE-MOUNTING KEY */}
           <video
+            key={stream ? stream.id : 'no-stream'}
             ref={setVideoRef}
             autoPlay
             playsInline
             muted
+            style={{ transform: 'scaleX(-1)', objectFit: 'cover', width: '100%', height: '100%' }}
             onLoadedMetadata={(e) => {
               e.currentTarget.play().catch(err => {
                 console.error("Video element play request failed:", err);
               });
             }}
-            className="w-full h-full object-cover scale-x-[-1] bg-slate-950 block" 
+            className="bg-slate-950 block" 
           />
           <canvas ref={canvasRef} className="hidden" />
 
