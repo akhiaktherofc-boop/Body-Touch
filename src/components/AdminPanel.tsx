@@ -12718,11 +12718,11 @@ Body Touch Premium Network`;
                     <thead>
                       <tr className="bg-black/30 border-b border-white/5 text-[10px] text-slate-500 font-black uppercase tracking-widest">
                         <th className="p-4 pl-6">IP / Network Provider</th>
+                        <th className="p-4">Time Spent</th>
                         <th className="p-4">Geographic Location</th>
                         <th className="p-4">Browser & OS</th>
                         <th className="p-4">Visited Path</th>
                         <th className="p-4">Referrer Domain</th>
-                        <th className="p-4">Time Spent (কতক্ষণ ছিল)</th>
                         <th className="p-4 pr-6 text-right">Visit Timestamp</th>
                       </tr>
                     </thead>
@@ -12787,6 +12787,48 @@ Body Touch Premium Network`;
                                 </span>
                               </td>
 
+                              {/* Time Spent */}
+                              <td className="p-4">
+                                {(() => {
+                                  // Compute if the visit happened within the last 25 seconds (active session)
+                                  const isLive = log.timestamp 
+                                    ? (Math.abs(Date.now() - new Date(log.timestamp).getTime()) < 25000) 
+                                    : false;
+                                  
+                                  const durationVal = log.duration || 0;
+
+                                  const formatDuration = (val: number) => {
+                                    const pad = (num: number) => String(num).padStart(2, '0');
+                                    if (val <= 0) return "01 sec";
+                                    const h = Math.floor(val / 3600);
+                                    const m = Math.floor((val % 3600) / 60);
+                                    const s = val % 60;
+                                    
+                                    if (h > 0) {
+                                      return `${pad(h)} hr ${pad(m)} min ${pad(s)} sec`;
+                                    }
+                                    if (m > 0) {
+                                      return `${pad(m)} min ${pad(s)} sec`;
+                                    }
+                                    return `${pad(s)} sec`;
+                                  };
+
+                                  if (isLive) {
+                                    return (
+                                      <span className="font-mono text-[10px] font-black px-2 py-0.5 rounded border bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse">
+                                        {formatDuration(durationVal)} • Live
+                                      </span>
+                                    );
+                                  }
+
+                                  return (
+                                    <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded border bg-slate-500/5 text-slate-400 border-slate-500/10">
+                                      {formatDuration(durationVal)}
+                                    </span>
+                                  );
+                                })()}
+                              </td>
+
                               {/* Location */}
                               <td className="p-4 space-y-1">
                                 <div className="flex items-center gap-1.5 font-bold text-white">
@@ -12822,47 +12864,6 @@ Body Touch Premium Network`;
                                 <span className="text-slate-400 max-w-[140px] truncate block font-sans" title={log.referer}>
                                   {log.referer || 'Direct / Bookmark'}
                                 </span>
-                              </td>
-
-                              {/* Time Spent */}
-                              <td className="p-4">
-                                {(() => {
-                                  // Compute if the visit happened within the last 25 seconds (active session)
-                                  const isLive = log.timestamp 
-                                    ? (Math.abs(Date.now() - new Date(log.timestamp).getTime()) < 25000) 
-                                    : false;
-                                  
-                                  const durationVal = log.duration || 0;
-
-                                  const formatDuration = (val: number) => {
-                                    if (val <= 0) return "1s";
-                                    const h = Math.floor(val / 3600);
-                                    const m = Math.floor((val % 3600) / 60);
-                                    const s = val % 60;
-                                    
-                                    if (h > 0) {
-                                      return `${h}h ${m}m ${s}s`;
-                                    }
-                                    if (m > 0) {
-                                      return `${m}m ${s}s`;
-                                    }
-                                    return `${s}s`;
-                                  };
-
-                                  if (isLive) {
-                                    return (
-                                      <span className="font-mono text-[10px] font-black px-2 py-0.5 rounded border bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse">
-                                        {formatDuration(durationVal)} • Live
-                                      </span>
-                                    );
-                                  }
-
-                                  return (
-                                    <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded border bg-slate-500/5 text-slate-400 border-slate-500/10">
-                                      {formatDuration(durationVal)}
-                                    </span>
-                                  );
-                                })()}
                               </td>
 
                               {/* Timestamp */}
