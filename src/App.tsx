@@ -1,3 +1,4 @@
+// Today's Upgrades: Added device model detection, safe event target checking for closest(), and persistent notifications.
 import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { db, doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot } from './firebase';
 import { 
