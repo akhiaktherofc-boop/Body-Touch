@@ -355,8 +355,8 @@ export default function App() {
     const interval = setInterval(() => {
       sessionSecondsRef.current += 1;
       
-      // Ping the server every 5 seconds to update active session duration
-      if (sessionSecondsRef.current % 5 === 0 && visitorLogIdRef.current) {
+      // Ping the server every 2 seconds to update active session duration
+      if (sessionSecondsRef.current % 2 === 0 && visitorLogIdRef.current) {
         fetch('/api/track-duration', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

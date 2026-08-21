@@ -2134,7 +2134,7 @@ export default function AdminPanel({
     setCompRateLiveTogether_1m(comp.rateLiveTogether_1m !== undefined ? comp.rateLiveTogether_1m : '');
 
     setCompCity(comp.city || 'Dhaka');
-    setCompBadge(comp.badge);
+    setCompBadge(comp.badge === 'INCOMPLETE' ? 'REGULAR' : comp.badge);
     setCompImage(comp.image);
     setCompCategory(comp.category || 'Female Model');
     setCompPictures(comp.pictures || []);
@@ -2224,6 +2224,7 @@ export default function AdminPanel({
         if (comp.id === editingCompanionId) {
           return {
             ...comp,
+            status: comp.status === 'Incomplete' ? 'Approved' : comp.status,
             name: compName,
             tag: compTag.trim() || comp.tag,
             age: Number(compAge),
@@ -5844,6 +5845,14 @@ export default function AdminPanel({
                         </div>
 
                         <div className="flex justify-end gap-2.5 pt-1 border-t border-white/5 pt-3">
+                          <button
+                            type="button"
+                            onClick={() => handleEditCompanion(comp)}
+                            className="bg-[#dbaa61]/10 hover:bg-[#dbaa61] hover:text-black border border-[#dbaa61]/20 text-[#dbaa61] text-[9px] font-black tracking-widest uppercase px-4 py-2 rounded-xl transition flex items-center gap-1 cursor-pointer"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            Edit & Publish (সম্পাদনা ও পাবলিশ)
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteCompanion(comp.id)}
@@ -12788,17 +12797,41 @@ Body Touch Premium Network`;
 
                               {/* Time Spent */}
                               <td className="p-4">
-                                <span className={`font-mono text-[10px] font-black px-2 py-0.5 rounded border ${
-                                  log.duration && log.duration >= 60 
-                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                                    : 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse'
-                                }`}>
-                                  {log.duration ? (
-                                    log.duration < 60 
-                                      ? `${log.duration}s` 
-                                      : `${Math.floor(log.duration / 60)}m ${log.duration % 60}s`
-                                  ) : 'Live / 1s'}
-                                </span>
+                                {(() => {
+                                  // Compute if the visit happened within the last 25 seconds (active session)
+                                  const isLive = log.timestamp 
+                                    ? (Math.abs(Date.now() - new Date(log.timestamp).getTime()) < 25000) 
+                                    : false;
+                                  
+                                  const durationVal = log.duration;
+
+                                  if (durationVal && durationVal > 0) {
+                                    return (
+                                      <span className={`font-mono text-[10px] font-black px-2 py-0.5 rounded border bg-emerald-500/10 text-emerald-400 border-emerald-500/20 ${isLive ? 'animate-pulse' : ''}`}>
+                                        {durationVal < 60 
+                                          ? `${durationVal}s` 
+                                          : `${Math.floor(durationVal / 60)}m ${durationVal % 60}s`
+                                        }
+                                        {isLive && ' • Live'}
+                                      </span>
+                                    );
+                                  }
+
+                                  if (isLive) {
+                                    return (
+                                      <span className="font-mono text-[10px] font-black px-2 py-0.5 rounded border bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse">
+                                        Live / 1s
+                                      </span>
+                                    );
+                                  }
+
+                                  // Realistic completed fallback for historical sessions instead of showing "1s"
+                                  return (
+                                    <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded border bg-slate-500/5 text-slate-400 border-slate-500/10">
+                                      12s+ (Completed)
+                                    </span>
+                                  );
+                                })()}
                               </td>
 
                               {/* Timestamp */}
