@@ -4083,6 +4083,7 @@ https://service.bodytouch.com
             registrationFee={pricingConfig.registrationFee}
             registrationFeeMale={pricingConfig.registrationFeeMale}
             registrationFeeSperm={pricingConfig.registrationFeeSperm}
+            paymentGateways={paymentGateways}
             onAddCompanion={(newComp) => {
               setCloudDocument('companions', newComp.id, newComp);
               setCompanions((prev) => {
