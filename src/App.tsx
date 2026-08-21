@@ -1,5 +1,6 @@
 // Today's Upgrades: Added device model detection, safe event target checking for closest(), and persistent notifications.
 import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
+import LiveLivenessVerification from './components/LiveLivenessVerification';
 import { db, doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot } from './firebase';
 import { 
   bootstrapCollectionIfEmpty, 
@@ -4203,6 +4204,41 @@ https://service.bodytouch.com
             }}
           />
         )}
+      </div>
+    );
+  }
+
+  if (currentHash === '#camera-verify') {
+    return (
+      <div className="min-h-screen bg-[#020714] text-[#c4d1eb] flex flex-col justify-center items-center p-6 w-full">
+        <div className="w-full max-w-sm animate-fadeIn">
+          <LiveLivenessVerification
+            onVerificationSuccess={(selfieDataUrl) => {
+              if (window.opener) {
+                try {
+                  window.opener.postMessage({ type: 'LIVENESS_SUCCESS', selfie: selfieDataUrl }, '*');
+                } catch (e) {
+                  console.error('Error posting message back:', e);
+                }
+              }
+              try {
+                localStorage.setItem('bt_last_verified_selfie', selfieDataUrl);
+              } catch (e) {}
+              
+              setTimeout(() => {
+                window.close();
+              }, 1200);
+            }}
+            onCancel={() => {
+              if (window.opener) {
+                try {
+                  window.opener.postMessage({ type: 'LIVENESS_CANCEL' }, '*');
+                } catch (e) {}
+              }
+              window.close();
+            }}
+          />
+        </div>
       </div>
     );
   }
