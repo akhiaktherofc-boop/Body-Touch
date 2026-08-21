@@ -401,9 +401,9 @@ export default function App() {
 
         const isUserAdmin = userRole === 'super_admin' || userRole === 'admin' || userRole === 'moderator';
 
-        // Block tracking only if currently viewing the admin page or route OR if logged in as an Admin
-        if (isAdminOpen || isAdminRoute || isUserAdmin) {
-          console.log('[Visitor Tracking] Blocked tracking for active Admin session/view/route to ensure privacy.');
+        // Block tracking only if currently viewing the admin page or route to allow admin testing of normal user pages
+        if (isAdminRoute) {
+          console.log('[Visitor Tracking] Blocked tracking for active Admin route to ensure privacy.');
           return;
         }
 
