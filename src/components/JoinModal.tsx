@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, User, Briefcase, Camera, Send, Check, Trash2, ShieldCheck, UploadCloud, Copy, Info, Phone, Mail, MessageSquare, Calendar, Ruler, Scale, MapPin, Languages, Activity, Droplet } from 'lucide-react';
 import { Companion, ParentArea, PaymentGateway } from '../types';
 import { compressImage } from '../services/imageService';
+import LiveLivenessVerification from './LiveLivenessVerification';
 
 // Custom high-fidelity brand SVGs for MFS gateways
 const BkashLogo = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -65,11 +66,8 @@ export default function JoinModal({
   
   // Custom states for files
   const [pictures, setPictures] = useState<string[]>([]);
-  const [nidFront, setNidFront] = useState<string | null>(null);
-  const [nidBack, setNidBack] = useState<string | null>(null);
   const [selfie, setSelfie] = useState<string | null>(null);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  const [idType, setIdType] = useState<'nid' | 'birth'>('nid');
 
   const SERVICES_REAL = [
     { id: 'real_1hour', english: 'Real 1 HOUR', bangla: 'Real 1 HOUR' },
@@ -249,11 +247,7 @@ export default function JoinModal({
     setEnteredOtp('');
     setShowOtpScreen(false);
     setIsSendingOtp(false);
-    setIsCameraActive(false);
     setSelfie(null);
-    setNidFront(null);
-    setNidBack(null);
-    setIdType('nid');
     setPictures([]);
     if (isOpen) {
       incompleteIdRef.current = `comp-inc-${Date.now()}`;
@@ -342,69 +336,6 @@ export default function JoinModal({
     onAddCompanion
   ]);
 
-  // Live camera selfie capture states
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const videoRef = React.useRef<HTMLVideoElement | null>(null);
-  const streamRef = React.useRef<MediaStream | null>(null);
-
-  const startCamera = async () => {
-    try {
-      setValidationError(null);
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: 640, height: 480 },
-        audio: false
-      });
-      streamRef.current = stream;
-      setIsCameraActive(true);
-      // Wait for element to mount
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      }, 100);
-    } catch (err) {
-      console.error('Error accessing camera:', err);
-      setValidationError('Could not access your camera. Please allow camera permission in your browser to take a selfie.');
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setIsCameraActive(false);
-  };
-
-  const captureSelfie = () => {
-    if (videoRef.current) {
-      const video = videoRef.current;
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        // Draw video frame
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
-        setSelfie(dataUrl);
-        stopCamera();
-      }
-    }
-  };
-
-  // Stop camera when modal closes or unmounts
-  React.useEffect(() => {
-    if (!isOpen) {
-      stopCamera();
-    }
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [isOpen]);
-
   // Automatically scroll modal container back to top on any step/tab/error change
   React.useEffect(() => {
     if (isOpen) {
@@ -435,29 +366,6 @@ export default function JoinModal({
 
   const removePicture = (index: number) => {
     setPictures(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleNidChange = (e: React.ChangeEvent<HTMLInputElement>, side: 'front' | 'back') => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      compressImage(file, 800, 800, 0.75).then((compressedUrl) => {
-        if (compressedUrl) {
-          if (side === 'front') {
-            setNidFront(compressedUrl);
-          } else {
-            setNidBack(compressedUrl);
-          }
-        }
-      });
-    }
-  };
-
-  const removeNid = (side: 'front' | 'back') => {
-    if (side === 'front') {
-      setNidFront(null);
-    } else {
-      setNidBack(null);
-    }
   };
 
   const handleToggleService = (englishName: string) => {
@@ -568,12 +476,8 @@ export default function JoinModal({
         setValidationError('Please upload exactly 4 high-quality portfolio photos.');
         return;
       }
-      if (!nidFront) {
-        setValidationError('Please upload your NID Front or Birth Certificate.');
-        return;
-      }
       if (!selfie) {
-        setValidationError('Verification Selfie is mandatory.');
+        setValidationError('Active Live Camera Liveness Verification is mandatory.');
         return;
       }
     }
@@ -633,8 +537,8 @@ export default function JoinModal({
       spermCount: type === 'donor' ? formData.spermCount.trim() : undefined,
       penisSize: type === 'male' ? (formData.penisSize.trim() || undefined) : undefined,
       durationTime: type === 'male' ? (formData.durationTime.trim() || undefined) : undefined,
-      nidFront: nidFront || undefined,
-      nidBack: nidBack || undefined,
+      nidFront: undefined,
+      nidBack: undefined,
       selfie: selfie || undefined,
       telegram: formData.telegram.trim() || undefined,
       recruiter: sessionStorage.getItem('bt_pending_model_ref') || localStorage.getItem('bt_pending_model_ref') || undefined,
@@ -677,8 +581,6 @@ export default function JoinModal({
       durationTime: '',
     });
     setPictures([]);
-    setNidFront(null);
-    setNidBack(null);
     setSelfie(null);
     setSelectedServices([]);
     setValidationError(null);
@@ -1737,217 +1639,51 @@ export default function JoinModal({
                 </div>
               )}
 
-              {/* NID / BIRTH CERTIFICATE UPLOAD SECTION */}
+              {/* LIVENESS CAMERA VERIFICATION SECTION (Replacing NID & Birth Certificate) */}
               {(type === 'female' || type === 'male') && (
-                <div className="border-t border-[#ac843c]/25 pt-4 space-y-3">
+                <div className="border-t border-[#ac843c]/25 pt-4 space-y-4">
                   <div>
                     <p className="text-xs font-mono uppercase text-[#dbaa61] font-black tracking-wider flex justify-between">
-                      <span>ID Document / Birth Certificate Verification</span>
-                      <span className="text-[10px] text-emerald-400 font-extrabold font-sans">NID / BIRTH CERTIFICATE VERIFICATION</span>
+                      <span>Real-Time Face Scan & Liveness Check</span>
+                      <span className="text-[10px] text-emerald-400 font-extrabold font-sans">100% SECURE VERIFICATION</span>
                     </p>
-                    <p className="text-[10.5px] text-slate-200 font-bold mt-1.5 leading-relaxed font-sans">
-                      Select your ID type and upload a clear photo to verify your age and identity.
+                    <p className="text-[10.5px] text-slate-300 font-medium mt-1 leading-relaxed font-sans">
+                      To complete registration, our active liveness verification system will scan your facial landmarks. This replaces birth certificates/NIDs to protect model identity.
                     </p>
                   </div>
 
-                  {/* ID Type Selector */}
-                  <div className="flex gap-2 p-1 bg-slate-950/60 rounded-xl border border-blue-900/25">
-                    <button
-                      type="button"
-                      onClick={() => { setIdType('nid'); setValidationError(null); }}
-                      className={`flex-1 py-2 text-[10px] min-[380px]:text-[11px] font-black uppercase rounded-lg transition-all ${
-                        idType === 'nid'
-                          ? 'bg-gradient-to-r from-amber-600/30 to-[#dbaa61]/35 border border-[#dbaa61]/70 text-white shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
-                      }`}
-                    >
-                      National ID (NID)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setIdType('birth'); setValidationError(null); }}
-                      className={`flex-1 py-2 text-[10px] min-[380px]:text-[11px] font-black uppercase rounded-lg transition-all ${
-                        idType === 'birth'
-                          ? 'bg-gradient-to-r from-amber-600/30 to-[#dbaa61]/35 border border-[#dbaa61]/70 text-white shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
-                      }`}
-                    >
-                      Birth Certificate
-                    </button>
-                  </div>
-
-                  {idType === 'nid' ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* Front Side */}
-                      <div>
-                        <p className="text-[11px] text-slate-200 font-extrabold mb-1.5 uppercase font-mono tracking-wider">
-                          NID Front Side *
-                        </p>
-                        {nidFront ? (
-                          <div className="relative h-24 rounded-xl overflow-hidden border-2 border-[#dbaa61]/55 bg-slate-950">
-                            <img src={nidFront} className="w-full h-full object-cover" alt="NID Front" referrerPolicy="no-referrer" />
-                            <button
-                              type="button"
-                              onClick={() => removeNid('front')}
-                              className="absolute top-1.5 right-1.5 bg-red-650 hover:bg-red-500 rounded-full p-1.5 cursor-pointer text-white"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <label className="h-24 flex flex-col items-center justify-center border-2 border-dashed border-[#dbaa61]/45 hover:border-[#dbaa61] hover:bg-slate-900/60 cursor-pointer rounded-xl transition-all text-center bg-[#0e101a] px-2">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => handleNidChange(e, 'front')}
-                              className="hidden"
-                            />
-                            <UploadCloud className="w-6 h-6 text-[#dbaa61] mb-1 opacity-95" />
-                            <span className="text-[10px] min-[380px]:text-[11px] text-[#dbaa61] font-bold font-mono">Upload NID Front</span>
-                            <span className="text-[8.5px] text-slate-400 font-sans">Front Side of your National ID</span>
-                          </label>
-                        )}
+                  {selfie ? (
+                    <div className="relative h-44 rounded-xl overflow-hidden border-2 border-emerald-500/50 bg-slate-950">
+                      <img src={selfie} className="w-full h-full object-cover" alt="Verification Selfie" referrerPolicy="no-referrer" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+                      <div className="absolute top-2.5 left-2.5 bg-emerald-600 text-white text-[9px] font-black uppercase px-2.5 py-1 rounded-md font-mono tracking-widest flex items-center gap-1 shadow-lg">
+                        <Check className="w-3.5 h-3.5" /> LIVENESS SCAN APPROVED
                       </div>
-
-                      {/* Back Side */}
-                      <div>
-                        <p className="text-[11px] text-slate-200 font-extrabold mb-1.5 uppercase font-mono tracking-wider">
-                          NID Back Side (Optional)
-                        </p>
-                        {nidBack ? (
-                          <div className="relative h-24 rounded-xl overflow-hidden border-2 border-[#dbaa61]/55 bg-slate-950">
-                            <img src={nidBack} className="w-full h-full object-cover" alt="NID Back" referrerPolicy="no-referrer" />
-                            <button
-                              type="button"
-                              onClick={() => removeNid('back')}
-                              className="absolute top-1.5 right-1.5 bg-red-650 hover:bg-red-500 rounded-full p-1.5 cursor-pointer text-white"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <label className="h-24 flex flex-col items-center justify-center border-2 border-dashed border-[#dbaa61]/45 hover:border-[#dbaa61] hover:bg-slate-900/60 cursor-pointer rounded-xl transition-all text-center bg-[#0e101a] px-2">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => handleNidChange(e, 'back')}
-                              className="hidden"
-                            />
-                            <UploadCloud className="w-6 h-6 text-[#dbaa61] mb-1 opacity-95" />
-                            <span className="text-[10px] min-[380px]:text-[11px] text-[#dbaa61] font-bold font-mono">Upload NID Back</span>
-                            <span className="text-[8.5px] text-slate-400 font-sans">Back Side of your National ID (Optional)</span>
-                          </label>
-                        )}
+                      <div className="absolute bottom-3 left-3 text-left">
+                        <p className="text-[11px] text-white font-bold font-mono">BIOMETRICS SECURELY ARCHIVED</p>
+                        <p className="text-[8.5px] text-slate-400 font-sans">Verified on {new Date().toLocaleDateString()}</p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelfie(null)}
+                        className="absolute top-2.5 right-2.5 bg-red-650 hover:bg-red-500 rounded-full p-2 cursor-pointer text-white shadow-lg active:scale-90 transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   ) : (
-                    <div className="w-full">
-                      <p className="text-[11px] text-slate-200 font-extrabold mb-1.5 uppercase font-mono tracking-wider">
-                        Birth Certificate *
-                      </p>
-                      {nidFront ? (
-                        <div className="relative h-32 rounded-xl overflow-hidden border-2 border-[#dbaa61]/55 bg-slate-950 w-full">
-                          <img src={nidFront} className="w-full h-full object-cover" alt="Birth Certificate" referrerPolicy="no-referrer" />
-                          <button
-                            type="button"
-                            onClick={() => removeNid('front')}
-                            className="absolute top-1.5 right-1.5 bg-red-650 hover:bg-red-500 rounded-full p-1.5 cursor-pointer text-white"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-[#dbaa61]/45 hover:border-[#dbaa61] hover:bg-slate-900/60 cursor-pointer rounded-xl transition-all text-center bg-[#0e101a] px-4 w-full">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleNidChange(e, 'front')}
-                            className="hidden"
-                          />
-                          <UploadCloud className="w-8 h-8 text-[#dbaa61] mb-1.5 opacity-95" />
-                          <span className="text-[11px] text-[#dbaa61] font-black font-mono">Upload Birth Certificate Photo</span>
-                          <span className="text-[9.5px] text-slate-400 font-sans mt-0.5">Please upload a clear digital copy of your Birth Certificate (Single file)</span>
-                        </label>
-                      )}
+                    <div className="py-2">
+                      <LiveLivenessVerification 
+                        onVerificationSuccess={(selfieUrl) => {
+                          setSelfie(selfieUrl);
+                          setValidationError(null);
+                        }}
+                        onCancel={() => {
+                          setSelfie(null);
+                        }}
+                      />
                     </div>
                   )}
-
-                  {/* Selfie Verification Block - Mandatory Live Capture Only */}
-                  <div className="pt-1.5">
-                    <p className="text-[11px] text-slate-200 font-extrabold mb-1.5 uppercase font-mono tracking-wider flex justify-between">
-                      <span>Live Selfie Verification *</span>
-                      <span className="text-red-400 font-black text-[9px]">CAMERA CAPTURE ONLY</span>
-                    </p>
-
-                    {isCameraActive ? (
-                      <div className="bg-slate-950/80 border-2 border-[#dbaa61]/55 p-3 rounded-2xl flex flex-col items-center space-y-3.5">
-                        <div className="relative w-full max-w-[280px] aspect-[4/3] rounded-xl overflow-hidden bg-black border border-slate-800">
-                          <video
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute top-2 left-2 px-2 py-0.5 bg-red-600 animate-pulse rounded-full text-[8.5px] font-black uppercase text-white font-mono">
-                            LIVE CAMERA
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2.5 w-full justify-center">
-                          <button
-                            type="button"
-                            onClick={captureSelfie}
-                            className="px-5 py-2.5 bg-gradient-to-tr from-amber-600 to-[#dbaa61] hover:brightness-110 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer shadow-lg shadow-amber-950/20 font-sans flex items-center gap-1.5"
-                          >
-                            <Camera className="w-4 h-4" />
-                            Capture Photo
-                          </button>
-                          <button
-                            type="button"
-                            onClick={stopCamera}
-                            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer font-sans"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : selfie ? (
-                      <div className="relative h-36 rounded-xl overflow-hidden border-2 border-[#dbaa61]/55 bg-slate-950">
-                        <img src={selfie} className="w-full h-full object-cover" alt="Verification Selfie" referrerPolicy="no-referrer" />
-                        <div className="absolute top-2 left-2 bg-emerald-600 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full font-mono tracking-widest flex items-center gap-1">
-                          <Check className="w-3 h-3" /> VERIFIED CAMERA CAPTURE
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setSelfie(null)}
-                          className="absolute top-2 right-2 bg-red-600 hover:bg-red-500 rounded-full p-2 cursor-pointer text-white shadow-lg active:scale-90 transition-all"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="border-2 border-dashed border-[#dbaa61]/45 bg-[#0e101a] rounded-2xl p-6 text-center flex flex-col items-center justify-center space-y-3">
-                        <div className="w-11 h-11 rounded-full bg-amber-500/10 border border-[#dbaa61]/25 flex items-center justify-center text-[#dbaa61]">
-                          <Camera className="w-5 h-5 animate-pulse" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-white font-black font-sans">
-                            Live Camera Capture Mandatory
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-medium font-sans max-w-sm leading-relaxed">
-                            Upload is disabled for security. Click below to start your front or back camera and snap a live selfie directly.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={startCamera}
-                          className="px-5 py-2.5 bg-[#dbaa61]/10 hover:bg-[#dbaa61]/20 border border-[#dbaa61]/55 text-[#dbaa61] rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer shadow-md font-sans"
-                        >
-                          Start Camera
-                        </button>
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
 
