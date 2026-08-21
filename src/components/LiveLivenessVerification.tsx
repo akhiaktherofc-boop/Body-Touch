@@ -23,6 +23,18 @@ export default function LiveLivenessVerification({ onVerificationSuccess, onCanc
   const animationRef = useRef<number | null>(null);
   const prevFrameDataRef = useRef<Uint8ClampedArray | null>(null);
 
+  // Bulletproof Callback Ref to bind camera stream to DOM node immediately on render
+  const setVideoRef = (node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (node && stream) {
+      node.srcObject = stream;
+      // Force instant playback
+      node.play().catch(err => {
+        console.warn("Callback Ref video playback play() call was deferred:", err);
+      });
+    }
+  };
+
   const isIframe = window.self !== window.top;
 
   // Sync / Listen for verification data if running inside popup window bypass
@@ -82,7 +94,7 @@ export default function LiveLivenessVerification({ onVerificationSuccess, onCanc
     startWebcam();
   };
 
-  // Request Webcam Access with robust constraints
+  // Request Webcam Access with robust constraints and fallback layers
   const startWebcam = async () => {
     try {
       setVerificationState('loading');
@@ -93,24 +105,46 @@ export default function LiveLivenessVerification({ onVerificationSuccess, onCanc
         stream.getTracks().forEach(track => track.stop());
       }
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'user', 
-          width: { ideal: 640 }, 
-          height: { ideal: 480 } 
-        },
-        audio: false
-      });
+      let mediaStream: MediaStream;
+      try {
+        // Attempt high-quality front-facing ideal resolution stream
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: 'user', 
+            width: { ideal: 640 }, 
+            height: { ideal: 480 } 
+          },
+          audio: false
+        });
+      } catch (firstErr) {
+        console.warn('Advanced constraints failed, falling back to basic camera options...', firstErr);
+        // Fallback option 1: Simple front camera
+        try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user' },
+            audio: false
+          });
+        } catch (secondErr) {
+          console.warn('FacingMode constraint failed, falling back to generic video stream...', secondErr);
+          // Fallback option 2: Absolute generic fallback (guarantees connection on any camera device)
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false
+          });
+        }
+      }
       
       setStream(mediaStream);
       setVerificationState('active');
     } catch (err: any) {
-      console.error('Camera access failed:', err);
+      console.error('Camera hardware access failed completely:', err);
       setVerificationState('failed');
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setErrorMessage('ক্যামেরা ব্যবহারের অনুমতি দেওয়া হয়নি। অনুগ্রহ করে ব্রাউজারের অ্যাড্রেস বারের ক্যামেরা আইকনে ক্লিক করে অনুমতি (Allow) দিন।');
+        setErrorMessage('ক্যামেরা ব্যবহারের অনুমতি দেওয়া হয়নি। অনুগ্রহ করে ব্রাউজারের অ্যাড্রেস বারের পাশে থাকা লক (Lock) বা ক্যামেরা আইকনে ক্লিক করে অনুমতি (Allow) দিন।');
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setErrorMessage('আপনার ডিভাইসে কোনো ক্যামেরা খুঁজে পাওয়া যায়নি। অনুগ্রহ করে অন্য কোনো সচল ক্যামেরা ডিভাইস ব্যবহার করুন।');
       } else {
-        setErrorMessage('ক্যামেরা চালু করা সম্ভব হয়নি। ডিভাইস অন্য কোনো অ্যাপে ক্যামেরা ব্যবহার করছে কিনা চেক করুন অথবা Secure Bypass বাটনটি ব্যবহার করুন।');
+        setErrorMessage(`ক্যামেরা চালু করা সম্ভব হয়নি (${err.message || 'Unknown Error'})। অনুগ্রহ করে ডিভাইস অন্য কোনো অ্যাপে ক্যামেরা ব্যবহার করছে কিনা চেক করুন বা পেজটি রিফ্রেশ দিন।`);
       }
     }
   };
@@ -348,11 +382,16 @@ export default function LiveLivenessVerification({ onVerificationSuccess, onCanc
           
           {/* REAL LIVE CAMERA STREAM */}
           <video
-            ref={videoRef}
+            ref={setVideoRef}
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-cover scale-x-[-1] bg-slate-950" 
+            onLoadedMetadata={(e) => {
+              e.currentTarget.play().catch(err => {
+                console.error("Video element play request failed:", err);
+              });
+            }}
+            className="w-full h-full object-cover scale-x-[-1] bg-slate-950 block" 
           />
           <canvas ref={canvasRef} className="hidden" />
 
