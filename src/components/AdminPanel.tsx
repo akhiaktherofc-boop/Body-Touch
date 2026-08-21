@@ -1325,7 +1325,22 @@ export default function AdminPanel({
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
 
   // New Client real-time notifications
-  const [liveNotifications, setLiveNotifications] = useState<any[]>([]);
+  const [liveNotifications, setLiveNotifications] = useState<any[]>(() => {
+    const saved = localStorage.getItem('bt_admin_live_notifications');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bt_admin_live_notifications', JSON.stringify(liveNotifications));
+  }, [liveNotifications]);
+
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
   const isFirstLoadUsers = useRef(true);
   const previousUserIds = useRef<Set<string>>(new Set());
@@ -1619,6 +1634,14 @@ export default function AdminPanel({
         // Find newly added users by checking which IDs were not in our previous Set
         usersList.forEach((userData) => {
           if (!previousUserIds.current.has(userData.id)) {
+            // Only trigger real-time notification if the account is registered in the last 15 minutes
+            const createdAtTime = userData.createdAt ? new Date(userData.createdAt).getTime() : 0;
+            const isGenuinelyRecent = userData.createdAt ? (Date.now() - createdAtTime < 15 * 60 * 1000) : false;
+            
+            if (!isGenuinelyRecent) {
+              return;
+            }
+
             const displayName = userData.fullName || userData.username || userData.id || 'New Client';
             const userEmail = userData.email || 'No email';
             
@@ -1628,9 +1651,10 @@ export default function AdminPanel({
               title: 'New Client Registered',
               message: `Client "${displayName}" (${userEmail}) just registered on the portal.`,
               time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              avatar: userData.photoURL || userData.userPhoto || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
+              avatar: userData.photoURL || userData.userPhoto || '',
               read: false,
-              username: userData.id
+              username: userData.id,
+              displayName: displayName
             };
 
             setLiveNotifications((prev) => [newNotification, ...prev]);
@@ -3509,6 +3533,7 @@ export default function AdminPanel({
 
   // Render floating toasts for real-time new client registrations
   const renderFloatingToasts = () => {
+    // Only show unread notifications that haven't been dismissed (though they get removed entirely on dismiss)
     const activeToasts = liveNotifications.filter(n => !n.read).slice(0, 3);
     
     return (
@@ -3525,12 +3550,33 @@ export default function AdminPanel({
             >
               <div className="absolute top-0 left-0 bottom-0 w-1 bg-amber-500" />
               
-              <img
-                src={toast.avatar}
-                alt=""
-                className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-850"
-                referrerPolicy="no-referrer"
-              />
+              {toast.avatar && toast.avatar !== 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150' ? (
+                <img
+                  src={toast.avatar}
+                  alt=""
+                  className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-850"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                (() => {
+                  const firstLetter = toast.displayName ? toast.displayName.trim().charAt(0).toUpperCase() : 'U';
+                  const bgGradients = [
+                    'from-blue-600 to-indigo-700',
+                    'from-emerald-600 to-teal-700',
+                    'from-rose-600 to-pink-700',
+                    'from-amber-500 to-orange-600',
+                    'from-violet-600 to-fuchsia-700',
+                  ];
+                  const idx = firstLetter.charCodeAt(0) % bgGradients.length;
+                  const bgClass = bgGradients[idx];
+                  return (
+                    <div className={`w-10 h-10 rounded-full bg-gradient-to-tr ${bgClass} flex items-center justify-center text-white font-black text-sm border border-white/10 shrink-0 shadow-lg`}>
+                      {firstLetter}
+                    </div>
+                  );
+                })()
+              )}
+
               <div className="flex-1 text-left min-w-0 pr-3">
                 <div className="flex items-center gap-1.5 mb-1 text-amber-400 font-extrabold text-[10px] tracking-wider uppercase">
                   <UserPlus className="w-3.5 h-3.5" />
@@ -3541,7 +3587,7 @@ export default function AdminPanel({
                 <div className="mt-2.5 flex items-center gap-2">
                   <button
                     onClick={() => {
-                      setLiveNotifications(prev => prev.map(n => n.id === toast.id ? { ...n, read: true } : n));
+                      setLiveNotifications(prev => prev.filter(n => n.id !== toast.id));
                       setActiveTab('clients');
                     }}
                     className="bg-gradient-to-r from-[#a67c33] to-[#dbaa61] hover:brightness-110 text-slate-950 font-black text-[9px] tracking-wider uppercase px-3 py-1.5 rounded-lg transition-all duration-150 cursor-pointer"
@@ -3550,7 +3596,7 @@ export default function AdminPanel({
                   </button>
                   <button
                     onClick={() => {
-                      setLiveNotifications(prev => prev.map(n => n.id === toast.id ? { ...n, read: true } : n));
+                      setLiveNotifications(prev => prev.filter(n => n.id !== toast.id));
                     }}
                     className="text-slate-400 hover:text-white font-bold text-[9px] px-2 py-1.5 transition cursor-pointer"
                   >
@@ -3560,7 +3606,7 @@ export default function AdminPanel({
               </div>
               <button
                 onClick={() => {
-                  setLiveNotifications(prev => prev.map(n => n.id === toast.id ? { ...n, read: true } : n));
+                  setLiveNotifications(prev => prev.filter(n => n.id !== toast.id));
                 }}
                 className="text-slate-500 hover:text-slate-300 transition shrink-0 p-1 rounded-lg hover:bg-slate-900 absolute top-2 right-2 cursor-pointer"
               >
@@ -3717,20 +3763,40 @@ export default function AdminPanel({
                         <div
                           key={noti.id}
                           onClick={() => {
-                            // Mark as read
-                            setLiveNotifications(prev => prev.map(n => n.id === noti.id ? { ...n, read: true } : n));
+                            // Completely remove it upon clicking (checking) so it is never shown again
+                            setLiveNotifications(prev => prev.filter(n => n.id !== noti.id));
                             // Go to clients tab
                             setActiveTab('clients');
                             setShowNotificationsDropdown(false);
                           }}
-                          className={`p-3.5 flex gap-3 cursor-pointer hover:bg-slate-900/50 transition-all text-left ${!noti.read ? 'bg-[#dbaa61]/5 border-l-2 border-[#dbaa61]' : ''}`}
+                          className="p-3.5 flex gap-3 cursor-pointer hover:bg-slate-900/50 transition-all text-left bg-[#dbaa61]/5 border-l-2 border-[#dbaa61]"
                         >
-                          <img
-                            src={noti.avatar}
-                            alt=""
-                            className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-800"
-                            referrerPolicy="no-referrer"
-                          />
+                          {noti.avatar && noti.avatar !== 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150' ? (
+                            <img
+                              src={noti.avatar}
+                              alt=""
+                              className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-800"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            (() => {
+                              const firstLetter = noti.displayName ? noti.displayName.trim().charAt(0).toUpperCase() : 'U';
+                              const bgGradients = [
+                                'from-blue-600 to-indigo-700',
+                                'from-emerald-600 to-teal-700',
+                                'from-rose-600 to-pink-700',
+                                'from-amber-500 to-orange-600',
+                                'from-violet-600 to-fuchsia-700',
+                              ];
+                              const idx = firstLetter.charCodeAt(0) % bgGradients.length;
+                              const bgClass = bgGradients[idx];
+                              return (
+                                <div className={`w-9 h-9 rounded-full bg-gradient-to-tr ${bgClass} flex items-center justify-center text-white font-black text-xs border border-white/10 shrink-0 shadow-lg`}>
+                                  {firstLetter}
+                                </div>
+                              );
+                            })()
+                          )}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2 mb-0.5">
                               <span className="font-bold text-xs text-white truncate">{noti.title}</span>
@@ -12583,7 +12649,14 @@ Body Touch Premium Network`;
                               {/* Browser & OS */}
                               <td className="p-4 space-y-1">
                                 <span className="block text-xs font-bold text-slate-300">{log.browser || 'Other'}</span>
-                                <span className="block text-[9px] text-slate-500 font-black uppercase tracking-wider font-mono">{log.os || 'Unknown OS'}</span>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="block text-[9px] text-slate-500 font-black uppercase tracking-wider font-mono">{log.os || 'Unknown OS'}</span>
+                                  {log.device && log.device !== 'Desktop / Laptop' && log.device !== 'Android Device' && log.device !== 'iOS Device' && (
+                                    <span className="bg-[#dbaa61]/10 text-[#dbaa61] text-[8px] font-black uppercase tracking-widest px-1 py-0.5 rounded border border-[#dbaa61]/20 font-mono">
+                                      {log.device}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
 
                               {/* Path */}

@@ -167,9 +167,10 @@ if (!$isLocal) {
     }
 }
 
-// Parse Simple User Agent (Browser & OS)
+// Parse Simple User Agent (Browser & OS & Device)
 $browser = "Unknown Browser";
 $os = "Unknown OS";
+$device = "Desktop / Laptop";
 
 if (!empty($userAgent)) {
     // Detect OS
@@ -179,8 +180,51 @@ if (!empty($userAgent)) {
         $os = 'macOS';
     } elseif (preg_match('/android/i', $userAgent)) {
         $os = 'Android';
+        $device = 'Android Device';
+        
+        // Attempt to extract Android device model from parentheses, e.g. "Linux; Android 10; SM-A505F"
+        if (preg_match('/\(([^)]+)\)/', $userAgent, $matches)) {
+            $parts = explode(';', $matches[1]);
+            foreach ($parts as $part) {
+                $part = trim($part);
+                if (preg_match('/android/i', $part) || preg_match('/linux/i', $part) || preg_match('/wv/i', $part) || preg_match('/khtml/i', $part)) {
+                    continue;
+                }
+                
+                if (preg_match('/([^/]+)\s+build/i', $part, $subMatches)) {
+                    $m = trim($subMatches[1]);
+                    if (!empty($m)) {
+                        $device = $m;
+                        break;
+                    }
+                }
+                
+                if (preg_match('/(sm-|cph-|v21|moto|redmi|xiaomi|oneplus|pixel|vivo|oppo|huawei|realme|infinix|tecno|galaxy|lenovo|nexus|asus|lg-)/i', $part)) {
+                    $device = $part;
+                    break;
+                }
+            }
+            
+            // Fallback generic android brand search
+            if ($device === "Android Device" && count($parts) >= 3) {
+                $candidate = trim(end($parts));
+                if (preg_match('/build/i', $candidate) && count($parts) >= 2) {
+                    $candidate = trim($parts[count($parts) - 2]);
+                }
+                if (!empty($candidate) && strlen($candidate) < 30 && !preg_match('/wv/i', $candidate)) {
+                    $device = $candidate;
+                }
+            }
+        }
     } elseif (preg_match('/iphone|ipad|ipod/i', $userAgent)) {
         $os = 'iOS';
+        if (preg_match('/iphone/i', $userAgent)) {
+            $device = 'iPhone';
+        } elseif (preg_match('/ipad/i', $userAgent)) {
+            $device = 'iPad';
+        } else {
+            $device = 'iOS Device';
+        }
     } elseif (preg_match('/linux/i', $userAgent)) {
         $os = 'Linux';
     }
@@ -217,6 +261,7 @@ $newEntry = [
     "org" => $org,
     "browser" => $browser,
     "os" => $os,
+    "device" => $device,
     "userAgent" => $userAgent,
     "referer" => $referer,
     "path" => $path,

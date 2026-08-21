@@ -586,6 +586,7 @@ async function startServer() {
     org: string;
     browser: string;
     os: string;
+    device?: string;
     userAgent: string;
     referer: string;
     path: string;
@@ -721,16 +722,61 @@ async function startServer() {
   }
 
   function parseUserAgent(ua: string) {
-    if (!ua) return { browser: "Unknown Browser", os: "Unknown OS" };
+    if (!ua) return { browser: "Unknown Browser", os: "Unknown OS", device: "Desktop / Laptop" };
     
     let browser = "Other Browser";
     let os = "Other OS";
+    let device = "Desktop / Laptop";
 
     // Parse OS
     if (/windows/i.test(ua)) os = "Windows";
     else if (/macintosh|mac os x/i.test(ua) && !/iphone|ipad|ipod/i.test(ua)) os = "macOS";
-    else if (/iphone|ipad|ipod/i.test(ua)) os = "iOS";
-    else if (/android/i.test(ua)) os = "Android";
+    else if (/iphone|ipad|ipod/i.test(ua)) {
+      os = "iOS";
+      if (/iphone/i.test(ua)) device = "iPhone";
+      else if (/ipad/i.test(ua)) device = "iPad";
+      else device = "iOS Device";
+    }
+    else if (/android/i.test(ua)) {
+      os = "Android";
+      device = "Android Device";
+      
+      // Extract device model from parentheses, e.g. "Linux; Android 10; SM-A505F"
+      const match = ua.match(/\(([^)]+)\)/);
+      if (match && match[1]) {
+        const parts = match[1].split(';').map(p => p.trim());
+        for (const part of parts) {
+          if (/android/i.test(part) || /linux/i.test(part) || /wv/i.test(part) || /khtml/i.test(part)) {
+            continue;
+          }
+          
+          const buildMatch = part.match(/([^/]+)\s+build/i);
+          if (buildMatch && buildMatch[1]) {
+            const m = buildMatch[1].trim();
+            if (m) {
+              device = m;
+              break;
+            }
+          }
+          
+          if (/(sm-|cph-|v21|moto|redmi|xiaomi|oneplus|pixel|vivo|oppo|huawei|realme|infinix|tecno|galaxy|lenovo|nexus|asus|lg-)/i.test(part)) {
+            device = part;
+            break;
+          }
+        }
+        
+        // Fallback generic android brand search
+        if (device === "Android Device" && parts.length >= 3) {
+          let candidate = parts[parts.length - 1];
+          if (/build/i.test(candidate) && parts.length >= 2) {
+            candidate = parts[parts.length - 2];
+          }
+          if (candidate && candidate.length < 30 && !/wv/i.test(candidate)) {
+            device = candidate;
+          }
+        }
+      }
+    }
     else if (/linux/i.test(ua)) os = "Linux";
 
     // Parse Browser
@@ -742,7 +788,7 @@ async function startServer() {
     }
     else if (/safari/i.test(ua)) browser = "Safari";
     
-    return { browser, os };
+    return { browser, os, device };
   }
 
   // API Route to track visitor metrics
@@ -781,6 +827,7 @@ async function startServer() {
         org: geo.org,
         browser: parsedUA.browser,
         os: parsedUA.os,
+        device: parsedUA.device,
         userAgent: userAgent || req.headers['user-agent'] || '',
         referer: referer || "Direct / Bookmark",
         path: visitPath || "/",
