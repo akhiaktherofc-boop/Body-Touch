@@ -1109,7 +1109,7 @@ export default function JoinModal({
                     {/* PRIMARY ROW: Name & Age */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                    <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1">
                       Companion Name *
                     </label>
                     <div className="relative">
@@ -1123,12 +1123,12 @@ export default function JoinModal({
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         style={{ paddingLeft: '2.5rem' }}
-                        className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all"
+                        className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all"
                       />
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                    <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1">
                       Age *
                     </label>
                     <div className="relative">
@@ -1144,7 +1144,7 @@ export default function JoinModal({
                         value={formData.age}
                         onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                         style={{ paddingLeft: '2.5rem' }}
-                        className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
+                        className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
                       />
                     </div>
                   </div>
@@ -1156,7 +1156,7 @@ export default function JoinModal({
                   {/* Height & Complexion & Weight */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                      <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1">
                         Height *
                       </label>
                       <div className="relative">
@@ -1170,12 +1170,12 @@ export default function JoinModal({
                           value={formData.height}
                           onChange={(e) => setFormData({ ...formData, height: e.target.value })}
                           style={{ paddingLeft: '2.5rem' }}
-                          className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all"
+                          className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all"
                         />
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                      <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1">
                         Complexion *
                       </label>
                       <div className="relative">
@@ -1186,9 +1186,9 @@ export default function JoinModal({
                           value={formData.complexion}
                           onChange={(e) => setFormData({ ...formData, complexion: e.target.value })}
                           style={{ paddingLeft: '2.5rem' }}
-                          className="w-full bg-[#030818] border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all cursor-pointer"
+                          className="w-full bg-[#030818] border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all cursor-pointer"
                         >
-                          <option value="" className="bg-[#030818] text-slate-400 font-sans font-bold">Select Complexion</option>
+                          <option value="" className="bg-[#030818] text-gray-300 font-sans font-bold">Select Complexion</option>
                           <option value="Fair" className="bg-[#030818] text-white font-sans font-bold">Fair</option>
                           <option value="Light" className="bg-[#030818] text-white font-sans font-bold">Light</option>
                           <option value="Medium" className="bg-[#030818] text-white font-sans font-bold">Medium</option>
@@ -1197,7 +1197,7 @@ export default function JoinModal({
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                      <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1">
                         Weight *
                       </label>
                       <div className="relative">
@@ -1211,7 +1211,7 @@ export default function JoinModal({
                           value={formData.weight}
                           onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                           style={{ paddingLeft: '2.5rem' }}
-                          className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all"
+                          className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -1219,9 +1219,9 @@ export default function JoinModal({
 
                   {/* Body Vitals: Bust, Waist, Hip (Female only!) */}
                   {type === 'female' && (
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-1.5">
-                        <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1 text-center">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="space-y-1.5 flex-1">
+                        <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1 text-center">
                           Bust (inch) *
                         </label>
                         <input
@@ -1232,11 +1232,11 @@ export default function JoinModal({
                           placeholder=""
                           value={formData.bust}
                           onChange={(e) => setFormData({ ...formData, bust: e.target.value })}
-                          className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl px-3 py-3.5 font-bold focus:outline-none transition-all text-center font-mono"
+                          className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 text-xs text-white rounded-xl px-3 py-3.5 font-bold focus:outline-none transition-all text-center font-mono"
                         />
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1 text-center">
+                      <div className="space-y-1.5 flex-1">
+                        <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1 text-center">
                           Waist (inch) *
                         </label>
                         <input
@@ -1247,11 +1247,11 @@ export default function JoinModal({
                           placeholder=""
                           value={formData.waist}
                           onChange={(e) => setFormData({ ...formData, waist: e.target.value })}
-                          className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl px-3 py-3.5 font-bold focus:outline-none transition-all text-center font-mono"
+                          className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 text-xs text-white rounded-xl px-3 py-3.5 font-bold focus:outline-none transition-all text-center font-mono"
                         />
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1 text-center">
+                      <div className="space-y-1.5 flex-1">
+                        <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1 text-center">
                           Hip (inch) *
                         </label>
                         <input
@@ -1262,7 +1262,7 @@ export default function JoinModal({
                           placeholder=""
                           value={formData.hip}
                           onChange={(e) => setFormData({ ...formData, hip: e.target.value })}
-                          className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl px-3 py-3.5 font-bold focus:outline-none transition-all text-center font-mono"
+                          className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 text-xs text-white rounded-xl px-3 py-3.5 font-bold focus:outline-none transition-all text-center font-mono"
                         />
                       </div>
                     </div>
@@ -1272,7 +1272,7 @@ export default function JoinModal({
                   {type === 'male' && (
                     <div className="grid grid-cols-2 gap-4 pb-2">
                       <div className="space-y-1.5">
-                        <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                        <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1">
                           Penis Size / লিঙ্গের আকার (ইঞ্চি) *
                         </label>
                         <input
@@ -1281,11 +1281,11 @@ export default function JoinModal({
                           placeholder="e.g. 6.5 inch"
                           value={formData.penisSize}
                           onChange={(e) => setFormData({ ...formData, penisSize: e.target.value })}
-                          className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl px-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
+                          className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl px-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                        <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1">
                           Duration Time / সহবাসের স্থায়িত্বকাল *
                         </label>
                         <input
@@ -1294,7 +1294,7 @@ export default function JoinModal({
                           placeholder="e.g. 35-45 min"
                           value={formData.durationTime}
                           onChange={(e) => setFormData({ ...formData, durationTime: e.target.value })}
-                          className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl px-4 py-3.5 font-bold focus:outline-none transition-all"
+                          className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl px-4 py-3.5 font-bold focus:outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -1303,8 +1303,8 @@ export default function JoinModal({
                   {/* Multi-Select Operational Areas */}
                   <div className="space-y-2 bg-[#02050e]/60 border border-blue-950/40 p-4 rounded-2xl">
                     <div className="flex justify-between items-center">
-                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
-                        Operational Areas / এলাকা সমূহ (একাধিক সিলেক্ট করতে পারেন) *
+                      <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1">
+                        Operational Areas / এলাকা সমূহ *
                       </label>
                       <span className="text-[9px] bg-[#dbaa61]/10 text-[#dbaa61] font-bold px-2 py-0.5 rounded border border-[#dbaa61]/20 font-mono">
                         {getSelectedJoinAreas().length} selected
@@ -1314,7 +1314,7 @@ export default function JoinModal({
                     {/* Display Selected Areas as Tags */}
                     <div className="flex flex-wrap gap-1.5 min-h-[40px] p-2.5 bg-[#030818]/80 rounded-xl border border-blue-950/40">
                       {getSelectedJoinAreas().length === 0 ? (
-                        <span className="text-[10px] text-slate-500 italic py-1 pl-1">
+                        <span className="text-[10px] text-slate-400 italic py-1 pl-1">
                           No areas selected yet. Click pills below to select operational zones.
                         </span>
                       ) : (
@@ -1346,7 +1346,7 @@ export default function JoinModal({
                           type="text"
                           id="custom-join-area-input"
                           placeholder="Type custom area & press Enter / কাস্টম এলাকা"
-                          className="w-full bg-[#030818] border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-8 pr-4 py-3.5 font-bold focus:outline-none transition-all"
+                          className="w-full bg-[#030818] border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl pl-8 pr-4 py-3.5 font-bold focus:outline-none transition-all"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
@@ -1451,7 +1451,7 @@ export default function JoinModal({
 
                   {/* Languages */}
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                    <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1">
                       Languages spoken (comma separated) *
                     </label>
                     <div className="relative">
@@ -1465,7 +1465,7 @@ export default function JoinModal({
                         value={formData.languages}
                         onChange={(e) => setFormData({ ...formData, languages: e.target.value })}
                         style={{ paddingLeft: '2.5rem' }}
-                        className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all"
+                        className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -1476,7 +1476,7 @@ export default function JoinModal({
               {type === 'donor' && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-2">
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                    <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1">
                       Operational Area *
                     </label>
                     <div className="relative">
@@ -1490,12 +1490,12 @@ export default function JoinModal({
                         value={formData.location}
                         onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                         style={{ paddingLeft: '2.5rem' }}
-                        className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all"
+                        className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all"
                       />
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                    <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1">
                       Blood Group *
                     </label>
                     <div className="relative">
@@ -1509,12 +1509,12 @@ export default function JoinModal({
                         value={formData.bloodGroup}
                         onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
                         style={{ paddingLeft: '2.5rem' }}
-                        className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
+                        className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
                       />
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1">
+                    <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1">
                       Sperm Count Report *
                     </label>
                     <div className="relative">
@@ -1528,7 +1528,7 @@ export default function JoinModal({
                         value={formData.spermCount}
                         onChange={(e) => setFormData({ ...formData, spermCount: e.target.value })}
                         style={{ paddingLeft: '2.5rem' }}
-                        className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
+                        className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
                       />
                     </div>
                   </div>
@@ -1543,7 +1543,7 @@ export default function JoinModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Phone Number */}
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1 font-sans">
+                    <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1 font-sans">
                       Primary Phone Number *
                     </label>
                     <div className="relative">
@@ -1558,14 +1558,14 @@ export default function JoinModal({
                         autoComplete="tel"
                         placeholder=""
                         style={{ paddingLeft: '2.5rem' }}
-                        className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
+                        className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
                       />
                     </div>
                   </div>
 
                   {/* Telegram */}
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1 font-sans flex justify-between">
+                    <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1 font-sans flex justify-between">
                       <span>Telegram Username (Optional)</span>
                       <span className="text-emerald-400 text-[9px] font-black">OPTIONAL</span>
                     </label>
@@ -1579,14 +1579,14 @@ export default function JoinModal({
                         onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
                         placeholder="e.g. @username"
                         style={{ paddingLeft: '2.5rem' }}
-                        className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
+                        className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
                       />
                     </div>
                   </div>
 
                   {/* WhatsApp */}
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1 font-sans">
+                    <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1 font-sans">
                       WhatsApp Number *
                     </label>
                     <div className="relative">
@@ -1601,14 +1601,14 @@ export default function JoinModal({
                         autoComplete="tel"
                         placeholder=""
                         style={{ paddingLeft: '2.5rem' }}
-                        className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
+                        className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
                       />
                     </div>
                   </div>
 
                   {/* Email Address */}
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase pl-1 font-sans">
+                    <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1 font-sans">
                       Email Address *
                     </label>
                     <div className="relative">
@@ -1622,7 +1622,7 @@ export default function JoinModal({
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         placeholder=""
                         style={{ paddingLeft: '2.5rem' }}
-                        className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
+                        className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-400 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
                       />
                     </div>
                   </div>
