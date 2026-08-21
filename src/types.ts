@@ -4,7 +4,7 @@ export interface Companion {
   id: string;
   name: string;
   tag: string;
-  badge: 'DEMO' | 'REGULAR' | 'PREMIUM' | 'ELITE';
+  badge: 'DEMO' | 'REGULAR' | 'PREMIUM' | 'ELITE' | 'INCOMPLETE';
   image: string;
   age: number;
   height: string;
@@ -22,7 +22,7 @@ export interface Companion {
   rateLiveTogether?: number;  // Custom base rate for Tour service
   city?: string;
   category?: string;
-  status?: 'Pending' | 'Approved' | 'Declined';
+  status?: 'Pending' | 'Approved' | 'Declined' | 'Incomplete';
   email?: string;
   phone?: string;
   bloodGroup?: string;

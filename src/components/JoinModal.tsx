@@ -55,6 +55,7 @@ export default function JoinModal({
   paymentGateways = []
 }: JoinModalProps) {
   const [type, setType] = useState<'female' | 'male' | 'donor'>(initialType || 'female');
+  const incompleteIdRef = React.useRef<string>(`comp-inc-${Date.now()}`);
 
   const currentFee = type === 'female'
     ? registrationFee
@@ -254,7 +255,50 @@ export default function JoinModal({
     setNidBack(null);
     setIdType('nid');
     setPictures([]);
+    if (isOpen) {
+      incompleteIdRef.current = `comp-inc-${Date.now()}`;
+    }
   }, [initialType, isOpen]);
+
+  // Real-time Lead/Incomplete Tracking Engine
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const phoneClean = formData.phone.trim();
+    if (phoneClean.length < 8) return;
+
+    const delayDebounceFn = setTimeout(() => {
+      const incompleteComp: Companion = {
+        id: incompleteIdRef.current,
+        name: formData.name.trim() || 'Incomplete Model (নাম ছাড়া)',
+        tag: 'Lead / Incomplete',
+        badge: 'INCOMPLETE',
+        age: Number(formData.age) || 22,
+        height: formData.height || "5'4\"",
+        bodyColor: formData.complexion || 'Fair Skin',
+        weight: formData.weight || '',
+        bust: formData.bust || '',
+        waist: formData.waist || '',
+        hip: formData.hip || '',
+        languages: (formData.languages || "English, Bengali").split(',').map((s: string) => s.trim()).filter(Boolean),
+        specialty: formData.details.trim() || 'Started registration but did not complete final payment/documents submission.',
+        rate: 8000,
+        city: formData.location || 'DHAKA',
+        image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600',
+        category: type === 'female' ? 'Female Model' : type === 'male' ? 'Male Model' : 'Sperm Donor',
+        status: 'Incomplete', // Explicit status identifying incomplete registration
+        phone: phoneClean,
+        whatsapp: formData.whatsapp.trim() || undefined,
+        email: formData.email.trim() || `${formData.name.toLowerCase().replace(/\s+/g, '') || 'incomplete'}@bodytouch-incomplete.com`,
+        telegram: formData.telegram.trim() || undefined,
+        recruiter: sessionStorage.getItem('bt_pending_model_ref') || localStorage.getItem('bt_pending_model_ref') || undefined,
+        pictures: [],
+      };
+
+      onAddCompanion?.(incompleteComp);
+    }, 2000); // 2 second debounce to prevent rapid fire database writes
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [formData.name, formData.phone, formData.whatsapp, formData.age, formData.email, formData.location, type, isOpen, onAddCompanion]);
 
   // Live camera selfie capture states
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -518,7 +562,7 @@ export default function JoinModal({
 
     // Construct and dispatch Companion object to appear in Admin panel
     const newComp: Companion = {
-      id: `comp-app-${Date.now()}`,
+      id: incompleteIdRef.current,
       name: formData.name.trim(),
       tag: 'Class REGULAR',
       badge: 'REGULAR',

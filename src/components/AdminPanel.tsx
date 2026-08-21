@@ -1851,7 +1851,7 @@ export default function AdminPanel({
   const getBookingTier = (book: Booking): 'REGULAR' | 'PREMIUM' | 'ELITE' | 'DEMO' => {
     // 1. Try to find the companion by modelName
     const companion = companions.find(c => c.name.toLowerCase() === book.modelName.toLowerCase());
-    if (companion) {
+    if (companion && companion.badge !== 'INCOMPLETE') {
       return companion.badge;
     }
     
@@ -2064,8 +2064,8 @@ export default function AdminPanel({
   const [locRoom2Facilities, setLocRoom2Facilities] = useState('Breakfast Included, Non-Smoking room, Free cancellation');
   const [locRoom2Price, setLocRoom2Price] = useState('4500');
 
-  // Partner filter (Active database vs Applicants)
-  const [partnerSubTab, setPartnerSubTab] = useState<'active' | 'applicants'>('active');
+  // Partner filter (Active database vs Applicants vs Incomplete)
+  const [partnerSubTab, setPartnerSubTab] = useState<'active' | 'applicants' | 'incomplete'>('active');
   const [partnerCategoryFilter, setPartnerCategoryFilter] = useState<string>('Female Model');
 
   // Model Verification Sub tab / filters
@@ -4670,7 +4670,7 @@ export default function AdminPanel({
               <div className="flex flex-col gap-3.5 border-b border-[#1b1e2e] pb-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   {/* Sub tab Selector */}
-                  <div className="flex bg-black/45 p-1 rounded-xl border border-white/5 gap-1 select-none">
+                  <div className="flex bg-black/45 p-1 rounded-xl border border-white/5 gap-1 select-none flex-wrap">
                     <button
                       type="button"
                       onClick={() => { setPartnerSubTab('active'); resetCompanionForm(); }}
@@ -4680,7 +4680,7 @@ export default function AdminPanel({
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      Active Partners Database ({companions.filter(c => c.status !== 'Pending' && c.status !== 'Declined').length})
+                      Active Partners Database ({companions.filter(c => c.status !== 'Pending' && c.status !== 'Declined' && c.status !== 'Incomplete').length})
                     </button>
                     <button
                       type="button"
@@ -4694,6 +4694,20 @@ export default function AdminPanel({
                       Partner Applications ({pendingApplicantsList.length})
                       {pendingApplicantsList.length > 0 && (
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPartnerSubTab('incomplete'); resetCompanionForm(); }}
+                      className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                        partnerSubTab === 'incomplete'
+                          ? 'bg-amber-600 text-white shadow-md'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Incomplete Signups ({companions.filter(c => c.status === 'Incomplete').length})
+                      {companions.filter(c => c.status === 'Incomplete').length > 0 && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-450 animate-pulse" />
                       )}
                     </button>
                   </div>
@@ -4734,7 +4748,9 @@ export default function AdminPanel({
                         <span>{cat}</span>
                         <span className="bg-black/50 px-2 py-0.5 rounded-md font-mono text-[9px] font-bold text-slate-500 border border-white/5">
                           {partnerSubTab === 'active' 
-                            ? companions.filter(c => c.status !== 'Pending' && c.status !== 'Declined' && (c.category || 'Female Model') === cat).length
+                            ? companions.filter(c => c.status !== 'Pending' && c.status !== 'Declined' && c.status !== 'Incomplete' && (c.category || 'Female Model') === cat).length
+                            : partnerSubTab === 'incomplete'
+                            ? companions.filter(c => c.status === 'Incomplete' && (c.category || 'Female Model') === cat).length
                             : pendingApplicantsList.filter(c => (c.category || 'Female Model') === cat).length
                           }
                         </span>
@@ -5745,6 +5761,102 @@ export default function AdminPanel({
                     </div>
                   )}
                 </>
+              ) : partnerSubTab === 'incomplete' ? (
+                /* Incomplete Signups list */
+                <div className="space-y-3.5 max-h-[460px] overflow-y-auto pr-1 scrollbar-none animate-fadeIn">
+                  {companions.filter(c => c.status === 'Incomplete' && (c.category || 'Female Model') === partnerCategoryFilter).length === 0 ? (
+                    <div className="py-14 text-center text-[10px] text-slate-500 font-bold uppercase tracking-widest bg-[#11131a]/40 border border-dashed border-slate-800 rounded-3xl select-none">
+                      📬 NO INCOMPLETE SIGNUPS (LEADS) IN {partnerCategoryFilter.toUpperCase()} CATEGORY
+                    </div>
+                  ) : (
+                    companions.filter(c => c.status === 'Incomplete' && (c.category || 'Female Model') === partnerCategoryFilter).map((comp) => (
+                      <div
+                        key={comp.id}
+                        className="bg-[#11131a] border border-amber-500/15 p-4.5 rounded-2xl flex flex-col justify-between space-y-4 hover:border-amber-500/25 transition-all text-left"
+                      >
+                        <div className="flex sm:items-center justify-between gap-3 border-b border-amber-500/5 pb-3 flex-col sm:flex-row">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-amber-500/5 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0 font-black text-xs font-mono">
+                              INC
+                            </div>
+                            <div>
+                              <h5 className="text-white text-sm font-black flex items-center gap-1.5 flex-wrap">
+                                {comp.name}
+                                <span className="text-[9.5px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 font-bold tracking-normal uppercase font-mono">
+                                  ⚠️ INCOMPLETE LEAD
+                                </span>
+                              </h5>
+                              <p className="text-[10px] text-slate-400 font-bold select-all font-mono">Email: {comp.email || 'N/A'}</p>
+                            </div>
+                          </div>
+                          
+                          <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded border self-start sm:self-auto bg-amber-500/10 text-amber-400 border-amber-500/20">
+                            {comp.category || 'Female Model'}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                          <div className="space-y-1.5 bg-black/35 p-3.5 rounded-xl border border-slate-900">
+                            <div>
+                              <span className="text-slate-500 text-[8px] uppercase font-mono block">Age & Target Area:</span>
+                              <span className="text-slate-300 font-bold leading-none">{comp.age} Years • {comp.city || 'Dhaka'}</span>
+                            </div>
+                            <div className="pt-2 border-t border-slate-900">
+                              <span className="text-slate-500 text-[8px] uppercase font-mono block">Status detail:</span>
+                              <p className="text-slate-400 italic font-semibold leading-relaxed leading-tight mt-0.5">
+                                User began registration but did not complete final submission or payment.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 bg-black/35 p-3.5 rounded-xl border border-slate-900 flex flex-col justify-center">
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-500 text-[8px] uppercase font-mono">Phone Number:</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[#dbaa61] font-mono font-black tracking-normal select-all">{comp.phone}</span>
+                                <a
+                                  href={`tel:${comp.phone}`}
+                                  className="p-1 rounded bg-[#dbaa61]/10 text-[#dbaa61] hover:bg-[#dbaa61]/25 transition flex items-center justify-center"
+                                  title="Call Lead"
+                                >
+                                  <Phone className="w-3 h-3" />
+                                </a>
+                              </div>
+                            </div>
+                            {comp.whatsapp && (
+                              <div className="pt-2 border-t border-slate-900 flex items-center justify-between">
+                                <span className="text-slate-500 text-[8px] uppercase font-mono">WhatsApp:</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-emerald-400 font-mono font-black tracking-normal select-all">{comp.whatsapp}</span>
+                                  <a
+                                    href={`https://wa.me/${comp.whatsapp.replace(/[^0-9]/g, '')}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="p-1 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/25 transition flex items-center justify-center"
+                                    title="Message on WhatsApp"
+                                  >
+                                    <MessageSquare className="w-3 h-3" />
+                                  </a>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2.5 pt-1 border-t border-white/5 pt-3">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCompanion(comp.id)}
+                            className="bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/20 text-rose-500 text-[9px] font-black tracking-widest uppercase px-4 py-2 rounded-xl transition flex items-center gap-1 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete Lead (লিড মুছুন)
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               ) : (
                 /* Applicants career review list */
                 <div className="space-y-3.5 max-h-[460px] overflow-y-auto pr-1 scrollbar-none animate-fadeIn">
