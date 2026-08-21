@@ -345,7 +345,33 @@ export default function App() {
   }, []);
 
   const lastTrackedPathRef = useRef<string>('');
+  const visitorLogIdRef = useRef<string | null>(null);
+  const sessionSecondsRef = useRef<number>(0);
   const [currentHash, setCurrentHash] = useState(() => window.location.hash.toLowerCase());
+
+  // Page active session duration (time on page) heartbeat loop
+  useEffect(() => {
+    sessionSecondsRef.current = 0;
+    const interval = setInterval(() => {
+      sessionSecondsRef.current += 1;
+      
+      // Ping the server every 5 seconds to update active session duration
+      if (sessionSecondsRef.current % 5 === 0 && visitorLogIdRef.current) {
+        fetch('/api/track-duration', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            logId: visitorLogIdRef.current,
+            duration: sessionSecondsRef.current
+          })
+        }).catch(() => {});
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [activeTab, currentHash]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -434,6 +460,8 @@ export default function App() {
               const data = JSON.parse(text);
               if (!data || data.error) {
                 usePhpFallback = true;
+              } else if (data.logId) {
+                visitorLogIdRef.current = data.logId;
               }
             } catch (_) {
               // Not valid JSON (could be .htaccess HTML fallback), use PHP fallback

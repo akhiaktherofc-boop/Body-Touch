@@ -593,6 +593,7 @@ async function startServer() {
     timestamp: string;
     date: string; // YYYY-MM-DD (Bangladesh Time)
     isUnique: boolean;
+    duration?: number; // Time spent on page in seconds
   }
 
   const VISITOR_LOGS_FILE = path.join(process.cwd(), "visitor_logs.json");
@@ -840,10 +841,33 @@ async function startServer() {
       logs.push(newLog);
       saveVisitorLogs(logs);
       
-      return res.status(200).json({ success: true, visitor: geo });
+      return res.status(200).json({ success: true, visitor: geo, logId: newLog.id });
     } catch (err: any) {
       console.error("Failed to track visitor:", err);
       return res.status(500).json({ error: err.message || "Failed to log visit" });
+    }
+  });
+
+  // API Route to update visitor active session duration (time spent on page)
+  app.post("/api/track-duration", async (req, res) => {
+    try {
+      const { logId, duration } = req.body;
+      if (!logId) {
+        return res.status(400).json({ error: "logId is required." });
+      }
+
+      const logs = getVisitorLogs();
+      const targetLog = logs.find(l => l.id === logId);
+      if (targetLog) {
+        targetLog.duration = Math.max(targetLog.duration || 0, Number(duration) || 0);
+        saveVisitorLogs(logs);
+        return res.status(200).json({ success: true });
+      }
+
+      return res.status(404).json({ error: "Log not found." });
+    } catch (err: any) {
+      console.error("Failed to update duration:", err);
+      return res.status(500).json({ error: err.message || "Internal server error" });
     }
   });
 

@@ -1555,6 +1555,7 @@ export default function JoinModal({
                         required
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        autoComplete="tel"
                         placeholder=""
                         style={{ paddingLeft: '2.5rem' }}
                         className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
@@ -1597,6 +1598,7 @@ export default function JoinModal({
                         required
                         value={formData.whatsapp}
                         onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                        autoComplete="tel"
                         placeholder=""
                         style={{ paddingLeft: '2.5rem' }}
                         className="w-full bg-[#030818]/60 border border-blue-900/35 focus:border-[#dbaa61]/70 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"

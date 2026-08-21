@@ -12684,6 +12684,7 @@ Body Touch Premium Network`;
                         <th className="p-4">Browser & OS</th>
                         <th className="p-4">Visited Path</th>
                         <th className="p-4">Referrer Domain</th>
+                        <th className="p-4">Time Spent (কতক্ষণ ছিল)</th>
                         <th className="p-4 pr-6 text-right">Visit Timestamp</th>
                       </tr>
                     </thead>
@@ -12713,7 +12714,7 @@ Body Touch Premium Network`;
                         if (filtered.length === 0) {
                           return (
                             <tr>
-                              <td colSpan={6} className="p-10 text-center text-slate-500 font-bold font-mono text-[11px]">
+                              <td colSpan={7} className="p-10 text-center text-slate-500 font-bold font-mono text-[11px]">
                                 No matched visitor sessions logged for the selected dates.
                               </td>
                             </tr>
@@ -12782,6 +12783,21 @@ Body Touch Premium Network`;
                               <td className="p-4">
                                 <span className="text-slate-400 max-w-[140px] truncate block font-sans" title={log.referer}>
                                   {log.referer || 'Direct / Bookmark'}
+                                </span>
+                              </td>
+
+                              {/* Time Spent */}
+                              <td className="p-4">
+                                <span className={`font-mono text-[10px] font-black px-2 py-0.5 rounded border ${
+                                  log.duration && log.duration >= 60 
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                                    : 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse'
+                                }`}>
+                                  {log.duration ? (
+                                    log.duration < 60 
+                                      ? `${log.duration}s` 
+                                      : `${Math.floor(log.duration / 60)}m ${log.duration % 60}s`
+                                  ) : 'Live / 1s'}
                                 </span>
                               </td>
 
