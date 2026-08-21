@@ -12675,8 +12675,8 @@ Body Touch Premium Network`;
                   </span>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse font-sans">
+                <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-[#dbaa61]/20 scrollbar-track-transparent">
+                  <table className="w-full min-w-[1200px] text-left text-xs border-collapse font-sans">
                     <thead>
                       <tr className="bg-black/30 border-b border-white/5 text-[10px] text-slate-500 font-black uppercase tracking-widest">
                         <th className="p-4 pl-6">IP / Network Provider</th>
