@@ -599,7 +599,7 @@ export default function App() {
     // 4. Block context menu specifically on images/banners/photos to prevent download, but allow text copy
     const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target) return;
+      if (!target || typeof target.closest !== 'function') return;
 
       const isImageElement = 
         target.tagName === 'IMG' || 
@@ -625,6 +625,7 @@ export default function App() {
     // 5. Block image dragging to prevent downloading by dragging to desktop or another tab
     const handleDragStart = (e: DragEvent) => {
       const target = e.target as HTMLElement;
+      if (!target || typeof target.closest !== 'function') return;
       if (target && (target.tagName === 'IMG' || target.closest('img') || target.classList.contains('companion-card-image') || target.closest('.companion-card-image'))) {
         e.preventDefault();
         return false;
