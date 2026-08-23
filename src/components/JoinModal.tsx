@@ -254,87 +254,8 @@ export default function JoinModal({
     }
   }, [initialType, isOpen]);
 
-  // Real-time Lead/Incomplete Tracking Engine
-  React.useEffect(() => {
-    if (!isOpen) return;
-
-    // Check if the user has written anything in the form fields
-    const hasAnyContent = 
-      formData.name.trim().length > 0 ||
-      formData.phone.trim().length > 0 ||
-      formData.email.trim().length > 0 ||
-      formData.whatsapp.trim().length > 0 ||
-      formData.telegram.trim().length > 0 ||
-      formData.age.trim().length > 0 ||
-      formData.height.trim().length > 0 ||
-      formData.complexion.trim().length > 0 ||
-      formData.weight.trim().length > 0 ||
-      formData.bust.trim().length > 0 ||
-      formData.waist.trim().length > 0 ||
-      formData.hip.trim().length > 0 ||
-      formData.details.trim().length > 0 ||
-      formData.bloodGroup.trim().length > 0 ||
-      formData.spermCount.trim().length > 0 ||
-      formData.penisSize.trim().length > 0 ||
-      formData.durationTime.trim().length > 0;
-
-    if (!hasAnyContent) return;
-
-    const delayDebounceFn = setTimeout(() => {
-      const incompleteComp: Companion = {
-        id: incompleteIdRef.current,
-        name: formData.name.trim() || 'Incomplete Model (নাম ছাড়া)',
-        tag: 'Lead / Incomplete',
-        badge: 'INCOMPLETE',
-        age: Number(formData.age) || 22,
-        height: formData.height || "5'4\"",
-        bodyColor: formData.complexion || 'Fair Skin',
-        weight: formData.weight || '',
-        bust: formData.bust || '',
-        waist: formData.waist || '',
-        hip: formData.hip || '',
-        languages: (formData.languages || "English, Bengali").split(',').map((s: string) => s.trim()).filter(Boolean),
-        specialty: formData.details.trim() || 'Started registration but did not complete final payment/documents submission.',
-        rate: 8000,
-        city: formData.location || 'DHAKA',
-        image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600',
-        category: type === 'female' ? 'Female Model' : type === 'male' ? 'Male Model' : 'Sperm Donor',
-        status: 'Incomplete', // Explicit status identifying incomplete registration
-        phone: formData.phone.trim() || undefined,
-        whatsapp: formData.whatsapp.trim() || undefined,
-        email: formData.email.trim() || `${formData.name.toLowerCase().replace(/\s+/g, '') || 'incomplete'}@bodytouch-incomplete.com`,
-        telegram: formData.telegram.trim() || undefined,
-        recruiter: sessionStorage.getItem('bt_pending_model_ref') || localStorage.getItem('bt_pending_model_ref') || undefined,
-        pictures: [],
-      };
-
-      onAddCompanion?.(incompleteComp);
-    }, 2000); // 2 second debounce to prevent rapid fire database writes
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [
-    formData.name,
-    formData.phone,
-    formData.whatsapp,
-    formData.telegram,
-    formData.email,
-    formData.location,
-    formData.age,
-    formData.height,
-    formData.complexion,
-    formData.weight,
-    formData.bust,
-    formData.waist,
-    formData.hip,
-    formData.details,
-    formData.bloodGroup,
-    formData.spermCount,
-    formData.penisSize,
-    formData.durationTime,
-    type,
-    isOpen,
-    onAddCompanion
-  ]);
+  // Real-time Lead/Incomplete Tracking Engine disabled as requested by the user
+  // (Incomplete sign-ups will no longer populate in the database)
 
   // Automatically scroll modal container back to top on any step/tab/error change
   React.useEffect(() => {
@@ -348,6 +269,32 @@ export default function JoinModal({
       return () => clearTimeout(timer);
     }
   }, [isOpen, type, showPaymentScreen, submitted, validationError]);
+
+  // Sync step for stable browser back button operation
+  React.useEffect(() => {
+    if (isOpen) {
+      if (showPaymentScreen || showOtpScreen) {
+        (window as any).bt_join_modal_step = 'payment';
+      } else {
+        (window as any).bt_join_modal_step = 'form';
+      }
+    } else {
+      (window as any).bt_join_modal_step = undefined;
+    }
+  }, [isOpen, showPaymentScreen, showOtpScreen]);
+
+  // Handle custom back event from App.tsx
+  React.useEffect(() => {
+    const handleBackToForm = () => {
+      setValidationError(null);
+      setShowPaymentScreen(false);
+      setShowOtpScreen(false);
+    };
+    window.addEventListener('bt_join_modal_back_to_form', handleBackToForm);
+    return () => {
+      window.removeEventListener('bt_join_modal_back_to_form', handleBackToForm);
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -636,6 +583,27 @@ export default function JoinModal({
             {type === 'male' && 'Register to join our elite male companions dispatch database'}
             {type === 'donor' && 'Register to join our highly vetted premium sperm donor network'}
           </p>
+
+          {/* Monthly Earnings Opportunity Highlight (English Version) */}
+          <div className="mt-3.5 bg-gradient-to-r from-yellow-500/10 via-amber-500/15 to-yellow-500/10 border border-yellow-600/35 rounded-2xl p-4 flex items-center justify-between gap-3 text-left shadow-lg">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl animate-bounce">💸</span>
+              <div>
+                <p className="text-[10px] font-black text-yellow-400 uppercase tracking-widest font-mono">
+                  Monthly Earnings Opportunity
+                </p>
+                <p className="text-base text-white font-black leading-tight mt-0.5 uppercase tracking-wide">
+                  Earn 2,00,000 - 10,00,000 Taka Monthly!
+                </p>
+                <p className="text-[10px] text-slate-350 font-bold mt-1.5 leading-relaxed">
+                  Join our elite model database. Earn a highly rewarding monthly income of 2-10 Lakh Taka with absolute data safety and flexible hours.
+                </p>
+              </div>
+            </div>
+            <span className="bg-emerald-500/15 border border-emerald-500/45 text-emerald-400 text-[10px] font-black uppercase px-2.5 py-1 rounded-md tracking-wider shrink-0 font-mono">
+              2-10 LAKH
+            </span>
+          </div>
         </div>
 
         {validationError && (

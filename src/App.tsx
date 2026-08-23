@@ -1379,6 +1379,17 @@ export default function App() {
     );
 
     const handlePopStateForModals = (e: PopStateEvent) => {
+      // If the join modal has a sub-step, do not close the entire modal, go back to the form instead
+      if (isJoinModalOpen && (window as any).bt_join_modal_step === 'payment') {
+        window.dispatchEvent(new CustomEvent('bt_join_modal_back_to_form'));
+        
+        // Restore history state so that user can hit back again to close the modal
+        if (!window.history.state || !window.history.state.modalOpen) {
+          window.history.pushState({ modalOpen: true }, '');
+        }
+        return;
+      }
+
       // If a modal was open and user hit back, close all modals
       if (anyModalOpen) {
         setSelectedCompanion(null);
