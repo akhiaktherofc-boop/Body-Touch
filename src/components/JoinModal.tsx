@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Sparkles, User, Briefcase, Camera, Send, Check, Trash2, ShieldCheck, UploadCloud, Copy, Info, Phone, Mail, MessageSquare, Calendar, Ruler, Scale, MapPin, Languages, Activity, Droplet } from 'lucide-react';
+import { X, Sparkles, User, Briefcase, Camera, Send, Check, Trash2, ShieldCheck, Lock, UploadCloud, Copy, Info, Phone, Mail, MessageSquare, Calendar, Ruler, Scale, MapPin, Languages, Activity, Droplet } from 'lucide-react';
 import { Companion, ParentArea, PaymentGateway } from '../types';
 import { compressImage } from '../services/imageService';
 import LiveLivenessVerification from './LiveLivenessVerification';
@@ -40,6 +40,7 @@ interface JoinModalProps {
   registrationFeeMale?: number;
   registrationFeeSperm?: number;
   paymentGateways?: PaymentGateway[];
+  companions?: Companion[];
 }
 
 export default function JoinModal({ 
@@ -53,7 +54,8 @@ export default function JoinModal({
   registrationFee = 3000,
   registrationFeeMale = 3000,
   registrationFeeSperm = 3000,
-  paymentGateways = []
+  paymentGateways = [],
+  companions = []
 }: JoinModalProps) {
   const [type, setType] = useState<'female' | 'male' | 'donor'>(initialType || 'female');
   const incompleteIdRef = React.useRef<string>(`comp-inc-${Date.now()}`);
@@ -114,6 +116,10 @@ export default function JoinModal({
     spermCount: '',
     penisSize: '',
     durationTime: '',
+
+    // Custom model credentials chosen on signup
+    modelUsername: '',
+    modelPassword: '',
   });
   
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -391,6 +397,34 @@ export default function JoinModal({
       return;
     }
 
+    if (!formData.modelUsername.trim()) {
+      setValidationError('Please choose a unique Model Username for portal login.');
+      return;
+    }
+    if (formData.modelUsername.trim().length < 4) {
+      setValidationError('Username must be at least 4 characters long.');
+      return;
+    }
+
+    // Duplicate Username Check
+    const chosenUser = formData.modelUsername.trim().toLowerCase();
+    const isTaken = companions.some(c => 
+      c.modelUsername && c.modelUsername.toLowerCase() === chosenUser
+    );
+    if (isTaken) {
+      setValidationError(`The username "@${formData.modelUsername}" is already taken! Please choose a different one. (এই ইউজারনেমটি অন্য কেউ ব্যবহার করছে, দয়া করে অন্য একটি দিন!)`);
+      return;
+    }
+
+    if (!formData.modelPassword.trim()) {
+      setValidationError('Please choose a secure password for your model portal.');
+      return;
+    }
+    if (formData.modelPassword.trim().length < 6) {
+      setValidationError('Password must be at least 6 characters long for optimal security.');
+      return;
+    }
+
     // Model specific rich validation (Female or Male)
     if (type === 'female' || type === 'male') {
       if (!formData.complexion) {
@@ -488,6 +522,8 @@ export default function JoinModal({
       nidBack: undefined,
       selfie: selfie || undefined,
       telegram: formData.telegram.trim() || undefined,
+      modelUsername: formData.modelUsername.trim() || undefined,
+      modelPassword: formData.modelPassword.trim() || undefined,
       recruiter: sessionStorage.getItem('bt_pending_model_ref') || localStorage.getItem('bt_pending_model_ref') || undefined,
       pictures: pictures,
     };
@@ -526,6 +562,8 @@ export default function JoinModal({
       spermCount: '',
       penisSize: '',
       durationTime: '',
+      modelUsername: '',
+      modelPassword: '',
     });
     setPictures([]);
     setSelfie(null);
@@ -1539,6 +1577,73 @@ export default function JoinModal({
                     </div>
                   </div>
                 </div>
+
+                {/* Custom Model Portal Login Credentials Selection (ইউজার অ্যাকাউন্ট সেটিংস) */}
+                <div className="mt-6 bg-[#040815]/95 border border-yellow-600/25 p-5 rounded-2xl space-y-4">
+                  <div className="flex items-center gap-2 border-b border-yellow-600/15 pb-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+                      <ShieldCheck className="w-4 h-4 text-[#dbaa61]" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-white uppercase tracking-widest font-sans">
+                        Model Portal Account Credentials
+                      </h4>
+                      <p className="text-[9.5px] text-slate-400 font-bold uppercase tracking-wider font-mono">
+                        লগইন অ্যাকাউন্ট তথ্য (নিশ্চিত করুন)
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-slate-300 leading-relaxed font-semibold">
+                    মডেল পোর্টালে লগইন করার জন্য আপনার পছন্দ অনুযায়ী ইউজারনেম এবং পাসওয়ার্ড নির্বাচন করুন। এডমিন আপনার আবেদন অ্যাপ্রুভ করার সাথে সাথে আপনি এই তথ্য দিয়ে লগইন করতে পারবেন।
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Chosen Username */}
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1 font-sans flex justify-between">
+                        <span>Desired Username *</span>
+                        <span className="text-[9px] text-yellow-400 font-black">LOGIN ID</span>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                          <User className="w-4 h-4 text-[#dbaa61]/70" />
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          value={formData.modelUsername}
+                          onChange={(e) => setFormData({ ...formData, modelUsername: e.target.value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '') })}
+                          placeholder="e.g. akhi_model"
+                          style={{ paddingLeft: '2.5rem' }}
+                          className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-500 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Chosen Password */}
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1 font-sans flex justify-between">
+                        <span>Secure Password *</span>
+                        <span className="text-[9px] text-yellow-400 font-black">MIN 6 CHARS</span>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                          <Lock className="w-4 h-4 text-[#dbaa61]/70" />
+                        </div>
+                        <input
+                          type="password"
+                          required
+                          value={formData.modelPassword}
+                          onChange={(e) => setFormData({ ...formData, modelPassword: e.target.value })}
+                          placeholder="••••••••"
+                          style={{ paddingLeft: '2.5rem' }}
+                          className="w-full bg-[#030818]/60 border border-yellow-700/50 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-gray-500 text-xs text-white rounded-xl pl-10 pr-4 py-3.5 font-bold focus:outline-none transition-all font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* MANDATORY PHOTO UPLOAD SECTION FOR MODELS */}
@@ -1734,21 +1839,49 @@ export default function JoinModal({
               </p>
             </div>
 
-            {/* HIGHLY VISIBLE CUSTOM EMAIL/CREDENTIALS ALERT CARD */}
-            <div className="bg-[#0b1c1e] border-2 border-emerald-500/50 p-5 rounded-2xl text-left text-sm text-slate-100 space-y-3.5 font-bold leading-relaxed shadow-lg shadow-emerald-950/20">
-              <div className="flex items-center gap-2 border-b border-emerald-500/35 pb-2">
-                <Mail className="w-5 h-5 text-emerald-400" />
-                <span className="font-extrabold text-emerald-400 uppercase tracking-wider font-mono">System Email Notification</span>
+            {/* NEW CREDENTIALS MEMO CARD */}
+            <div className="bg-[#091512] border-2 border-[#ac843c] p-5 rounded-2xl text-left space-y-4 shadow-lg shadow-yellow-950/15">
+              <div className="flex items-center gap-2 border-b border-yellow-600/25 pb-2.5">
+                <ShieldCheck className="w-5 h-5 text-[#dbaa61]" />
+                <span className="font-extrabold text-[#dbaa61] uppercase tracking-widest font-mono text-xs">YOUR LOGIN ACCOUNT DETAILS</span>
               </div>
-              <p className="text-sm text-white font-bold leading-relaxed">
-                Thank you for registering. Once our dispatch operations team reviews and approves your registry profile, your system username and a temporary login password will be automatically generated and sent to your email address:
+
+              <p className="text-[11px] text-slate-200 leading-relaxed font-bold">
+                Please take a <strong className="text-yellow-400">Screenshot (স্ক্রিনশট)</strong> or <strong className="text-yellow-400">Copy (কপি)</strong> these details to remember. You will use these login credentials to access your Model Portal once the admin approves your profile:
               </p>
-              <div className="bg-black/45 px-4 py-3 rounded-xl border border-emerald-500/20 font-mono text-center text-xs text-emerald-400 font-black select-all break-all tracking-wide">
-                {formData.email || 'your-registered-email@domain.com'}
+
+              <div className="space-y-2 bg-[#020613]/85 p-3.5 rounded-xl border border-yellow-700/30 font-mono text-xs">
+                {/* Username */}
+                <div className="flex items-center justify-between gap-2 border-b border-yellow-600/10 pb-2">
+                  <span className="text-slate-400 uppercase text-[9.5px] font-black">Username:</span>
+                  <span className="text-[#f1d087] font-extrabold select-all text-right">{formData.modelUsername || 'N/A'}</span>
+                </div>
+                {/* Password */}
+                <div className="flex items-center justify-between gap-2 border-b border-yellow-600/10 pb-2">
+                  <span className="text-slate-400 uppercase text-[9.5px] font-black">Password:</span>
+                  <span className="text-white font-extrabold select-all text-right">{formData.modelPassword || 'N/A'}</span>
+                </div>
+                {/* Portal Link */}
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <span className="text-slate-400 uppercase text-[9.5px] font-black">Portal Link:</span>
+                  <span className="text-emerald-400 font-extrabold text-right select-all">{window.location.origin}/#model</span>
+                </div>
               </div>
-              <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
-                * Please make sure to check your Inbox as well as your Spam/Junk folder for your temporary password once approved.
-              </p>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const textToCopy = `Model Portal Account Details:\nUsername: ${formData.modelUsername}\nPassword: ${formData.modelPassword}\nPortal Link: ${window.location.origin}/#model`;
+                    navigator.clipboard.writeText(textToCopy);
+                    alert('Login credentials copied to clipboard successfully! (লগইন কার্ডের তথ্য কপি করা হয়েছে)');
+                  }}
+                  className="w-full py-2.5 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-600/30 text-[#f1d087] hover:text-white font-black text-[11px] tracking-wider uppercase rounded-xl transition duration-150 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  COPY LOGIN CARD (কপি করুন)
+                </button>
+              </div>
             </div>
 
             <div className="bg-[#0e101a] border border-[#ac843c]/35 p-5 rounded-2xl text-left text-sm text-slate-200 space-y-3 font-bold leading-relaxed shadow-md">

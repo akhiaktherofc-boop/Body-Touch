@@ -2797,14 +2797,18 @@ Website: https://bodytouch.com
           
           // Generate model login account credentials
           const baseUsername = c.name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'model';
-          const finalUsername = `${baseUsername}_${Math.floor(1000 + Math.random() * 9000)}`;
-          const tempPassword = 'bt_' + Math.floor(100000 + Math.random() * 900000);
+          const chosenUsername = (c.modelUsername || '').trim().toLowerCase();
+          const chosenPassword = (c.modelPassword || '').trim();
+
+          const finalUsername = chosenUsername || `${baseUsername}_${Math.floor(1000 + Math.random() * 9000)}`;
+          const tempPassword = chosenPassword || 'bt_' + Math.floor(100000 + Math.random() * 900000);
           
           const updated = { 
             ...c, 
             status: 'Approved' as const, 
             tag: freshTag, 
             modelUsername: finalUsername,
+            modelPassword: tempPassword,
             ...(rates || {})
           };
           setCloudDocument('companions', c.id, updated);
@@ -6366,6 +6370,7 @@ https://service.bodytouch.com
           registrationFeeMale={pricingConfig.registrationFeeMale}
           registrationFeeSperm={pricingConfig.registrationFeeSperm}
           paymentGateways={paymentGateways}
+          companions={companions}
           onAddCompanion={(newComp) => {
             setCloudDocument('companions', newComp.id, newComp);
             setCompanions((prev) => {

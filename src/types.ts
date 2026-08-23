@@ -35,6 +35,7 @@ export interface Companion {
   telegram?: string;
   whatsapp?: string;
   modelUsername?: string;
+  modelPassword?: string;
   imageUrl?: string;
   pictures?: string[];        // Multi-picture gallery
   recruiter?: string;         // Recruiter Agent username

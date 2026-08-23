@@ -1697,10 +1697,28 @@ export default function LoginGate({
             </button>
 
             {/* Help Info Box - Collapsible and clean for custom hosting production */}
-            <div className="pt-2 text-center">
+            <div className="pt-2 text-center space-y-4">
               <p className="text-[10px] text-slate-500 font-semibold leading-normal">
                 Don't have an account? Click on <strong className="text-amber-400 font-black cursor-pointer hover:underline animate-pulse" onClick={() => setActiveTab('signup')}>registration now</strong> to register a secure profile today!
               </p>
+
+              {/* Model Portal Navigation Swapper */}
+              <div className="mt-2.5 pt-3 border-t border-blue-950/45">
+                <p className="text-[9.5px] font-black text-[#dbaa61] uppercase tracking-widest mb-1.5 font-sans">
+                  Are you one of our registered models?
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.hash = '#model';
+                    window.location.reload();
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 text-[11px] font-black text-[#f1d087] hover:text-white transition-all bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-600/30 px-4 py-3.5 rounded-xl cursor-pointer shadow-sm shadow-yellow-500/5 hover:shadow-yellow-500/10"
+                >
+                  <UserCheck className="w-3.5 h-3.5 text-[#dbaa61]" />
+                  CLICK HERE TO ACCESS MODEL PORTAL
+                </button>
+              </div>
             </div>
           </form>
         ) : (
