@@ -304,14 +304,19 @@ export default function JoinModal({
 
   if (!isOpen) return null;
 
-  // Handle Contiguous 4 Pictures Add
+  // Handle Dynamic Pictures Add
   const handleAddPicture = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      if (pictures.length >= 10) {
+        setValidationError('You can upload a maximum of 10 portfolio photos.');
+        return;
+      }
       // Compress to maximum 800px width/height and 0.75 quality for rapid upload and tiny storage size
       compressImage(file, 800, 800, 0.75).then((compressedUrl) => {
         if (compressedUrl) {
-          setPictures(prev => [...prev, compressedUrl].slice(0, 4));
+          setPictures(prev => [...prev, compressedUrl]);
+          setValidationError(null);
         }
       });
     }
@@ -454,7 +459,7 @@ export default function JoinModal({
         }
       }
       if (pictures.length < 4) {
-        setValidationError('Please upload exactly 4 high-quality portfolio photos.');
+        setValidationError('Please upload at least 4 high-quality portfolio photos (কমপক্ষে ৪টি পোর্টফোলিও ছবি আপলোড করতে হবে)।');
         return;
       }
       if (!selfie) {
@@ -1654,16 +1659,15 @@ export default function JoinModal({
                       Model Portfolio Photos
                     </p>
                     <p className="text-xs text-slate-200 font-bold mt-1.5">
-                      Upload exactly **4 high resolution profile photos** (Clear face and body visible)
+                      কমপক্ষে ৪টি এবং সর্বোচ্চ ১০টি হাই-রেজোলিউশন ছবি আপলোড করুন (Upload 4 to 10 high-resolution profile photos)
                     </p>
                   </div>
 
-                  {/* 4 Image Upload slots Grid */}
-                  <div className="grid grid-cols-4 gap-2">
-                    {[0, 1, 2, 3].map((slotIdx) => {
+                  {/* Dynamic Image Upload slots Grid */}
+                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                    {Array.from({ length: Math.min(10, Math.max(4, pictures.length + 1)) }).map((_, slotIdx) => {
                       const imageSrc = pictures[slotIdx];
-                      const isClickableUpload = slotIdx === pictures.length;
-                      const isLocked = slotIdx > pictures.length;
+                      const isClickableUpload = slotIdx === pictures.length && pictures.length < 10;
 
                       if (imageSrc) {
                         return (
