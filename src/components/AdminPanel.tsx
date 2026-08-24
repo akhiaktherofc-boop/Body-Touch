@@ -1997,6 +1997,9 @@ export default function AdminPanel({
   const [compCategory, setCompCategory] = useState<string>('Female Model');
   const [compPictures, setCompPictures] = useState<string[]>([]);
   const [compTag, setCompTag] = useState('');
+  const [compPhone, setCompPhone] = useState('');
+  const [compWhatsapp, setCompWhatsapp] = useState('');
+  const [compTelegram, setCompTelegram] = useState('');
 
   // Helpers to parse comma/semicolon-separated areas from compCity
   const getSelectedAreas = (): string[] => {
@@ -2168,6 +2171,9 @@ export default function AdminPanel({
     setCompCategory(comp.category || 'Female Model');
     setCompPictures(comp.pictures || []);
     setCompTag(comp.tag || '');
+    setCompPhone(comp.phone || '');
+    setCompWhatsapp(comp.whatsapp || '');
+    setCompTelegram(comp.telegram || '');
     setCompCustomRealRates(comp.customRealRates || []);
     setCompCustomCamRates(comp.customCamRates || []);
     setCompCustomLiveTogetherRates(comp.customLiveTogetherRates || []);
@@ -2190,6 +2196,9 @@ export default function AdminPanel({
     setCompDurationTime('');
     setCompLanguages('English, Bengali');
     setCompSpecialty('');
+    setCompPhone('');
+    setCompWhatsapp('');
+    setCompTelegram('');
     setCompRate(8000);
     setCompRateReal('');
     setCompRateCam('');
@@ -2295,6 +2304,9 @@ export default function AdminPanel({
             badge: compBadge,
             image: finalImage,
             category: compCategory,
+            phone: compPhone.trim() || undefined,
+            whatsapp: compWhatsapp.trim() || undefined,
+            telegram: compTelegram.trim() || undefined,
             pictures: getCompanionPictures(compPictures, finalImage),
             customRealRates: compCustomRealRates,
             customCamRates: compCustomCamRates,
@@ -2352,6 +2364,9 @@ export default function AdminPanel({
         city: compCity,
         status: 'Approved',
         category: compCategory,
+        phone: compPhone.trim() || undefined,
+        whatsapp: compWhatsapp.trim() || undefined,
+        telegram: compTelegram.trim() || undefined,
         pictures: getCompanionPictures(compPictures, finalImage),
         customRealRates: compCustomRealRates,
         customCamRates: compCustomCamRates,
@@ -4976,6 +4991,42 @@ export default function AdminPanel({
                       </div>
                     )}
 
+                    {/* Phone Number */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Phone Number / ফোন নম্বর</label>
+                      <input
+                        type="text"
+                        value={compPhone}
+                        onChange={(e) => setCompPhone(e.target.value)}
+                        placeholder="e.g. +88017XXXXXXXX"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 font-mono"
+                      />
+                    </div>
+
+                    {/* WhatsApp Number */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">WhatsApp Number / হোয়াটসঅ্যাপ</label>
+                      <input
+                        type="text"
+                        value={compWhatsapp}
+                        onChange={(e) => setCompWhatsapp(e.target.value)}
+                        placeholder="e.g. +88017XXXXXXXX"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 font-mono"
+                      />
+                    </div>
+
+                    {/* Telegram ID */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Telegram ID / টেলিগ্রাম আইডি</label>
+                      <input
+                        type="text"
+                        value={compTelegram}
+                        onChange={(e) => setCompTelegram(e.target.value)}
+                        placeholder="e.g. username_or_id"
+                        className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 font-mono"
+                      />
+                    </div>
+
                     {/* CORE SERVICE ACTIVATIONS & CUSTOM FEE STRUCTURES */}
                     <div className="sm:col-span-2 p-5 bg-[#030a1c]/65 border border-blue-500/15 rounded-2xl space-y-5">
                       <div>
@@ -5753,6 +5804,30 @@ export default function AdminPanel({
                               </div>
                             )}
                           </div>
+
+                          {/* Contacts Info Badge */}
+                          {(comp.phone || comp.whatsapp || comp.telegram) && (
+                            <div className="mt-2.5 pt-2 border-t border-slate-800/60 space-y-1 text-[9.5px]">
+                              {comp.phone && (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-slate-500 font-bold uppercase text-[7.5px] tracking-wider shrink-0">Phone:</span>
+                                  <a href={`tel:${comp.phone}`} className="text-blue-400 font-mono hover:underline font-extrabold select-all truncate" title="Call partner">{comp.phone}</a>
+                                </div>
+                              )}
+                              {comp.whatsapp && (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-slate-500 font-bold uppercase text-[7.5px] tracking-wider shrink-0">WhatsApp:</span>
+                                  <a href={`https://wa.me/${comp.whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-mono hover:underline font-extrabold select-all truncate" title="WhatsApp Chat">{comp.whatsapp}</a>
+                                </div>
+                              )}
+                              {comp.telegram && (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-slate-500 font-bold uppercase text-[7.5px] tracking-wider shrink-0">Telegram:</span>
+                                  <a href={`https://t.me/${comp.telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-purple-400 font-mono hover:underline font-extrabold select-all truncate">@{comp.telegram.replace('@', '')}</a>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -5963,6 +6038,18 @@ export default function AdminPanel({
                             <div className="pt-2 border-t border-slate-900 flex justify-between items-center">
                               <span className="text-slate-500 text-[8px] uppercase font-mono">Mobile Number:</span>
                               <span className="text-blue-400 font-mono font-black tracking-normal select-all">{comp.phone}</span>
+                            </div>
+                          )}
+                          {comp.whatsapp && (
+                            <div className="pt-2 border-t border-slate-900 flex justify-between items-center">
+                              <span className="text-slate-500 text-[8px] uppercase font-mono">WhatsApp Number:</span>
+                              <span className="text-emerald-400 font-mono font-black tracking-normal select-all">{comp.whatsapp}</span>
+                            </div>
+                          )}
+                          {comp.telegram && (
+                            <div className="pt-2 border-t border-slate-900 flex justify-between items-center">
+                              <span className="text-slate-500 text-[8px] uppercase font-mono">Telegram ID:</span>
+                              <span className="text-purple-400 font-mono font-black tracking-normal select-all">@{comp.telegram.replace('@', '')}</span>
                             </div>
                           )}
                         </div>

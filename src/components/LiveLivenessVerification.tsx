@@ -238,7 +238,7 @@ export default function LiveLivenessVerification({ onVerificationSuccess, onCanc
       {/* Background glowing line */}
       <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-yellow-500/10 to-transparent pointer-events-none" />
 
-      {/* Hidden inputs for native camera file capture fallback */}
+      {/* Hidden inputs for native camera file capture with capture="user" (strictly forces front system camera app on mobile, preventing gallery uploads) */}
       <input 
         type="file"
         ref={fileInputRef}
@@ -348,59 +348,21 @@ export default function LiveLivenessVerification({ onVerificationSuccess, onCanc
           
           {/* IDLE VIEW: Start triggers */}
           {verificationState === 'idle' && !capturedImage && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <p className="text-[11px] text-slate-300 font-medium max-w-xs mx-auto leading-relaxed">
-                মডেলের ভেরিফিকেশন সম্পন্ন করতে ফ্রন্ট ক্যামেরা দিয়ে একটি সরাসরি সেলফি ছবি ক্যাপচার করতে হবে।
+                মডেলের ভেরিফিকেশন সম্পন্ন করতে আপনার ডিভাইসের ক্যামেরা দিয়ে একটি সরাসরি সেলফি ছবি ক্যাপচার করতে হবে।
               </p>
-              
-              {isIframe && (
-                <div className="bg-amber-500/10 border border-amber-500/25 p-2.5 rounded-xl text-left text-[10px] text-amber-300 leading-relaxed font-medium">
-                  ⚠️ <strong>ব্রাউজার সিকিউরিটি নোটিশ:</strong> গুগল প্রিভিউ উইন্ডোতে সরাসরি ক্যামেরা ব্লক থাকলে নিচের <strong>"আসল ক্যামেরা সচল করুন (Secure Bypass)"</strong> বাটনটি ক্লিক করুন যা আপনার আসল ক্যামেরাটি সচল করবে। অথবা ফোনের রিয়েল ক্যামেরা দিয়ে ছবি তুলুন।
-                </div>
-              )}
 
-              <div className="flex flex-col gap-2">
-                {/* 1. Standard Live Web Cam Option */}
-                <button
-                  type="button"
-                  onClick={startWebcam}
-                  className="w-full py-3 bg-gradient-to-r from-yellow-500 to-[#dbaa61] hover:from-yellow-400 hover:to-yellow-500 active:scale-[0.98] text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Camera className="w-4 h-4 shrink-0" />
-                  সরাসরি ক্যামেরা চালু করুন
-                </button>
-
-                {/* 2. Seamless Phone Native Capture Option (100% bug-free fallback) */}
+              <div className="flex flex-col gap-2 pt-1">
+                {/* Single, Beautifully Styled Golden Button to Open Camera */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-[#dbaa61] font-black text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-gradient-to-r from-yellow-500 to-[#dbaa61] hover:from-yellow-400 hover:to-yellow-500 active:scale-[0.98] text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <Smartphone className="w-4 h-4 shrink-0 text-yellow-500" />
-                  ফোনের ক্যামেরা ব্যবহার করুন (Easy Native Camera)
+                  <Camera className="w-4 h-4 shrink-0 text-slate-950" />
+                  ক্যামেরা খুলুন (Open Camera)
                 </button>
-
-                {/* 3. Popup Bypass fallback */}
-                {isIframe && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const width = 480;
-                      const height = 640;
-                      const left = window.screen.width / 2 - width / 2;
-                      const top = window.screen.height / 2 - height / 2;
-                      window.open(
-                        `${window.location.origin}/#camera-verify`,
-                        'Secure Biometric Camera Verification',
-                        `width=${width},height=${height},left=${left},top=${top},status=no,toolbar=no,menubar=no,location=no,resizable=yes`
-                      );
-                    }}
-                    className="w-full py-2 bg-[#12131f] hover:bg-slate-900 border border-yellow-600/35 text-slate-300 font-extrabold text-[10.5px] uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Secure Bypass (পপআপ উইন্ডো)
-                  </button>
-                )}
               </div>
             </div>
           )}

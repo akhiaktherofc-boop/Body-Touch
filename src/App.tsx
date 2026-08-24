@@ -1948,16 +1948,24 @@ export default function App() {
 
   // Online Counter fluctuation simulation
   const handleUpdateCompanions = (updated: Companion[]) => {
-    setCompanions(updated);
-    updated.forEach((item) => {
-      setCloudDocument('companions', item.id, item);
-    });
+    // Determine deleted companions (present in companions but not in updated)
     companions.forEach((oldItem) => {
       const stillExists = updated.some(item => item.id === oldItem.id);
       if (!stillExists) {
         deleteCloudDocument('companions', oldItem.id);
       }
     });
+
+    // Determine added or modified companions and sync only those
+    updated.forEach((newItem) => {
+      const oldItem = companions.find(item => item.id === newItem.id);
+      if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(newItem)) {
+        setCloudDocument('companions', newItem.id, newItem);
+      }
+    });
+
+    // Update local state immediately
+    setCompanions(updated);
   };
 
   const handleUpdateLocations = (updated: HotelLocation[]) => {
@@ -2838,12 +2846,12 @@ Congratulations! Our administration team has verified and APPROVED your professi
 
 Your profile is now LIVE in our exclusive directory under category: ${c.category || 'Female Model'}.
 
-We have automatically created a dedicated Model Account for you to track your bookings, work history, and earnings securely!
+We have automatically activated your dedicated Model Account for you to track your bookings, work history, and earnings securely!
 
 --- YOUR PORTAL CREDENTIALS ---
 🌐 Portal Link: ${window.location.origin}/#model
 👤 Username: ${finalUsername}
-🔐 Temporary Password: ${tempPassword}
+🔐 Password: (Use the secure password you selected during registration)
 
 Please log in using the credentials above. You can view all your earnings, previous works, and request withdrawals directly from your dashboard.
 
@@ -2851,7 +2859,7 @@ Sincerely,
 bodyTOUCH Auditing Core
 `;
           sendAutoEmail(c.email || 'code@bodytouch.com', mailSubject, mailBody);
-          triggerToast(`✅ Partner approved: ${c.name}! Account created and details sent to email.`, 'success');
+          triggerToast(`✅ Partner approved: ${c.name}! Account activated successfully.`, 'success');
 
           // Send Telegram Activation Notification to Admin Group
           const botApproveText = `✅ <b>মডেল প্রোফাইল অ্যাক্টিভেট করা হয়েছে!</b>\n\n` +
@@ -2860,7 +2868,7 @@ bodyTOUCH Auditing Core
             `💰 ডিমান্ড রেট: <b>৳${c.rate}/ঘন্টা</b>\n` +
             `📍 শহর: <b>${c.city || 'Dhaka'}</b>\n` +
             `🔑 পোর্টাল ইউজারনেম: <code>${finalUsername}</code>\n` +
-            `🔒 পাসওয়ার্ড: <code>${tempPassword}</code>\n` +
+            `🔒 পাসওয়ার্ড: <i>[নিরাপত্তার স্বার্থে হাইড করা - আবেদনকারীর নিজস্ব পাসওয়ার্ড]</i>\n` +
             `✈️ টেলিগ্রাম: <b>${c.telegram ? '@' + c.telegram.replace('@', '') : 'N/A'}</b>\n\n` +
             `<i>প্রোফাইলটি এখন ক্যাটালগে সবার জন্য দৃশ্যমান এবং বুকিং করার জন্য উন্মুক্ত।</i>`;
           sendTelegramNotification(botApproveText);
@@ -3955,6 +3963,70 @@ https://service.bodytouch.com
 
     triggerToast(`🎉 Successfully upgraded to ${tierName} tier using referral earnings!`, 'success');
   };
+
+  if (isJoinModalOpen) {
+    return (
+      <div className="text-slate-100 min-h-screen bg-[#020510] selection:bg-[#dbaa61] selection:text-slate-950 font-sans w-full flex flex-col justify-start">
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.isVisible}
+          onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
+        />
+        <Suspense fallback={<SuspenseFallback />}>
+          <JoinModal
+            isOpen={isJoinModalOpen}
+            onClose={() => {
+              setIsJoinModalOpen(false);
+              window.location.hash = '';
+              window.location.search = '';
+              if (window.location.pathname.toLowerCase().includes('join') || window.location.pathname.toLowerCase().includes('register')) {
+                window.location.pathname = '/';
+              }
+            }}
+            initialType={joinModalType}
+            cities={cities}
+            structuredCities={structuredCities}
+            telegramHelpline={telegramHelpline}
+            registrationFee={pricingConfig.registrationFee}
+            registrationFeeMale={pricingConfig.registrationFeeMale}
+            registrationFeeSperm={pricingConfig.registrationFeeSperm}
+            paymentGateways={paymentGateways}
+            companions={companions}
+            onAddCompanion={(newComp) => {
+              setCloudDocument('companions', newComp.id, newComp);
+              setCompanions((prev) => {
+                const exists = prev.some((c) => c.id === newComp.id);
+                if (exists) {
+                  return prev.map((c) => (c.id === newComp.id ? newComp : c));
+                }
+                return [newComp, ...prev];
+              });
+
+              const isInitial = !newComp.specialty.includes('💳 [REGISTRATION FEE PAID]');
+              if (isInitial) {
+                triggerToast('🎉 Career application submitted! Pending verification.', 'success');
+
+                // Send Telegram Notification to Admin Group Chat ID
+                const regText = `🔔 <b>নতুন মডেল রেজিস্ট্রেশন আবেদন!</b>\n\n` +
+                  `👤 নাম: <b>${newComp.name}</b>\n` +
+                  `🧬 ক্যাটাগরি: <b>${newComp.category || 'Female Model'}</b>\n` +
+                  `📍 শহর: <b>${newComp.city || 'Dhaka'}</b>\n` +
+                  `📞 ফোন নাম্বার: <code>${newComp.phone || 'N/A'}</code>\n` +
+                  `✈️ টেলিগ্রাম হ্যান্ডেল: <b>${newComp.telegram ? '@' + newComp.telegram.replace('@', '') : 'Not Provided'}</b>\n` +
+                  `📐 বয়স: ${newComp.age} বছর | উচ্চতা: ${newComp.height}\n` +
+                  `💰 ডিমান্ড রেট: ৳${newComp.rate}/ঘন্টা\n\n` +
+                  `<i>অনুমোদনের জন্য ড্যাশবোর্ড পোর্টালে লগইন করুন।</i>`;
+                sendTelegramNotification(regText);
+              } else {
+                triggerToast('💳 Registration fee payment submitted! Proof sent to admin.', 'success');
+              }
+            }}
+          />
+        </Suspense>
+      </div>
+    );
+  }
 
   if (isAdminOpen) {
     return (
@@ -5638,37 +5710,9 @@ https://service.bodytouch.com
               exit="hidden"
               className="space-y-5 text-left max-w-md mx-auto"
             >
-              {/* Portal Mode Switcher Tab (গ্রাহক বনাম মডেল/ডোনার প্যানেল) */}
-              <motion.div variants={itemVariants} className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/80 rounded-2xl border border-blue-500/10">
-                <button
-                  type="button"
-                  onClick={() => setAccountMode('client')}
-                  className={`py-3 px-2 rounded-xl text-[10.5px] font-black uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer ${
-                    accountMode === 'client'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/10'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
-                  }`}
-                >
-                  <User className="w-4 h-4 text-blue-400" />
-                  Client (গ্রাহক পোর্টাল)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAccountMode('partner')}
-                  className={`py-3 px-2 rounded-xl text-[10.5px] font-black uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer ${
-                    accountMode === 'partner'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/10'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
-                  }`}
-                >
-                  <Briefcase className="w-4 h-4 text-emerald-400" />
-                  Partner Board
-                </button>
-              </motion.div>
-
-              {accountMode === 'client' ? (
+              {/* Profile Card Container */}
+              {true ? (
                 <>
-                  {/* Profile Card Container */}
                   <motion.div 
                     variants={itemVariants} 
                     className="bg-[#020716] border border-blue-900/30 rounded-3xl p-6 sm:p-8 space-y-6 shadow-[0_0_50px_rgba(30,58,138,0.15)]"
