@@ -460,6 +460,87 @@ async function startServer() {
     return res.status(200).json({ serverTime: Date.now() });
   });
 
+  // Real-time Presence Tracking for Admins, Clients, and Agents
+  let activePresenceSessions: Record<string, {
+    identifier: string;
+    role: 'admin' | 'client' | 'agent';
+    label: string;
+    startedAt: number;
+    lastSeen: number;
+  }> = {};
+
+  app.post("/api/presence/heartbeat", (req, res) => {
+    try {
+      const { identifier, role, label } = req.body;
+      if (!identifier || !role) {
+        return res.status(400).json({ error: "identifier and role are required." });
+      }
+
+      const cleanId = String(identifier).toLowerCase().trim();
+      const cleanRole = String(role).toLowerCase().trim() as 'admin' | 'client' | 'agent';
+      const key = `${cleanRole}:${cleanId}`;
+      const now = Date.now();
+
+      // Keep startedAt if session has been active recently
+      const existing = activePresenceSessions[key];
+      let startedAt = now;
+      if (existing && (now - existing.lastSeen) < 30000) {
+        startedAt = existing.startedAt;
+      }
+
+      activePresenceSessions[key] = {
+        identifier: cleanId,
+        role: cleanRole,
+        label: label || identifier,
+        startedAt,
+        lastSeen: now
+      };
+
+      // Clean up sessions older than 25 seconds
+      const activeList = Object.values(activePresenceSessions).filter(s => (now - s.lastSeen) < 25000);
+      
+      // Reset and rebuild sessions map with only active ones
+      activePresenceSessions = {};
+      activeList.forEach(s => {
+        activePresenceSessions[`${s.role}:${s.identifier}`] = s;
+      });
+
+      return res.status(200).json({
+        success: true,
+        activeSessions: activeList.map(s => ({
+          identifier: s.identifier,
+          role: s.role,
+          label: s.label,
+          startedAt: s.startedAt,
+          activeDurationMs: now - s.startedAt
+        }))
+      });
+    } catch (err: any) {
+      console.error("Presence heartbeat error:", err);
+      return res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
+  app.get("/api/presence/active", (req, res) => {
+    try {
+      const now = Date.now();
+      const activeList = Object.values(activePresenceSessions).filter(s => (now - s.lastSeen) < 25000);
+      return res.status(200).json({
+        success: true,
+        activeSessions: activeList.map(s => ({
+          identifier: s.identifier,
+          role: s.role,
+          label: s.label,
+          startedAt: s.startedAt,
+          activeDurationMs: now - s.startedAt
+        }))
+      });
+    } catch (err: any) {
+      console.error("Fetch active presence error:", err);
+      return res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
   // API Routes for Server-side Shared Database Store
   app.get("/api/db/get_all", (req, res) => {
     try {

@@ -222,6 +222,32 @@ export default function App() {
     setEditGender(gender);
   }, [gender]);
 
+  // Send Client Presence Heartbeat
+  useEffect(() => {
+    if (!isLoggedIn || !username) return;
+
+    const sendHeartbeat = async () => {
+      try {
+        await fetch('/api/presence/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            identifier: username,
+            role: 'client',
+            label: username
+          })
+        });
+      } catch (err) {
+        console.warn('Client presence heartbeat error:', err);
+      }
+    };
+
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 8000);
+
+    return () => clearInterval(interval);
+  }, [isLoggedIn, username]);
+
   const [avatarUrl, setAvatarUrl] = useState<string>(() => {
     return getStoredItem('bt_avatar_url');
   });

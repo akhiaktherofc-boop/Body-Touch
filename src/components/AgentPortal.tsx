@@ -126,6 +126,32 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
     }
   }, [isLoggedIn, agentUsername]);
 
+  // Send Agent Presence Heartbeat
+  useEffect(() => {
+    if (!isLoggedIn || !agentUsername) return;
+
+    const sendHeartbeat = async () => {
+      try {
+        await fetch('/api/presence/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            identifier: agentUsername,
+            role: 'agent',
+            label: agentUsername
+          })
+        });
+      } catch (err) {
+        console.warn('Agent presence heartbeat error:', err);
+      }
+    };
+
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 8000);
+
+    return () => clearInterval(interval);
+  }, [isLoggedIn, agentUsername]);
+
   // Login Form States
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPass, setLoginPass] = useState('');

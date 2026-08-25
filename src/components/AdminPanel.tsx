@@ -63,6 +63,18 @@ import {
 import { io, Socket } from 'socket.io-client';
 import AdminLiveChat from './AdminLiveChat';
 
+const formatPresenceDuration = (ms: number): string => {
+  const totalSecs = Math.floor((ms || 0) / 1000);
+  if (totalSecs <= 0) return '0s';
+  const h = Math.floor(totalSecs / 3600);
+  const m = Math.floor((totalSecs % 3600) / 60);
+  const s = totalSecs % 60;
+  
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+};
+
 interface AdminPanelProps {
   payments: PaymentRecord[];
   onApprove: (id: string) => void;
@@ -738,6 +750,54 @@ export default function AdminPanel({
   const [backupInputCode, setBackupInputCode] = useState('');
   const [confirm2FAResetEmail, setConfirm2FAResetEmail] = useState<string | null>(null);
   const [confirmRemoveEmail, setConfirmRemoveEmail] = useState<string | null>(null);
+
+  // Active presence monitoring list for blue indicators & active duration timers
+  const [activePresenceList, setActivePresenceList] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!adminEmail) return;
+
+    const sendHeartbeatAndFetch = async () => {
+      try {
+        const hbRes = await fetch('/api/presence/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            identifier: adminEmail,
+            role: 'admin',
+            label: adminEmail
+          })
+        });
+        if (hbRes.ok) {
+          const data = await hbRes.json();
+          if (data.success && data.activeSessions) {
+            setActivePresenceList(data.activeSessions);
+          }
+        }
+      } catch (err) {
+        console.warn("Presence sync err:", err);
+      }
+    };
+
+    sendHeartbeatAndFetch();
+    const hbInterval = setInterval(sendHeartbeatAndFetch, 5000);
+
+    // Smooth second-by-second active duration increment ticker
+    const timerInterval = setInterval(() => {
+      setActivePresenceList(prev => {
+        if (!prev || prev.length === 0) return [];
+        return prev.map(s => ({
+          ...s,
+          activeDurationMs: (s.activeDurationMs || 0) + 1000
+        }));
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(hbInterval);
+      clearInterval(timerInterval);
+    };
+  }, [adminEmail]);
   const [viewingBackupCodesEmail, setViewingBackupCodesEmail] = useState<string | null>(null);
   const [generatedBackupCodes, setGeneratedBackupCodes] = useState<string[]>([]);
   const [isGeneratingBackupCodes, setIsGeneratingBackupCodes] = useState(false);
@@ -4243,8 +4303,20 @@ export default function AdminPanel({
                     >
                       <div className="flex justify-between items-start text-xs border-b border-white/5 pb-3">
                         <div>
-                          <p className="text-white font-extrabold text-sm font-sans">
-                            Client: <span className="text-blue-400 font-mono font-bold select-all">{pay.username}</span>
+                          <p className="text-white font-extrabold text-sm font-sans flex items-center flex-wrap gap-1">
+                            <span>Client:</span>
+                            <span className="text-blue-400 font-mono font-bold select-all">@{pay.username}</span>
+                            {(() => {
+                              const onlineSession = activePresenceList.find(s => s.role === 'client' && s.identifier === (pay.username || '').toLowerCase().trim());
+                              if (!onlineSession) return null;
+                              return (
+                                <span className="inline-flex items-center gap-1 bg-blue-500/10 border border-blue-500/25 px-1.5 py-0.5 rounded text-[8px] font-black text-blue-400 font-mono animate-pulse relative shrink-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping absolute" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 relative" />
+                                  <span>ONLINE: {formatPresenceDuration(onlineSession.activeDurationMs)}</span>
+                                </span>
+                              );
+                            })()}
                           </p>
                           <p className="text-[10px] text-slate-400 font-black tracking-normal uppercase mt-1">
                             {pay.tierName} • {pay.method}
@@ -4631,8 +4703,20 @@ export default function AdminPanel({
                     >
                       <div className="flex justify-between items-start text-xs border-b border-white/5 pb-3">
                         <div>
-                          <p className="text-white font-extrabold text-sm font-sans">
-                            Client: <span className="text-blue-400 font-mono font-bold select-all">{pay.username}</span>
+                          <p className="text-white font-extrabold text-sm font-sans flex items-center flex-wrap gap-1">
+                            <span>Client:</span>
+                            <span className="text-blue-400 font-mono font-bold select-all">@{pay.username}</span>
+                            {(() => {
+                              const onlineSession = activePresenceList.find(s => s.role === 'client' && s.identifier === (pay.username || '').toLowerCase().trim());
+                              if (!onlineSession) return null;
+                              return (
+                                <span className="inline-flex items-center gap-1 bg-blue-500/10 border border-blue-500/25 px-1.5 py-0.5 rounded text-[8px] font-black text-blue-400 font-mono animate-pulse relative shrink-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping absolute" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 relative" />
+                                  <span>ONLINE: {formatPresenceDuration(onlineSession.activeDurationMs)}</span>
+                                </span>
+                              );
+                            })()}
                           </p>
                           <p className="text-[10px] text-amber-400 font-black tracking-normal uppercase mt-1">
                             💳 REQUESTING {pay.tierName.toUpperCase()} MEMBERSHIP
@@ -9702,7 +9786,20 @@ Body Touch Premium Network`;
                               {emailAddress.charAt(0).toUpperCase()}
                             </div>
                             <div className="text-left font-semibold min-w-0 flex-1">
-                              <span className="text-xs font-bold text-slate-200 block font-mono truncate" title={emailAddress}>{emailAddress}</span>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-bold text-slate-200 block font-mono truncate" title={emailAddress}>{emailAddress}</span>
+                                {(() => {
+                                  const onlineSession = activePresenceList.find(s => s.role === 'admin' && s.identifier === emailAddress.toLowerCase());
+                                  if (!onlineSession) return null;
+                                  return (
+                                    <div className="inline-flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/25 px-2 py-0.5 rounded text-[8.5px] font-black text-blue-400 font-mono animate-pulse shrink-0 relative">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping absolute" />
+                                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 relative" />
+                                      <span>ACTIVE: {formatPresenceDuration(onlineSession.activeDurationMs)}</span>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
                               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                 {loggedInAdminRole === 'super_admin' && !isMainSuperAdmin && !isCurrentlyLoggedInUser ? (
                                   <select
@@ -11461,13 +11558,24 @@ Body Touch Premium Network`;
                                 return (
                                   <tr key={idx} className="hover:bg-slate-800/20 transition">
                                     <td className="py-3 px-3 text-left">
-                                      <div className="font-bold text-white font-mono flex items-center gap-1.5">
-                                        @{user.username}
+                                      <div className="font-bold text-white font-mono flex items-center gap-1.5 flex-wrap">
+                                        <span>@{user.username}</span>
                                         {user.isAutoImported && (
                                           <span className="text-[7.5px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/25 uppercase font-bold tracking-wider leading-none">
                                             Legacy Agent
                                           </span>
                                         )}
+                                        {(() => {
+                                          const onlineSession = activePresenceList.find(s => s.role === 'agent' && s.identifier === user.username.toLowerCase());
+                                          if (!onlineSession) return null;
+                                          return (
+                                            <div className="inline-flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/25 px-1.5 py-0.5 rounded text-[8.5px] font-black text-blue-400 font-mono animate-pulse relative shrink-0">
+                                              <span className="w-1.2 h-1.2 rounded-full bg-blue-400 animate-ping absolute" />
+                                              <span className="w-1.2 h-1.2 rounded-full bg-blue-500 relative" />
+                                              <span>{formatPresenceDuration(onlineSession.activeDurationMs)}</span>
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
                                       {user.fullName && (
                                         <div className="text-[10px] text-[#dbaa61] mt-0.5 font-sans">{user.fullName}</div>
