@@ -455,6 +455,11 @@ async function startServer() {
     }
   }
 
+  // Server-side precise NTP-synchronized system clock API
+  app.get("/api/time", (req, res) => {
+    return res.status(200).json({ serverTime: Date.now() });
+  });
+
   // API Routes for Server-side Shared Database Store
   app.get("/api/db/get_all", (req, res) => {
     try {

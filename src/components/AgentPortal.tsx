@@ -38,6 +38,23 @@ import QRCode from 'qrcode';
 import { compressImage } from '../services/imageService';
 import { cleanUndefined } from '../services/cloudService';
 
+const fetchServerTimeOffset = async (): Promise<number> => {
+  try {
+    const start = Date.now();
+    const response = await fetch('/api/time');
+    if (!response.ok) throw new Error('Failed to fetch server time');
+    const data = await response.json();
+    const end = Date.now();
+    const latency = Math.round((end - start) / 2);
+    const offset = data.serverTime - (Date.now() - latency);
+    console.log('[Time Sync Agent] Calculated clock offset (ms):', offset);
+    return offset;
+  } catch (err) {
+    console.warn('[Time Sync Agent Warn] Falling back to 0 offset:', err);
+    return 0;
+  }
+};
+
 // Custom high-fidelity brand SVGs for MFS gateways
 const BkashLogo = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -372,6 +389,10 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
         return;
       }
 
+      // Synchronize precise time offset from NTP-locked server container clock
+      const offset = await fetchServerTimeOffset();
+      const nowWithOffset = Date.now() + offset;
+
       const totpSecretValue = totpSnap.data().secret;
       const totp = new OTPAuth.TOTP({
         issuer: 'BodyTouch_Agent',
@@ -382,7 +403,7 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
         secret: OTPAuth.Secret.fromBase32(totpSecretValue)
       });
 
-      const isValid = totp.validate({ token: cleanTotpCode, window: 1 }) !== null;
+      const isValid = totp.validate({ token: cleanTotpCode, window: 12, timestamp: nowWithOffset }) !== null;
       if (!isValid) {
         triggerToast('Incorrect Authenticator 2-Step Code! Verification failed.', 'error');
         setIsSending(false);
@@ -419,6 +440,11 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
 
     try {
       setIsSending(true);
+
+      // Synchronize precise time offset from NTP-locked server container clock
+      const offset = await fetchServerTimeOffset();
+      const nowWithOffset = Date.now() + offset;
+
       const totp = new OTPAuth.TOTP({
         issuer: 'BodyTouch_Agent',
         label: tempAgentUsername,
@@ -428,7 +454,7 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
         secret: OTPAuth.Secret.fromBase32(totpSecret)
       });
 
-      const isValid = totp.validate({ token: totpInputCode.trim(), window: 1 }) !== null;
+      const isValid = totp.validate({ token: totpInputCode.trim(), window: 12, timestamp: nowWithOffset }) !== null;
 
       if (isValid) {
         // Save verified secret in Firestore
@@ -465,6 +491,11 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
 
     try {
       setIsSending(true);
+
+      // Synchronize precise time offset from NTP-locked server container clock
+      const offset = await fetchServerTimeOffset();
+      const nowWithOffset = Date.now() + offset;
+
       const totp = new OTPAuth.TOTP({
         issuer: 'BodyTouch_Agent',
         label: tempAgentUsername,
@@ -474,7 +505,7 @@ export const AgentPortal: React.FC<AgentPortalProps> = ({
         secret: OTPAuth.Secret.fromBase32(totpSecret)
       });
 
-      const isValid = totp.validate({ token: totpInputCode.trim(), window: 1 }) !== null;
+      const isValid = totp.validate({ token: totpInputCode.trim(), window: 12, timestamp: nowWithOffset }) !== null;
 
       if (isValid) {
         // Complete Login

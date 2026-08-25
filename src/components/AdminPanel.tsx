@@ -159,6 +159,23 @@ const PRESET_HOTEL_IMAGES = [
   'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&q=80&w=600'
 ];
 
+const fetchServerTimeOffset = async (): Promise<number> => {
+  try {
+    const start = Date.now();
+    const response = await fetch('/api/time');
+    if (!response.ok) throw new Error('Failed to fetch server time');
+    const data = await response.json();
+    const end = Date.now();
+    const latency = Math.round((end - start) / 2);
+    const offset = data.serverTime - (Date.now() - latency);
+    console.log('[Time Sync] Calculated clock offset (ms):', offset);
+    return offset;
+  } catch (err) {
+    console.warn('[Time Sync Warn] Falling back to 0 offset:', err);
+    return 0;
+  }
+};
+
 export default function AdminPanel({ 
   payments, 
   onApprove, 
@@ -1053,6 +1070,10 @@ export default function AdminPanel({
       setIsSending(true);
       setAuthError('');
 
+      // Synchronize precise time offset from NTP-locked server container clock
+      const offset = await fetchServerTimeOffset();
+      const nowWithOffset = Date.now() + offset;
+
       // Create TOTP verifier
       const totp = new OTPAuth.TOTP({
         issuer: 'BodyTouch',
@@ -1064,7 +1085,7 @@ export default function AdminPanel({
       });
 
       // Verification check - strictly validate using Google Authenticator, no bypass codes permitted
-      const isValid = totp.validate({ token: cleanCode, window: 12 }) !== null;
+      const isValid = totp.validate({ token: cleanCode, window: 12, timestamp: nowWithOffset }) !== null;
 
       if (isValid) {
         // Save the verified secret in Firestore
@@ -1153,6 +1174,10 @@ export default function AdminPanel({
         return;
       }
 
+      // Synchronize precise time offset from NTP-locked server container clock
+      const offset = await fetchServerTimeOffset();
+      const nowWithOffset = Date.now() + offset;
+
       const totp = new OTPAuth.TOTP({
         issuer: 'BodyTouch',
         label: normalizedEmail,
@@ -1163,7 +1188,7 @@ export default function AdminPanel({
       });
 
       // Strictly validate using Google Authenticator token, no bypass codes permitted
-      const isValid = totp.validate({ token: cleanCode, window: 12 }) !== null;
+      const isValid = totp.validate({ token: cleanCode, window: 12, timestamp: nowWithOffset }) !== null;
 
       if (isValid) {
         // Log in
