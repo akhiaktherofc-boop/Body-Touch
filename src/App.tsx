@@ -62,12 +62,13 @@ import {
 } from 'lucide-react';
 
 
-import { Companion, HotelLocation, Booking, PaymentRecord, MemberLevel, EmailLog, Review, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, AppNotification } from './types';
+import { Companion, HotelLocation, Booking, PaymentRecord, MemberLevel, EmailLog, Review, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, AppNotification, MarketingTrackingSettings } from './types';
 import { COMPANIONS, LOCATIONS } from './data';
 import CompanionCard from './components/CompanionCard';
 import LocationCard from './components/LocationCard';
 import Toast from './components/Toast';
 import ImageSlider from './components/ImageSlider';
+import { analyticsService, DEFAULT_TRACKING_SETTINGS } from './services/analyticsService';
 
 import { calculateBookingCost } from './utils/bookingUtils';
 
@@ -1161,6 +1162,18 @@ export default function App() {
     return localStorage.getItem('bt_google_sheet_url') || 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS_g7vXJWhX_3gK-N5V7v6x_9o2vR6_0pYQ/pubhtml?widget=true&headers=false';
   });
 
+  const [marketingSettings, setMarketingSettings] = useState<MarketingTrackingSettings>(() => {
+    try {
+      const saved = localStorage.getItem('bt_marketing_pixels');
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+    return DEFAULT_TRACKING_SETTINGS;
+  });
+
+  useEffect(() => {
+    analyticsService.initMarketingPixels(marketingSettings);
+  }, []);
+
   const [emergencyNotice, setEmergencyNotice] = useState<string>(() => {
     return getStoredItem('bt_emergency_notice') || 'সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যাম সার্ভিস বুকিং দিবেন না';
   });
@@ -1836,6 +1849,17 @@ export default function App() {
             setPaymentGateways(data.gateways);
             localStorage.setItem('bt_payment_gateways', JSON.stringify(data.gateways));
           }
+        }
+
+        // 6. Fetch Marketing & Ad Tracking Pixels Settings from Cloud Firestore
+        const marketingRef = doc(db, 'settings', 'marketing_pixels');
+        const marketingSnap = await getDoc(marketingRef);
+        if (isCancelled) return;
+        if (marketingSnap.exists()) {
+          const data = marketingSnap.data() as MarketingTrackingSettings;
+          setMarketingSettings(data);
+          localStorage.setItem('bt_marketing_pixels', JSON.stringify(data));
+          analyticsService.initMarketingPixels(data);
         }
       } catch (err) {
         console.warn('[CloudDB] Failed to load settings:', err);
@@ -2813,6 +2837,20 @@ Website: https://bodytouch.com
     } catch (err) {
       console.error(err);
       triggerToast("❌ Failed to update Google Sheet settings: " + (err instanceof Error ? err.message : String(err)), "error");
+    }
+  };
+
+  const handleSaveMarketingSettings = async (updated: MarketingTrackingSettings) => {
+    try {
+      setMarketingSettings(updated);
+      localStorage.setItem('bt_marketing_pixels', JSON.stringify(updated));
+      const docRef = doc(db, 'settings', 'marketing_pixels');
+      await setDoc(docRef, updated, { merge: true });
+      analyticsService.initMarketingPixels(updated);
+      triggerToast("✅ Marketing & Ad Tracking Pixels (FB, TikTok, GTM, GA4) saved to Cloud Firestore!", "success");
+    } catch (err) {
+      console.error(err);
+      triggerToast("❌ Failed to save marketing tracking settings: " + (err instanceof Error ? err.message : String(err)), "error");
     }
   };
 
@@ -4141,6 +4179,8 @@ https://service.bodytouch.com
             onSaveEmergencyNotice={handleSaveEmergencyNotice}
             googleSheetUrl={googleSheetUrl}
             onSaveGoogleSheetUrl={handleSaveGoogleSheetUrl}
+            marketingSettings={marketingSettings}
+            onSaveMarketingSettings={handleSaveMarketingSettings}
           />
         </Suspense>
       </div>

@@ -242,4 +242,38 @@ export interface PromoCode {
   createdAt: string;
 }
 
+export interface MarketingTrackingSettings {
+  // Meta / Facebook Pixel
+  facebookPixelId: string;
+  facebookPixelEnabled: boolean;
+  facebookTestEventCode?: string;
+
+  // TikTok Pixel
+  tiktokPixelId: string;
+  tiktokPixelEnabled: boolean;
+
+  // Google Tag Manager (GTM)
+  gtmContainerId: string;
+  gtmEnabled: boolean;
+
+  // Google Analytics 4 (GA4)
+  ga4MeasurementId: string;
+  ga4Enabled: boolean;
+
+  // Custom Header & Footer Code / Scripts
+  customHeaderScript?: string;
+  customFooterScript?: string;
+
+  // Automatic Event Tracking Toggles
+  trackPageViews: boolean;
+  trackViewContent: boolean;      // Model / Companion Profile Views
+  trackInitiateCheckout: boolean; // Starting Booking / Deposit Modal
+  trackPurchase: boolean;         // Completed Booking / Confirmed Payment
+  trackContact: boolean;          // Telegram / WhatsApp / Helpline clicks
+  trackRegistration: boolean;     // Account Signups / VIP Requests
+
+  lastUpdated?: string;
+  updatedBy?: string;
+}
+
 

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, doc, getDoc, setDoc, deleteDoc, getDocFromServer, onSnapshot, collection, addDoc, updateDoc, isRealFirebaseEnabled, initializeRealFirebase } from '../firebase';
 import * as OTPAuth from 'otpauth';
-import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel, PromoCode } from '../types';
+import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel, PromoCode, MarketingTrackingSettings } from '../types';
 import { clearCollection, setCloudDocument, deleteCloudDocument } from '../services/cloudService';
 import { compressImage } from '../services/imageService';
 import { 
@@ -58,10 +58,13 @@ import {
   Tag,
   Percent,
   Bell,
-  UserPlus
+  UserPlus,
+  Target
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import AdminLiveChat from './AdminLiveChat';
+import { MarketingPixelsManager } from './MarketingPixelsManager';
+import { analyticsService, DEFAULT_TRACKING_SETTINGS } from '../services/analyticsService';
 
 const formatPresenceDuration = (ms: number): string => {
   const totalSecs = Math.floor((ms || 0) / 1000);
@@ -147,6 +150,8 @@ interface AdminPanelProps {
   onSaveEmergencyNotice?: (text: string) => Promise<void>;
   googleSheetUrl?: string;
   onSaveGoogleSheetUrl?: (url: string) => void;
+  marketingSettings?: MarketingTrackingSettings;
+  onSaveMarketingSettings?: (settings: MarketingTrackingSettings) => Promise<void>;
 }
 
 // Beautiful and elegant Unsplash placeholder images to select instantly
@@ -264,7 +269,9 @@ export default function AdminPanel({
   emergencyNotice = 'সার্ভিসের ন্যূনতম ১ ঘণ্টা পূর্বে বুকিং দিবেন। সাপোর্টে কথা না বলে ক্যাম সার্ভিস বুকিং দিবেন না',
   onSaveEmergencyNotice,
   googleSheetUrl,
-  onSaveGoogleSheetUrl
+  onSaveGoogleSheetUrl,
+  marketingSettings,
+  onSaveMarketingSettings
 }: AdminPanelProps) {
   
   // Security gate authentication using sessionStorage
@@ -1433,8 +1440,58 @@ export default function AdminPanel({
   // Render High Security Portal Gate if not authenticated - MOVED BELOW HOOKS TO COMPLY WITH REACT HOOK RULES
 
   // Tabs configured to align with User's specific requirements
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'memberships' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat' | 'promocodes' | 'model_ledger' | 'broadcast_notifications' | 'visitors'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'memberships' | 'partners' | 'media' | 'orders' | 'hotels' | 'smtp' | 'cities' | 'gateways' | 'admins' | 'verification' | 'shortlinks' | 'referrals' | 'livechat' | 'promocodes' | 'model_ledger' | 'broadcast_notifications' | 'visitors' | 'marketing'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Marketing & Tracking Pixels state & persistence
+  const [currentMarketingSettings, setCurrentMarketingSettings] = useState<MarketingTrackingSettings>(() => {
+    if (marketingSettings) return marketingSettings;
+    try {
+      const saved = localStorage.getItem('bt_marketing_pixels');
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+    return DEFAULT_TRACKING_SETTINGS;
+  });
+
+  useEffect(() => {
+    if (marketingSettings) {
+      setCurrentMarketingSettings(marketingSettings);
+    }
+  }, [marketingSettings]);
+
+  useEffect(() => {
+    const fetchMarketingSettings = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'marketing_pixels');
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const data = snap.data() as MarketingTrackingSettings;
+          setCurrentMarketingSettings(data);
+          localStorage.setItem('bt_marketing_pixels', JSON.stringify(data));
+          analyticsService.initMarketingPixels(data);
+        }
+      } catch (e) {
+        console.warn('Failed to load marketing settings in AdminPanel:', e);
+      }
+    };
+    fetchMarketingSettings();
+  }, []);
+
+  const handleSaveMarketingSettingsInternal = async (updated: MarketingTrackingSettings) => {
+    try {
+      setCurrentMarketingSettings(updated);
+      localStorage.setItem('bt_marketing_pixels', JSON.stringify(updated));
+      const docRef = doc(db, 'settings', 'marketing_pixels');
+      await setDoc(docRef, updated, { merge: true });
+      if (onSaveMarketingSettings) {
+        await onSaveMarketingSettings(updated);
+      }
+      analyticsService.initMarketingPixels(updated);
+    } catch (err) {
+      console.error('Failed to save marketing tracking settings:', err);
+      throw err;
+    }
+  };
 
   // Broadcast & Push Notification states
   const [broadcastTitle, setBroadcastTitle] = useState('');
@@ -3184,6 +3241,24 @@ export default function AdminPanel({
               </span>
             </button>
 
+            {/* Marketing & Ad Tracking Pixels Tab */}
+            <button
+              onClick={() => handleNavItemClick('marketing')}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
+                activeTab === 'marketing'
+                  ? 'bg-amber-950/20 border border-[#dbaa61]/30 text-white font-heavy shadow-[0_0_15px_rgba(219,170,97,0.06)]'
+                  : 'hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Target className={`w-4 h-4 shrink-0 ${activeTab === 'marketing' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
+                <span>Marketing & Pixels (পিক্সেল)</span>
+              </div>
+              <span className="text-[10px] bg-blue-500/10 text-blue-400 font-bold font-mono px-1.5 py-0.5 rounded border border-blue-500/25">
+                Ads & Boost
+              </span>
+            </button>
+
             {/* Live Support Chat Tab */}
             <button
               onClick={() => handleNavItemClick('livechat')}
@@ -3819,6 +3894,8 @@ export default function AdminPanel({
     { id: 'shortlinks' as const, label: 'Short Links', icon: Link2 },
     { id: 'referrals' as const, label: 'Referrals', icon: Award },
     { id: 'promocodes' as const, label: 'Promo Codes', icon: Tag },
+    { id: 'marketing' as const, label: 'Pixel & Boost', icon: Target },
+    { id: 'visitors' as const, label: 'Visitors', icon: Globe },
     { id: 'livechat' as const, label: 'Support Chat', icon: MessageSquare },
     { id: 'model_ledger' as const, label: 'Model Ledger', icon: TrendingUp },
   ];
@@ -4079,6 +4156,7 @@ export default function AdminPanel({
                 {activeTab === 'model_ledger' && 'Model Ledger & Financial Audit'}
                 {activeTab === 'broadcast_notifications' && 'Broadcasting & Push Notifications (পুশ নোটিফিকেশন)'}
                 {activeTab === 'visitors' && 'Visitor Traffic Analytics (ভিজিটর ট্রাফিক)'}
+                {activeTab === 'marketing' && 'Marketing & Ad Tracking Pixels (বিজ্ঞাপন ও বুস্ট ট্র্যাকিং)'}
               </h1>
               <p className="text-xs text-slate-400 font-medium mt-1">
                 {activeTab === 'shortlinks' && 'View, test, and copy user registration and application forms for different model types.'}
@@ -4100,6 +4178,7 @@ export default function AdminPanel({
                 {activeTab === 'model_ledger' && 'Add manual dispatch ledger records, audit model balances, and track withdrawable payouts.'}
                 {activeTab === 'broadcast_notifications' && 'Send in-app notifications and urgent global alerts directly to all users or specific clients.'}
                 {activeTab === 'visitors' && 'Monitor and audit website traffic volume, unique user sessions, geographic locations, and historic visit dates.'}
+                {activeTab === 'marketing' && 'Manage Meta (Facebook) Pixel, TikTok Pixel, Google Tag Manager (GTM), and GA4 IDs for campaign tracking and boosting conversions.'}
               </p>
             </div>
 
@@ -13253,6 +13332,17 @@ Body Touch Premium Network`;
                 </div>
               </div>
             </div>
+          )}
+
+          {/* =======================================================
+              MARKETING & AD TRACKING PIXELS TAB
+             ======================================================= */}
+          {activeTab === 'marketing' && (
+            <MarketingPixelsManager
+              settings={currentMarketingSettings}
+              onSaveSettings={handleSaveMarketingSettingsInternal}
+              loggedInAdminEmail={adminEmail}
+            />
           )}
 
         </div>
