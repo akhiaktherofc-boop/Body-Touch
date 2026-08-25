@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { db, doc, getDoc, setDoc, deleteDoc, getDocFromServer, onSnapshot, collection, addDoc, updateDoc, isRealFirebaseEnabled, initializeRealFirebase } from '../firebase';
 import * as OTPAuth from 'otpauth';
 import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel, PromoCode } from '../types';
-import { clearCollection } from '../services/cloudService';
+import { clearCollection, setCloudDocument, deleteCloudDocument } from '../services/cloudService';
 import { compressImage } from '../services/imageService';
 import { 
   ShieldCheck, 
@@ -942,12 +942,10 @@ export default function AdminPanel({
       } catch (e) {}
     }
     
-    if (list.length === 0) {
+    if (!list || list.length === 0) {
       list = [
         { email: '16killer2@gmail.com', telegram: '@secure_super_admin', role: 'super_admin' },
-        { email: 'akhi.akther.ofc@gmail.com', telegram: '@developer_akhi', role: 'super_admin' },
-        { email: 'admin@bodytouch.com', telegram: '@bodytouch_admin', role: 'admin' },
-        { email: 'moderator@bodytouch.com', telegram: '@bodytouch_mod', role: 'moderator' }
+        { email: 'akhi.akther.ofc@gmail.com', telegram: '@developer_akhi', role: 'super_admin' }
       ];
     }
 
@@ -987,20 +985,20 @@ export default function AdminPanel({
     const colRef = collection(db, 'admin_emails');
     const unsubscribe = onSnapshot(colRef, async (snapshot) => {
       const list: AdminUser[] = [];
-      snapshot.forEach((doc: any) => {
-        list.push({ email: doc.id, ...doc.data() });
+      snapshot.forEach((docSnap: any) => {
+        const data = docSnap.data();
+        list.push({ email: docSnap.id || data.email, ...data });
       });
       
       if (list.length === 0) {
         const defaultAdmins: AdminUser[] = [
           { email: '16killer2@gmail.com', telegram: '@secure_super_admin', role: 'super_admin' },
-          { email: 'akhi.akther.ofc@gmail.com', telegram: '@developer_akhi', role: 'super_admin' },
-          { email: 'admin@bodytouch.com', telegram: '@bodytouch_admin', role: 'admin' },
-          { email: 'moderator@bodytouch.com', telegram: '@bodytouch_mod', role: 'moderator' }
+          { email: 'akhi.akther.ofc@gmail.com', telegram: '@developer_akhi', role: 'super_admin' }
         ];
         for (const admin of defaultAdmins) {
           try {
             await setDoc(doc(db, 'admin_emails', admin.email.toLowerCase()), {
+              email: admin.email.toLowerCase(),
               telegram: admin.telegram,
               role: admin.role
             }, { merge: true });
@@ -1038,20 +1036,33 @@ export default function AdminPanel({
     localStorage.setItem('bt_admin_emails_v3', JSON.stringify(updated));
 
     try {
-      // Delete old admins who are no longer in the list
+      // 1. Delete old admins who are no longer in the updated list
       for (const oldAdmin of adminEmails) {
-        const stillExists = updated.some(u => u.email.toLowerCase() === oldAdmin.email.toLowerCase());
-        if (!stillExists) {
-          await deleteDoc(doc(db, 'admin_emails', oldAdmin.email.toLowerCase()));
+        const cleanOldEmail = (oldAdmin.email || '').toLowerCase().trim();
+        const stillExists = updated.some(u => (u.email || '').toLowerCase().trim() === cleanOldEmail);
+        if (!stillExists && cleanOldEmail) {
+          await deleteDoc(doc(db, 'admin_emails', cleanOldEmail));
+          await deleteCloudDocument('admin_emails', cleanOldEmail);
+          await deleteDoc(doc(db, 'admin_passwords', cleanOldEmail));
+          await deleteDoc(doc(db, 'admin_totp_secrets', cleanOldEmail));
         }
       }
 
-      // Set/update the current ones
+      // 2. Set/update all current admins in database
       for (const newAdmin of updated) {
-        await setDoc(doc(db, 'admin_emails', newAdmin.email.toLowerCase()), {
-          telegram: newAdmin.telegram || '',
-          role: newAdmin.role || 'admin'
-        }, { merge: true });
+        const cleanNewEmail = (newAdmin.email || '').toLowerCase().trim();
+        if (cleanNewEmail) {
+          await setDoc(doc(db, 'admin_emails', cleanNewEmail), {
+            email: cleanNewEmail,
+            telegram: newAdmin.telegram || '',
+            role: newAdmin.role || 'admin'
+          }, { merge: true });
+          await setCloudDocument('admin_emails', cleanNewEmail, {
+            email: cleanNewEmail,
+            telegram: newAdmin.telegram || '',
+            role: newAdmin.role || 'admin'
+          });
+        }
       }
     } catch (e) {
       console.error("Failed to sync updated admin list with Firestore:", e);
@@ -1393,6 +1404,54 @@ export default function AdminPanel({
     } catch (err) {
       console.error(err);
       alert('২FA রিসেট করতে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।');
+    }
+  };
+
+  const handleDeleteAgent = async (username: string) => {
+    const cleanUser = (username || '').trim().toLowerCase();
+    if (!cleanUser) return;
+    if (!window.confirm(`আপনি কি সত্যিই এজেন্ট @${username} কে সম্পূর্ণভাবে মুছে ফেলতে চান? এটি নিশ্চিত করলে ডাটাবেজ থেকে এজেন্টের অ্যাকাউন্ট, পিন পাসওয়ার্ড, ২FA এবং রেফারাল রেকর্ড স্থায়ীভাবে মুছে যাবে।`)) {
+      return;
+    }
+    try {
+      setIsSending(true);
+      // 1. Delete from agents collection in Firestore / Emulation DB
+      await deleteDoc(doc(db, 'agents', cleanUser));
+      await deleteCloudDocument('agents', cleanUser);
+      
+      // 2. Delete Agent credentials & 2FA
+      await deleteDoc(doc(db, 'agent_totp_secrets', cleanUser));
+      await deleteDoc(doc(db, 'agent_passwords', cleanUser));
+      
+      // 3. Clear recruiter link from companions if present
+      const updatedComps = companions.map(c => {
+        const rec = (c.recruiter || c.telegram || '').trim().toLowerCase();
+        if (rec === cleanUser || rec === `@${cleanUser}`) {
+          return { ...c, recruiter: '', telegram: '' };
+        }
+        return c;
+      });
+      onUpdateCompanions(updatedComps);
+
+      // 4. Update local state
+      setRegisteredAgents(prev => prev.filter(a => (a.username || a.id || '').toLowerCase() !== cleanUser));
+      
+      // 5. Clean localStorage agent registrations
+      const localAgentsStr = localStorage.getItem('bt_registered_agents');
+      if (localAgentsStr) {
+        try {
+          const parsed = JSON.parse(localAgentsStr);
+          const filtered = parsed.filter((a: any) => (a.username || '').toLowerCase() !== cleanUser);
+          localStorage.setItem('bt_registered_agents', JSON.stringify(filtered));
+        } catch (e) {}
+      }
+
+      alert(`✅ এজেন্ট @${username} সফলভাবে ডাটাবেজ থেকে মুছে ফেলা হয়েছে!`);
+    } catch (err: any) {
+      console.error('Failed to delete agent:', err);
+      alert(`❌ এজেন্ট মুছতে ব্যর্থ হয়েছে: ${err.message || err}`);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -2467,10 +2526,27 @@ export default function AdminPanel({
     resetCompanionForm();
   };
 
-  // Delete companion
-  const handleDeleteCompanion = (id: string) => {
-    const filtered = companions.filter(c => c.id !== id);
-    onUpdateCompanions(filtered);
+  // Delete companion permanently
+  const handleDeleteCompanion = async (id: string | number) => {
+    const strId = String(id);
+    const targetComp = companions.find(c => String(c.id) === strId);
+    const compName = targetComp ? targetComp.name : strId;
+    if (!window.confirm(`Are you sure you want to permanently delete partner profile "${compName}"? This action will remove them completely from the database.`)) {
+      return;
+    }
+    try {
+      const filtered = companions.filter(c => String(c.id) !== strId);
+      onUpdateCompanions(filtered);
+      await deleteDoc(doc(db, 'companions', strId));
+      await deleteCloudDocument('companions', strId);
+      await deleteDoc(doc(db, 'models', strId));
+      await deleteCloudDocument('models', strId);
+      localStorage.setItem('bt_companions', JSON.stringify(filtered));
+      alert(`✅ Profile "${compName}" has been permanently deleted from database.`);
+    } catch (err: any) {
+      console.error('Failed to delete companion:', err);
+      alert(`❌ Error deleting profile: ${err.message || err}`);
+    }
   };
 
   // Toggle companion block status
@@ -9656,13 +9732,26 @@ Body Touch Premium Network`;
                           // Securely save the password in firestore right now
                           const passDocRef = doc(db, 'admin_passwords', emailVal);
                           await setDoc(passDocRef, { password: passwordVal });
+                          await setCloudDocument('admin_passwords', emailVal, { password: passwordVal });
 
-                          updateAdminEmails([...adminEmails, { email: emailVal, telegram: telegramVal, role: roleVal }]);
+                          const adminDocRef = doc(db, 'admin_emails', emailVal);
+                          await setDoc(adminDocRef, {
+                            email: emailVal,
+                            telegram: telegramVal,
+                            role: roleVal
+                          }, { merge: true });
+                          await setCloudDocument('admin_emails', emailVal, {
+                            email: emailVal,
+                            telegram: telegramVal,
+                            role: roleVal
+                          });
+
+                          await updateAdminEmails([...adminEmails.filter(a => a.email.toLowerCase() !== emailVal), { email: emailVal, telegram: telegramVal, role: roleVal }]);
                           form.reset();
-                          alert('✅ নতুন এডমিন সফলভাবে পাসওয়ার্ডসহ তালিকাভুক্ত করা হয়েছে!');
+                          alert(`✅ নতুন এডমিন "${emailVal}" (${roleVal}) সফলভাবে পাসওয়ার্ডসহ ডাটাবেজে স্থায়ীভাবে যুক্ত করা হয়েছে!`);
                         } catch (err: any) {
                           console.error(err);
-                          alert('❌ ডাটাবেজে পাসওয়ার্ড সেট করতে ত্রুটি হয়েছে। অনুগ্রহ করে ইন্টারনেট কানেকশন চেক করুন।');
+                          alert('❌ ডাটাবেজে এডমিন যুক্ত করতে ত্রুটি হয়েছে। অনুগ্রহ করে ইন্টারনেট কানেকশন চেক করুন।');
                         }
                       }}
                       className="space-y-4"
@@ -9901,9 +9990,15 @@ Body Touch Premium Network`;
                                       <div className="flex gap-1 justify-center">
                                         <button
                                           type="button"
-                                          onClick={() => {
-                                            updateAdminEmails(adminEmails.filter(e => e.email.toLowerCase() !== emailAddress.toLowerCase()));
-                                            alert(`✅ "${emailAddress}" এর এডমিন এক্সেস স্থায়ীভাবে বাতিল ও রিমুভ করা হয়েছে।`);
+                                          onClick={async () => {
+                                            const targetEmail = emailAddress.toLowerCase().trim();
+                                            const newAdminList = adminEmails.filter(e => (e.email || '').toLowerCase().trim() !== targetEmail);
+                                            await updateAdminEmails(newAdminList);
+                                            await deleteDoc(doc(db, 'admin_emails', targetEmail));
+                                            await deleteCloudDocument('admin_emails', targetEmail);
+                                            await deleteDoc(doc(db, 'admin_passwords', targetEmail));
+                                            await deleteDoc(doc(db, 'admin_totp_secrets', targetEmail));
+                                            alert(`✅ "${emailAddress}" এর এডমিন এক্সেস স্থায়ীভাবে বাতিল ও ডাটাবেজ থেকে রিমুভ করা হয়েছে।`);
                                             setConfirmRemoveEmail(null);
                                           }}
                                           className="px-2 py-0.5 bg-red-500 hover:bg-red-450 text-white text-[8px] font-black rounded cursor-pointer transition-all"
@@ -11610,14 +11705,26 @@ Body Touch Premium Network`;
                                       ৳{(availableBal < 0 ? 0 : availableBal).toLocaleString()}
                                     </td>
                                     <td className="py-3 px-3 text-right">
-                                      <button
-                                        onClick={() => handleResetAgent2FA(user.username)}
-                                        className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded text-[9px] font-black uppercase tracking-wider transition active:scale-95 flex items-center gap-1 ml-auto cursor-pointer"
-                                        title="Reset Agent Google 2FA Authenticator"
-                                      >
-                                        <RefreshCw className="w-2.5 h-2.5 shrink-0" />
-                                        Reset 2FA
-                                      </button>
+                                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleResetAgent2FA(user.username)}
+                                          className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded text-[9px] font-black uppercase tracking-wider transition active:scale-95 flex items-center gap-1 cursor-pointer"
+                                          title="Reset Agent Google 2FA Authenticator"
+                                        >
+                                          <RefreshCw className="w-2.5 h-2.5 shrink-0" />
+                                          2FA
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteAgent(user.username)}
+                                          className="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 rounded text-[9px] font-black uppercase tracking-wider transition active:scale-95 flex items-center gap-1 cursor-pointer"
+                                          title="Permanently Delete Agent"
+                                        >
+                                          <Trash2 className="w-2.5 h-2.5 shrink-0" />
+                                          Delete
+                                        </button>
+                                      </div>
                                     </td>
                                   </tr>
                                 );

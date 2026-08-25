@@ -1982,35 +1982,41 @@ export default function App() {
   const handleUpdateCompanions = (updated: Companion[]) => {
     // Determine deleted companions (present in companions but not in updated)
     companions.forEach((oldItem) => {
-      const stillExists = updated.some(item => item.id === oldItem.id);
+      const stillExists = updated.some(item => String(item.id) === String(oldItem.id));
       if (!stillExists) {
-        deleteCloudDocument('companions', oldItem.id);
+        deleteCloudDocument('companions', String(oldItem.id));
+        deleteCloudDocument('models', String(oldItem.id));
       }
     });
 
     // Determine added or modified companions and sync only those
     updated.forEach((newItem) => {
-      const oldItem = companions.find(item => item.id === newItem.id);
+      const oldItem = companions.find(item => String(item.id) === String(newItem.id));
       if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(newItem)) {
-        setCloudDocument('companions', newItem.id, newItem);
+        setCloudDocument('companions', String(newItem.id), newItem);
       }
     });
 
     // Update local state immediately
     setCompanions(updated);
+    localStorage.setItem('bt_companions', JSON.stringify(updated));
   };
 
   const handleUpdateLocations = (updated: HotelLocation[]) => {
-    setLocations(updated);
-    updated.forEach((item) => {
-      setCloudDocument('locations', item.id, item);
-    });
     locations.forEach((oldItem) => {
-      const stillExists = updated.some(item => item.id === oldItem.id);
+      const stillExists = updated.some(item => String(item.id) === String(oldItem.id));
       if (!stillExists) {
-        deleteCloudDocument('locations', oldItem.id);
+        deleteCloudDocument('locations', String(oldItem.id));
       }
     });
+    updated.forEach((item) => {
+      const oldItem = locations.find(loc => String(loc.id) === String(item.id));
+      if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(item)) {
+        setCloudDocument('locations', String(item.id), item);
+      }
+    });
+    setLocations(updated);
+    localStorage.setItem('bt_locations', JSON.stringify(updated));
   };
 
   useEffect(() => {

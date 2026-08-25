@@ -15,7 +15,7 @@ import {
 } from '../firebase';
 
 // Helper to sanitize document identifiers (Firestore keys cannot have slash /)
-const sanitizeId = (id: string) => id.replace(/[\/\s?#]/g, '_');
+export const sanitizeId = (id: any) => String(id === undefined || id === null ? '' : id).replace(/[\/\s?#]/g, '_');
 
 export enum OperationType {
   CREATE = 'create',
