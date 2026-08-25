@@ -263,6 +263,25 @@
     "timestamp": "2026-08-25T21:57:33.109Z",
     "date": "2026-08-26",
     "isUnique": false,
-    "duration": 404
+    "duration": 554
+  },
+  {
+    "id": "vis_k1pk3abyr",
+    "ip": "161.248.155.247",
+    "city": "Dhaka",
+    "country": "Bangladesh",
+    "countryCode": "BD",
+    "region": "Dhaka Division",
+    "org": "Sixty Four Networks Limited.",
+    "browser": "Chrome",
+    "os": "Windows",
+    "device": "Desktop / Laptop",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+    "referer": "https://aistudio.google.com/",
+    "path": "/client-site/home",
+    "timestamp": "2026-08-25T22:08:34.811Z",
+    "date": "2026-08-26",
+    "isUnique": false,
+    "duration": 216
   }
 ]

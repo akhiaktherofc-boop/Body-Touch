@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, doc, getDoc, setDoc, deleteDoc, getDocFromServer, onSnapshot, collection, addDoc, updateDoc, isRealFirebaseEnabled, initializeRealFirebase } from '../firebase';
+import { db, doc, getDoc, setDoc, deleteDoc, getDocFromServer, onSnapshot, collection, addDoc, updateDoc, query, where, getDocs, isRealFirebaseEnabled, initializeRealFirebase } from '../firebase';
 import * as OTPAuth from 'otpauth';
 import { PaymentRecord, Companion, HotelLocation, Booking, EmailLog, PaymentGateway, ParentArea, ReferralRecord, WithdrawalRecord, MemberLevel, PromoCode, MarketingTrackingSettings } from '../types';
 import { clearCollection, setCloudDocument, deleteCloudDocument } from '../services/cloudService';
@@ -1900,6 +1900,32 @@ export default function AdminPanel({
     return () => unsubscribe();
   }, []);
 
+  // Persistent blacklist/registry of deleted clients
+  const [deletedClientIdentifiers, setDeletedClientIdentifiers] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('bt_deleted_clients');
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+    return [];
+  });
+
+  // Sync deleted clients list from Firestore in real-time
+  useEffect(() => {
+    const deletedClientsDocRef = doc(db, 'settings', 'deleted_clients');
+    const unsubscribe = onSnapshot(deletedClientsDocRef, (snap: any) => {
+      if (snap && snap.exists && snap.exists()) {
+        const data = snap.data();
+        if (Array.isArray(data?.list)) {
+          setDeletedClientIdentifiers(data.list);
+          localStorage.setItem('bt_deleted_clients', JSON.stringify(data.list));
+        }
+      }
+    }, (err: any) => {
+      console.warn("Could not sync deleted clients:", err);
+    });
+    return () => unsubscribe();
+  }, []);
+
   const handleBlockClient = async (client: any) => {
     try {
       const matchedUser = allRegisteredUsers.find(u => u.id === client.id || u.username === client.id);
@@ -1934,25 +1960,158 @@ export default function AdminPanel({
       return;
     }
     try {
-      const matchedUser = allRegisteredUsers.find(u => u.id === client.id || u.username === client.id);
-      if (matchedUser) {
-        const userDocRef = doc(db, 'users', matchedUser.id);
-        await deleteDoc(userDocRef);
+      // 1. Gather all possible identifier keys for this client to permanently purge
+      const clientNameClean = (client.name || '').toLowerCase().trim();
+      const clientUsernameClean = (client.username || client.id || '').toLowerCase().trim();
+      const clientPhoneClean = (client.phone || '').trim();
+      const clientPhoneDigits = clientPhoneClean.replace(/[^0-9]/g, '');
+      const clientEmailClean = (client.email || '').toLowerCase().trim();
+      const clientNameSlug = clientNameClean.replace(/\s+/g, '');
+      const clientPairKey = `${clientNameClean}-${clientPhoneClean}`.toLowerCase();
+
+      const newIdentifiers = [
+        client.id,
+        clientNameClean,
+        clientUsernameClean,
+        clientNameSlug,
+        clientPairKey,
+        ...(clientPhoneClean ? [clientPhoneClean] : []),
+        ...(clientPhoneDigits ? [clientPhoneDigits] : []),
+        ...(clientEmailClean ? [clientEmailClean] : [])
+      ].filter(Boolean);
+
+      // 2. Persist to deletedClientIdentifiers in Firestore & localStorage
+      const updatedDeletedList = Array.from(new Set([...deletedClientIdentifiers, ...newIdentifiers]));
+      setDeletedClientIdentifiers(updatedDeletedList);
+      localStorage.setItem('bt_deleted_clients', JSON.stringify(updatedDeletedList));
+      try {
+        await setDoc(doc(db, 'settings', 'deleted_clients'), {
+          list: updatedDeletedList,
+          lastUpdated: new Date().toISOString()
+        }, { merge: true });
+      } catch (e) {
+        console.warn("Error saving deleted_clients to Firestore:", e);
       }
+
+      // 3. Delete from 'users' collection in Firestore
+      const userDocsToDelete: string[] = [];
+      if (client.id) userDocsToDelete.push(client.id);
+      if (clientUsernameClean) userDocsToDelete.push(clientUsernameClean);
+      if (clientNameSlug) userDocsToDelete.push(clientNameSlug);
+
+      for (const uid of userDocsToDelete) {
+        try {
+          await deleteDoc(doc(db, 'users', uid));
+        } catch (_) {}
+      }
+
+      // Query any additional matching users by phone / email / fullName
+      try {
+        const usersCol = collection(db, 'users');
+        if (clientPhoneClean) {
+          const snapByPhone = await getDocs(query(usersCol, where('phone', '==', clientPhoneClean)));
+          for (const d of snapByPhone.docs) {
+            await deleteDoc(d.ref);
+          }
+        }
+        if (clientEmailClean) {
+          const snapByEmail = await getDocs(query(usersCol, where('email', '==', clientEmailClean)));
+          for (const d of snapByEmail.docs) {
+            await deleteDoc(d.ref);
+          }
+        }
+        if (client.name) {
+          const snapByName = await getDocs(query(usersCol, where('fullName', '==', client.name)));
+          for (const d of snapByName.docs) {
+            await deleteDoc(d.ref);
+          }
+        }
+      } catch (errUsers) {
+        console.warn("Error querying users for deletion:", errUsers);
+      }
+
+      // 4. Delete or detach associated bookings from Firestore
+      try {
+        const bookingsCol = collection(db, 'bookings');
+        const allBookingsSnap = await getDocs(bookingsCol);
+        for (const bDoc of allBookingsSnap.docs) {
+          const bData = bDoc.data() as any;
+          const bPhone = (bData.clientPhone || '').replace(/[^0-9]/g, '');
+          const bEmail = (bData.clientEmail || '').toLowerCase().trim();
+          const bName = (bData.clientName || '').toLowerCase().trim();
+          const bClientId = bData.clientId || bData.userId || '';
+
+          const isMatch = (clientPhoneDigits && bPhone && bPhone === clientPhoneDigits) ||
+                          (clientEmailClean && bEmail && bEmail === clientEmailClean) ||
+                          (clientNameClean && bName && bName === clientNameClean) ||
+                          (client.id && bClientId && bClientId === client.id);
+
+          if (isMatch) {
+            await deleteDoc(bDoc.ref);
+          }
+        }
+      } catch (errBookings) {
+        console.warn("Error cleaning up client bookings:", errBookings);
+      }
+
+      // 5. Update local state immediately so UI refreshes with zero latency
+      setAllRegisteredUsers((prev) => prev.filter((u) => {
+        const uId = (u.id || '').toLowerCase();
+        const uUsername = (u.username || '').toLowerCase();
+        const uPhone = (u.phone || '').replace(/[^0-9]/g, '');
+        const uEmail = (u.email || '').toLowerCase();
+        const uName = (u.fullName || '').toLowerCase();
+
+        return !newIdentifiers.some(ident => 
+          ident.toLowerCase() === uId || 
+          ident.toLowerCase() === uUsername || 
+          (uPhone && ident === uPhone) || 
+          (uEmail && ident.toLowerCase() === uEmail) || 
+          (uName && ident.toLowerCase() === uName)
+        );
+      }));
+
       setSelectedClient(null);
-      alert("গ্রাহক অ্যাকাউন্টটি ডাটাবেজ থেকে স্থায়ীভাবে মুছে ফেলা হয়েছে! (Client deleted successfully!)");
+      alert("গ্রাহক অ্যাকাউন্ট ও সংশ্লিষ্ট সমস্ত রেকর্ড ডাটাবেজ থেকে স্থায়ীভাবে মুছে ফেলা হয়েছে! (Client deleted permanently!)");
     } catch (err) {
       console.error("Error deleting client:", err);
-      alert("Error deleting client account.");
+      alert("Error deleting client account: " + (err instanceof Error ? err.message : String(err)));
     }
   };
 
   const clientsList = useMemo(() => {
     const clientsMap: { [key: string]: any } = {};
 
-    // 1. Populate from registered users first
+    const isClientDeleted = (idOrKey: string, name?: string, phone?: string, email?: string) => {
+      if (!deletedClientIdentifiers || deletedClientIdentifiers.length === 0) return false;
+      const lowerKey = (idOrKey || '').toLowerCase().trim();
+      const lowerName = (name || '').toLowerCase().trim();
+      const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+      const lowerEmail = (email || '').toLowerCase().trim();
+      const nameSlug = lowerName.replace(/\s+/g, '');
+      const pairKey = `${lowerName}-${(phone || '').trim()}`.toLowerCase();
+
+      return deletedClientIdentifiers.some((ident) => {
+        const identLower = ident.toLowerCase().trim();
+        const identDigits = ident.replace(/[^0-9]/g, '');
+        return (
+          identLower === lowerKey ||
+          (lowerName && identLower === lowerName) ||
+          (nameSlug && identLower === nameSlug) ||
+          (pairKey && identLower === pairKey) ||
+          (cleanPhone && identDigits && cleanPhone === identDigits) ||
+          (lowerEmail && identLower === lowerEmail)
+        );
+      });
+    };
+
+    // 1. Populate from registered users first (excluding deleted)
     allRegisteredUsers.forEach(u => {
-      const usernameLower = u.username.toLowerCase();
+      const usernameLower = (u.username || u.id || '').toLowerCase();
+      if (isClientDeleted(usernameLower, u.fullName || u.username, u.phone, u.email)) {
+        return;
+      }
+
       const key = usernameLower;
       clientsMap[key] = {
         id: u.id,
@@ -1980,6 +2139,11 @@ export default function AdminPanel({
       const nidFront = b.nidFront || '';
       const nidBack = b.nidBack || '';
 
+      // If this booking belongs to a deleted client, DO NOT recreate client profile
+      if (isClientDeleted(b.id, bName, bPhone, bEmail)) {
+        return;
+      }
+
       // Try matching to a registered user by phone, email, or name
       const matchedUser = allRegisteredUsers.find(u => 
         (bPhone && u.phone && u.phone.toLowerCase() === bPhone.toLowerCase()) ||
@@ -1989,10 +2153,17 @@ export default function AdminPanel({
 
       let matchedKey = '';
       if (matchedUser) {
-        matchedKey = matchedUser.username.toLowerCase();
+        matchedKey = (matchedUser.username || matchedUser.id).toLowerCase();
+        if (isClientDeleted(matchedKey, matchedUser.fullName, matchedUser.phone, matchedUser.email)) {
+          return;
+        }
       } else {
         // Fallback to name-phone matching for guests or manual bookings
         const fallbackKey = `${bName}-${bPhone}`.toLowerCase();
+        if (isClientDeleted(fallbackKey, bName, bPhone, bEmail)) {
+          return;
+        }
+
         if (clientsMap[fallbackKey]) {
           matchedKey = fallbackKey;
         } else {
@@ -2013,43 +2184,17 @@ export default function AdminPanel({
         }
       }
 
-      clientsMap[matchedKey].bookingsCount += 1;
-      clientsMap[matchedKey].bookings.push(b);
-      if (photo && !clientsMap[matchedKey].userPhoto) clientsMap[matchedKey].userPhoto = photo;
-      if (nidFront && !clientsMap[matchedKey].nidFront) clientsMap[matchedKey].nidFront = nidFront;
-      if (nidBack && !clientsMap[matchedKey].nidBack) clientsMap[matchedKey].nidBack = nidBack;
+      if (clientsMap[matchedKey]) {
+        clientsMap[matchedKey].bookingsCount += 1;
+        clientsMap[matchedKey].bookings.push(b);
+        if (photo && !clientsMap[matchedKey].userPhoto) clientsMap[matchedKey].userPhoto = photo;
+        if (nidFront && !clientsMap[matchedKey].nidFront) clientsMap[matchedKey].nidFront = nidFront;
+        if (nidBack && !clientsMap[matchedKey].nidBack) clientsMap[matchedKey].nidBack = nidBack;
+      }
     });
 
-    // 3. Add realistic seed profiles if there are absolutely no profiles in the directory
-    if (Object.keys(clientsMap).length === 0) {
-      clientsMap['akhi akther'] = {
-        id: 'client-1',
-        name: 'Akhi Akther',
-        phone: '+8801711223344',
-        email: 'akhi.akther.ofc@gmail.com',
-        userPhoto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200',
-        nidFront: 'https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?auto=format&fit=crop&q=80&w=600',
-        nidBack: 'https://images.unsplash.com/photo-1589758438368-0ad531db3366?auto=format&fit=crop&q=80&w=600',
-        isBlocked: false,
-        bookingsCount: 1,
-        bookings: []
-      };
-      clientsMap['tasnim ahmed'] = {
-        id: 'client-2',
-        name: 'Tasnim Ahmed',
-        phone: '+8801723456789',
-        email: 'tasnim@gmail.com',
-        userPhoto: '',
-        nidFront: '',
-        nidBack: '',
-        isBlocked: false,
-        bookingsCount: 0,
-        bookings: []
-      };
-    }
-
     return Object.values(clientsMap);
-  }, [allRegisteredUsers, bookings]);
+  }, [allRegisteredUsers, bookings, deletedClientIdentifiers]);
 
   const [orderTierFilter, setOrderTierFilter] = useState<'ALL' | 'REGULAR' | 'PREMIUM' | 'ELITE'>('ALL');
 
