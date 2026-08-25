@@ -67,6 +67,7 @@ export interface Companion {
   isRealActive?: boolean;
   isCamActive?: boolean;
   isMakeOutActive?: boolean;
+  isTourActive?: boolean;
   isLiveTogetherActive?: boolean;
   isBlocked?: boolean;
 

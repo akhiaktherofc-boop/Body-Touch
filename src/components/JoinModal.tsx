@@ -70,6 +70,11 @@ export default function JoinModal({
   const [pictures, setPictures] = useState<string[]>([]);
   const [selfie, setSelfie] = useState<string | null>(null);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [isRealActive, setIsRealActive] = useState(false);
+  const [isCamActive, setIsCamActive] = useState(false);
+  const [isMakeOutActive, setIsMakeOutActive] = useState(false);
+  const [isTourActive, setIsTourActive] = useState(false);
+  const [isLiveTogetherActive, setIsLiveTogetherActive] = useState(false);
 
   const SERVICES_REAL = [
     { id: 'real_1hour', english: 'Real 1 HOUR', bangla: 'Real 1 HOUR' },
@@ -531,6 +536,11 @@ export default function JoinModal({
       modelPassword: formData.modelPassword.trim() || undefined,
       recruiter: sessionStorage.getItem('bt_pending_model_ref') || localStorage.getItem('bt_pending_model_ref') || undefined,
       pictures: pictures,
+      isRealActive: type !== 'donor' ? isRealActive : undefined,
+      isCamActive: type !== 'donor' ? isCamActive : undefined,
+      isMakeOutActive: type !== 'donor' ? isMakeOutActive : undefined,
+      isTourActive: type !== 'donor' ? isTourActive : undefined,
+      isLiveTogetherActive: type !== 'donor' ? isLiveTogetherActive : undefined,
     };
 
     onAddCompanion?.(newComp); // Add to join list in Admin panel immediately!
@@ -1401,6 +1411,82 @@ export default function JoinModal({
                           })}
                         </div>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Custom Services Tick Options */}
+                  <div className="space-y-2 bg-[#02050e]/60 border border-blue-950/40 p-4 rounded-2xl col-span-1 sm:col-span-3">
+                    <label className="block text-sm font-medium tracking-widest text-[#dbaa61] uppercase pl-1">
+                      SERVICES OFFERED *
+                    </label>
+                    <p className="text-[10px] text-slate-400 font-semibold pl-1">
+                      Select your offered services using the checkboxes on the left:
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      <label className="flex items-center space-x-3 bg-[#030818]/60 hover:bg-[#030818]/90 border border-blue-900/35 p-3.5 rounded-xl cursor-pointer select-none transition-all">
+                        <input
+                          type="checkbox"
+                          checked={isRealActive}
+                          onChange={(e) => setIsRealActive(e.target.checked)}
+                          className="w-4 h-4 rounded text-yellow-500 focus:ring-yellow-500 border-yellow-700/50 bg-[#02050e] cursor-pointer accent-[#dbaa61]"
+                        />
+                        <div className="text-left">
+                          <span className="text-xs text-white font-black block">Real Service</span>
+                          <span className="text-[9px] text-[#dbaa61]/80 font-bold block">In-person custom meets</span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-center space-x-3 bg-[#030818]/60 hover:bg-[#030818]/90 border border-blue-900/35 p-3.5 rounded-xl cursor-pointer select-none transition-all">
+                        <input
+                          type="checkbox"
+                          checked={isCamActive}
+                          onChange={(e) => setIsCamActive(e.target.checked)}
+                          className="w-4 h-4 rounded text-yellow-500 focus:ring-yellow-500 border-yellow-700/50 bg-[#02050e] cursor-pointer accent-[#dbaa61]"
+                        />
+                        <div className="text-left">
+                          <span className="text-xs text-white font-black block">Video / Cam</span>
+                          <span className="text-[9px] text-[#dbaa61]/80 font-bold block">Online virtual interaction</span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-center space-x-3 bg-[#030818]/60 hover:bg-[#030818]/90 border border-blue-900/35 p-3.5 rounded-xl cursor-pointer select-none transition-all">
+                        <input
+                          type="checkbox"
+                          checked={isMakeOutActive}
+                          onChange={(e) => setIsMakeOutActive(e.target.checked)}
+                          className="w-4 h-4 rounded text-yellow-500 focus:ring-yellow-500 border-yellow-700/50 bg-[#02050e] cursor-pointer accent-[#dbaa61]"
+                        />
+                        <div className="text-left">
+                          <span className="text-xs text-white font-black block">Makeout</span>
+                          <span className="text-[9px] text-[#dbaa61]/80 font-bold block">Sensual affectionate touch</span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-center space-x-3 bg-[#030818]/60 hover:bg-[#030818]/90 border border-blue-900/35 p-3.5 rounded-xl cursor-pointer select-none transition-all">
+                        <input
+                          type="checkbox"
+                          checked={isTourActive}
+                          onChange={(e) => setIsTourActive(e.target.checked)}
+                          className="w-4 h-4 rounded text-yellow-500 focus:ring-yellow-500 border-yellow-700/50 bg-[#02050e] cursor-pointer accent-[#dbaa61]"
+                        />
+                        <div className="text-left">
+                          <span className="text-xs text-white font-black block">Tour Service</span>
+                          <span className="text-[9px] text-[#dbaa61]/80 font-bold block">Outstation travel partner</span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-center space-x-3 bg-[#030818]/60 hover:bg-[#030818]/90 border border-blue-900/35 p-3.5 rounded-xl cursor-pointer select-none transition-all">
+                        <input
+                          type="checkbox"
+                          checked={isLiveTogetherActive}
+                          onChange={(e) => setIsLiveTogetherActive(e.target.checked)}
+                          className="w-4 h-4 rounded text-yellow-500 focus:ring-yellow-500 border-yellow-700/50 bg-[#02050e] cursor-pointer accent-[#dbaa61]"
+                        />
+                        <div className="text-left">
+                          <span className="text-xs text-white font-black block">Live Together</span>
+                          <span className="text-[9px] text-[#dbaa61]/80 font-bold block">Co-living coordinates</span>
+                        </div>
+                      </label>
                     </div>
                   </div>
 

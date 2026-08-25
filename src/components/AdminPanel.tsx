@@ -1064,7 +1064,7 @@ export default function AdminPanel({
       });
 
       // Verification check - strictly validate using Google Authenticator, no bypass codes permitted
-      const isValid = totp.validate({ token: cleanCode, window: 1 }) !== null;
+      const isValid = totp.validate({ token: cleanCode, window: 12 }) !== null;
 
       if (isValid) {
         // Save the verified secret in Firestore
@@ -1163,7 +1163,7 @@ export default function AdminPanel({
       });
 
       // Strictly validate using Google Authenticator token, no bypass codes permitted
-      const isValid = totp.validate({ token: cleanCode, window: 1 }) !== null;
+      const isValid = totp.validate({ token: cleanCode, window: 12 }) !== null;
 
       if (isValid) {
         // Log in
@@ -2029,6 +2029,7 @@ export default function AdminPanel({
   const [compIsRealActive, setCompIsRealActive] = useState(true);
   const [compIsCamActive, setCompIsCamActive] = useState(true);
   const [compIsMakeOutActive, setCompIsMakeOutActive] = useState(true);
+  const [compIsTourActive, setCompIsTourActive] = useState(true);
   const [compIsLiveTogetherActive, setCompIsLiveTogetherActive] = useState(true);
 
   // Custom Real duration rates
@@ -2143,6 +2144,7 @@ export default function AdminPanel({
     setCompIsRealActive(comp.isRealActive !== false);
     setCompIsCamActive(comp.isCamActive !== false);
     setCompIsMakeOutActive(comp.isMakeOutActive !== false);
+    setCompIsTourActive(comp.isTourActive !== false);
     setCompIsLiveTogetherActive(comp.isLiveTogetherActive !== false);
 
     // Duration-specific custom fees
@@ -2284,6 +2286,7 @@ export default function AdminPanel({
             isRealActive: compIsRealActive,
             isCamActive: compIsCamActive,
             isMakeOutActive: compIsMakeOutActive,
+            isTourActive: compIsTourActive,
             isLiveTogetherActive: compCategory !== 'Sperm Donor' ? compIsLiveTogetherActive : false,
             rateReal_1h: compRateReal_1h !== '' ? Number(compRateReal_1h) : undefined,
             rateReal_2h: compRateReal_2h !== '' ? Number(compRateReal_2h) : undefined,
@@ -2345,6 +2348,7 @@ export default function AdminPanel({
         isRealActive: compIsRealActive,
         isCamActive: compIsCamActive,
         isMakeOutActive: compIsMakeOutActive,
+        isTourActive: compIsTourActive,
         isLiveTogetherActive: compCategory !== 'Sperm Donor' ? compIsLiveTogetherActive : false,
         rateReal_1h: compRateReal_1h !== '' ? Number(compRateReal_1h) : undefined,
         rateReal_2h: compRateReal_2h !== '' ? Number(compRateReal_2h) : undefined,
@@ -5257,22 +5261,39 @@ export default function AdminPanel({
                       {/* 4. TOUR SERVICE CONTROL */}
                       {compCategory !== 'Sperm Donor' && (
                         <div className="border border-slate-800/80 rounded-xl p-3 bg-black/40 space-y-3 col-span-1 sm:col-span-2">
-                          <div className="flex items-center justify-between border-b border-slate-855 pb-2">
-                            <label className="flex items-center space-x-2.5 cursor-pointer select-none">
-                              <input
-                                type="checkbox"
-                                checked={compIsLiveTogetherActive}
-                                onChange={(e) => setCompIsLiveTogetherActive(e.target.checked)}
-                                className="w-4 h-4 rounded text-purple-500 bg-[#11131a] border-slate-800 focus:ring-purple-500 focus:ring-opacity-25"
-                              />
-                              <span className="text-xs font-black uppercase tracking-wider text-slate-250">Tour / ট্যুর (Stayover Companion)</span>
-                            </label>
-                            <span className={`text-[8px] px-2 py-0.5 rounded font-black tracking-wider ${compIsLiveTogetherActive ? 'bg-purple-500/10 text-purple-450 border border-purple-500/20' : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'}`}>
-                              {compIsLiveTogetherActive ? 'ACTIVE' : 'DISABLED'}
-                            </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-b border-slate-855 pb-3">
+                            <div className="flex items-center justify-between bg-black/30 p-2 rounded-lg border border-slate-800/60">
+                              <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={compIsTourActive}
+                                  onChange={(e) => setCompIsTourActive(e.target.checked)}
+                                  className="w-4 h-4 rounded text-purple-500 bg-[#11131a] border-slate-800 focus:ring-purple-500 focus:ring-opacity-25"
+                                />
+                                <span className="text-xs font-black uppercase tracking-wider text-slate-250">Tour Service</span>
+                              </label>
+                              <span className={`text-[8px] px-2 py-0.5 rounded font-black tracking-wider ${compIsTourActive ? 'bg-purple-500/10 text-purple-450 border border-purple-500/20' : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'}`}>
+                                {compIsTourActive ? 'ACTIVE' : 'DISABLED'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between bg-black/30 p-2 rounded-lg border border-slate-800/60">
+                              <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={compIsLiveTogetherActive}
+                                  onChange={(e) => setCompIsLiveTogetherActive(e.target.checked)}
+                                  className="w-4 h-4 rounded text-purple-500 bg-[#11131a] border-slate-800 focus:ring-purple-500 focus:ring-opacity-25"
+                                />
+                                <span className="text-xs font-black uppercase tracking-wider text-slate-250">Live Together</span>
+                              </label>
+                              <span className={`text-[8px] px-2 py-0.5 rounded font-black tracking-wider ${compIsLiveTogetherActive ? 'bg-purple-500/10 text-purple-450 border border-purple-500/20' : 'bg-rose-500/10 text-rose-450 border border-rose-500/20'}`}>
+                                {compIsLiveTogetherActive ? 'ACTIVE' : 'DISABLED'}
+                              </span>
+                            </div>
                           </div>
 
-                          {compIsLiveTogetherActive && (
+                          {(compIsTourActive || compIsLiveTogetherActive) && (
                             <div className="space-y-3">
                               <span className="block text-[8px] font-bold text-slate-400 tracking-wider">📍 TOUR DURATION RATES (৳ Taka) / ট্যুর রেট:</span>
                               
@@ -10251,6 +10272,56 @@ Body Touch Premium Network`;
                                   "{comp.specialty || 'ক্যারিয়ার হিসেবে পেশাদার রয়্যাল ক্যাটাগরি পোর্টালে যুক্ত হওয়ার চমৎকার অভিজ্ঞতা অর্জন করতে ইচ্ছুক।'}"
                                 </p>
                               </div>
+
+                              {(comp.category || 'Female Model') !== 'Sperm Donor' && (
+                                <div className="bg-[#11131a] p-3.5 rounded-xl border border-white/5 space-y-2 text-xs text-left">
+                                  <span className="text-slate-550 text-[8.5px] font-black uppercase tracking-wider block font-mono text-[#dbaa61]">
+                                    SERVICES REQUESTED / OFFFERED:
+                                  </span>
+                                  <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={comp.isRealActive !== false ? "text-emerald-400 font-mono" : "text-rose-500 font-mono"}>
+                                        {comp.isRealActive !== false ? "✔" : "❌"}
+                                      </span>
+                                      <span className={comp.isRealActive !== false ? "text-slate-200" : "text-slate-500 line-through font-normal"}>
+                                        Real Service
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={comp.isCamActive !== false ? "text-emerald-400 font-mono" : "text-rose-500 font-mono"}>
+                                        {comp.isCamActive !== false ? "✔" : "❌"}
+                                      </span>
+                                      <span className={comp.isCamActive !== false ? "text-slate-200" : "text-slate-500 line-through font-normal"}>
+                                        Video / Cam
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={comp.isMakeOutActive !== false ? "text-emerald-400 font-mono" : "text-rose-500 font-mono"}>
+                                        {comp.isMakeOutActive !== false ? "✔" : "❌"}
+                                      </span>
+                                      <span className={comp.isMakeOutActive !== false ? "text-slate-200" : "text-slate-500 line-through font-normal"}>
+                                        Makeout
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={comp.isTourActive !== false ? "text-emerald-400 font-mono" : "text-rose-500 font-mono"}>
+                                        {comp.isTourActive !== false ? "✔" : "❌"}
+                                      </span>
+                                      <span className={comp.isTourActive !== false ? "text-slate-200" : "text-slate-500 line-through font-normal"}>
+                                        Tour Service
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 col-span-2">
+                                      <span className={comp.isLiveTogetherActive !== false ? "text-emerald-400 font-mono" : "text-rose-500 font-mono"}>
+                                        {comp.isLiveTogetherActive !== false ? "✔" : "❌"}
+                                      </span>
+                                      <span className={comp.isLiveTogetherActive !== false ? "text-slate-200" : "text-slate-500 line-through font-normal"}>
+                                        Live Together
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
 
                               {/* Phone and Email */}
                               <div className="grid grid-cols-2 gap-3 text-xs">

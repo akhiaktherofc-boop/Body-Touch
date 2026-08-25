@@ -412,8 +412,14 @@ export default function App() {
 
         let currentPath = '/';
         const targetHashes = ['#join', '#register', '#joinmale', '#join-male', '#joinsparm', '#join-sparm'];
-        if (targetHashes.includes(currentHash)) {
-          currentPath = `/#${currentHash.replace('#', '')}`;
+        const isJoinPage = targetHashes.includes(currentHash) || 
+                           window.location.hash.includes('join') || 
+                           window.location.hash.includes('register') ||
+                           window.location.pathname.includes('join') ||
+                           window.location.pathname.includes('register');
+                           
+        if (isJoinPage) {
+          currentPath = '/join';
         } else if (isModelPortalOpen) {
           currentPath = '/model-portal';
         } else if (isAgentOpen) {
