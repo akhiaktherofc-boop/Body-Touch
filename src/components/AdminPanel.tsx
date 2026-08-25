@@ -942,27 +942,11 @@ export default function AdminPanel({
       } catch (e) {}
     }
     
-    if (!list || list.length === 0) {
+    if ((!list || list.length === 0) && !localStorage.getItem('bt_admin_emails_seeded')) {
       list = [
         { email: '16killer2@gmail.com', telegram: '@secure_super_admin', role: 'super_admin' },
         { email: 'akhi.akther.ofc@gmail.com', telegram: '@developer_akhi', role: 'super_admin' }
       ];
-    }
-
-    // Ensure 16killer2@gmail.com exists unconditionally as super_admin
-    const superAdminIndex = list.findIndex(a => a.email.toLowerCase() === '16killer2@gmail.com');
-    if (superAdminIndex === -1) {
-      list.push({ email: '16killer2@gmail.com', telegram: '@secure_super_admin', role: 'super_admin' });
-    } else {
-      list[superAdminIndex].role = 'super_admin';
-    }
-
-    // Ensure akhi.akther.ofc@gmail.com exists unconditionally as super_admin
-    const akhiAdminIndex = list.findIndex(a => a.email.toLowerCase() === 'akhi.akther.ofc@gmail.com');
-    if (akhiAdminIndex === -1) {
-      list.push({ email: 'akhi.akther.ofc@gmail.com', telegram: '@developer_akhi', role: 'super_admin' });
-    } else {
-      list[akhiAdminIndex].role = 'super_admin';
     }
 
     // Ensure everyone has a role, fallback is admin
@@ -990,11 +974,13 @@ export default function AdminPanel({
         list.push({ email: docSnap.id || data.email, ...data });
       });
       
-      if (list.length === 0) {
+      // If collection is completely uninitialized on first fresh launch
+      if (list.length === 0 && !localStorage.getItem('bt_admin_emails_seeded')) {
         const defaultAdmins: AdminUser[] = [
           { email: '16killer2@gmail.com', telegram: '@secure_super_admin', role: 'super_admin' },
           { email: 'akhi.akther.ofc@gmail.com', telegram: '@developer_akhi', role: 'super_admin' }
         ];
+        localStorage.setItem('bt_admin_emails_seeded', 'true');
         for (const admin of defaultAdmins) {
           try {
             await setDoc(doc(db, 'admin_emails', admin.email.toLowerCase()), {
@@ -1006,24 +992,13 @@ export default function AdminPanel({
             console.error("Failed to seed admin:", admin.email, err);
           }
         }
+      } else if (list.length > 0) {
+        localStorage.setItem('bt_admin_emails_seeded', 'true');
+        setAdminEmails(list);
+        localStorage.setItem('bt_admin_emails_v3', JSON.stringify(list));
       } else {
-        let updatedList = [...list];
-        const super1Idx = updatedList.findIndex(a => a.email.toLowerCase() === '16killer2@gmail.com');
-        if (super1Idx === -1) {
-          updatedList.push({ email: '16killer2@gmail.com', telegram: '@secure_super_admin', role: 'super_admin' });
-        } else {
-          updatedList[super1Idx].role = 'super_admin';
-        }
-
-        const super2Idx = updatedList.findIndex(a => a.email.toLowerCase() === 'akhi.akther.ofc@gmail.com');
-        if (super2Idx === -1) {
-          updatedList.push({ email: 'akhi.akther.ofc@gmail.com', telegram: '@developer_akhi', role: 'super_admin' });
-        } else {
-          updatedList[super2Idx].role = 'super_admin';
-        }
-
-        setAdminEmails(updatedList);
-        localStorage.setItem('bt_admin_emails_v3', JSON.stringify(updatedList));
+        setAdminEmails([]);
+        localStorage.setItem('bt_admin_emails_v3', JSON.stringify([]));
       }
     }, (err) => {
       console.warn("Error loading admin_emails from Firestore:", err);

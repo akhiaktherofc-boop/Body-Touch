@@ -225,10 +225,24 @@ async function initialSync() {
         keysToRemove.forEach(k => localStorage.removeItem(k));
 
         // Insert fresh server documents
+        const itemsArray: any[] = [];
         Object.keys(collectionData).forEach(docId => {
           const key = `${prefix}${docId}`;
-          localStorage.setItem(key, JSON.stringify(collectionData[docId]));
+          const val = collectionData[docId];
+          localStorage.setItem(key, JSON.stringify(val));
+          itemsArray.push({ id: docId, ...val });
         });
+
+        // Mirror directly into legacy localStorage cache keys for instant React state initialization on refresh
+        if (collectionName === 'companions') {
+          localStorage.setItem('bt_companions', JSON.stringify(itemsArray));
+        } else if (collectionName === 'locations') {
+          localStorage.setItem('bt_locations', JSON.stringify(itemsArray));
+        } else if (collectionName === 'agents') {
+          localStorage.setItem('bt_registered_agents', JSON.stringify(itemsArray));
+        } else if (collectionName === 'admin_emails') {
+          localStorage.setItem('bt_admin_emails_v3', JSON.stringify(itemsArray));
+        }
       });
       
       // Trigger all listeners to refresh current active pages
