@@ -55,23 +55,6 @@ jobs:
           CLEANED_SERVER=$(echo "$CLEANED_SERVER" | cut -d':' -f1)
 
           echo "Cleaned server string: '$CLEANED_SERVER'"
-
-          # Check if the hostname is resolvable using getent.
-          # If it is not resolvable and starts with ftp., fallback to the main domain.
-          if ! getent hosts "$CLEANED_SERVER" > /dev/null 2>&1; then
-            echo "Warning: Cleaned hostname '$CLEANED_SERVER' cannot be resolved via DNS."
-            if [[ "$CLEANED_SERVER" == ftp.* ]]; then
-              FALLBACK_SERVER="${CLEANED_SERVER#ftp.}"
-              echo "Attempting to resolve root domain fallback: '$FALLBACK_SERVER'..."
-              if getent hosts "$FALLBACK_SERVER" > /dev/null 2>&1; then
-                echo "Success: Fallback root domain '$FALLBACK_SERVER' resolved successfully! Using it."
-                CLEANED_SERVER="$FALLBACK_SERVER"
-              else
-                echo "Warning: Fallback root domain '$FALLBACK_SERVER' is also unresolvable."
-              fi
-            fi
-          fi
-
           echo "server=$CLEANED_SERVER" >> $GITHUB_OUTPUT
 
       - name: 📂 Sync files to Hostinger via FTP
@@ -84,6 +67,7 @@ jobs:
           server-dir: /public_html/
           log-level: verbose
           timeout: 120000
+          security: loose
 
 
 
