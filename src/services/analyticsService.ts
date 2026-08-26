@@ -41,6 +41,25 @@ class AnalyticsService {
   } = {};
 
   /**
+   * Check if current session/URL is an internal Admin route or privileged portal.
+   * Admin activities are excluded from firing customer conversion events to prevent polluting ad data.
+   */
+  public isAdminContext(): boolean {
+    if (typeof window === 'undefined') return false;
+    const path = (window.location.pathname || '').toLowerCase();
+    const hash = (window.location.hash || '').toLowerCase();
+    const search = (window.location.search || '').toLowerCase();
+    return (
+      path.includes('turmarheda') ||
+      hash.includes('turmarheda') ||
+      search.includes('turmarheda') ||
+      path.includes('/admin') ||
+      sessionStorage.getItem('bt_admin_logged_in') === 'true' ||
+      localStorage.getItem('bt_admin_auth') === 'true'
+    );
+  }
+
+  /**
    * Initializes and synchronizes tracking pixels based on provided configuration.
    */
   public initMarketingPixels(settings: Partial<MarketingTrackingSettings> | null | undefined) {
@@ -123,7 +142,7 @@ class AnalyticsService {
         } else {
           window.fbq('init', cleanId);
         }
-        if (settings.trackPageViews) {
+        if (settings.trackPageViews && !this.isAdminContext()) {
           window.fbq('track', 'PageView');
         }
         this.initializedPixels.facebook = cleanId;
@@ -209,7 +228,7 @@ class AnalyticsService {
 
       if (window.ttq && typeof window.ttq.load === 'function') {
         window.ttq.load(cleanId);
-        if (settings.trackPageViews && typeof window.ttq.page === 'function') {
+        if (settings.trackPageViews && typeof window.ttq.page === 'function' && !this.isAdminContext()) {
           window.ttq.page();
         }
         this.initializedPixels.tiktok = cleanId;
@@ -338,7 +357,7 @@ class AnalyticsService {
    * Track Virtual Page Views
    */
   public trackPageView(pageName: string, path: string = window.location.pathname) {
-    if (!this.currentSettings.trackPageViews) return;
+    if (!this.currentSettings.trackPageViews || this.isAdminContext()) return;
 
     try {
       // 1. Meta / Facebook
@@ -377,7 +396,7 @@ class AnalyticsService {
    * Track Companion / Escort Profile View (ViewContent / view_item)
    */
   public trackViewContent(item: { id: string; name: string; price?: number; category?: string; city?: string }) {
-    if (!this.currentSettings.trackViewContent) return;
+    if (!this.currentSettings.trackViewContent || this.isAdminContext()) return;
 
     const price = Number(item.price) || 0;
 
@@ -447,7 +466,7 @@ class AnalyticsService {
    * Track Booking Initiation or Deposit Start (InitiateCheckout / begin_checkout)
    */
   public trackInitiateCheckout(details: { itemName?: string; value?: number; category?: string }) {
-    if (!this.currentSettings.trackInitiateCheckout) return;
+    if (!this.currentSettings.trackInitiateCheckout || this.isAdminContext()) return;
 
     const value = Number(details.value) || 0;
     const itemName = details.itemName || 'Booking Advance';
@@ -506,7 +525,7 @@ class AnalyticsService {
     itemName?: string;
     paymentMethod?: string;
   }) {
-    if (!this.currentSettings.trackPurchase) return;
+    if (!this.currentSettings.trackPurchase || this.isAdminContext()) return;
 
     const value = Number(details.value) || 0;
     const itemName = details.itemName || 'Service Booking Deposit';
@@ -565,7 +584,7 @@ class AnalyticsService {
    * Track Lead Generation / Registration (Lead / CompleteRegistration)
    */
   public trackLead(details: { formName: string; category?: string; username?: string }) {
-    if (!this.currentSettings.trackRegistration) return;
+    if (!this.currentSettings.trackRegistration || this.isAdminContext()) return;
 
     try {
       // Meta / Facebook
@@ -608,7 +627,7 @@ class AnalyticsService {
    * Track Customer Support / Contact Clicks (Telegram, WhatsApp, Helpline, LiveChat)
    */
   public trackContact(channel: 'whatsapp' | 'telegram' | 'helpline' | 'livechat', targetUrl?: string) {
-    if (!this.currentSettings.trackContact) return;
+    if (!this.currentSettings.trackContact || this.isAdminContext()) return;
 
     try {
       // Meta / Facebook
