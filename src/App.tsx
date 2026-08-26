@@ -2451,7 +2451,7 @@ Website: https://bodytouch.com
     }
 
     if (amount > myEarningsSum) {
-      triggerToast('❌ মেম্বারশিপ ফি বা ওয়ালেট রিচার্জের টাকা উত্তোলন করা যাবে না। শুধুমাত্র রেফারেল লিংক থেকে ইনকাম করা টাকা উত্তোলন করতে পারবেন।', 'error');
+      triggerToast('❌ মেম্বারশিপ ফি বা ওয়ালেট রিচার্জের টাকা উত্তোলন করা যাবে না। শুধুমাত্রর রেফারেল লিংক থেকে ইনকাম করা টাকা উত্তোলন করতে পারবেন।', 'error');
       return;
     }
 
@@ -6913,7 +6913,7 @@ https://service.bodytouch.com
                       <span className="font-mono font-black">৳{myEarningsSum.toLocaleString('en-US')}</span>
                     </div>
                     <div className="text-[10px] text-amber-400 border-t border-blue-500/5 pt-1.5 mt-1 text-center font-bold leading-normal">
-                      ⚠️ মেম্বারশিপ ফি বা ওয়ালেট রিচার্জের টাকা উত্তোলনযোগ্য নয়। শুধুমাত্র রেফারেল ইনকাম উত্তোলন করা যাবে।
+                      ⚠️ মেম্বারশিপ ফি বা ওয়ালেট রিচার্জের টাকা উত্তোলনযোগ্য নয়। শুধুমাত্রর রেফারেল ইনকাম উত্তোলন করা যাবে।
                     </div>
                   </div>
                 </div>
@@ -7098,7 +7098,7 @@ https://service.bodytouch.com
                   if (isLoggedIn && userLevel !== 'FREE') {
                     setIsLiveChatOpen(true);
                   } else {
-                    triggerToast('⚠️ লাইভ চ্যাট সাপোর্ট শুধুমাত্র মেম্বারশিপ গ্রাহকদের জন্য প্রযোজ্য! অনুগ্রহ করে মেম্বারশিপ গ্রহণ করুন।', 'error');
+                    triggerToast('⚠️ লাইভ চ্যাট সাপোর্ট শুধুমাত্রর মেম্বারশিপ গ্রাহকদের জন্য প্রযোজ্য! অনুগ্রহ করে মেম্বারশিপ গ্রহণ করুন।', 'error');
                     handleTabSwitch('membership');
                   }
                 }}
