@@ -40,7 +40,6 @@ body,
 .bg-\[\#030a1c\]\/90,
 .bg-\[\#030a1c\]\/65,
 .bg-\[\#030a1c\]\/80,
-.bg-\|030a1c\|,
 .bg-\[\#04091a\], 
 .bg-\[\#050e24\], 
 .bg-\[\#050e26\],
@@ -123,9 +122,9 @@ span.font-extrabold {
 .border-blue-500\/20,
 .border-blue-500\/25,
 .border-blue-500\/30,
-.border-[#101e3d],
+.border-\[\#101e3d\],
 .border-blue-950,
-.border-[#10245a] {
+.border-\[\#10245a\] {
   border-color: rgba(56, 189, 248, 0.25) !important;
 }
 

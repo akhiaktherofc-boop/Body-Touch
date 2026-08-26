@@ -301,6 +301,44 @@
     "timestamp": "2026-08-26T17:05:42.924Z",
     "date": "2026-08-26",
     "isUnique": false,
-    "duration": 1262
+    "duration": 1278
+  },
+  {
+    "id": "vis_2nyem0lws",
+    "ip": "161.248.155.245",
+    "city": "Dhaka",
+    "country": "Bangladesh",
+    "countryCode": "BD",
+    "region": "Dhaka Division",
+    "org": "Sixty Four Networks Limited.",
+    "browser": "Chrome",
+    "os": "Windows",
+    "device": "Desktop / Laptop",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+    "referer": "https://aistudio.google.com/",
+    "path": "/client-site/home",
+    "timestamp": "2026-08-26T17:27:01.987Z",
+    "date": "2026-08-26",
+    "isUnique": false,
+    "duration": 647
+  },
+  {
+    "id": "vis_7k80qagld",
+    "ip": "161.248.155.246",
+    "city": "Dhaka",
+    "country": "Bangladesh",
+    "countryCode": "BD",
+    "region": "Dhaka Division",
+    "org": "Sixty Four Networks Limited.",
+    "browser": "Chrome",
+    "os": "Windows",
+    "device": "Desktop / Laptop",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+    "referer": "https://aistudio.google.com/",
+    "path": "/client-site/home",
+    "timestamp": "2026-08-26T17:37:49.177Z",
+    "date": "2026-08-26",
+    "isUnique": false,
+    "duration": 161
   }
 ]
