@@ -272,7 +272,7 @@ export default function AdminPanel({
   onUpdateWithdrawals,
   categories = ['Female Model', 'Male Model', 'Sperm Donor'],
   onUpdateCategories,
-  emergencyNotice = '‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶ø‡¶∏‡ßá‡¶∞ ‡¶®‡ßç‡¶Ø‡ßÇ‡¶®‡¶§‡¶Æ ‡ßß ‡¶ò‡¶£‡ßç‡¶ü‡¶æ ‡¶™‡ßÇ‡¶∞‡ßç‡¶¨‡ßá ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶¶‡¶ø‡¶¨‡ßá‡¶®‡•§ ‡¶∏‡¶æ‡¶™‡ßã‡¶∞‡ßç‡¶ü‡ßá ‡¶ï‡¶•‡¶æ ‡¶®‡¶æ ‡¶¨‡¶≤‡ßá ‡¶ï‡ßç‡¶Ø‡¶æ‡¶Æ ‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶ø‡¶∏ ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶¶‡¶ø‡¶¨‡ßá‡¶® ‡¶®‡¶æ',
+  emergencyNotice = '               ',
   onSaveEmergencyNotice,
   googleSheetUrl,
   onSaveGoogleSheetUrl,
@@ -409,11 +409,11 @@ export default function AdminPanel({
     setSmtpSaveError('');
     setSmtpSaveSuccess(false);
     if (!smtpUser.trim() || !smtpPass.trim()) {
-      setSmtpSaveError('‡¶á‡¶Æ‡ßá‡¶á‡¶≤ ‡¶è‡¶¨‡¶Ç ‡¶™‡¶æ‡¶∏‡¶ì‡¶Ø‡¶º‡¶æ‡¶∞‡ßç‡¶° ‡¶Ö‡¶¨‡¶∂‡ßç‡¶Ø‡¶á ‡¶™‡ßç‡¶∞‡¶¶‡¶æ‡¶® ‡¶ï‡¶∞‡¶§‡ßá ‡¶π‡¶¨‡ßá! (Email and Password are required.)');
+      setSmtpSaveError('      ! (Email and Password are required.)');
       return;
     }
     if (useSeparateOtpSmtp && (!smtpOtpUser.trim() || !smtpOtpPass.trim())) {
-      setSmtpSaveError('‡¶≠‡ßá‡¶∞‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶® ‡¶ì‡¶ü‡¶ø‡¶™‡¶ø ‡¶è‡¶∞ ‡¶ú‡¶®‡ßç‡¶Ø ‡¶Ü‡¶≤‡¶æ‡¶¶‡¶æ ‡¶ú‡¶ø‡¶Æ‡ßá‡¶á‡¶≤ ‡¶Ö‡¶™‡¶∂‡¶®‡¶ü‡¶ø ‡¶ö‡¶æ‡¶≤‡ßÅ ‡¶∞‡¶æ‡¶ñ‡¶≤‡ßá ‡¶≠‡ßá‡¶∞‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶® ‡¶á‡¶â‡¶ú‡¶æ‡¶∞ ‡¶á‡¶Æ‡ßá‡¶á‡¶≤ ‡¶è‡¶¨‡¶Ç ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™ ‡¶™‡¶æ‡¶∏‡¶ì‡¶Ø‡¶º‡¶æ‡¶∞‡ßç‡¶° ‡¶Ö‡¶¨‡¶∂‡ßç‡¶Ø‡¶á ‡¶™‡ßç‡¶∞‡¶¶‡¶æ‡¶® ‡¶ï‡¶∞‡¶§‡ßá ‡¶π‡¶¨‡ßá! (Verification OTP Email and Password are required.)');
+      setSmtpSaveError('                  ! (Verification OTP Email and Password are required.)');
       return;
     }
     try {
@@ -453,14 +453,14 @@ export default function AdminPanel({
       setSmtpSaveSuccess(true);
       setTimeout(() => setSmtpSaveSuccess(false), 3000);
     } catch (e: any) {
-      setSmtpSaveError(e.message || '‡¶∏‡ßá‡¶≠ ‡¶ï‡¶∞‡¶§‡ßá ‡¶¨‡ßç‡¶Ø‡¶∞‡ßç‡¶• ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§ ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶Ü‡¶¨‡¶æ‡¶∞ ‡¶ö‡ßá‡¶∑‡ßç‡¶ü‡¶æ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
+      setSmtpSaveError(e.message || '        ');
     }
   };
 
   const handleSaveFirebaseConfig = () => {
     setFbStatusMessage(null);
     if (!fbApiKey.trim() || !fbProjectId.trim() || !fbAppId.trim()) {
-      setFbStatusMessage('‚ùå API Key, Project ID, and App ID are required keys! (‡¶Ö‡¶¨‡¶∂‡ßç‡¶Ø‡¶á ‡¶™‡ßÇ‡¶∞‡¶£ ‡¶ï‡¶∞‡¶§‡ßá ‡¶π‡¶¨‡ßá)');
+      setFbStatusMessage('[X] API Key, Project ID, and App ID are required keys! (   )');
       return;
     }
     const config = {
@@ -475,17 +475,17 @@ export default function AdminPanel({
       localStorage.setItem('bodytouch_firebase_config', JSON.stringify(config));
       const success = initializeRealFirebase(config);
       if (success) {
-        setFbStatusMessage('‚úÖ Firebase configuration saved and loaded! (‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶ï‡ßç‡¶≤‡¶æ‡¶â‡¶° ‡¶°‡ßá‡¶ü‡¶æ‡¶¨‡ßá‡¶ú‡ßá ‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶π‡ßü‡ßá‡¶õ‡ßá)');
+        setFbStatusMessage('[OK] Firebase configuration saved and loaded! (    )');
       } else {
-        setFbStatusMessage('‚ö†Ô∏è Config saved to local memory, but real-time validation failed. Please verify credentials!');
+        setFbStatusMessage('[!] Config saved to local memory, but real-time validation failed. Please verify credentials!');
       }
     } catch (e: any) {
-      setFbStatusMessage(`‚ùå Error: ${e.message || 'Failed to initialize Firebase'}`);
+      setFbStatusMessage(`[X] Error: ${e.message || 'Failed to initialize Firebase'}`);
     }
   };
 
   const handleClearFirebaseConfig = () => {
-    if (window.confirm('‡¶Ü‡¶™‡¶®‡¶ø ‡¶ï‡¶ø ‡¶∏‡¶§‡ßç‡¶Ø‡¶ø‡¶á ‡¶ï‡ßç‡¶≤‡¶æ‡¶â‡¶° ‡¶°‡ßá‡¶ü‡¶æ‡¶¨‡ßá‡¶ú ‡¶ï‡¶æ‡¶®‡ßá‡¶ï‡¶∂‡¶® ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡ßá ‡¶Ö‡¶´‡¶≤‡¶æ‡¶á‡¶®/‡¶π‡ßã‡¶∏‡ßç‡¶ü‡¶ø‡¶Ç‡¶ó‡¶æ‡¶∞ ‡¶≤‡ßã‡¶ï‡¶æ‡¶≤ ‡¶Æ‡ßá‡¶Æ‡ßã‡¶∞‡¶ø ‡¶Æ‡ßã‡¶°‡ßá ‡¶´‡¶ø‡¶∞‡ßá ‡¶Ø‡ßá‡¶§‡ßá ‡¶ö‡¶æ‡¶®?')) {
+    if (window.confirm('        /      ?')) {
       localStorage.removeItem('bodytouch_firebase_config');
       setFbApiKey('');
       setFbAuthDomain('');
@@ -493,7 +493,7 @@ export default function AdminPanel({
       setFbStorageBucket('');
       setFbMessagingSenderId('');
       setFbAppId('');
-      setFbStatusMessage('‚ö†Ô∏è Disconnected: Cloud sync disabled. Offline/Local memory mode is now active.');
+      setFbStatusMessage('[!] Disconnected: Cloud sync disabled. Offline/Local memory mode is now active.');
       setTimeout(() => {
         window.location.reload();
       }, 1500);
@@ -595,16 +595,16 @@ export default function AdminPanel({
   const handleSaveSlide = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!slideImage.trim()) {
-      alert("‡¶¨‡¶æ‡¶ß‡ßç‡¶Ø‡¶§‡¶æ‡¶Æ‡ßÇ‡¶≤‡¶ï: ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶° ‡¶¨‡¶æ ‡¶¨‡ßç‡¶Ø‡¶æ‡¶®‡¶æ‡¶∞‡ßá‡¶∞ ‡¶è‡¶ï‡¶ü‡¶ø ‡¶∏‡¶†‡¶ø‡¶ï ‡¶õ‡¶¨‡¶ø‡¶∞ ‡¶≤‡¶ø‡¶ô‡ßç‡¶ï (Photo URL) ‡¶¶‡¶ø‡¶®‡•§");
+      alert(":        (Photo URL) ");
       return;
     }
     if (!slideTitle.trim()) {
-      alert("‡¶¨‡¶æ‡¶ß‡ßç‡¶Ø‡¶§‡¶æ‡¶Æ‡ßÇ‡¶≤‡¶ï: ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶°‡ßá‡¶∞ ‡¶™‡ßç‡¶∞‡¶ß‡¶æ‡¶® ‡¶≤‡ßá‡¶ñ‡¶æ ‡¶¨‡¶æ ‡¶ü‡¶æ‡¶á‡¶ü‡ßá‡¶≤ (Title) ‡¶¶‡¶ø‡¶®‡•§");
+      alert(":      (Title) ");
       return;
     }
 
     try {
-      setSliderStatusMsg('‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶° ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú‡ßá ‡¶Ü‡¶™‡¶°‡ßá‡¶ü ‡¶π‡¶ö‡ßç‡¶õ‡ßá...');
+      setSliderStatusMsg('   ...');
       let updatedSlides = [...sliderSlides];
 
       if (isEditingSlide) {
@@ -649,28 +649,28 @@ export default function AdminPanel({
       setSlideIconName('star');
       setSlideImage('');
       setIsEditingSlide(false);
-      setSliderStatusMsg('‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶° ‡¶§‡¶•‡ßç‡¶Ø‡¶ü‡¶ø ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú‡ßá ‡¶∏‡ßá‡¶≠ ‡¶π‡ßü‡ßá‡¶õ‡ßá!');
+      setSliderStatusMsg('     !');
       setTimeout(() => setSliderStatusMsg(''), 4000);
     } catch (err: any) {
       console.error(err);
-      alert('‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶° ‡¶∏‡ßá‡¶≠ ‡¶ï‡¶∞‡¶§‡ßá ‡¶∏‡¶Æ‡¶∏‡ßç‡¶Ø‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá: ' + err.message);
+      alert('    : ' + err.message);
       setSliderStatusMsg('');
     }
   };
 
   const handleDeleteSlide = async (idToDelete: string | number) => {
-    const confirmDelete = window.confirm("‡¶Ü‡¶™‡¶®‡¶ø ‡¶ï‡¶ø ‡¶®‡¶ø‡¶∂‡ßç‡¶ö‡¶ø‡¶§‡¶≠‡¶æ‡¶¨‡ßá ‡¶è‡¶á ‡¶õ‡¶¨‡¶ø‡¶∞ ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶°‡¶ü‡¶ø ‡¶°‡¶ø‡¶≤‡¶ø‡¶ü ‡¶ï‡¶∞‡¶§‡ßá ‡¶ö‡¶æ‡¶®?");
+    const confirmDelete = window.confirm("        ?");
     if (!confirmDelete) return;
 
     try {
-      setSliderStatusMsg('‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶° ‡¶°‡¶ø‡¶≤‡¶ø‡¶ü ‡¶π‡¶ö‡ßç‡¶õ‡ßá...');
+      setSliderStatusMsg('  ...');
       const updatedSlides = sliderSlides.filter(s => s.id !== idToDelete);
       await setDoc(doc(db, 'settings', 'hero_slides'), { slides: updatedSlides }, { merge: true });
-      setSliderStatusMsg('‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶°‡¶ü‡¶ø ‡¶∏‡¶∞‡¶æ‡¶®‡ßã ‡¶π‡ßü‡ßá‡¶õ‡ßá!');
+      setSliderStatusMsg('   !');
       setTimeout(() => setSliderStatusMsg(''), 4000);
     } catch (err: any) {
       console.error(err);
-      alert('‡¶°‡¶ø‡¶≤‡¶ø‡¶ü ‡¶¨‡ßç‡¶Ø‡¶∞‡ßç‡¶• ‡¶π‡ßü‡ßá‡¶õ‡ßá: ' + err.message);
+      alert('  : ' + err.message);
       setSliderStatusMsg('');
     }
   };
@@ -735,13 +735,13 @@ export default function AdminPanel({
 
       setResetModalMessage({
         type: 'success',
-        text: "‚úÖ ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú ‡¶•‡ßá‡¶ï‡ßá ‡¶™‡ßÇ‡¶∞‡ßç‡¶¨‡ßá‡¶∞ ‡¶∏‡¶ï‡¶≤ ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ‡¶æ‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü (users), ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶π‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡¶ø (bookings), ‡¶ü‡ßç‡¶∞‡¶æ‡¶®‡¶ú‡ßá‡¶ï‡¶∂‡¶® ‡¶™‡ßá‡¶Æ‡ßá‡¶®‡ßç‡¶ü ‡¶∞‡ßá‡¶ï‡¶∞‡ßç‡¶° (payments), ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡¶æ‡¶∞‡ßç‡¶° ‡¶Æ‡¶°‡ßá‡¶≤ (companions), ‡¶∞‡¶ø‡¶≠‡¶ø‡¶â‡¶ú (reviews), ‡¶®‡ßã‡¶ü‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶® ‡¶è‡¶¨‡¶Ç ‡¶á‡¶Æ‡ßá‡¶á‡¶≤ ‡¶≤‡¶ó ‡¶è‡¶ï‡¶¶‡¶Æ ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá! ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™‡¶ü‡¶ø ‡¶è‡¶ñ‡¶® ‡¶∏‡¶Æ‡ßç‡¶™‡ßÇ‡¶∞‡ßç‡¶£ ‡¶®‡¶§‡ßÅ‡¶® (Fresh Launch) ‡¶Ö‡¶¨‡¶∏‡ßç‡¶•‡¶æ‡ßü ‡¶∞‡ßü‡ßá‡¶õ‡ßá‡•§"
+        text: "[OK]        (users),   (bookings),    (payments),    (companions),  (reviews),        !     (Fresh Launch)  "
       });
     } catch (err: any) {
       console.error(err);
       setResetModalMessage({
         type: 'error',
-        text: "‚ùå ‡¶°‡¶æ‡¶ü‡¶æ ‡¶ï‡ßç‡¶≤‡¶ø‡ßü‡¶æ‡¶∞ ‡¶ï‡¶∞‡¶§‡ßá ‡¶∏‡¶Æ‡¶∏‡ßç‡¶Ø‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§ ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶Ü‡¶¨‡¶æ‡¶∞ ‡¶ö‡ßá‡¶∑‡ßç‡¶ü‡¶æ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§"
+        text: "[X]          "
       });
     } finally {
       setIsResetting(false);
@@ -920,14 +920,14 @@ export default function AdminPanel({
         }
       } catch (err) {
         console.error("Branding crop failed:", err);
-        alert("‡¶≤‡ßã‡¶ó‡ßã ‡¶ï‡ßç‡¶∞‡¶™ ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶™‡ßç‡¶∞‡¶ï‡ßç‡¶∞‡¶ø‡ßü‡¶æ ‡¶¨‡ßç‡¶Ø‡¶∞‡ßç‡¶• ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§ ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶Ö‡¶®‡ßç‡¶Ø ‡¶õ‡¶¨‡¶ø ‡¶¶‡¶ø‡ßü‡ßá ‡¶ö‡ßá‡¶∑‡ßç‡¶ü‡¶æ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§");
+        alert("            ");
       } finally {
         setIsProcessingCrop(false);
       }
     };
     img.onerror = () => {
       setIsProcessingCrop(false);
-      alert("‡¶õ‡¶¨‡¶ø ‡¶•‡ßá‡¶ï‡ßá ‡¶á‡¶Æ‡ßá‡¶ú ‡¶°‡¶æ‡¶ü‡¶æ ‡¶∞‡¶ø‡¶° ‡¶ï‡¶∞‡¶§‡ßá ‡¶¨‡ßç‡¶Ø‡¶∞‡ßç‡¶• ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§");
+      alert("       ");
     };
     img.src = tempLogo;
   };
@@ -1109,7 +1109,7 @@ export default function AdminPanel({
       }
     } catch (err: any) {
       console.error('[TOTP Check Error]', err);
-      setAuthError('‡¶ó‡ßÅ‡¶ó‡¶≤ ‡¶Ö‡¶•‡ßá‡¶®‡ßç‡¶ü‡¶ø‡¶ï‡ßá‡¶ü‡¶∞ ‡ß®-‡¶∏‡ßç‡¶ü‡ßá‡¶™ ‡¶®‡¶ø‡¶∞‡¶æ‡¶™‡¶§‡ßç‡¶§‡¶æ ‡¶Ø‡¶æ‡¶ö‡¶æ‡¶á‡¶ï‡¶∞‡¶£‡ßá ‡¶¨‡ßç‡¶Ø‡¶∞‡ßç‡¶•‡¶§‡¶æ ‡¶§‡ßà‡¶∞‡¶ø ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§ ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶´‡¶æ‡ßü‡¶æ‡¶∞‡¶∏‡ßç‡¶ü‡ßã‡¶∞ ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú ‡¶∏‡¶Ç‡¶Ø‡ßã‡¶ó ‡¶ö‡ßá‡¶ï ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
+      setAuthError('  -            ');
     } finally {
       setIsSending(false);
     }
@@ -1121,7 +1121,7 @@ export default function AdminPanel({
     const cleanCode = totpInputCode.trim();
 
     if (!cleanCode) {
-      setAuthError('‡ß¨ ‡¶∏‡¶Ç‡¶ñ‡ßç‡¶Ø‡¶æ‡¶∞ ‡¶Ö‡¶•‡ßá‡¶®‡¶ü‡¶ø‡¶ï‡ßá‡¶∂‡¶® ‡¶ï‡ßã‡¶°‡¶ü‡¶ø ‡¶™‡ßç‡¶∞‡¶¨‡ßá‡¶∂ ‡¶ï‡¶∞‡¶æ‡¶®‡•§');
+      setAuthError('     ');
       return;
     }
 
@@ -1161,11 +1161,11 @@ export default function AdminPanel({
         setTotpInputCode('');
         setAuthError('');
       } else {
-        setAuthError('‡¶≠‡ßÅ‡¶≤ ‡¶Ö‡¶•‡ßá‡¶®‡ßç‡¶ü‡¶ø‡¶ï‡ßá‡¶ü‡¶∞ ‡¶ï‡ßã‡¶°! ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶ó‡ßÅ‡¶ó‡¶≤ ‡¶Ö‡¶•‡ßá‡¶®‡ßç‡¶ü‡¶ø‡¶ï‡ßá‡¶ü‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™‡ßá‡¶∞ ‡¶∏‡¶æ‡¶•‡ßá ‡¶ü‡¶æ‡¶á‡¶Æ ‡¶ö‡ßá‡¶ï ‡¶ï‡¶∞‡ßá ‡¶∏‡¶†‡¶ø‡¶ï ‡ß¨ ‡¶∏‡¶Ç‡¶ñ‡ßç‡¶Ø‡¶æ‡¶∞ ‡¶°‡¶æ‡¶á‡¶®‡¶æ‡¶Æ‡¶ø‡¶ï ‡¶ï‡ßã‡¶° ‡¶≤‡¶ø‡¶ñ‡ßÅ‡¶®‡•§');
+        setAuthError('  !                ');
       }
     } catch (err: any) {
       console.error('[TOTP Setup Sync Error]', err);
-      setAuthError('‡¶Ö‡¶•‡ßá‡¶®‡ßç‡¶ü‡¶ø‡¶ï‡ßá‡¶ü‡¶∞ ‡¶∏‡¶ø‡¶ô‡ßç‡¶ï ‡¶ï‡¶∞‡¶§‡ßá ‡¶∏‡¶Æ‡¶∏‡ßç‡¶Ø‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§ ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶Ü‡¶¨‡¶æ‡¶∞ ‡¶ö‡ßá‡¶∑‡ßç‡¶ü‡¶æ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
+      setAuthError('         ');
     } finally {
       setIsSending(false);
     }
@@ -1177,7 +1177,7 @@ export default function AdminPanel({
     const cleanCode = useBackupCode ? backupInputCode.trim() : totpInputCode.trim();
 
     if (!cleanCode) {
-      setAuthError(useBackupCode ? '‡ßÆ ‡¶∏‡¶Ç‡¶ñ‡ßç‡¶Ø‡¶æ‡¶∞ ‡¶ì‡ßü‡¶æ‡¶®-‡¶ü‡¶æ‡¶á‡¶Æ ‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶ï‡ßã‡¶° ‡¶™‡ßç‡¶∞‡¶¨‡ßá‡¶∂ ‡¶ï‡¶∞‡¶æ‡¶®‡•§' : '‡ß¨ ‡¶∏‡¶Ç‡¶ñ‡ßç‡¶Ø‡¶æ‡¶∞ ‡¶ï‡ßã‡¶° ‡¶™‡ßç‡¶∞‡¶¨‡ßá‡¶∂ ‡¶ï‡¶∞‡¶æ‡¶®‡•§');
+      setAuthError(useBackupCode ? '  -    ' : '    ');
       return;
     }
 
@@ -1188,7 +1188,7 @@ export default function AdminPanel({
       if (useBackupCode) {
         const cleanBackup = cleanCode.replace(/[^A-Z0-9]/gi, '').toUpperCase();
         if (cleanBackup.length !== 8) {
-          setAuthError('‡¶≠‡ßÅ‡¶≤ ‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶ï‡ßã‡¶° ‡¶´‡¶∞‡¶Æ‡ßç‡¶Ø‡¶æ‡¶ü! ‡¶ï‡ßã‡¶°‡¶ü‡¶ø ‡¶Ö‡¶¨‡¶∂‡ßç‡¶Ø‡¶á ‡ßÆ ‡¶∏‡¶Ç‡¶ñ‡ßç‡¶Ø‡¶æ‡¶∞ ‡¶¨‡¶æ ‡¶Ö‡¶ï‡ßç‡¶∑‡¶∞‡ßá‡¶∞ ‡¶π‡¶§‡ßá ‡¶π‡¶¨‡ßá‡•§');
+          setAuthError('   !        ');
           setIsSending(false);
           return;
         }
@@ -1203,7 +1203,7 @@ export default function AdminPanel({
           setBackupInputCode('');
           setUseBackupCode(false);
           setAuthError('');
-          alert('‚úÖ ‡¶á‡¶Æ‡¶æ‡¶∞‡ßç‡¶ú‡ßá‡¶®‡ßç‡¶∏‡¶ø ‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶ï‡ßã‡¶° ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶Ø‡¶æ‡¶ö‡¶æ‡¶á ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá!');
+          alert('[OK]       !');
           return;
         }
 
@@ -1224,11 +1224,11 @@ export default function AdminPanel({
             setBackupInputCode('');
             setUseBackupCode(false);
             setAuthError('');
-            alert('‚úÖ ‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶ï‡ßã‡¶° ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶Ø‡¶æ‡¶ö‡¶æ‡¶á ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá! ‡¶ï‡ßã‡¶°‡¶ü‡¶ø ‡¶ì‡ßü‡¶æ‡¶®-‡¶ü‡¶æ‡¶á‡¶Æ ‡¶õ‡¶ø‡¶≤ ‡¶è‡¶¨‡¶Ç ‡¶è‡¶ñ‡¶® ‡¶è‡¶ü‡¶ø ‡¶∏‡ßç‡¶•‡¶æ‡ßü‡ßÄ‡¶≠‡¶æ‡¶¨‡ßá ‡¶¨‡¶æ‡¶§‡¶ø‡¶≤ ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§');
+            alert('[OK]      !  -        ');
             return;
           }
         }
-        setAuthError('‡¶≠‡ßÅ‡¶≤ ‡¶¨‡¶æ ‡¶Ö‡¶¨‡ßç‡¶Ø‡¶¨‡¶π‡ßÉ‡¶§ ‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶ï‡ßã‡¶°! ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶ï‡¶™‡¶ø ‡¶ï‡¶∞‡¶æ ‡¶∏‡¶†‡¶ø‡¶ï ‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶ï‡ßã‡¶°‡¶ü‡¶ø ‡¶™‡ßç‡¶∞‡¶¨‡ßá‡¶∂ ‡¶ï‡¶∞‡¶æ‡¶®‡•§');
+        setAuthError('    !          ');
         setIsSending(false);
         return;
       }
@@ -1258,11 +1258,11 @@ export default function AdminPanel({
         setTotpInputCode('');
         setAuthError('');
       } else {
-        setAuthError('‡¶≠‡ßÅ‡¶≤ ‡ß®-‡¶∏‡ßç‡¶ü‡ßá‡¶™ ‡¶®‡¶ø‡¶∞‡¶æ‡¶™‡¶§‡ßç‡¶§‡¶æ ‡¶ï‡ßã‡¶°! ‡¶ó‡ßÅ‡¶ó‡¶≤ ‡¶Ö‡¶•‡ßá‡¶®‡ßç‡¶ü‡¶ø‡¶ï‡ßá‡¶ü‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™‡ßá ‡¶¶‡ßá‡¶ñ‡¶æ‡¶®‡ßã ‡¶¨‡¶∞‡ßç‡¶§‡¶Æ‡¶æ‡¶® ‡¶∏‡¶ö‡¶≤ ‡¶ï‡ßã‡¶°‡¶ü‡¶ø ‡¶∏‡¶†‡¶ø‡¶ï‡¶≠‡¶æ‡¶¨‡ßá ‡¶ü‡¶æ‡¶á‡¶™ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
+        setAuthError(' -  !          ');
       }
     } catch (err: any) {
       console.error('[TOTP Validation Error]', err);
-      setAuthError('‡¶ï‡ßã‡¶° ‡¶Ø‡¶æ‡¶ö‡¶æ‡¶á‡¶ï‡¶∞‡¶£‡ßá ‡¶∏‡¶æ‡¶Æ‡ßü‡¶ø‡¶ï ‡¶§‡ßç‡¶∞‡ßÅ‡¶ü‡¶ø ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§ ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶Ü‡¶¨‡¶æ‡¶∞ ‡¶ö‡ßá‡¶∑‡ßç‡¶ü‡¶æ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
+      setAuthError('         ');
     } finally {
       setIsSending(false);
     }
@@ -1273,17 +1273,17 @@ export default function AdminPanel({
     const cleanPassword = adminPassword.trim();
 
     if (!normalizedEmail) {
-      setAuthError('‡¶¶‡ßü‡¶æ ‡¶ï‡¶∞‡ßá ‡¶è‡¶ï‡¶ü‡¶ø ‡¶∏‡¶†‡¶ø‡¶ï ‡¶á‡¶Æ‡ßá‡¶≤ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶°‡ßç‡¶∞‡ßá‡¶∏ ‡¶≤‡¶ø‡¶ñ‡ßÅ‡¶®‡•§');
+      setAuthError('      ');
       return;
     }
     if (!cleanPassword) {
-      setAuthError('‡¶¶‡ßü‡¶æ ‡¶ï‡¶∞‡ßá ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶≤‡¶ø‡¶ñ‡ßÅ‡¶®‡•§');
+      setAuthError('   ');
       return;
     }
 
     const isAllowed = adminEmails.some(a => a.email.toLowerCase() === normalizedEmail);
     if (!isAllowed) {
-      setAuthError('‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡ßç‡¶∏‡ßá‡¶∏ ‡¶Ö‡¶∏‡ßç‡¶¨‡ßÄ‡¶ï‡ßÉ‡¶§! ‡¶è‡¶á ‡¶á‡¶Æ‡ßá‡¶≤‡¶ü‡¶ø ‡¶Ö‡¶®‡ßÅ‡¶Æ‡ßã‡¶¶‡¶ø‡¶§ ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶§‡¶æ‡¶≤‡¶ø‡¶ï‡¶æ‡ßü ‡¶®‡¶ø‡¶¨‡¶®‡ßç‡¶ß‡¶ø‡¶§ ‡¶®‡ßü‡•§');
+      setAuthError(' !       ');
       return;
     }
 
@@ -1305,7 +1305,7 @@ export default function AdminPanel({
           await setDoc(passDocRef, { password: correctPassword });
         } else {
           // Protect newly whitelisted admins from guessable fallback passwords
-          setAuthError('‡¶è‡¶á ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü‡ßá ‡¶ï‡ßã‡¶®‡ßã ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ‡¶æ‡¶á‡¶ú‡¶° ‡¶¨‡¶æ ‡¶∏‡ßá‡¶ü‡¶Ü‡¶™ ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡¶®‡¶ø! ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶∏‡ßÅ‡¶™‡¶æ‡¶∞ ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶¶‡ßç‡¶¨‡¶æ‡¶∞‡¶æ ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶™‡ßç‡¶Ø‡¶æ‡¶®‡ßá‡¶≤ ‡¶•‡ßá‡¶ï‡ßá ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶ø‡ßü‡ßá ‡¶®‡¶ø‡¶®‡•§');
+          setAuthError('        !            ');
           setIsSending(false);
           return;
         }
@@ -1314,11 +1314,11 @@ export default function AdminPanel({
       if (cleanPassword === correctPassword) {
         await checkAndProceedTOTP(normalizedEmail);
       } else {
-        setAuthError('‡¶≠‡ßÅ‡¶≤ ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶°! ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶∏‡¶†‡¶ø‡¶ï ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶¶‡¶ø‡ßü‡ßá ‡¶™‡ßÅ‡¶®‡¶∞‡¶æ‡ßü ‡¶ö‡ßá‡¶∑‡ßç‡¶ü‡¶æ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
+        setAuthError(' !        ');
       }
     } catch (err: any) {
       console.error('[Custom Auth Error]', err);
-      setAuthError('‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶Ø‡¶æ‡¶ö‡¶æ‡¶á‡¶ï‡¶∞‡¶£‡ßá ‡¶¨‡ßç‡¶Ø‡¶∞‡ßç‡¶•‡¶§‡¶æ ‡¶∞‡ßÇ‡¶™ ‡¶®‡¶ø‡ßü‡ßá‡¶õ‡ßá‡•§ ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶á‡¶®‡ßç‡¶ü‡¶æ‡¶∞‡¶®‡ßá‡¶ü ‡¶∏‡¶Ç‡¶Ø‡ßã‡¶ó ‡¶ö‡ßá‡¶ï ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
+      setAuthError('           ');
     } finally {
       setIsSending(false);
     }
@@ -1330,7 +1330,7 @@ export default function AdminPanel({
     const cleanPassword = reset2FAPassword.trim();
 
     if (!cleanPassword) {
-      setAuthError('‡ß®FA ‡¶∞‡¶ø‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶§‡ßá ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶°‡¶ü‡¶ø ‡¶™‡ßç‡¶∞‡¶¶‡¶æ‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
+      setAuthError('FA       ');
       return;
     }
 
@@ -1348,7 +1348,7 @@ export default function AdminPanel({
         if (normalizedEmail === '16killer2@gmail.com' || normalizedEmail === 'akhi.akther.ofc@gmail.com') {
           correctPassword = '16killer2@admin';
         } else {
-          setAuthError('‡¶è‡¶á ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü‡ßá ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶æ ‡¶®‡ßá‡¶á‡•§ ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶∏‡ßÅ‡¶™‡¶æ‡¶∞ ‡¶è‡¶°‡¶Æ‡¶ø‡¶®‡ßá‡¶∞ ‡¶∏‡¶æ‡¶•‡ßá ‡¶Ø‡ßã‡¶ó‡¶æ‡¶Ø‡ßã‡¶ó ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
+          setAuthError('            ');
           setIsSending(false);
           return;
         }
@@ -1370,35 +1370,35 @@ export default function AdminPanel({
         setShowReset2FAInput(false);
         setReset2FAPassword('');
         setTotpInputCode('');
-        alert('‚úÖ ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡ß®-‡¶∏‡ßç‡¶ü‡ßá‡¶™ ‡¶®‡¶ø‡¶∞‡¶æ‡¶™‡¶§‡ßç‡¶§‡¶æ ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶∞‡¶ø‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá! ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶ó‡ßÅ‡¶ó‡¶≤ ‡¶Ö‡¶•‡ßá‡¶®‡ßç‡¶ü‡¶ø‡¶ï‡ßá‡¶ü‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™‡ßá ‡¶®‡¶§‡ßÅ‡¶® ‡¶ï‡¶ø‡¶â‡¶Ü‡¶∞ ‡¶ï‡ßã‡¶°‡¶ü‡¶ø ‡¶∏‡ßç‡¶ï‡ßç‡¶Ø‡¶æ‡¶® ‡¶ï‡¶∞‡ßá ‡¶®‡¶ø‡¶®‡•§');
+        alert('[OK]  -     !           ');
       } else {
-        setAuthError('‡¶≠‡ßÅ‡¶≤ ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶°! ‡ß®FA ‡¶∞‡¶ø‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶§‡ßá ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶∏‡¶†‡¶ø‡¶ï ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶™‡ßç‡¶∞‡¶¶‡¶æ‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
+        setAuthError(' ! FA         ');
       }
     } catch (err: any) {
       console.error('[Reset Own 2FA Error]', err);
-      setAuthError('‡ß®FA ‡¶∞‡¶ø‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶§‡ßá ‡¶∏‡¶Æ‡¶∏‡ßç‡¶Ø‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§ ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú ‡¶∏‡¶Ç‡¶Ø‡ßã‡¶ó ‡¶¨‡¶æ ‡¶á‡¶®‡ßç‡¶ü‡¶æ‡¶∞‡¶®‡ßá‡¶ü ‡¶ö‡ßá‡¶ï ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
+      setAuthError('FA            ');
     } finally {
       setIsSending(false);
     }
   };
 
   const handleResetAgent2FA = async (username: string) => {
-    if (!window.confirm(`‡¶Ü‡¶™‡¶®‡¶ø ‡¶ï‡¶ø ‡¶∏‡¶§‡ßç‡¶Ø‡¶ø‡¶á ‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü @${username} ‡¶è‡¶∞ ‡¶ó‡ßÅ‡¶ó‡¶≤ ‡¶Ö‡¶•‡ßá‡¶®‡ßç‡¶ü‡¶ø‡¶ï‡ßá‡¶ü‡¶∞ ‡ß®-‡¶∏‡ßç‡¶ü‡ßá‡¶™ ‡¶®‡¶ø‡¶∞‡¶æ‡¶™‡¶§‡ßç‡¶§‡¶æ ‡¶∏‡¶ø‡¶ï‡ßç‡¶∞‡ßá‡¶ü ‡¶∞‡¶ø‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶§‡ßá ‡¶ö‡¶æ‡¶®? ‡¶∞‡¶ø‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶≤‡ßá ‡¶§‡¶ø‡¶®‡¶ø ‡¶§‡¶æ‡¶∞ ‡¶™‡¶∞‡¶¨‡¶∞‡ßç‡¶§‡ßÄ ‡¶≤‡¶ó‡¶á‡¶®‡ßá ‡¶®‡¶§‡ßÅ‡¶® ‡¶ï‡¶∞‡ßá ‡¶Ö‡¶•‡ßá‡¶®‡ßç‡¶ü‡¶ø‡¶ï‡ßá‡¶ü‡¶∞ ‡¶ï‡¶ø ‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶§‡ßá ‡¶™‡¶æ‡¶∞‡¶¨‡ßá‡¶®‡•§`)) {
+    if (!window.confirm(`    @${username}    -     ?             `)) {
       return;
     }
     try {
       await deleteDoc(doc(db, 'agent_totp_secrets', username.trim().toLowerCase()));
-      alert(`‚úÖ ‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü @${username} ‡¶è‡¶∞ ‡¶ó‡ßÅ‡¶ó‡¶≤ ‡ß®FA ‡¶∏‡¶ø‡¶ï‡ßç‡¶∞‡ßá‡¶ü ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶∞‡¶ø‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá!`);
+      alert(`[OK]  @${username}   FA     !`);
     } catch (err) {
       console.error(err);
-      alert('‡ß®FA ‡¶∞‡¶ø‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶§‡ßá ‡¶∏‡¶Æ‡¶∏‡ßç‡¶Ø‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§ ‡¶¶‡ßü‡¶æ ‡¶ï‡¶∞‡ßá ‡¶Ü‡¶¨‡¶æ‡¶∞ ‡¶ö‡ßá‡¶∑‡ßç‡¶ü‡¶æ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
+      alert('FA         ');
     }
   };
 
   const handleDeleteAgent = async (username: string) => {
     const cleanUser = (username || '').trim().toLowerCase();
     if (!cleanUser) return;
-    if (!window.confirm(`‡¶Ü‡¶™‡¶®‡¶ø ‡¶ï‡¶ø ‡¶∏‡¶§‡ßç‡¶Ø‡¶ø‡¶á ‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü @${username} ‡¶ï‡ßá ‡¶∏‡¶Æ‡ßç‡¶™‡ßÇ‡¶∞‡ßç‡¶£‡¶≠‡¶æ‡¶¨‡ßá ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡¶§‡ßá ‡¶ö‡¶æ‡¶®? ‡¶è‡¶ü‡¶ø ‡¶®‡¶ø‡¶∂‡ßç‡¶ö‡¶ø‡¶§ ‡¶ï‡¶∞‡¶≤‡ßá ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú ‡¶•‡ßá‡¶ï‡ßá ‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü‡ßá‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü, ‡¶™‡¶ø‡¶® ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶°, ‡ß®FA ‡¶è‡¶¨‡¶Ç ‡¶∞‡ßá‡¶´‡¶æ‡¶∞‡¶æ‡¶≤ ‡¶∞‡ßá‡¶ï‡¶∞‡ßç‡¶° ‡¶∏‡ßç‡¶•‡¶æ‡ßü‡ßÄ‡¶≠‡¶æ‡¶¨‡ßá ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶Ø‡¶æ‡¶¨‡ßá‡•§`)) {
+    if (!window.confirm(`    @${username}     ?       ,  , FA      `)) {
       return;
     }
     try {
@@ -1434,10 +1434,10 @@ export default function AdminPanel({
         } catch (e) {}
       }
 
-      alert(`‚úÖ ‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü @${username} ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú ‡¶•‡ßá‡¶ï‡ßá ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá!`);
+      alert(`[OK]  @${username}      !`);
     } catch (err: any) {
       console.error('Failed to delete agent:', err);
-      alert(`‚ùå ‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü ‡¶Æ‡ßÅ‡¶õ‡¶§‡ßá ‡¶¨‡ßç‡¶Ø‡¶∞‡ßç‡¶• ‡¶π‡ßü‡ßá‡¶õ‡ßá: ${err.message || err}`);
+      alert(`[X]    : ${err.message || err}`);
     } finally {
       setIsSending(false);
     }
@@ -1613,7 +1613,7 @@ export default function AdminPanel({
   // Export Visitor Logs to CSV / Excel
   const exportVisitorLogsToCSV = (logsToExport: any[], customFilename?: string) => {
     if (!logsToExport || logsToExport.length === 0) {
-      alert('‡¶°‡¶æ‡¶â‡¶®‡¶≤‡ßã‡¶° ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶Æ‡¶§‡ßã ‡¶ï‡ßã‡¶®‡ßã ‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶°‡¶æ‡¶ü‡¶æ ‡¶™‡¶æ‡¶ì‡ßü‡¶æ ‡¶Ø‡¶æ‡ßü‡¶®‡¶ø‡•§');
+      alert('       ');
       return;
     }
 
@@ -1674,8 +1674,8 @@ export default function AdminPanel({
       ].join(',');
     });
 
-    // UTF-8 BOM Ôªø ensures proper Unicode & Bengali rendering in Excel
-    const csvContent = 'Ôªø' + [headers.join(','), ...rows].join('\r\n');
+    // UTF-8 BOM  ensures proper Unicode & Bengali rendering in Excel
+    const csvContent = '' + [headers.join(','), ...rows].join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1692,7 +1692,7 @@ export default function AdminPanel({
   // Export Visitor Logs to JSON format
   const exportVisitorLogsToJSON = (logsToExport: any[], customFilename?: string) => {
     if (!logsToExport || logsToExport.length === 0) {
-      alert('‡¶°‡¶æ‡¶â‡¶®‡¶≤‡ßã‡¶° ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶Æ‡¶§‡ßã ‡¶ï‡ßã‡¶®‡ßã ‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶°‡¶æ‡¶ü‡¶æ ‡¶™‡¶æ‡¶ì‡ßü‡¶æ ‡¶Ø‡¶æ‡ßü‡¶®‡¶ø‡•§');
+      alert('       ');
       return;
     }
 
@@ -1720,7 +1720,7 @@ export default function AdminPanel({
 
   // Purge / Clear all visitor logs on admin confirmation
   const handlePurgeVisitorLogs = async () => {
-    if (!window.confirm('‡¶Ü‡¶™‡¶®‡¶ø ‡¶ï‡¶ø ‡¶®‡¶ø‡¶∂‡ßç‡¶ö‡¶ø‡¶§ ‡¶Ø‡ßá ‡¶Ü‡¶™‡¶®‡¶ø ‡¶∏‡¶Æ‡¶∏‡ßç‡¶§ ‡ß© ‡¶¶‡¶ø‡¶®‡ßá‡¶∞ ‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶π‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡¶ø ‡¶≤‡¶ó ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡¶§‡ßá ‡¶ö‡¶æ‡¶®?\n\n‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡¶æ‡¶∞ ‡¶™‡¶∞ ‡¶°‡¶æ‡¶ü‡¶æ ‡¶Ü‡¶∞ ‡¶´‡¶ø‡¶∞‡¶ø‡ßü‡ßá ‡¶Ü‡¶®‡¶æ ‡¶∏‡¶Æ‡ßç‡¶≠‡¶¨ ‡¶®‡ßü‡•§ ‡¶Ü‡¶™‡¶®‡¶ø ‡¶ö‡¶æ‡¶á‡¶≤‡ßá ‡¶Ü‡¶ó‡ßá CSV ‡¶¨‡¶æ JSON ‡¶°‡¶æ‡¶â‡¶®‡¶≤‡ßã‡¶° ‡¶ï‡¶∞‡ßá ‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶∞‡¶æ‡¶ñ‡¶§‡ßá ‡¶™‡¶æ‡¶∞‡ßá‡¶®‡•§')) {
+    if (!window.confirm('             ?\n\n            CSV  JSON     ')) {
       return;
     }
 
@@ -1728,10 +1728,10 @@ export default function AdminPanel({
       setIsVisitorLogsLoading(true);
       await fetch('/api/admin/visitors/purge', { method: 'POST' });
       setVisitorLogs([]);
-      alert('‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶∏‡¶Æ‡¶∏‡ßç‡¶§ ‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶π‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡¶ø ‡¶≤‡¶ó ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá!');
+      alert('       !');
     } catch (err) {
       setVisitorLogs([]);
-      alert('‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶≤‡¶ó ‡¶Æ‡ßá‡¶Æ‡ßã‡¶∞‡¶ø ‡¶∞‡¶ø‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§');
+      alert('     ');
     } finally {
       setIsVisitorLogsLoading(false);
     }
@@ -1879,7 +1879,7 @@ export default function AdminPanel({
 
     const costNum = Number(ledgerCost);
     if (isNaN(costNum) || costNum <= 0) {
-      setLedgerError('Please specify a valid positive job payment amount (‡ß≥)!');
+      setLedgerError('Please specify a valid positive job payment amount (Tk )!');
       return;
     }
 
@@ -1902,7 +1902,7 @@ export default function AdminPanel({
 
     try {
       await setDoc(doc(db, 'bookings', uniqueId), newBooking);
-      setLedgerSuccess(`·º∏9 Manual ledger entry added successfully for ${matchedCompanion.name}! Model statistics and earnings share have been updated.`);
+      setLedgerSuccess(`9 Manual ledger entry added successfully for ${matchedCompanion.name}! Model statistics and earnings share have been updated.`);
       setLedgerPlace('');
       setLedgerCost('');
     } catch (err) {
@@ -2087,7 +2087,7 @@ export default function AdminPanel({
         await setDoc(userDocRef, { isBlocked: nextBlockedStatus }, { merge: true });
         
         setSelectedClient((prev: any) => prev ? { ...prev, isBlocked: nextBlockedStatus } : null);
-        alert(`‡¶ó‡ßç‡¶∞‡¶æ‡¶π‡¶ï ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü‡¶ü‡¶ø ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ${nextBlockedStatus ? '‡¶¨‡ßç‡¶≤‡¶ï' : '‡¶Ü‡¶®‡¶¨‡ßç‡¶≤‡¶ï'} ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá!`);
+        alert(`   ${nextBlockedStatus ? '' : ''}  !`);
       } else {
         const clientDocId = (client.name || 'guest').toLowerCase().replace(/\s+/g, '');
         const userDocRef = doc(db, 'users', clientDocId);
@@ -2099,7 +2099,7 @@ export default function AdminPanel({
           isBlocked: true
         }, { merge: true });
         setSelectedClient((prev: any) => prev ? { ...prev, isBlocked: true } : null);
-        alert(`‡¶ó‡ßç‡¶∞‡¶æ‡¶π‡¶ï ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü‡¶ü‡¶ø ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶¨‡ßç‡¶≤‡¶ï ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá!`);
+        alert(`     !`);
       }
     } catch (err) {
       console.error("Error blocking client:", err);
@@ -2108,7 +2108,7 @@ export default function AdminPanel({
   };
 
   const handleRemoveClient = async (client: any) => {
-    if (!window.confirm(`‡¶Ü‡¶™‡¶®‡¶ø ‡¶ï‡¶ø ‡¶®‡¶ø‡¶∂‡ßç‡¶ö‡¶ø‡¶§‡¶≠‡¶æ‡¶¨‡ßá ‡¶è‡¶á ‡¶ó‡ßç‡¶∞‡¶æ‡¶π‡¶ï ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü‡¶ü‡¶ø ("${client.name}") ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú ‡¶•‡ßá‡¶ï‡ßá ‡¶∏‡¶Æ‡ßç‡¶™‡ßÇ‡¶∞‡ßç‡¶£ ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡¶§‡ßá ‡¶ö‡¶æ‡¶®?`)) {
+    if (!window.confirm(`      ("${client.name}")      ?`)) {
       return;
     }
     try {
@@ -2224,7 +2224,7 @@ export default function AdminPanel({
       }));
 
       setSelectedClient(null);
-      alert("‡¶ó‡ßç‡¶∞‡¶æ‡¶π‡¶ï ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü ‡¶ì ‡¶∏‡¶Ç‡¶∂‡ßç‡¶≤‡¶ø‡¶∑‡ßç‡¶ü ‡¶∏‡¶Æ‡¶∏‡ßç‡¶§ ‡¶∞‡ßá‡¶ï‡¶∞‡ßç‡¶° ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú ‡¶•‡ßá‡¶ï‡ßá ‡¶∏‡ßç‡¶•‡¶æ‡ßü‡ßÄ‡¶≠‡¶æ‡¶¨‡ßá ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá! (Client deleted permanently!)");
+      alert("           ! (Client deleted permanently!)");
     } catch (err) {
       console.error("Error deleting client:", err);
       alert("Error deleting client account: " + (err instanceof Error ? err.message : String(err)));
@@ -2871,10 +2871,10 @@ export default function AdminPanel({
       await deleteDoc(doc(db, 'models', strId));
       await deleteCloudDocument('models', strId);
       localStorage.setItem('bt_companions', JSON.stringify(filtered));
-      alert(`‚úÖ Profile "${compName}" has been permanently deleted from database.`);
+      alert(`[OK] Profile "${compName}" has been permanently deleted from database.`);
     } catch (err: any) {
       console.error('Failed to delete companion:', err);
-      alert(`‚ùå Error deleting profile: ${err.message || err}`);
+      alert(`[X] Error deleting profile: ${err.message || err}`);
     }
   };
 
@@ -2894,7 +2894,7 @@ export default function AdminPanel({
   const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
-      alert("Please fill in both title and message body / ‡¶∂‡¶ø‡¶∞‡ßã‡¶®‡¶æ‡¶Æ ‡¶ì ‡¶¨‡¶æ‡¶∞‡ßç‡¶§‡¶æ ‡¶™‡ßÇ‡¶∞‡¶£ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§");
+      alert("Please fill in both title and message body /     ");
       return;
     }
     
@@ -2917,8 +2917,8 @@ export default function AdminPanel({
       await setDoc(doc(db, 'notifications', notifId), payload);
       
       alert(broadcastTargetUser 
-        ? `Direct notification sent successfully to "${broadcastTargetUser}"! / "${broadcastTargetUser}" ‡¶ï‡ßá ‡¶®‡ßã‡¶ü‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶® ‡¶™‡¶æ‡¶†‡¶æ‡¶®‡ßã ‡¶π‡ßü‡ßá‡¶õ‡ßá!`
-        : "Global broadcast notification sent successfully to all clients! / ‡¶∏‡¶¨‡¶æ‡¶∞ ‡¶ú‡¶®‡ßç‡¶Ø ‡¶®‡ßã‡¶ü‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶® ‡¶™‡¶æ‡¶†‡¶æ‡¶®‡ßã ‡¶π‡ßü‡ßá‡¶õ‡ßá!"
+        ? `Direct notification sent successfully to "${broadcastTargetUser}"! / "${broadcastTargetUser}"    !`
+        : "Global broadcast notification sent successfully to all clients! /     !"
       );
       
       // Reset form fields
@@ -2935,7 +2935,7 @@ export default function AdminPanel({
 
   // Delete/recall a previously sent notification
   const handleDeleteNotification = async (id: string) => {
-    const consent = window.confirm("Are you sure you want to recall/delete this notification? / ‡¶Ü‡¶™‡¶®‡¶ø ‡¶ï‡¶ø ‡¶è‡¶á ‡¶®‡ßã‡¶ü‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶®‡¶ü‡¶ø ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡¶§‡ßá ‡¶ö‡¶æ‡¶®?");
+    const consent = window.confirm("Are you sure you want to recall/delete this notification? /       ?");
     if (!consent) return;
     
     try {
@@ -3257,7 +3257,7 @@ export default function AdminPanel({
             >
               <div className="flex items-center gap-2.5">
                 <Globe className={`w-4 h-4 shrink-0 ${activeTab === 'visitors' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
-                <span>Visitor Traffic (‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶ü‡ßç‡¶∞‡¶æ‡¶´‡¶ø‡¶ï)</span>
+                <span>Visitor Traffic ( )</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 opacity-40" />
             </button>
@@ -3340,7 +3340,7 @@ export default function AdminPanel({
                 <span>Model Ledger & Payouts</span>
               </div>
               <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-bold px-1.5 py-0.5 rounded border border-emerald-500/20">
-                ‡ß≥ LEDGER
+                Tk  LEDGER
               </span>
             </button>
 
@@ -3513,7 +3513,7 @@ export default function AdminPanel({
             >
               <div className="flex items-center gap-2.5">
                 <Award className={`w-4 h-4 shrink-0 ${activeTab === 'referrals' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
-                <span>Agent Management (‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü ‡¶ì ‡¶∞‡ßá‡¶´‡¶æ‡¶∞‡ßá‡¶≤)</span>
+                <span>Agent Management (  )</span>
               </div>
               <span className="text-[10px] bg-amber-500/10 text-[#dbaa61] font-bold font-mono px-1.5 py-0.5 rounded border border-[#dbaa61]/25">
                 {registeredAgents.length} Agents
@@ -3531,7 +3531,7 @@ export default function AdminPanel({
             >
               <div className="flex items-center gap-2.5">
                 <Tag className={`w-4 h-4 shrink-0 ${activeTab === 'promocodes' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
-                <span>Promo Codes (‡¶™‡ßç‡¶∞‡ßã‡¶Æ‡ßã ‡¶ï‡ßã‡¶°)</span>
+                <span>Promo Codes ( )</span>
               </div>
               <span className="text-[10px] bg-red-500/10 text-red-400 font-bold font-mono px-1.5 py-0.5 rounded border border-red-500/25">
                 {adminPromoCodes.length} Codes
@@ -3549,7 +3549,7 @@ export default function AdminPanel({
             >
               <div className="flex items-center gap-2.5">
                 <Target className={`w-4 h-4 shrink-0 ${activeTab === 'marketing' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
-                <span>Marketing & Pixels (‡¶™‡¶ø‡¶ï‡ßç‡¶∏‡ßá‡¶≤)</span>
+                <span>Marketing & Pixels ()</span>
               </div>
               <span className="text-[10px] bg-blue-500/10 text-blue-400 font-bold font-mono px-1.5 py-0.5 rounded border border-blue-500/25">
                 Ads & Boost
@@ -3586,7 +3586,7 @@ export default function AdminPanel({
             >
               <div className="flex items-center gap-2.5">
                 <Megaphone className={`w-4 h-4 shrink-0 ${activeTab === 'broadcast_notifications' ? 'text-[#dbaa61]' : 'text-slate-500'}`} />
-                <span>Push Notifications (‡¶™‡ßÅ‡¶∂ ‡¶è‡¶≤‡¶æ‡¶∞‡ßç‡¶ü)</span>
+                <span>Push Notifications ( )</span>
               </div>
               <span className="text-[10px] bg-amber-500/10 text-amber-400 font-bold font-mono px-1.5 py-0.5 rounded border border-amber-500/25">
                 Alerts
@@ -3665,9 +3665,9 @@ export default function AdminPanel({
             {authStep === 'credentials' && (
               <>
                 <div className="space-y-1.5 mb-4">
-                  <h2 className="text-lg font-bold text-white tracking-tight">Admin Authentication / ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶Ö‡¶•‡ßá‡¶®‡ßç‡¶ü‡¶ø‡¶ï‡ßá‡¶∂‡¶®</h2>
+                  <h2 className="text-lg font-bold text-white tracking-tight">Admin Authentication /  </h2>
                   <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto">
-                    ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶è‡¶¨‡¶Ç ‡ß®-‡¶∏‡ßç‡¶ü‡ßá‡¶™ ‡¶∏‡¶ø‡¶ï‡¶ø‡¶â‡¶∞‡¶ø‡¶ü‡¶ø ‡¶ï‡ßã‡¶° ‡¶¨‡¶∏‡¶ø‡ßü‡ßá ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶™‡ßç‡¶Ø‡¶æ‡¶®‡ßá‡¶≤‡ßá ‡¶™‡ßç‡¶∞‡¶¨‡ßá‡¶∂ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                      -       
                   </p>
                 </div>
 
@@ -3675,7 +3675,7 @@ export default function AdminPanel({
                 <form onSubmit={handleCustomEmailPasswordSignIn} className="space-y-4 text-left pt-2">
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-semibold text-slate-400 pl-1 uppercase tracking-wider font-mono">
-                      Email Address / ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶á‡¶Æ‡ßá‡¶á‡¶≤
+                      Email Address /  
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
@@ -3697,7 +3697,7 @@ export default function AdminPanel({
 
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-semibold text-slate-400 pl-1 uppercase tracking-wider font-mono">
-                      Password / ‡¶™‡¶æ‡¶∏‡¶ì‡¶Ø‡¶º‡¶æ‡¶∞‡ßç‡¶°
+                      Password / 
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
@@ -3711,7 +3711,7 @@ export default function AdminPanel({
                           setAdminPassword(e.target.value);
                           if (authError) setAuthError('');
                         }}
-                        placeholder="‚Ä¢‚Ä¢‚Ä¢‚Ä¢‚Ä¢‚Ä¢‚Ä¢‚Ä¢"
+                        placeholder="********"
                         className="w-full bg-[#03060d] border border-slate-800 hover:border-slate-700 focus:border-[#dbaa61] focus:ring-1 focus:ring-[#dbaa61]/35 rounded-xl !pl-11 pr-4 py-3 text-white text-xs placeholder-[#1e2333] focus:outline-none transition-all font-mono"
                       />
                     </div>
@@ -3732,12 +3732,12 @@ export default function AdminPanel({
                     {isSending ? (
                       <>
                         <RefreshCw className="w-4 h-4 animate-spin text-black" />
-                        Verifying... / ‡¶Ø‡¶æ‡¶ö‡¶æ‡¶á ‡¶ï‡¶∞‡¶æ ‡¶π‡¶ö‡ßç‡¶õ‡ßá...
+                        Verifying... /   ...
                       </>
                     ) : (
                       <>
                         <ShieldCheck className="w-4 h-4" />
-                        Verify Credentials / ‡¶™‡¶∞‡¶¨‡¶∞‡ßç‡¶§‡ßÄ ‡¶ß‡¶æ‡¶™
+                        Verify Credentials /  
                       </>
                     )}
                   </button>
@@ -3752,10 +3752,10 @@ export default function AdminPanel({
                 <form onSubmit={handleVerifyOTPSetup} className="space-y-4 text-center animate-fadeIn">
                   <div className="space-y-1 border-b border-white/[0.04] pb-3">
                     <h3 className="text-[#dbaa61] uppercase tracking-wider text-xs font-bold">
-                      Google Authenticator Link / ‡¶ó‡ßÅ‡¶ó‡¶≤ ‡¶Ö‡¶•‡ßá‡¶®‡ßç‡¶ü‡¶ø‡¶ï‡ßá‡¶ü‡¶∞ ‡¶≤‡¶ø‡¶ô‡ßç‡¶ï
+                      Google Authenticator Link /   
                     </h3>
                     <p className="text-[11px] text-slate-400 leading-relaxed max-w-xs mx-auto">
-                      ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶ó‡ßÅ‡¶ó‡¶≤ ‡¶Ö‡¶•‡ßá‡¶®‡ßç‡¶ü‡¶ø‡¶ï‡ßá‡¶ü‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™‡ßá ‡¶®‡¶ø‡¶ö‡ßá‡¶∞ ‡¶ï‡¶ø‡¶â‡¶Ü‡¶∞ ‡¶ï‡ßã‡¶°‡¶ü‡¶ø (QR Code) ‡¶∏‡ßç‡¶ï‡ßç‡¶Ø‡¶æ‡¶® ‡¶ï‡¶∞‡ßÅ‡¶® ‡¶Ö‡¶•‡¶¨‡¶æ ‡¶ï‡ßã‡¶°‡¶ü‡¶ø ‡¶Æ‡ßç‡¶Ø‡¶æ‡¶®‡ßÅ‡ßü‡¶æ‡¶≤‡¶ø ‡¶Ø‡ßã‡¶ó ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                             (QR Code)       
                     </p>
                   </div>
 
@@ -3776,7 +3776,7 @@ export default function AdminPanel({
                   {/* Secret Key Container with Copy Button */}
                   <div className="bg-[#03060d]/60 border border-slate-800 rounded-2xl p-4 space-y-3.5">
                     <div className="space-y-1 text-center">
-                      <span className="text-[9px] font-mono tracking-widest text-[#dbaa61] uppercase font-black">Manual Entry Key / ‡¶Æ‡ßç‡¶Ø‡¶æ‡¶®‡ßÅ‡¶Ø‡¶º‡¶æ‡¶≤ ‡¶ï‡ßÄ</span>
+                      <span className="text-[9px] font-mono tracking-widest text-[#dbaa61] uppercase font-black">Manual Entry Key /  </span>
                       <div className="flex items-center justify-between bg-black/40 border border-slate-800/80 rounded-xl px-3.5 py-2.5 font-mono text-[11px] text-slate-300">
                         <span className="select-all tracking-wider font-bold text-white">{totpSecret || 'ADMIN_TEMP_SECRET'}</span>
                         <button
@@ -3796,10 +3796,10 @@ export default function AdminPanel({
 
                     {/* Dynamic Help Text */}
                     <div className="text-[10px] text-slate-400 leading-relaxed font-sans text-left bg-slate-950/40 p-3 rounded-xl border border-slate-900/60 space-y-1">
-                      <span className="font-bold text-[#dbaa61] block mb-0.5">‡¶≤‡¶ø‡¶ô‡ßç‡¶ï ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶®‡¶ø‡ßü‡¶Æ:</span>
-                      <p>‡ßß. ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶Æ‡ßã‡¶¨‡¶æ‡¶á‡¶≤‡ßá <strong className="text-white">Google Authenticator</strong> ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™ ‡¶ì‡¶™‡ßá‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®‡•§</p>
-                      <p>‡ß®. ‡¶®‡¶ø‡¶ö‡ßá ‡¶°‡¶æ‡¶® ‡¶ï‡ßã‡¶£‡¶æ‡ßü ‡¶™‡ßç‡¶≤‡¶æ‡¶∏ (+) ‡¶Ü‡¶á‡¶ï‡¶® ‡¶ö‡ßá‡¶™‡ßá <strong className="text-white">"Scan a QR code"</strong> ‡¶∏‡¶ø‡¶≤‡ßá‡¶ï‡ßç‡¶ü ‡¶ï‡¶∞‡ßá ‡¶ï‡ßã‡¶°‡¶ü‡¶ø ‡¶∏‡ßç‡¶ï‡ßç‡¶Ø‡¶æ‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®‡•§</p>
-                      <p>‡ß©. ‡¶Ø‡¶¶‡¶ø ‡¶∏‡ßç‡¶ï‡ßç‡¶Ø‡¶æ‡¶® ‡¶®‡¶æ ‡¶ï‡¶∞‡¶§‡ßá ‡¶™‡¶æ‡¶∞‡ßá‡¶®, ‡¶§‡¶¨‡ßá <strong className="text-white">"Enter a setup key"</strong> ‡¶∏‡¶ø‡¶≤‡ßá‡¶ï‡ßç‡¶ü ‡¶ï‡¶∞‡ßá ‡¶®‡¶æ‡¶Æ "BodyTouch" ‡¶è‡¶¨‡¶Ç ‡¶ì‡¶™‡¶∞‡ßá‡¶∞ "Manual Entry Key" ‡¶ü‡¶ø ‡¶¨‡¶∏‡¶ø‡ßü‡ßá ‡¶¶‡¶ø‡ßü‡ßá <strong className="text-white">Add</strong> ‡¶ö‡¶æ‡¶™‡ßÅ‡¶®‡•§</p>
+                      <span className="font-bold text-[#dbaa61] block mb-0.5">  :</span>
+                      <p>.   <strong className="text-white">Google Authenticator</strong>   </p>
+                      <p>.     (+)   <strong className="text-white">"Scan a QR code"</strong>     </p>
+                      <p>.     ,  <strong className="text-white">"Enter a setup key"</strong>    "BodyTouch"   "Manual Entry Key"    <strong className="text-white">Add</strong> </p>
                     </div>
                   </div>
 
@@ -3807,7 +3807,7 @@ export default function AdminPanel({
                   <div className="bg-[#03060d]/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
                     <div className="space-y-1 text-center">
                       <label className="block text-[10px] font-semibold tracking-wider text-slate-400 uppercase font-mono">
-                        Enter Generated Code (‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™‡ßá‡¶∞ ‡¶ï‡ßã‡¶°‡¶ü‡¶ø ‡¶¶‡¶ø‡¶®)
+                        Enter Generated Code (   )
                       </label>
 
                       {/* Segmented Digit UI Lock Pad */}
@@ -3827,7 +3827,7 @@ export default function AdminPanel({
                                       : 'border-slate-800 bg-[#03060d]'
                                 }`}
                               >
-                                {val || <span className="text-slate-700 font-sans">‚Ä¢</span>}
+                                {val || <span className="text-slate-700 font-sans">*</span>}
                               </div>
                             );
                           })}
@@ -3888,19 +3888,19 @@ export default function AdminPanel({
                       Reset Two-Factor Authentication
                     </h3>
                     <p className="text-[11px] text-slate-400 leading-relaxed max-w-xs mx-auto">
-                      ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü <strong className="text-white">{totpTempEnrollEmail}</strong> ‡¶è‡¶∞ ‡ß®-‡¶∏‡ßç‡¶ü‡ßá‡¶™ ‡¶®‡¶ø‡¶∞‡¶æ‡¶™‡¶§‡ßç‡¶§‡¶æ ‡¶∞‡¶ø‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶§‡ßá ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶°‡¶Æ‡¶ø‡¶® ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶°‡¶ü‡¶ø ‡¶™‡ßç‡¶∞‡¶¶‡¶æ‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                        <strong className="text-white">{totpTempEnrollEmail}</strong>  -          
                     </p>
                   </div>
 
                   <div className="space-y-3 rounded-2xl bg-[#03060d]/60 p-4 border border-slate-800/80">
                     <div className="space-y-1 text-left">
                       <label className="block text-[10px] font-semibold tracking-wider text-[#dbaa61] uppercase font-mono">
-                        Your Admin Password (‡¶Ö‡ßç‡¶Ø‡¶æ‡¶°‡¶Æ‡¶ø‡¶® ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶°)
+                        Your Admin Password ( )
                       </label>
                       <input
                         type="password"
                         required
-                        placeholder="‡¶Ö‡ßç‡¶Ø‡¶æ‡¶°‡¶Æ‡¶ø‡¶® ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶°‡¶ü‡¶ø ‡¶≤‡¶ø‡¶ñ‡ßÅ‡¶®"
+                        placeholder="  "
                         value={reset2FAPassword}
                         onChange={(e) => {
                           setReset2FAPassword(e.target.value);
@@ -3928,7 +3928,7 @@ export default function AdminPanel({
                       }}
                       className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] uppercase font-bold tracking-wider transition cursor-pointer text-center"
                     >
-                      Cancel (‡¶¨‡¶æ‡¶§‡¶ø‡¶≤)
+                      Cancel ()
                     </button>
                     <button
                       type="submit"
@@ -3958,7 +3958,7 @@ export default function AdminPanel({
                   <div className="space-y-3 rounded-2xl bg-[#03060d]/60 p-4 border border-slate-800/80">
                     <div className="space-y-1 text-center font-semibold">
                       <label className="block text-[10px] font-semibold tracking-wider text-[#dbaa61] uppercase font-mono">
-                        {useBackupCode ? 'One-Time Backup Code (‡¶ì‡ßü‡¶æ‡¶®-‡¶ü‡¶æ‡¶á‡¶Æ ‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶ï‡ßã‡¶°)' : 'Security Passcode'}
+                        {useBackupCode ? 'One-Time Backup Code (-  )' : 'Security Passcode'}
                       </label>
                       
                       {useBackupCode ? (
@@ -3995,7 +3995,7 @@ export default function AdminPanel({
                                         : 'border-slate-800 bg-[#03060d]'
                                   }`}
                                 >
-                                  {val || <span className="text-slate-700 font-sans">‚Ä¢</span>}
+                                  {val || <span className="text-slate-700 font-sans">*</span>}
                                 </div>
                               );
                             })}
@@ -4027,7 +4027,7 @@ export default function AdminPanel({
                       }}
                       className="text-[10px] text-cyan-400 hover:text-cyan-300 hover:underline cursor-pointer transition text-right"
                     >
-                      {useBackupCode ? '‚Üê Use Authenticator App (‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™ ‡¶ï‡ßã‡¶° ‡¶¨‡ßç‡¶Ø‡¶¨‡¶π‡¶æ‡¶∞ ‡¶ï‡¶∞‡ßÅ‡¶®)' : '·Ωë1 Lost Access? Use Backup Code (‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶ï‡ßã‡¶° ‡¶¨‡ßç‡¶Ø‡¶¨‡¶π‡¶æ‡¶∞ ‡¶ï‡¶∞‡ßÅ‡¶®)'}
+                      {useBackupCode ? '<- Use Authenticator App (   )' : '1 Lost Access? Use Backup Code (   )'}
                     </button>
                     <button
                       type="button"
@@ -4037,7 +4037,7 @@ export default function AdminPanel({
                       }}
                       className="text-[10px] text-red-400 hover:text-red-300 hover:underline cursor-pointer transition text-right"
                     >
-                      ‚ö†Ô∏è Lost 2FA / Device? Reset 2FA Setup (‡ß®FA ‡¶®‡¶§‡ßÅ‡¶® ‡¶ï‡¶∞‡ßá ‡¶∏‡ßá‡¶ü‡¶Ü‡¶™ ‡¶ï‡¶∞‡ßÅ‡¶®)
+                      [!] Lost 2FA / Device? Reset 2FA Setup (FA    )
                     </button>
                   </div>
 
@@ -4255,7 +4255,7 @@ export default function AdminPanel({
             <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer">
               Database: Online
             </span>
-            <span>‚Ä¢</span>
+            <span>*</span>
             <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer">
               Staff Portal Console
             </span>
@@ -4443,17 +4443,17 @@ export default function AdminPanel({
                 {activeTab === 'hotels' && 'Recommended Hotels'}
                 {activeTab === 'cities' && 'Operational Cities'}
                 {activeTab === 'gateways' && 'Payment Gateway Settings'}
-                {activeTab === 'verification' && 'Model Verifications (‡¶Æ‡¶°‡ßá‡¶≤ ‡¶Ø‡¶æ‡¶ö‡¶æ‡¶á‡¶ï‡¶∞‡¶£)'}
+                {activeTab === 'verification' && 'Model Verifications ( )'}
                 {activeTab === 'admins' && 'Administrative Team'}
                 {activeTab === 'smtp' && 'System & Telegram Settings'}
                 {activeTab === 'shortlinks' && 'Quick Registration Links'}
-                {activeTab === 'referrals' && 'Agent & Referral Management (‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü ‡¶ì ‡¶∞‡ßá‡¶´‡¶æ‡¶∞‡ßá‡¶≤)'}
-                {activeTab === 'promocodes' && 'Promo Codes Manager (‡¶™‡ßç‡¶∞‡ßã‡¶Æ‡ßã ‡¶ï‡ßã‡¶° ‡¶Æ‡ßç‡¶Ø‡¶æ‡¶®‡ßá‡¶ú‡¶æ‡¶∞)'}
+                {activeTab === 'referrals' && 'Agent & Referral Management (  )'}
+                {activeTab === 'promocodes' && 'Promo Codes Manager (  )'}
                 {activeTab === 'livechat' && 'Live Support Chat Console'}
                 {activeTab === 'model_ledger' && 'Model Ledger & Financial Audit'}
-                {activeTab === 'broadcast_notifications' && 'Broadcasting & Push Notifications (‡¶™‡ßÅ‡¶∂ ‡¶®‡ßã‡¶ü‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶®)'}
-                {activeTab === 'visitors' && 'Visitor Traffic Analytics (‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶ü‡ßç‡¶∞‡¶æ‡¶´‡¶ø‡¶ï)'}
-                {activeTab === 'marketing' && 'Marketing & Ad Tracking Pixels (‡¶¨‡¶ø‡¶ú‡ßç‡¶û‡¶æ‡¶™‡¶® ‡¶ì ‡¶¨‡ßÅ‡¶∏‡ßç‡¶ü ‡¶ü‡ßç‡¶∞‡ßç‡¶Ø‡¶æ‡¶ï‡¶ø‡¶Ç)'}
+                {activeTab === 'broadcast_notifications' && 'Broadcasting & Push Notifications ( )'}
+                {activeTab === 'visitors' && 'Visitor Traffic Analytics ( )'}
+                {activeTab === 'marketing' && 'Marketing & Ad Tracking Pixels (   )'}
               </h1>
               <p className="text-xs text-slate-400 font-medium mt-1">
                 {activeTab === 'shortlinks' && 'View, test, and copy user registration and application forms for different model types.'}
@@ -4595,14 +4595,14 @@ export default function AdminPanel({
                       </span>
                     </div>
                     <h3 className="text-xl font-extrabold text-[#dbaa61] mt-3.5 leading-tight select-none">
-                      ‡¶∏‡ßç‡¶¨‡¶æ‡¶ó‡¶§‡¶Æ, ‡¶¶‡ßç‡¶Ø ‡¶¨‡¶°‡¶ø ‡¶ü‡¶æ‡¶ö ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶°‡¶Æ‡¶ø‡¶® ‡¶™‡ßç‡¶Ø‡¶æ‡¶®‡ßá‡¶≤!
+                      ,     !
                     </h3>
                     <p className="text-xs text-slate-300 leading-relaxed font-semibold mt-2.5">
-                      ‡¶è‡¶á ‡¶∏‡ßá‡¶®‡ßç‡¶ü‡ßç‡¶∞‡¶æ‡¶≤ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶°‡¶Æ‡¶ø‡¶® ‡¶°‡ßç‡¶Ø‡¶æ‡¶∂‡¶¨‡ßã‡¶∞‡ßç‡¶° ‡¶•‡ßá‡¶ï‡ßá ‡¶Ü‡¶™‡¶®‡¶ø ‡¶ó‡ßç‡¶∞‡¶æ‡¶π‡¶ï ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü (VIP Clients), ‡¶™‡¶æ‡¶∞‡ßç‡¶ü‡¶®‡¶æ‡¶∞ ‡¶™‡ßç‡¶∞‡¶´‡¶æ‡¶á‡¶≤ (Companions & Models), ‡¶Æ‡¶ø‡¶°‡¶ø‡ßü‡¶æ ‡¶¨‡ßç‡¶Ø‡¶æ‡¶Ç‡¶ï, ‡¶è‡¶¨‡¶Ç ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶Ö‡¶∞‡ßç‡¶°‡¶æ‡¶∞ ‡¶ì ‡¶ü‡ßá‡¶≤‡¶ø‡¶ó‡ßç‡¶∞‡¶æ‡¶Æ ‡¶á‡¶®‡ßç‡¶ü‡¶ø‡¶ó‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶∏‡ßá‡¶ü‡¶ø‡¶Ç‡¶∏ ‡¶®‡¶ø‡¶ñ‡ßÅ‡¶Å‡¶§‡¶≠‡¶æ‡¶¨‡ßá ‡¶®‡¶ø‡ßü‡¶®‡ßç‡¶§‡ßç‡¶∞‡¶£ ‡¶ï‡¶∞‡¶§‡ßá ‡¶™‡¶æ‡¶∞‡¶¨‡ßá‡¶®‡•§ ‡¶ï‡ßã‡¶®‡ßã ‡¶™‡¶∞‡¶ø‡¶¨‡¶∞‡ßç‡¶§‡¶® ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶∏‡¶æ‡¶•‡ßá ‡¶∏‡¶æ‡¶•‡ßá ‡¶§‡¶æ ‡¶´‡ßç‡¶∞‡¶®‡ßç‡¶ü‡¶è‡¶®‡ßç‡¶°‡ßá ‡¶∞‡¶ø‡¶Ø‡¶º‡ßá‡¶≤-‡¶ü‡¶æ‡¶á‡¶Æ‡ßá ‡¶Ü‡¶™‡¶°‡ßá‡¶ü ‡¶π‡ßü‡ßá ‡¶Ø‡¶æ‡¶¨‡ßá‡•§
+                              (VIP Clients),   (Companions & Models),  ,                   -   
                     </p>
                   </div>
                   <div className="pt-5 mt-4 border-t border-white/[0.05] flex items-center justify-between text-[10px] text-slate-500 font-mono">
-                    <span className="flex items-center gap-1.5">‚ö° PORTAL STATUS: <strong className="text-white">ONLINE</strong></span>
+                    <span className="flex items-center gap-1.5">* PORTAL STATUS: <strong className="text-white">ONLINE</strong></span>
                     <span className="text-[#dbaa61]">Staff Control Room</span>
                   </div>
                 </div>
@@ -4611,7 +4611,7 @@ export default function AdminPanel({
                 <div className="col-span-full lg:col-span-5 bg-[#0f1118] border border-white/[0.04] p-5 rounded-3xl space-y-4 shadow-xl">
                   <div className="flex items-center gap-2 border-b border-white/[0.04] pb-2.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                    <h4 className="text-[10.5px] font-black uppercase tracking-wider text-slate-400">‚ö° QUICK DASHBOARD SHORTCUTS</h4>
+                    <h4 className="text-[10.5px] font-black uppercase tracking-wider text-slate-400">* QUICK DASHBOARD SHORTCUTS</h4>
                   </div>
                   <div className="grid grid-cols-1 gap-2.5 text-xs">
                     
@@ -4672,7 +4672,7 @@ export default function AdminPanel({
 
               </div>
 
-              {/* ·Ω™8 DATABASE RESET & FRESH TESTING CONTROLS */}
+              {/* 8 DATABASE RESET & FRESH TESTING CONTROLS */}
               <div className="bg-[#1c1012] border border-red-500/20 p-5 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
                 <div className="space-y-1 text-left">
                   <div className="flex items-center gap-2">
@@ -4680,7 +4680,7 @@ export default function AdminPanel({
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-[#ef4444] font-mono">DATABASE SECTOR SCRUBBER (DEVELOPER ACTION)</h4>
                   </div>
                   <p className="text-[11px] text-slate-350 font-semibold leading-relaxed">
-                    ‡¶∏‡¶ø‡¶∏‡ßç‡¶ü‡ßá‡¶Æ‡ßá‡¶∞ ‡¶™‡ßÇ‡¶∞‡ßç‡¶¨‡ßá‡¶∞ ‡¶∏‡¶ï‡¶≤ ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ‡¶æ‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü (users), ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶π‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡¶ø (bookings) ‡¶è‡¶¨‡¶Ç ‡¶∞‡¶ø‡¶≤‡ßá‡¶ü‡ßá‡¶° ‡¶ü‡ßç‡¶∞‡¶æ‡¶®‡¶ú‡ßá‡¶ï‡¶∂‡¶® ‡¶°‡¶æ‡¶ü‡¶æ (payments) ‡¶´‡¶æ‡ßü‡¶æ‡¶∞‡¶∏‡ßç‡¶ü‡ßã‡¶∞ ‡¶ï‡ßç‡¶≤‡¶æ‡¶â‡¶° ‡¶•‡ßá‡¶ï‡ßá ‡¶è‡¶ï‡¶¶‡¶Æ ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßç‡¶∞‡ßá‡¶∂ ‡¶ü‡ßá‡¶∏‡ßç‡¶ü ‡¶ï‡¶∞‡¶§‡ßá ‡¶®‡¶ø‡¶ö‡ßá‡¶∞ ‡¶∞‡¶ø‡¶∏‡ßá‡¶ü ‡¶¨‡¶æ‡¶ü‡¶®‡ßá ‡¶ï‡ßç‡¶≤‡¶ø‡¶ï ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                         (users),   (bookings)     (payments)             
                   </p>
                 </div>
                 <button
@@ -4713,14 +4713,14 @@ export default function AdminPanel({
           {activeTab === 'clients' && (
             <div className="space-y-5 text-left">
               <p className="text-xs text-slate-400 font-semibold leading-relaxed">
-                ‡¶¨‡¶°‡¶ø ‡¶ü‡¶æ‡¶ö ‡¶ó‡ßç‡¶∞‡¶æ‡¶π‡¶ï‡¶¶‡ßá‡¶∞ ‡¶ü‡ßç‡¶∞‡¶æ‡¶®‡¶ú‡ßá‡¶ï‡¶∂‡¶® ‡¶§‡¶æ‡¶≤‡¶ø‡¶ï‡¶æ ‡¶®‡¶ø‡¶ö‡ßá ‡¶¶‡ßá‡¶ì‡ßü‡¶æ ‡¶π‡¶≤‡ßã‡•§ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶°‡¶Æ‡¶ø‡¶® ‡¶π‡¶ø‡¶∏‡ßá‡¶¨‡ßá ‡¶ü‡ßç‡¶∞‡¶æ‡¶®‡¶ú‡ßá‡¶ï‡¶∂‡¶® ‡¶Ü‡¶á‡¶°‡¶ø ‡¶Æ‡¶ø‡¶≤‡¶ø‡ßü‡ßá ‡¶Æ‡ßá‡¶Æ‡ßç‡¶¨‡¶æ‡¶∞ ‡¶∏‡ßá‡¶ï‡¶∂‡¶® 
-                <strong className="text-emerald-400"> Approve </strong> (VIP ‡¶è‡¶ï‡ßç‡¶ü‡¶ø‡¶≠‡ßá‡¶∂‡¶® ‡¶ü‡¶ø‡¶ï‡¶ø‡¶ü) ‡¶Ö‡¶•‡¶¨‡¶æ <strong className="text-rose-400"> Reject </strong> ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                               
+                <strong className="text-emerald-400"> Approve </strong> (VIP  )  <strong className="text-rose-400"> Reject </strong> 
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[480px] overflow-y-auto pr-1 scrollbar-none">
                 {pendingPaymentsList.length === 0 ? (
                   <div className="col-span-full py-16 text-center text-[10.5px] text-blue-400/40 font-black uppercase tracking-widest bg-[#0b0c11] border border-dashed border-blue-500/10 rounded-2xl">
-                    ·Ω®0 NO PENDING TRANSACTION TICKETS TO VERIFY
+                    0 NO PENDING TRANSACTION TICKETS TO VERIFY
                   </div>
                 ) : (
                   pendingPaymentsList.map((pay) => (
@@ -4746,11 +4746,11 @@ export default function AdminPanel({
                             })()}
                           </p>
                           <p className="text-[10px] text-slate-400 font-black tracking-normal uppercase mt-1">
-                            {pay.tierName} ‚Ä¢ {pay.method}
+                            {pay.tierName} * {pay.method}
                           </p>
                         </div>
                         <span className="text-emerald-400 font-black font-mono text-base bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/15">
-                          ‡ß≥ {pay.price}
+                          Tk  {pay.price}
                         </span>
                       </div>
 
@@ -4770,7 +4770,7 @@ export default function AdminPanel({
 
                       {pay.screenshot && (
                         <div className="bg-black/40 p-3 rounded-xl border border-blue-550/10 text-[11px] space-y-2">
-                          <span className="text-slate-500 uppercase text-[9px] font-black tracking-wider block">·Ωè8 Payment Screenshot (‡¶∏‡ßç‡¶ï‡ßç‡¶∞‡¶ø‡¶®‡¶∂‡¶ü):</span>
+                          <span className="text-slate-500 uppercase text-[9px] font-black tracking-wider block">8 Payment Screenshot ():</span>
                           <div className="relative group overflow-hidden rounded-lg">
                             <img
                               src={pay.screenshot}
@@ -4784,7 +4784,7 @@ export default function AdminPanel({
                               rel="noreferrer"
                               className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-blue-400 font-extrabold transition-all rounded-lg cursor-pointer gap-1"
                             >
-                              View Full Size Image ‚Üó
+                              View Full Size Image 
                             </a>
                           </div>
                         </div>
@@ -4819,12 +4819,12 @@ export default function AdminPanel({
                     payments.filter(p => p.status !== 'Pending Verification').map(pay => (
                       <div key={pay.id} className="bg-black/25 p-2 px-3 rounded-xl flex items-center justify-between text-xs font-mono">
                         <div className="flex items-center gap-2">
-                          <span className={pay.status === 'Approved' ? 'text-emerald-400' : 'text-rose-400'}>‚óè</span>
+                          <span className={pay.status === 'Approved' ? 'text-emerald-400' : 'text-rose-400'}></span>
                           <span className="text-slate-300 font-bold">{pay.username}</span>
                           <span className="text-slate-500 font-medium">({pay.tierName})</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-slate-400">‡ß≥{pay.price}</span>
+                          <span className="text-slate-400">Tk {pay.price}</span>
                           <span className={`text-[9px] font-bold uppercase ${pay.status === 'Approved' ? 'text-emerald-500' : 'text-rose-500'}`}>{pay.status}</span>
                         </div>
                       </div>
@@ -4837,8 +4837,8 @@ export default function AdminPanel({
               <div className="bg-[#11131a] border border-[#1b1e2a] p-4.5 rounded-2xl space-y-4">
                 <div className="flex items-center justify-between border-b border-white/5 pb-3">
                   <div>
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab]">Registered Client Profiles Directory / ‡¶ó‡ßç‡¶∞‡¶æ‡¶π‡¶ï ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú</h4>
-                    <p className="text-[9px] text-slate-500 font-medium">‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶∏‡¶Æ‡¶Ø‡¶º ‡¶ó‡ßç‡¶∞‡¶æ‡¶π‡¶ï‡¶¶‡ßá‡¶∞ ‡¶•‡ßá‡¶ï‡ßá ‡¶∏‡¶Ç‡¶ó‡ßÉ‡¶π‡ßÄ‡¶§ ‡¶¨‡¶ø‡¶∏‡ßç‡¶§‡¶æ‡¶∞‡¶ø‡¶§ ‡¶§‡¶•‡ßç‡¶Ø‡¶æ‡¶¶‡¶ø</p>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab]">Registered Client Profiles Directory /  </h4>
+                    <p className="text-[9px] text-slate-500 font-medium">       </p>
                   </div>
                   <span className="bg-blue-500/10 text-blue-400 text-[10px] font-black font-mono px-2.5 py-1 rounded-lg border border-blue-500/15">
                     {clientsList.length} Clients
@@ -4884,7 +4884,7 @@ export default function AdminPanel({
                           handleRemoveClient(client);
                         }}
                         className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 rounded-lg transition-all cursor-pointer shrink-0"
-                        title="‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡ßÅ‡¶® (Remove Client)"
+                        title="  (Remove Client)"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -4949,36 +4949,36 @@ export default function AdminPanel({
                       {/* Form Details in elegant display */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="bg-black/30 border border-white/5 p-3.5 rounded-2xl">
-                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">FULL NAME / ‡¶ó‡ßç‡¶∞‡¶æ‡¶π‡¶ï‡ßá‡¶∞ ‡¶®‡¶æ‡¶Æ</span>
+                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">FULL NAME /  </span>
                           <span className="text-xs text-white font-black block mt-1 select-all">{selectedClient.name}</span>
                         </div>
 
                         <div className="bg-black/30 border border-white/5 p-3.5 rounded-2xl">
-                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">PHONE NUMBER / ‡¶Æ‡ßã‡¶¨‡¶æ‡¶á‡¶≤ ‡¶®‡¶Æ‡ßç‡¶¨‡¶∞</span>
+                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">PHONE NUMBER /  </span>
                           <span className="text-xs text-emerald-400 font-mono font-black block mt-1 select-all">{selectedClient.phone}</span>
                         </div>
 
                         <div className="bg-black/30 border border-white/5 p-3.5 rounded-2xl sm:col-span-1">
-                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">EMAIL ADDRESS / ‡¶á‡¶Æ‡ßá‡¶á‡¶≤</span>
+                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">EMAIL ADDRESS / </span>
                           <span className="text-xs text-blue-400 font-mono font-black block mt-1 select-all">{selectedClient.email || 'No Email'}</span>
                         </div>
 
                         <div className="bg-black/30 border border-white/5 p-3.5 rounded-2xl sm:col-span-1">
-                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">GENDER / ‡¶≤‡¶ø‡¶ô‡ßç‡¶ó</span>
+                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">GENDER / </span>
                           <span className="text-xs text-[#dbaa61] font-black block mt-1 uppercase">
-                            {selectedClient.gender === 'male' ? '·ΩÜ8 Male / ‡¶™‡ßÅ‡¶∞‡ßÅ‡¶∑' : selectedClient.gender === 'female' ? '·ΩÜ9 Female / ‡¶®‡¶æ‡¶∞‡ßÄ' : 'Not Specified'}
+                            {selectedClient.gender === 'male' ? '8 Male / ' : selectedClient.gender === 'female' ? '9 Female / ' : 'Not Specified'}
                           </span>
                         </div>
 
                         <div className="bg-black/30 border border-white/5 p-3.5 rounded-2xl sm:col-span-1">
-                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">BIRTHDAY OR AGE / ‡¶¨‡ßü‡¶∏ ‡¶ì ‡¶ú‡¶®‡ßç‡¶Æ ‡¶§‡¶æ‡¶∞‡¶ø‡¶ñ</span>
+                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">BIRTHDAY OR AGE /    </span>
                           <span className="text-xs text-white font-black block mt-1 uppercase">
                             {selectedClient.birthday || 'Not Specified'}
                           </span>
                         </div>
 
                         <div className="bg-black/30 border border-white/5 p-3.5 rounded-2xl sm:col-span-1">
-                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">AUTHENTICATED METHOD / ‡¶≤‡¶ó‡¶á‡¶® ‡¶ü‡¶æ‡¶á‡¶™</span>
+                          <span className="block text-[8px] text-[#5c75ab] font-extrabold uppercase tracking-wider">AUTHENTICATED METHOD /  </span>
                           <span className="text-xs text-cyan-400 font-bold block mt-1 uppercase">
                             {selectedClient.authMethod || 'Password'}
                           </span>
@@ -4987,12 +4987,12 @@ export default function AdminPanel({
 
                       {/* NID Section */}
                       <div className="space-y-3.5">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab]">Verification Documents (NID / Birth Certificate) / ‡¶≠‡ßá‡¶∞‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶® ‡¶°‡¶ï‡ßÅ‡¶Æ‡ßá‡¶®‡ßç‡¶ü</h4>
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab]">Verification Documents (NID / Birth Certificate) /  </h4>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                           {/* Front image */}
                           <div className="space-y-1 text-center bg-black/40 border border-white/5 rounded-2xl p-3">
-                            <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider pb-1.5">NID / Birth Certificate Front (‡¶∏‡¶æ‡¶Æ‡¶®‡ßá‡¶∞ ‡¶Ö‡¶Ç‡¶∂ / ‡¶ú‡¶®‡ßç‡¶Æ‡¶®‡¶ø‡¶¨‡¶®‡ßç‡¶ß‡¶®)</span>
+                            <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider pb-1.5">NID / Birth Certificate Front (  / )</span>
                             {selectedClient.nidFront ? (
                               <button 
                                 type="button"
@@ -5005,19 +5005,19 @@ export default function AdminPanel({
                               >
                                 <img src={selectedClient.nidFront} alt="NID Front / Birth Certificate" className="w-full h-32 object-cover rounded-xl group-hover:scale-105 transition duration-300" />
                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-[10px] font-bold text-white">
-                                  Click to Zoom & Rotate / ‡¶ú‡ßÅ‡¶Æ ‡¶ì ‡¶∞‡ßã‡¶ü‡ßá‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶® ·Ωêd
+                                  Click to Zoom & Rotate /     d
                                 </div>
                               </button>
                             ) : (
                               <div className="h-32 rounded-xl bg-slate-900/50 border border-dashed border-slate-800 flex items-center justify-center text-[10.5px] text-slate-600 font-medium">
-                                Document not provided / ‡¶§‡¶•‡ßç‡¶Ø ‡¶¶‡ßá‡ßü‡¶æ ‡¶π‡ßü‡¶®‡¶ø
+                                Document not provided /   
                               </div>
                             )}
                           </div>
 
                           {/* Back image */}
                           <div className="space-y-1 text-center bg-black/40 border border-white/5 rounded-2xl p-3">
-                            <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider pb-1.5">NID Back / Document Page 2 (‡¶™‡ßá‡¶õ‡¶®‡ßá‡¶∞ ‡¶Ö‡¶Ç‡¶∂ / ‡¶™‡ßÉ‡¶∑‡ßç‡¶†‡¶æ ‡ß®)</span>
+                            <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider pb-1.5">NID Back / Document Page 2 (  /  )</span>
                             {selectedClient.nidBack ? (
                               <button 
                                 type="button"
@@ -5030,7 +5030,7 @@ export default function AdminPanel({
                               >
                                 <img src={selectedClient.nidBack} alt="NID Back" className="w-full h-32 object-cover rounded-xl group-hover:scale-105 transition duration-300" />
                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-[10px] font-bold text-white">
-                                  Click to Zoom & Rotate / ‡¶ú‡ßÅ‡¶Æ ‡¶ì ‡¶∞‡ßã‡¶ü‡ßá‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶® ·Ωêd
+                                  Click to Zoom & Rotate /     d
                                 </div>
                               </button>
                             ) : (
@@ -5053,7 +5053,7 @@ export default function AdminPanel({
                               <div key={b.id} className="bg-[#121622] border border-[#1b2234] p-3 rounded-2xl flex items-center justify-between text-xs font-medium">
                                 <div className="text-left font-sans">
                                   <p className="text-white font-extrabold">{b.modelName} ({b.duration})</p>
-                                  <p className="text-[9.5px] text-slate-500 mt-0.5">{b.date} ‚Ä¢ {b.time} @ {b.location}</p>
+                                  <p className="text-[9.5px] text-slate-500 mt-0.5">{b.date} * {b.time} @ {b.location}</p>
                                 </div>
                                 <span className={`text-[8.5px] font-black uppercase px-2 py-1 rounded-lg border font-mono ${
                                   b.status === 'Completed' || b.status === 'Approved'
@@ -5079,7 +5079,7 @@ export default function AdminPanel({
                                 : 'bg-rose-500/15 text-rose-400 border-rose-500/20 hover:bg-rose-500/25'
                             }`}
                           >
-                            {selectedClient.isBlocked ? '·Ωë3 Unblock Client' : '‚õî Block Client'}
+                            {selectedClient.isBlocked ? '3 Unblock Client' : ' Block Client'}
                           </button>
                           
                           <button
@@ -5087,7 +5087,7 @@ export default function AdminPanel({
                             onClick={() => handleRemoveClient(selectedClient)}
                             className="flex-1 bg-rose-900/20 hover:bg-rose-900/25 text-rose-400 border border-rose-500/25 text-[10.5px] font-black uppercase tracking-wider py-3 px-4 rounded-xl transition-all duration-200 cursor-pointer"
                           >
-                            ·Ωù1Ô∏è Delete Account
+                            1 Delete Account
                           </button>
                         </div>
 
@@ -5113,14 +5113,14 @@ export default function AdminPanel({
           {activeTab === 'memberships' && (
             <div className="space-y-5 text-left">
               <p className="text-xs text-slate-400 font-semibold leading-relaxed">
-                ‡¶ó‡ßç‡¶∞‡¶æ‡¶π‡¶ï‡¶¶‡ßá‡¶∞ ‡¶Æ‡ßá‡¶Æ‡ßç‡¶¨‡¶æ‡¶∞‡¶∂‡¶ø‡¶™ ‡¶Ü‡¶™‡¶ó‡ßç‡¶∞‡ßá‡¶° ‡¶∞‡¶ø‡¶ï‡ßã‡ßü‡ßá‡¶∏‡ßç‡¶ü ‡¶§‡¶æ‡¶≤‡¶ø‡¶ï‡¶æ ‡¶®‡¶ø‡¶ö‡ßá ‡¶¶‡ßá‡¶ì‡ßü‡¶æ ‡¶π‡¶≤‡ßã‡•§ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶°‡¶Æ‡¶ø‡¶® ‡¶π‡¶ø‡¶∏‡ßá‡¶¨‡ßá ‡¶ó‡ßç‡¶∞‡¶æ‡¶π‡¶ï‡¶¶‡ßá‡¶∞ bKash/Nagad/Rocket ‡¶ü‡ßç‡¶∞‡¶æ‡¶®‡¶ú‡ßá‡¶ï‡¶∂‡¶® ‡¶Ü‡¶á‡¶°‡¶ø ‡¶Æ‡¶ø‡¶≤‡¶ø‡ßü‡ßá ‡¶Æ‡ßá‡¶Æ‡ßç‡¶¨‡¶æ‡¶∞ ‡¶∏‡ßá‡¶ï‡¶∂‡¶® 
-                <strong className="text-emerald-400"> Approve </strong> (‡¶Æ‡ßá‡¶Æ‡ßç‡¶¨‡¶æ‡¶∞‡¶∂‡¶ø‡¶™ ‡¶è‡¶ï‡ßç‡¶ü‡¶ø‡¶≠‡ßá‡¶∂‡¶®) ‡¶Ö‡¶•‡¶¨‡¶æ <strong className="text-rose-400"> Reject </strong> ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                           bKash/Nagad/Rocket      
+                <strong className="text-emerald-400"> Approve </strong> ( )  <strong className="text-rose-400"> Reject </strong> 
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[480px] overflow-y-auto pr-1 scrollbar-none">
                 {pendingMembershipsList.length === 0 ? (
                   <div className="col-span-full py-16 text-center text-[10.5px] text-blue-400/40 font-black uppercase tracking-widest bg-[#0b0c11] border border-dashed border-blue-500/10 rounded-2xl">
-                    ·Ω®0 NO PENDING MEMBERSHIP REQUESTS TO VERIFY
+                    0 NO PENDING MEMBERSHIP REQUESTS TO VERIFY
                   </div>
                 ) : (
                   pendingMembershipsList.map((pay) => (
@@ -5146,11 +5146,11 @@ export default function AdminPanel({
                             })()}
                           </p>
                           <p className="text-[10px] text-amber-400 font-black tracking-normal uppercase mt-1">
-                            ·Ωã3 REQUESTING {pay.tierName.toUpperCase()} MEMBERSHIP
+                            3 REQUESTING {pay.tierName.toUpperCase()} MEMBERSHIP
                           </p>
                         </div>
                         <span className="text-amber-400 font-black font-mono text-base bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/15">
-                          ‡ß≥ {pay.price}
+                          Tk  {pay.price}
                         </span>
                       </div>
 
@@ -5181,7 +5181,7 @@ export default function AdminPanel({
 
                       {pay.screenshot && (
                         <div className="bg-black/40 p-3 rounded-xl border border-blue-550/10 text-[11px] space-y-2">
-                          <span className="text-slate-500 uppercase text-[9px] font-black tracking-wider block">·Ωè8 Payment Screenshot (‡¶∏‡ßç‡¶ï‡ßç‡¶∞‡¶ø‡¶®‡¶∂‡¶ü):</span>
+                          <span className="text-slate-500 uppercase text-[9px] font-black tracking-wider block">8 Payment Screenshot ():</span>
                           <div className="relative group overflow-hidden rounded-lg">
                             <img
                               src={pay.screenshot}
@@ -5195,7 +5195,7 @@ export default function AdminPanel({
                               rel="noreferrer"
                               className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-blue-400 font-extrabold transition-all rounded-lg cursor-pointer gap-1"
                             >
-                              View Full Size Image ‚Üó
+                              View Full Size Image 
                             </a>
                           </div>
                         </div>
@@ -5230,12 +5230,12 @@ export default function AdminPanel({
                     payments.filter(p => p.status !== 'Pending Verification' && p.tierName !== 'Wallet Deposit' && p.tierName !== 'Withdrawal').map(pay => (
                       <div key={pay.id} className="bg-black/25 p-2 px-3 rounded-xl flex items-center justify-between text-xs font-mono">
                         <div className="flex items-center gap-2">
-                          <span className={pay.status === 'Approved' ? 'text-emerald-400' : 'text-rose-400'}>‚óè</span>
+                          <span className={pay.status === 'Approved' ? 'text-emerald-400' : 'text-rose-400'}></span>
                           <span className="text-slate-300 font-bold">{pay.username}</span>
                           <span className="text-slate-500 font-medium">({pay.tierName})</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-slate-400">‡ß≥{pay.price}</span>
+                          <span className="text-slate-400">Tk {pay.price}</span>
                           <span className={`text-[9px] font-bold uppercase ${pay.status === 'Approved' ? 'text-emerald-500' : 'text-rose-500'}`}>{pay.status}</span>
                         </div>
                       </div>
@@ -5379,7 +5379,7 @@ export default function AdminPanel({
 
                     {/* Model Code (Tag) */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase font-mono">Model Code / ‡¶Æ‡¶°‡ßá‡¶≤ ‡¶ï‡ßã‡¶° (e.g. # 550800)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase font-mono">Model Code /   (e.g. # 550800)</label>
                       <input
                         type="text"
                         value={compTag}
@@ -5391,16 +5391,16 @@ export default function AdminPanel({
 
                     {/* Badge Tier */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase font-mono">Select Category * / ‡ß™‡¶ü‡¶ø ‡¶ï‡ßç‡¶Ø‡¶æ‡¶ü‡¶æ‡¶ó‡¶∞‡¶ø</label>
+                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase font-mono">Select Category * /  </label>
                       <select
                         value={compBadge}
                         onChange={(e) => setCompBadge(e.target.value as any)}
                         className="w-full bg-[#11131a] border border-[#ac843c]/40 rounded-xl px-3 py-2 text-white font-heavy focus:outline-none focus:border-emerald-500"
                       >
-                        <option value="REGULAR">Regular Member (‡¶∞‡ßá‡¶ó‡ßÅ‡¶≤‡¶æ‡¶∞ ‡¶ï‡ßç‡¶Ø‡¶æ‡¶ü‡¶æ‡¶ó‡¶∞‡¶ø)</option>
-                        <option value="PREMIUM">Premium Member (‡¶™‡ßç‡¶∞‡¶ø‡¶Æ‡¶ø‡ßü‡¶æ‡¶Æ ‡¶ï‡ßç‡¶Ø‡¶æ‡¶ü‡¶æ‡¶ó‡¶∞‡¶ø)</option>
-                        <option value="ELITE">Elite Society (‡¶è‡¶≤‡¶ø‡¶ü ‡¶ï‡ßç‡¶Ø‡¶æ‡¶ü‡¶æ‡¶ó‡¶∞‡¶ø)</option>
-                        <option value="DEMO">Demo Class (‡¶°‡¶ø‡¶Æ‡ßã ‡¶ï‡ßç‡¶Ø‡¶æ‡¶ü‡¶æ‡¶ó‡¶∞‡¶ø)</option>
+                        <option value="REGULAR">Regular Member ( )</option>
+                        <option value="PREMIUM">Premium Member ( )</option>
+                        <option value="ELITE">Elite Society ( )</option>
+                        <option value="DEMO">Demo Class ( )</option>
                       </select>
                     </div>
 
@@ -5412,9 +5412,9 @@ export default function AdminPanel({
                         onChange={(e) => setCompCategory(e.target.value as any)}
                         className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
                       >
-                        <option value="Female Model">Female Model (‡¶´‡¶ø‡¶Æ‡ßá‡¶≤ ‡¶Æ‡¶°‡ßá‡¶≤)</option>
-                        <option value="Male Model">Male Model (‡¶Æ‡ßá‡¶≤ ‡¶Æ‡¶°‡ßá‡¶≤)</option>
-                        <option value="Sperm Donor">Sperm Donor (‡¶∏‡ßç‡¶™‡¶æ‡¶∞‡ßç‡¶Æ ‡¶°‡ßã‡¶®‡¶æ‡¶∞)</option>
+                        <option value="Female Model">Female Model ( )</option>
+                        <option value="Male Model">Male Model ( )</option>
+                        <option value="Sperm Donor">Sperm Donor ( )</option>
                       </select>
                     </div>
 
@@ -5433,7 +5433,7 @@ export default function AdminPanel({
 
                     {/* Height */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Height / ‡¶â‡¶ö‡ßç‡¶ö‡¶§‡¶æ</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Height / </label>
                       <input
                         type="text"
                         value={compHeight}
@@ -5445,7 +5445,7 @@ export default function AdminPanel({
 
                     {/* Body Color */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Skin Complexion / ‡¶ó‡¶æ‡ßü‡ßá‡¶∞ ‡¶∞‡¶ô</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Skin Complexion /  </label>
                       <input
                         type="text"
                         value={compBodyColor}
@@ -5457,7 +5457,7 @@ export default function AdminPanel({
 
                     {/* Weight */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Weight / ‡¶ì‡¶ú‡¶®</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Weight / </label>
                       <input
                         type="text"
                         value={compWeight}
@@ -5469,7 +5469,7 @@ export default function AdminPanel({
 
                     {/* Bust/Chest */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Bust/Chest / ‡¶∏‡ßç‡¶§‡¶®/‡¶¨‡ßÅ‡¶ï (‡¶á‡¶û‡ßç‡¶ö‡¶ø)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Bust/Chest / / ()</label>
                       <input
                         type="text"
                         value={compBust}
@@ -5481,7 +5481,7 @@ export default function AdminPanel({
 
                     {/* Waist */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Waist / ‡¶ï‡ßã‡¶Æ‡¶∞ (‡¶á‡¶û‡ßç‡¶ö‡¶ø)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Waist /  ()</label>
                       <input
                         type="text"
                         value={compWaist}
@@ -5493,7 +5493,7 @@ export default function AdminPanel({
 
                     {/* Hip */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Hip / ‡¶®‡¶ø‡¶§‡¶Æ‡ßç‡¶¨ (‡¶á‡¶û‡ßç‡¶ö‡¶ø)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Hip /  ()</label>
                       <input
                         type="text"
                         value={compHip}
@@ -5506,7 +5506,7 @@ export default function AdminPanel({
                     {/* Penis Size (For Male Model) */}
                     {compCategory === 'Male Model' && (
                       <div className="space-y-1.5">
-                        <label className="block text-[10px] font-black tracking-widest text-indigo-400 uppercase">Penis Size / ‡¶≤‡¶ø‡¶ô‡ßç‡¶ó‡ßá‡¶∞ ‡¶Ü‡¶ï‡¶æ‡¶∞</label>
+                        <label className="block text-[10px] font-black tracking-widest text-indigo-400 uppercase">Penis Size /  </label>
                         <input
                           type="text"
                           value={compPenisSize}
@@ -5520,7 +5520,7 @@ export default function AdminPanel({
                     {/* Duration Time (For Male Model) */}
                     {compCategory === 'Male Model' && (
                       <div className="space-y-1.5">
-                        <label className="block text-[10px] font-black tracking-widest text-indigo-400 uppercase">Duration Time / ‡¶∏‡¶π‡¶¨‡¶æ‡¶∏‡ßá‡¶∞ ‡¶∏‡ßç‡¶•‡¶æ‡¶Ø‡¶º‡¶ø‡¶§‡ßç‡¶¨‡¶ï‡¶æ‡¶≤</label>
+                        <label className="block text-[10px] font-black tracking-widest text-indigo-400 uppercase">Duration Time /  </label>
                         <input
                           type="text"
                           value={compDurationTime}
@@ -5533,7 +5533,7 @@ export default function AdminPanel({
 
                     {/* Phone Number */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Phone Number / ‡¶´‡ßã‡¶® ‡¶®‡¶Æ‡ßç‡¶¨‡¶∞</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Phone Number /  </label>
                       <input
                         type="text"
                         value={compPhone}
@@ -5545,7 +5545,7 @@ export default function AdminPanel({
 
                     {/* WhatsApp Number */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">WhatsApp Number / ‡¶π‡ßã‡ßü‡¶æ‡¶ü‡¶∏‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">WhatsApp Number / </label>
                       <input
                         type="text"
                         value={compWhatsapp}
@@ -5557,7 +5557,7 @@ export default function AdminPanel({
 
                     {/* Telegram ID */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Telegram ID / ‡¶ü‡ßá‡¶≤‡¶ø‡¶ó‡ßç‡¶∞‡¶æ‡¶Æ ‡¶Ü‡¶á‡¶°‡¶ø</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Telegram ID /  </label>
                       <input
                         type="text"
                         value={compTelegram}
@@ -5571,7 +5571,7 @@ export default function AdminPanel({
                     <div className="sm:col-span-2 p-5 bg-[#030a1c]/65 border border-blue-500/15 rounded-2xl space-y-5">
                       <div>
                         <span className="block text-[11px] font-mono font-black tracking-widest text-[#2ebdff] uppercase">
-                          SERVICE CONTROLS & DURATION RATES / ‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶ø‡¶∏ ‡¶ì ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ ‡¶∞‡ßá‡¶ü ‡¶®‡¶ø‡ßü‡¶®‡ßç‡¶§‡ßç‡¶∞‡¶£
+                          SERVICE CONTROLS & DURATION RATES /     
                         </span>
                         <p className="text-[9px] text-slate-450 font-medium mt-1">
                           Enable/disable specific booking services and configure custom flat fees for exact booking durations. Leave duration override inputs empty to automatically apply standard hourly multipliers.
@@ -5597,7 +5597,7 @@ export default function AdminPanel({
 
                         {compIsRealActive && (
                           <div className="space-y-3">
-                            <span className="block text-[8px] font-bold text-slate-400 tracking-wider">·Ωåd REAL MEET DURATION RATES (‡ß≥ Taka):</span>
+                            <span className="block text-[8px] font-bold text-slate-400 tracking-wider">d REAL MEET DURATION RATES (Tk  Taka):</span>
                             
                             <div className="space-y-2">
                               {(compCustomRealRates || []).length === 0 ? (
@@ -5617,7 +5617,7 @@ export default function AdminPanel({
                                       className="flex-1 bg-[#11131a] border border-slate-800 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
                                     />
                                     <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-800">
-                                      <span className="text-slate-500 text-[10px]">‡ß≥</span>
+                                      <span className="text-slate-500 text-[10px]">Tk </span>
                                       <input
                                         type="number"
                                         value={slot.rate || ''}
@@ -5638,7 +5638,7 @@ export default function AdminPanel({
                                       }}
                                       className="text-red-500 hover:text-red-400 p-1 text-sm transition active:scale-90"
                                     >
-                                      ‚úï
+                                      
                                     </button>
                                   </div>
                                 ))
@@ -5652,7 +5652,7 @@ export default function AdminPanel({
                               }}
                               className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-blue-500/30 text-slate-400 hover:text-white text-[9px] font-black uppercase tracking-wider py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                             >
-                              ‚ûï Add Real Meet Rate Option (+ ‡¶®‡¶§‡ßÅ‡¶® ‡¶∞‡ßá‡¶ü ‡¶Ø‡ßã‡¶ó ‡¶ï‡¶∞‡ßÅ‡¶®)
+                               Add Real Meet Rate Option (+    )
                             </button>
                           </div>
                         )}
@@ -5677,7 +5677,7 @@ export default function AdminPanel({
 
                         {compIsCamActive && (
                           <div className="space-y-3">
-                            <span className="block text-[8px] font-bold text-slate-400 tracking-wider">·Ωåd VIDEO CAM DURATION RATES (‡ß≥ Taka):</span>
+                            <span className="block text-[8px] font-bold text-slate-400 tracking-wider">d VIDEO CAM DURATION RATES (Tk  Taka):</span>
                             
                             <div className="space-y-2">
                               {(compCustomCamRates || []).length === 0 ? (
@@ -5697,7 +5697,7 @@ export default function AdminPanel({
                                       className="flex-1 bg-[#11131a] border border-slate-800 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
                                     />
                                     <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-800">
-                                      <span className="text-slate-550 text-[10px]">‡ß≥</span>
+                                      <span className="text-slate-550 text-[10px]">Tk </span>
                                       <input
                                         type="number"
                                         value={slot.rate || ''}
@@ -5718,7 +5718,7 @@ export default function AdminPanel({
                                       }}
                                       className="text-red-500 hover:text-red-400 p-1 text-sm transition active:scale-90"
                                     >
-                                      ‚úï
+                                      
                                     </button>
                                   </div>
                                 ))
@@ -5732,7 +5732,7 @@ export default function AdminPanel({
                               }}
                               className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-cyan-500/30 text-slate-400 hover:text-white text-[9px] font-black uppercase tracking-wider py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                             >
-                              ‚ûï Add Video Cam Rate Option (+ ‡¶®‡¶§‡ßÅ‡¶® ‡¶∞‡ßá‡¶ü ‡¶Ø‡ßã‡¶ó ‡¶ï‡¶∞‡ßÅ‡¶®)
+                               Add Video Cam Rate Option (+    )
                             </button>
                           </div>
                         )}
@@ -5757,7 +5757,7 @@ export default function AdminPanel({
 
                         {compIsMakeOutActive && (
                           <div className="space-y-2">
-                            <span className="block text-[8px] font-bold text-slate-400 tracking-wider">DURATION PRICE OVERRIDES (‡ß≥ Taka):</span>
+                            <span className="block text-[8px] font-bold text-slate-400 tracking-wider">DURATION PRICE OVERRIDES (Tk  Taka):</span>
                             <div className="grid grid-cols-3 gap-2">
                               <div className="space-y-1">
                                 <label className="block text-[8px] text-slate-500 font-bold">2 Hours Rate</label>
@@ -5831,7 +5831,7 @@ export default function AdminPanel({
 
                           {(compIsTourActive || compIsLiveTogetherActive) && (
                             <div className="space-y-3">
-                              <span className="block text-[8px] font-bold text-slate-400 tracking-wider">·Ωåd TOUR DURATION RATES (‡ß≥ Taka) / ‡¶ü‡ßç‡¶Ø‡ßÅ‡¶∞ ‡¶∞‡ßá‡¶ü:</span>
+                              <span className="block text-[8px] font-bold text-slate-400 tracking-wider">d TOUR DURATION RATES (Tk  Taka) /  :</span>
                               
                               <div className="space-y-2">
                                 {(compCustomLiveTogetherRates || []).length === 0 ? (
@@ -5851,7 +5851,7 @@ export default function AdminPanel({
                                         className="flex-1 bg-[#11131a] border border-slate-800 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
                                       />
                                       <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-800">
-                                        <span className="text-slate-550 text-[10px]">‡ß≥</span>
+                                        <span className="text-slate-550 text-[10px]">Tk </span>
                                         <input
                                           type="number"
                                           value={slot.rate || ''}
@@ -5872,7 +5872,7 @@ export default function AdminPanel({
                                         }}
                                         className="text-red-500 hover:text-red-400 p-1 text-sm transition active:scale-90"
                                       >
-                                        ‚úï
+                                        
                                       </button>
                                     </div>
                                   ))
@@ -5886,7 +5886,7 @@ export default function AdminPanel({
                                 }}
                                 className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-purple-500/30 text-slate-400 hover:text-white text-[9px] font-black uppercase tracking-wider py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                               >
-                                ‚ûï Add Tour Rate Option (+ ‡¶®‡¶§‡ßÅ‡¶® ‡¶ü‡ßç‡¶Ø‡ßÅ‡¶∞ ‡¶∞‡ßá‡¶ü ‡¶Ø‡ßã‡¶ó ‡¶ï‡¶∞‡ßÅ‡¶®)
+                                 Add Tour Rate Option (+     )
                               </button>
                             </div>
                           )}
@@ -5898,7 +5898,7 @@ export default function AdminPanel({
                     <div className="space-y-2 bg-[#0d0e14]/50 border border-slate-800 p-4 rounded-2xl">
                       <div className="flex justify-between items-center">
                         <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">
-                          Operational Areas / ‡¶è‡¶≤‡¶æ‡¶ï‡¶æ ‡¶∏‡¶Æ‡ßÇ‡¶π (‡¶è‡¶ï‡¶æ‡¶ß‡¶ø‡¶ï ‡¶∏‡¶ø‡¶≤‡ßá‡¶ï‡ßç‡¶ü ‡¶ï‡¶∞‡¶§‡ßá ‡¶™‡¶æ‡¶∞‡ßá‡¶®)
+                          Operational Areas /   (   )
                         </label>
                         <span className="text-[9px] bg-blue-500/10 text-blue-400 font-bold px-2 py-0.5 rounded border border-blue-500/20 font-mono">
                           {getSelectedAreas().length} selected
@@ -5923,7 +5923,7 @@ export default function AdminPanel({
                                 onClick={() => handleRemoveArea(area)}
                                 className="text-rose-400 hover:text-rose-300 font-black ml-1 text-xs cursor-pointer focus:outline-none transition-all"
                               >
-                                ‚úï
+                                
                               </button>
                             </span>
                           ))
@@ -5935,7 +5935,7 @@ export default function AdminPanel({
                         <input
                           type="text"
                           id="custom-area-input"
-                          placeholder="Type custom area and press Enter / ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ ‡¶è‡¶≤‡¶æ‡¶ï‡¶æ ‡¶≤‡¶ø‡¶ñ‡ßÅ‡¶®"
+                          placeholder="Type custom area and press Enter /   "
                           className="flex-1 bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 font-bold"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
@@ -5959,7 +5959,7 @@ export default function AdminPanel({
                           }}
                           className="bg-[#dbaa61] hover:bg-[#cdaf55] text-black text-[10px] font-black tracking-wider uppercase px-4 py-2 rounded-xl transition cursor-pointer"
                         >
-                          Add (‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶ï‡¶∞‡ßÅ‡¶®)
+                          Add ( )
                         </button>
                       </div>
 
@@ -6034,7 +6034,7 @@ export default function AdminPanel({
 
                     {/* Rate per Hour */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Hourly Remundation Rate (‡ß≥ Taka)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Hourly Remundation Rate (Tk  Taka)</label>
                       <input
                         type="number"
                         required
@@ -6048,7 +6048,7 @@ export default function AdminPanel({
                     {/* CUSTOM SERVICE RATES SECTION */}
                     <div className="sm:col-span-2 p-4 bg-[#030a1c]/65 border border-blue-500/10 rounded-xl space-y-3">
                       <span className="block text-[10px] font-black tracking-widest text-[#2ebdff] uppercase">
-                        CUSTOM FEES PER SERVICE / ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ ‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶ø‡¶∏ ‡¶∞‡ßá‡¶ü (‡¶ê‡¶ö‡ßç‡¶õ‡¶ø‡¶ï)
+                        CUSTOM FEES PER SERVICE /    ()
                       </span>
                       <p className="text-[9px] text-slate-500 font-medium">
                         If left blank, the standard hourly rate and multipliers will be applied. Fill these to set custom fixed rates for particular options.
@@ -6057,7 +6057,7 @@ export default function AdminPanel({
                       <div className="grid grid-cols-2 gap-3 text-xs">
                         {/* Custom Rate: REAL */}
                         <div className="space-y-1">
-                          <label className="block text-[9px] font-black tracking-widest text-slate-400 uppercase">Real Service Rate (‡ß≥/hr)</label>
+                          <label className="block text-[9px] font-black tracking-widest text-slate-400 uppercase">Real Service Rate (Tk /hr)</label>
                           <input
                             type="number"
                             placeholder="Defaults to standard hourly rate"
@@ -6069,7 +6069,7 @@ export default function AdminPanel({
 
                         {/* Custom Rate: CAM */}
                         <div className="space-y-1">
-                          <label className="block text-[9px] font-black tracking-widest text-slate-400 uppercase">Cam Service Rate (‡ß≥/hr)</label>
+                          <label className="block text-[9px] font-black tracking-widest text-slate-400 uppercase">Cam Service Rate (Tk /hr)</label>
                           <input
                             type="number"
                             placeholder="Defaults to 45% off standard hourly rate"
@@ -6081,7 +6081,7 @@ export default function AdminPanel({
 
                         {/* Custom Rate: MAKE OUT */}
                         <div className="space-y-1">
-                          <label className="block text-[9px] font-black tracking-widest text-slate-400 uppercase">Make Out Rate (‡ß≥/hr)</label>
+                          <label className="block text-[9px] font-black tracking-widest text-slate-400 uppercase">Make Out Rate (Tk /hr)</label>
                           <input
                             type="number"
                             placeholder="Defaults to 35% off standard hourly rate"
@@ -6093,7 +6093,7 @@ export default function AdminPanel({
 
                         {/* Custom Rate: TOUR */}
                         <div className="space-y-1">
-                          <label className="block text-[9px] font-black tracking-widest text-slate-400 uppercase">Tour / ‡¶ü‡ßç‡¶Ø‡ßÅ‡¶∞ Rate (‡ß≥/hr)</label>
+                          <label className="block text-[9px] font-black tracking-widest text-slate-400 uppercase">Tour /  Rate (Tk /hr)</label>
                           <input
                             type="number"
                             placeholder="Defaults to standard hourly rate"
@@ -6132,7 +6132,7 @@ export default function AdminPanel({
                     {/* Photo selection uploader */}
                     <div className="space-y-2 sm:col-span-2">
                       <div className="flex items-center justify-between">
-                        <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Partner Image / ‡¶õ‡¶¨‡¶ø *</label>
+                        <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Partner Image /  *</label>
                         <span className="text-[9px] text-[#2ebdff] font-semibold">Upload file or paste URL</span>
                       </div>
                       
@@ -6167,7 +6167,7 @@ export default function AdminPanel({
                             className="bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300 border border-blue-500/20 text-[10px] font-black uppercase px-4 py-2.5 rounded-xl cursor-pointer transition flex items-center gap-1.5 h-full"
                           >
                             <Upload className="w-3.5 h-3.5 text-blue-400" />
-                            Upload Image / ‡¶õ‡¶¨‡¶ø ‡¶Ü‡¶™‡¶≤‡ßã‡¶°
+                            Upload Image /  
                           </label>
                         </div>
                       </div>
@@ -6212,7 +6212,7 @@ export default function AdminPanel({
                       {/* ADDITIONAL PORTFOLIO PHOTOS (UP TO 4) */}
                       <div className="pt-4 border-t border-slate-800/60 mt-3 space-y-2">
                         <span className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">
-                          Additional Gallery Portfolio Photos / ‡¶Ö‡¶§‡¶ø‡¶∞‡¶ø‡¶ï‡ßç‡¶§ ‡¶õ‡¶¨‡¶ø ‡¶ó‡ßç‡¶Ø‡¶æ‡¶≤‡¶æ‡¶∞‡¶ø (‡¶∏‡¶∞‡ßç‡¶¨‡ßã‡¶ö‡ßç‡¶ö ‡ß™‡¶ü‡¶ø)
+                          Additional Gallery Portfolio Photos /    ( )
                         </span>
                         <p className="text-[9px] text-slate-500 font-medium">
                           These images will show up in the dynamic thumbnail photo gallery on the companion profile page.
@@ -6307,7 +6307,7 @@ export default function AdminPanel({
                 <>
                   {companions.filter(c => c.status !== 'Pending' && c.status !== 'Declined' && (c.category || 'Female Model') === partnerCategoryFilter).length === 0 ? (
                     <div className="py-14 text-center text-slate-500 font-bold uppercase tracking-widest text-[10px] bg-[#11131a]/40 border border-dashed border-slate-800 rounded-3xl select-none w-full">
-                      ·Ωéd No active {partnerCategoryFilter.toLowerCase()} partners registered in database yet
+                      d No active {partnerCategoryFilter.toLowerCase()} partners registered in database yet
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[460px] overflow-y-auto pr-1 scrollbar-none">
@@ -6332,12 +6332,12 @@ export default function AdminPanel({
                             </span>
                             {comp.isBlocked && (
                               <span className="text-[8px] bg-rose-500/20 text-rose-400 border border-rose-500/30 font-mono font-black tracking-normal px-1 rounded-sm uppercase shrink-0">
-                                ‚õî Blocked
+                                 Blocked
                               </span>
                             )}
                           </div>
                           <p className="text-[9px] text-slate-500 font-extrabold mt-0.5">
-                            {comp.city || 'Dhaka'} ‚Ä¢ {comp.age} Yrs ‚Ä¢ {comp.height}
+                            {comp.city || 'Dhaka'} * {comp.age} Yrs * {comp.height}
                           </p>
                           {(comp.bodyColor || comp.weight || comp.bust || comp.waist || comp.hip) && (
                             <div className="flex flex-wrap gap-1 mt-1.5">
@@ -6350,14 +6350,14 @@ export default function AdminPanel({
                           )}
                           <div className="flex flex-col mt-1">
                             <p className="text-[10px] text-emerald-400 font-mono font-black">
-                              ‡ß≥ {comp.rate}/hr (Base)
+                              Tk  {comp.rate}/hr (Base)
                             </p>
                             {(comp.rateReal || comp.rateCam || comp.rateMakeOut || comp.rateLiveTogether) && (
                               <div className="flex flex-wrap gap-1 mt-1 max-w-[200px]">
-                                {comp.rateReal && <span className="bg-blue-500/10 text-sky-400 text-[7px] px-1 rounded border border-blue-500/10 uppercase font-mono">Real: ‡ß≥{comp.rateReal}</span>}
-                                {comp.rateCam && <span className="bg-cyan-500/10 text-cyan-400 text-[7px] px-1 rounded border border-cyan-500/10 uppercase font-mono font-bold">Cam: ‡ß≥{comp.rateCam}</span>}
-                                {comp.rateMakeOut && <span className="bg-pink-500/10 text-pink-400 text-[7px] px-1 rounded border border-pink-500/10 uppercase font-mono">Out: ‡ß≥{comp.rateMakeOut}</span>}
-                                {comp.rateLiveTogether && <span className="bg-purple-500/10 text-purple-400 text-[7px] px-1 rounded border border-purple-500/10 uppercase font-mono font-semibold">Together: ‡ß≥{comp.rateLiveTogether}</span>}
+                                {comp.rateReal && <span className="bg-blue-500/10 text-sky-400 text-[7px] px-1 rounded border border-blue-500/10 uppercase font-mono">Real: Tk {comp.rateReal}</span>}
+                                {comp.rateCam && <span className="bg-cyan-500/10 text-cyan-400 text-[7px] px-1 rounded border border-cyan-500/10 uppercase font-mono font-bold">Cam: Tk {comp.rateCam}</span>}
+                                {comp.rateMakeOut && <span className="bg-pink-500/10 text-pink-400 text-[7px] px-1 rounded border border-pink-500/10 uppercase font-mono">Out: Tk {comp.rateMakeOut}</span>}
+                                {comp.rateLiveTogether && <span className="bg-purple-500/10 text-purple-400 text-[7px] px-1 rounded border border-purple-500/10 uppercase font-mono font-semibold">Together: Tk {comp.rateLiveTogether}</span>}
                               </div>
                             )}
                           </div>
@@ -6392,7 +6392,7 @@ export default function AdminPanel({
                         <button
                           type="button"
                           onClick={() => handleToggleBlockCompanion(comp)}
-                          title={comp.isBlocked ? "Unblock Companion / ‡¶¨‡ßç‡¶≤‡¶ï ‡¶ñ‡ßÅ‡¶≤‡ßÅ‡¶®" : "Block Companion / ‡¶¨‡ßç‡¶≤‡¶ï ‡¶ï‡¶∞‡ßÅ‡¶®"}
+                          title={comp.isBlocked ? "Unblock Companion /  " : "Block Companion /  "}
                           className={`p-2 rounded-lg border transition cursor-pointer ${
                             comp.isBlocked
                               ? 'bg-emerald-950/20 border-emerald-900 text-emerald-450 hover:text-white hover:bg-emerald-900/45'
@@ -6428,7 +6428,7 @@ export default function AdminPanel({
                 <div className="space-y-3.5 max-h-[460px] overflow-y-auto pr-1 scrollbar-none animate-fadeIn">
                   {companions.filter(c => c.status === 'Incomplete' && (c.category || 'Female Model') === partnerCategoryFilter).length === 0 ? (
                     <div className="py-14 text-center text-[10px] text-slate-500 font-bold uppercase tracking-widest bg-[#11131a]/40 border border-dashed border-slate-800 rounded-3xl select-none">
-                      ·Ωéc NO INCOMPLETE SIGNUPS (LEADS) IN {partnerCategoryFilter.toUpperCase()} CATEGORY
+                      c NO INCOMPLETE SIGNUPS (LEADS) IN {partnerCategoryFilter.toUpperCase()} CATEGORY
                     </div>
                   ) : (
                     companions.filter(c => c.status === 'Incomplete' && (c.category || 'Female Model') === partnerCategoryFilter).map((comp) => (
@@ -6445,7 +6445,7 @@ export default function AdminPanel({
                               <h5 className="text-white text-sm font-black flex items-center gap-1.5 flex-wrap">
                                 {comp.name}
                                 <span className="text-[9.5px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20 font-bold tracking-normal uppercase font-mono">
-                                  ‚ö†Ô∏è INCOMPLETE LEAD
+                                  [!] INCOMPLETE LEAD
                                 </span>
                               </h5>
                               <p className="text-[10px] text-slate-400 font-bold select-all font-mono">Email: {comp.email || 'N/A'}</p>
@@ -6461,7 +6461,7 @@ export default function AdminPanel({
                           <div className="space-y-1.5 bg-black/35 p-3.5 rounded-xl border border-slate-900">
                             <div>
                               <span className="text-slate-500 text-[8px] uppercase font-mono block">Age & Target Area:</span>
-                              <span className="text-slate-300 font-bold leading-none">{comp.age} Years ‚Ä¢ {comp.city || 'Dhaka'}</span>
+                              <span className="text-slate-300 font-bold leading-none">{comp.age} Years * {comp.city || 'Dhaka'}</span>
                             </div>
                             <div className="pt-2 border-t border-slate-900">
                               <span className="text-slate-500 text-[8px] uppercase font-mono block">Status detail:</span>
@@ -6512,7 +6512,7 @@ export default function AdminPanel({
                             className="bg-[#dbaa61]/10 hover:bg-[#dbaa61] hover:text-black border border-[#dbaa61]/20 text-[#dbaa61] text-[9px] font-black tracking-widest uppercase px-4 py-2 rounded-xl transition flex items-center gap-1 cursor-pointer"
                           >
                             <Edit className="w-3.5 h-3.5" />
-                            Edit & Publish (‡¶∏‡¶Æ‡ßç‡¶™‡¶æ‡¶¶‡¶®‡¶æ ‡¶ì ‡¶™‡¶æ‡¶¨‡¶≤‡¶ø‡¶∂)
+                            Edit & Publish (  )
                           </button>
                           <button
                             type="button"
@@ -6520,7 +6520,7 @@ export default function AdminPanel({
                             className="bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/20 text-rose-500 text-[9px] font-black tracking-widest uppercase px-4 py-2 rounded-xl transition flex items-center gap-1 cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
-                            Delete Lead (‡¶≤‡¶ø‡¶° ‡¶Æ‡ßÅ‡¶õ‡ßÅ‡¶®)
+                            Delete Lead ( )
                           </button>
                         </div>
                       </div>
@@ -6532,7 +6532,7 @@ export default function AdminPanel({
                 <div className="space-y-3.5 max-h-[460px] overflow-y-auto pr-1 scrollbar-none animate-fadeIn">
                   {pendingApplicantsList.filter(c => (c.category || 'Female Model') === partnerCategoryFilter).length === 0 ? (
                     <div className="py-14 text-center text-[10px] text-slate-500 font-bold uppercase tracking-widest bg-[#11131a]/40 border border-dashed border-slate-800 rounded-3xl select-none">
-                      ·Ωéc NO PENDING CAREER APPLICATIONS IN {partnerCategoryFilter.toUpperCase()} CATEGORY
+                      c NO PENDING CAREER APPLICATIONS IN {partnerCategoryFilter.toUpperCase()} CATEGORY
                     </div>
                   ) : (
                     pendingApplicantsList.filter(c => (c.category || 'Female Model') === partnerCategoryFilter).map((comp) => (
@@ -6569,15 +6569,15 @@ export default function AdminPanel({
                             <span className="text-white font-heavy">{comp.age} Years</span>
                           </div>
                           <div className="bg-black/40 p-2.5 rounded-xl border border-slate-900">
-                            <span className="text-slate-500 text-[8px] uppercase block font-mono font-bold">Height (‡¶â‡¶ö‡ßç‡¶ö‡¶§‡¶æ):</span>
+                            <span className="text-slate-500 text-[8px] uppercase block font-mono font-bold">Height ():</span>
                             <span className="text-white font-heavy">{comp.height}</span>
                           </div>
                           <div className="bg-black/40 p-2.5 rounded-xl border border-slate-900">
                             <span className="text-slate-500 text-[8px] uppercase block font-mono font-bold">Rate / hourly:</span>
-                            <span className="text-emerald-400 font-black font-mono">‡ß≥ {comp.rate}/hr</span>
+                            <span className="text-emerald-400 font-black font-mono">Tk  {comp.rate}/hr</span>
                           </div>
                           <div className="bg-black/40 p-2.5 rounded-xl border border-slate-900">
-                            <span className="text-slate-500 text-[8px] uppercase block font-mono font-bold">City (‡¶∂‡¶π‡¶∞):</span>
+                            <span className="text-slate-500 text-[8px] uppercase block font-mono font-bold">City ():</span>
                             <span className="text-white font-heavy">{comp.city || 'Dhaka'}</span>
                           </div>
                         </div>
@@ -6615,11 +6615,11 @@ export default function AdminPanel({
                         {(comp.category || 'Female Model') === 'Female Model' && (
                           <div className="bg-[#181a25]/60 border border-blue-900/25 p-3.5 rounded-xl space-y-3">
                             <span className="text-[9px] font-black uppercase tracking-wider text-[#dbaa61] block font-mono">
-                              ‚öôÔ∏è CONFIGURE APPROVED SERVICES & HOURLY RATES (‡ß≥)
+                               CONFIGURE APPROVED SERVICES & HOURLY RATES (Tk )
                             </span>
                             <div className="grid grid-cols-2 gap-2 text-[10px]">
                               <div>
-                                <label className="block text-slate-400 font-bold mb-1 font-mono">Real Service Rate (‡ß≥)</label>
+                                <label className="block text-slate-400 font-bold mb-1 font-mono">Real Service Rate (Tk )</label>
                                 <input
                                   type="number"
                                   placeholder="e.g. 8000"
@@ -6635,7 +6635,7 @@ export default function AdminPanel({
                                 />
                               </div>
                               <div>
-                                <label className="block text-slate-400 font-bold mb-1 font-mono">Face Cam Rate (‡ß≥)</label>
+                                <label className="block text-slate-400 font-bold mb-1 font-mono">Face Cam Rate (Tk )</label>
                                 <input
                                   type="number"
                                   placeholder="e.g. 3000"
@@ -6651,7 +6651,7 @@ export default function AdminPanel({
                                 />
                               </div>
                               <div>
-                                <label className="block text-slate-400 font-bold mb-1 font-mono">Make Out Rate (‡ß≥)</label>
+                                <label className="block text-slate-400 font-bold mb-1 font-mono">Make Out Rate (Tk )</label>
                                 <input
                                   type="number"
                                   placeholder="e.g. 5000"
@@ -6667,7 +6667,7 @@ export default function AdminPanel({
                                 />
                               </div>
                               <div>
-                                <label className="block text-slate-400 font-bold mb-1 font-mono">Tour / ‡¶ü‡ßç‡¶Ø‡ßÅ‡¶∞ (‡ß≥/day)</label>
+                                <label className="block text-slate-400 font-bold mb-1 font-mono">Tour /  (Tk /day)</label>
                                 <input
                                   type="number"
                                   placeholder="e.g. 15000"
@@ -6718,8 +6718,8 @@ export default function AdminPanel({
           {activeTab === 'media' && (
             <div className="space-y-6 text-left">
               <p className="text-xs text-slate-400 font-semibold leading-relaxed">
-                ‡¶Æ‡ßá‡¶°‡¶ø‡ßü‡¶æ ‡¶´‡¶æ‡¶á‡¶≤ ‡¶ï‡¶æ‡¶≤‡ßá‡¶ï‡¶∂‡¶® ‡¶Æ‡ßç‡¶Ø‡¶æ‡¶®‡ßá‡¶ú‡¶æ‡¶∞‡•§ ‡¶Ø‡ßá‡¶ï‡ßã‡¶®‡ßã ‡¶®‡¶§‡ßÅ‡¶® ‡¶õ‡¶¨‡¶ø ‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶ï‡¶∞‡¶§‡ßá ‡¶®‡¶ø‡¶ö‡ßá URL ‡¶™‡ßã‡¶∏‡ßç‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶®‡•§ ‡¶Æ‡¶°‡ßá‡¶≤‡ßá ‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶ú‡¶®‡ßç‡¶Ø ‡¶Ø‡ßá‡¶ï‡ßã‡¶®‡ßã ‡¶õ‡¶¨‡¶ø‡¶∞
-                <strong className="text-blue-400"> Copy URL </strong> ‡¶¨‡¶æ‡¶ü‡¶® ‡¶ï‡ßç‡¶≤‡¶ø‡¶ï ‡¶ï‡¶∞‡¶≤‡ßá‡¶á ‡¶ö‡¶Æ‡ßé‡¶ï‡¶æ‡¶∞‡¶≠‡¶æ‡¶¨‡ßá ‡¶õ‡¶¨‡¶ø‡¶∞ ‡¶≤‡¶ø‡¶ô‡ßç‡¶ï ‡¶ï‡ßç‡¶≤‡¶ø‡¶™‡¶¨‡ßã‡¶∞‡ßç‡¶°‡ßá ‡¶ï‡¶™‡¶ø ‡¶π‡ßü‡ßá ‡¶Ø‡¶æ‡¶¨‡ßá! 
+                          URL        
+                <strong className="text-blue-400"> Copy URL </strong>          ! 
               </p>
 
               {/* Media Add input block */}
@@ -6895,16 +6895,16 @@ export default function AdminPanel({
             return (
               <div className="space-y-4 text-left">
                 <p className="text-xs text-slate-400 font-semibold leading-relaxed">
-                  ‡¶¨‡¶°‡¶ø ‡¶ü‡¶æ‡¶ö ‡¶Æ‡ßá‡¶Æ‡ßç‡¶¨‡¶æ‡¶∞‡¶¶‡ßá‡¶∞ ‡¶è‡¶ô‡ßç‡¶ï‡ßã‡¶Ø‡¶º‡¶æ‡¶∞‡¶ø ‡¶∞‡¶ø‡¶ï‡ßã‡¶Ø‡¶º‡ßá‡¶∏‡ßç‡¶ü ‡¶ì ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶≤‡¶ø‡¶∏‡ßç‡¶ü‡•§ ‡¶™‡¶æ‡¶∞‡ßç‡¶ü‡¶®‡¶æ‡¶∞‡¶¶‡ßá‡¶∞ ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç <strong className="text-emerald-400"> Approve & Send Mail </strong> ‡¶ï‡ßç‡¶≤‡¶ø‡¶ï ‡¶ï‡¶∞‡ßá ‡¶ï‡¶®‡¶´‡¶æ‡¶∞‡ßç‡¶Æ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§ ‡¶è‡¶§‡ßá ‡¶ï‡¶∞‡ßá ‡¶ï‡ßç‡¶∞‡ßá‡¶§‡¶æ‡¶∞ ‡¶á‡¶Æ‡ßá‡¶≤ ‡¶¨‡¶ï‡ßç‡¶∏‡ßá ‡¶∏‡¶Æ‡ßç‡¶™‡ßÇ‡¶∞‡ßç‡¶£ ‡¶≠‡¶æ‡¶â‡¶ö‡¶æ‡¶∞ ‡¶ï‡ßã‡¶° ‡¶Æ‡ßá‡¶á‡¶≤ ‡¶Ü‡¶ï‡¶æ‡¶∞‡ßá ‡¶∏‡ßç‡¶¨‡ßü‡¶Ç‡¶ï‡ßç‡¶∞‡¶ø‡ßü‡¶≠‡¶æ‡¶¨‡ßá ‡¶™‡ßç‡¶∞‡ßá‡¶∞‡¶ø‡¶§ ‡¶π‡ßü‡ßá ‡¶Ø‡¶æ‡¶¨‡ßá‡•§
+                            <strong className="text-emerald-400"> Approve & Send Mail </strong>                  
                 </p>
 
                 {/* Sub-tabs to separate orders according to tier */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-1.5 bg-slate-950/75 border border-[#161a24] rounded-2xl">
                   {([
-                    { value: 'ALL', en: 'All Orders', bn: '‡¶∏‡¶ï‡¶≤ ‡¶Ö‡¶∞‡ßç‡¶°‡¶æ‡¶∞', count: bookings.length },
-                    { value: 'REGULAR', en: 'Regular', bn: '‡¶∞‡ßá‡¶ó‡ßÅ‡¶≤‡¶æ‡¶∞', count: regularOrdersCount },
-                    { value: 'PREMIUM', en: 'Premium', bn: '‡¶™‡ßç‡¶∞‡¶ø‡¶Æ‡¶ø‡ßü‡¶æ‡¶Æ', count: premiumOrdersCount },
-                    { value: 'ELITE', en: 'Elite', bn: '‡¶è‡¶≤‡¶ø‡¶ü', count: eliteOrdersCount }
+                    { value: 'ALL', en: 'All Orders', bn: ' ', count: bookings.length },
+                    { value: 'REGULAR', en: 'Regular', bn: '', count: regularOrdersCount },
+                    { value: 'PREMIUM', en: 'Premium', bn: '', count: premiumOrdersCount },
+                    { value: 'ELITE', en: 'Elite', bn: '', count: eliteOrdersCount }
                   ] as const).map((tierItem) => {
                     const isActive = orderTierFilter === tierItem.value;
                     let activeStyle = 'bg-gradient-to-r from-red-950/60 to-red-900/60 text-white border-red-500/30';
@@ -6945,7 +6945,7 @@ export default function AdminPanel({
                 <div className="space-y-3.5 max-h-[480px] overflow-y-auto pr-1 scrollbar-none">
                   {filteredBookingsByTier.length === 0 ? (
                     <div className="py-16 text-center text-[10.5px] text-blue-400/40 font-black uppercase tracking-widest bg-black/20 border border-dashed border-slate-800 rounded-2xl">
-                      ·Ω®0 NO {orderTierFilter === 'ALL' ? '' : `${orderTierFilter} `}ACTIVE SERVICES BOOKINGS YET
+                      0 NO {orderTierFilter === 'ALL' ? '' : `${orderTierFilter} `}ACTIVE SERVICES BOOKINGS YET
                     </div>
                   ) : (
                     filteredBookingsByTier.map((book) => {
@@ -6993,11 +6993,11 @@ export default function AdminPanel({
                           {/* Detail attributes row */}
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-[10px] text-slate-400 font-bold font-sans">
                             <div className="bg-black/40 p-2.5 rounded-xl border border-slate-900">
-                              <span className="text-slate-500 text-[8px] uppercase block font-mono">Date / ‡¶§‡¶æ‡¶∞‡¶ø‡¶ñ:</span>
+                              <span className="text-slate-500 text-[8px] uppercase block font-mono">Date / :</span>
                               <span className="text-white font-heavy">{book.date}</span>
                             </div>
                             <div className="bg-black/40 p-2.5 rounded-xl border border-slate-900">
-                              <span className="text-slate-500 text-[8px] uppercase block font-mono">Duration (‡¶∏‡¶Æ‡ßü‡¶ï‡¶æ‡¶≤):</span>
+                              <span className="text-slate-500 text-[8px] uppercase block font-mono">Duration ():</span>
                               <span className="text-white font-heavy">{book.time} ({book.duration})</span>
                             </div>
                             <div className="bg-black/40 p-2.5 rounded-xl border border-slate-900 col-span-2 sm:col-span-1">
@@ -7024,17 +7024,17 @@ export default function AdminPanel({
                             const modelTelegram = modelComp?.telegram || '';
 
                             // Build the details message to share with model
-                            const shareMessage = `·Ωë4 *‡¶®‡¶§‡ßÅ‡¶® ‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶ø‡¶∏ ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶°‡¶ø‡¶ü‡ßá‡¶á‡¶≤‡¶∏!*
-‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ
-·ΩÜ9·ºøc *‡¶Æ‡¶°‡ßá‡¶≤:* ${book.modelName} (${book.modelTag})
-·ΩÜ4 *‡¶ï‡ßç‡¶≤‡¶æ‡¶Ø‡¶º‡ßá‡¶®‡ßç‡¶ü ‡¶®‡¶æ‡¶Æ:* ${book.clientName || 'Anonymous User'}
-·Ωçe *‡¶ï‡ßç‡¶≤‡¶æ‡¶Ø‡¶º‡ßá‡¶®‡ßç‡¶ü ‡¶´‡ßã‡¶®:* ${book.clientPhone || 'Not Provided'}
-·Ωå5 *‡¶§‡¶æ‡¶∞‡¶ø‡¶ñ:* ${book.date}
-‚è∞ *‡¶∏‡¶Æ‡ßü:* ${book.time} (${book.duration})
-·Ωåd *‡¶†‡¶ø‡¶ï‡¶æ‡¶®‡¶æ/‡¶≤‡ßã‡¶ï‡ßá‡¶∂‡¶®:* ${book.location}
-·ΩüaÔ∏è *‡¶ó‡ßÅ‡¶ó‡¶≤ ‡¶Æ‡ßç‡¶Ø‡¶æ‡¶™‡¶∏ ‡¶≤‡¶ø‡¶ô‡ßç‡¶ï:* https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(book.location)}
-·Ωçd *‡¶¨‡¶ø‡¶∂‡ßá‡¶∑ ‡¶®‡¶ø‡¶∞‡ßç‡¶¶‡ßá‡¶∂‡¶®‡¶æ:* ${book.notes || 'N/A'}
-‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ‚îÅ
+                            const shareMessage = `4 *   !*
+
+9c *:* ${book.modelName} (${book.modelTag})
+4 * :* ${book.clientName || 'Anonymous User'}
+e * :* ${book.clientPhone || 'Not Provided'}
+5 *:* ${book.date}
+ *:* ${book.time} (${book.duration})
+d */:* ${book.location}
+a *  :* https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(book.location)}
+d * :* ${book.notes || 'N/A'}
+
 Body Touch Premium Network`;
 
                             const formatWA = (num: string) => {
@@ -7062,14 +7062,14 @@ Body Touch Premium Network`;
                             return (
                               <div className="bg-[#090b11] border border-blue-900/20 p-3.5 rounded-2xl space-y-3 font-sans text-xs">
                                 <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-white/5 pb-1.5 flex justify-between items-center">
-                                  <span>·Ωçe Coordination Hub (‡¶ï‡ßç‡¶≤‡¶æ‡¶Ø‡¶º‡ßá‡¶®‡ßç‡¶ü ‡¶ì ‡¶Æ‡¶°‡ßá‡¶≤ ‡¶Ø‡ßã‡¶ó‡¶æ‡¶Ø‡ßã‡¶ó)</span>
+                                  <span>e Coordination Hub (   )</span>
                                   <span className="text-[9px] text-blue-400 lowercase font-mono">Live Sync Matcher</span>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                                   {/* Client Details Column */}
                                   <div className="space-y-1.5">
-                                    <h6 className="text-[9px] font-black uppercase tracking-wider text-emerald-400">Client Details (‡¶ï‡ßç‡¶≤‡¶æ‡¶Ø‡¶º‡ßá‡¶®‡ßç‡¶ü ‡¶§‡¶•‡ßç‡¶Ø)</h6>
+                                    <h6 className="text-[9px] font-black uppercase tracking-wider text-emerald-400">Client Details ( )</h6>
                                     <div className="space-y-1 text-[11px] text-slate-300">
                                       <p className="flex justify-between">
                                         <span className="text-slate-500">Name:</span>
@@ -7103,7 +7103,7 @@ Body Touch Premium Network`;
 
                                   {/* Model Details Column */}
                                   <div className="space-y-1.5 border-t md:border-t-0 md:border-l border-slate-800/80 md:pt-0 md:pl-3.5 pt-2">
-                                    <h6 className="text-[9px] font-black uppercase tracking-wider text-[#ceff00]">Model Full Details (‡¶Æ‡¶°‡ßá‡¶≤ ‡¶§‡¶•‡ßç‡¶Ø)</h6>
+                                    <h6 className="text-[9px] font-black uppercase tracking-wider text-[#ceff00]">Model Full Details ( )</h6>
                                     {modelComp ? (
                                       <div className="space-y-1 text-[11px] text-slate-300">
                                         <p className="flex justify-between">
@@ -7130,7 +7130,7 @@ Body Touch Premium Network`;
                                       </div>
                                     ) : (
                                       <div className="py-2.5 px-3 rounded-lg bg-red-500/5 border border-red-500/10 text-[10px] text-rose-400 leading-normal italic">
-                                        ‚ö†Ô∏è ‡¶™‡ßç‡¶∞‡ßã‡¶´‡¶æ‡¶á‡¶≤ ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú‡ßá ‡¶™‡¶æ‡¶ì‡ßü‡¶æ ‡¶Ø‡¶æ‡ßü‡¶®‡¶ø! ‡¶∏‡¶Æ‡ßç‡¶≠‡¶¨‡¶§ ‡¶®‡¶æ‡¶Æ ‡¶™‡¶∞‡¶ø‡¶¨‡¶∞‡ßç‡¶§‡¶® ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§
+                                        [!]    !    
                                       </div>
                                     )}
                                   </div>
@@ -7146,12 +7146,12 @@ Body Touch Premium Network`;
                                     {copiedBookingId === book.id ? (
                                       <>
                                         <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                        Copied! (‡¶ï‡¶™‡¶ø ‡¶π‡ßü‡ßá‡¶õ‡ßá)
+                                        Copied! ( )
                                       </>
                                     ) : (
                                       <>
                                         <Copy className="w-3.5 h-3.5 text-slate-400" />
-                                        Copy Details (‡¶°‡¶ø‡¶ü‡ßá‡¶á‡¶≤‡¶∏ ‡¶ï‡¶™‡¶ø)
+                                        Copy Details ( )
                                       </>
                                     )}
                                   </button>
@@ -7164,7 +7164,7 @@ Body Touch Premium Network`;
                                       className="px-3 py-1.5 rounded-lg bg-emerald-600/15 hover:bg-emerald-600/30 border border-emerald-500/20 text-emerald-400 font-black text-[9.5px] uppercase tracking-wider transition flex items-center gap-1 cursor-pointer select-none"
                                     >
                                       <Phone className="w-3.5 h-3.5" />
-                                      WhatsApp (‡¶π‡ßã‡ßü‡¶æ‡¶ü‡¶∏‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™‡ßá ‡¶™‡¶æ‡¶†‡¶æ‡¶®)
+                                      WhatsApp ( )
                                     </a>
                                   )}
 
@@ -7181,7 +7181,7 @@ Body Touch Premium Network`;
                                       title="Clicking will copy details and open Telegram"
                                     >
                                       <Send className="w-3.5 h-3.5" />
-                                      Telegram (‡¶ü‡ßá‡¶≤‡¶ø‡¶ó‡ßç‡¶∞‡¶æ‡¶Æ‡ßá ‡¶™‡¶æ‡¶†‡¶æ‡¶®)
+                                      Telegram ( )
                                     </a>
                                   )}
                                 </div>
@@ -7193,9 +7193,9 @@ Body Touch Premium Network`;
                             <div className="bg-[#0b0d19]/80 border border-amber-500/15 p-3 rounded-xl flex flex-col gap-2 font-sans text-xs">
                               <div className="flex justify-between items-center">
                                 <span className="text-[#facc15] text-[8.5px] font-black uppercase tracking-widest font-mono flex items-center gap-1">
-                                  ·Ωã8 DEFICIT PAYMENT RECEIVED / ‡¶ò‡¶æ‡¶ü‡¶§‡¶ø ‡¶™‡ßá‡¶Æ‡ßá‡¶®‡ßç‡¶ü
+                                  8 DEFICIT PAYMENT RECEIVED /  
                                 </span>
-                                <span className="text-amber-400 font-extrabold text-[10.5px]">‡ß≥{book.deficitPay.amount}</span>
+                                <span className="text-amber-400 font-extrabold text-[10.5px]">Tk {book.deficitPay.amount}</span>
                               </div>
                               <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
                                 <div className="bg-slate-950/50 p-2 rounded border border-white/5">
@@ -7223,7 +7223,7 @@ Body Touch Premium Network`;
                                       rel="noopener noreferrer"
                                       className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[8.5px] text-amber-400 font-black tracking-wider transition"
                                     >
-                                      OPEN FULL PROOF IMAGE ‚Üó
+                                      OPEN FULL PROOF IMAGE 
                                     </a>
                                   </div>
                                 </div>
@@ -7234,7 +7234,7 @@ Body Touch Premium Network`;
                           {book.firstTimeBooking && (
                             <div className="bg-[#0c0d16] border border-blue-500/10 p-3 rounded-xl flex flex-col gap-2">
                               <span className="text-blue-400 text-[8.5px] font-black uppercase tracking-widest block font-mono">
-                                ·Ωë2 FIRST-TIME CLIENT VERIFICATION / ‡¶™‡ßç‡¶∞‡¶•‡¶Æ‡¶¨‡¶æ‡¶∞ ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶≠‡ßá‡¶∞‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶®
+                                2 FIRST-TIME CLIENT VERIFICATION /   
                               </span>
                               <div className="grid grid-cols-3 gap-2">
                                 <div className="space-y-1">
@@ -7335,7 +7335,7 @@ Body Touch Premium Network`;
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
                                   SMTP delivery queue status:
                                 </span>
-                                <span className="text-emerald-400 font-bold font-sans">Processed Voucher Mail (‡¶Æ‡ßá‡¶á‡¶≤ ‡¶ï‡¶®‡¶´‡¶æ‡¶∞‡ßç‡¶Æ‡¶°)</span>
+                                <span className="text-emerald-400 font-bold font-sans">Processed Voucher Mail ( )</span>
                               </div>
 
                               {book.status === 'Approved' && (
@@ -7344,13 +7344,13 @@ Body Touch Premium Network`;
                                     onClick={() => onMarkOutgoingBooking && onMarkOutgoingBooking(book.id)}
                                     className="flex-1 bg-blue-600/20 hover:bg-blue-650/80 border border-blue-500/30 hover:border-blue-500/55 text-blue-300 font-black text-[10px] uppercase tracking-wider py-2 rounded-lg transition cursor-pointer flex items-center justify-center gap-1"
                                   >
-                                    ·Ω®0 Outgoing (‡¶Ü‡¶∏‡¶õ‡ßá)
+                                    0 Outgoing ()
                                   </button>
                                   <button
                                     onClick={() => onMarkCompletedBooking && onMarkCompletedBooking(book.id)}
                                     className="flex-1 bg-emerald-600/20 hover:bg-emerald-650/80 border border-emerald-500/30 hover:border-emerald-500/55 text-emerald-300 font-black text-[10px] uppercase tracking-wider py-2 rounded-lg transition cursor-pointer flex items-center justify-center gap-1"
                                   >
-                                    ·Ωâ6 Complete (‡¶∏‡¶Æ‡ßç‡¶™‡¶®‡ßç‡¶®)
+                                    6 Complete ()
                                   </button>
                                 </div>
                               )}
@@ -7358,20 +7358,20 @@ Body Touch Premium Network`;
                               {book.status === 'Outgoing' && (
                                 <div className="flex gap-2 bg-[#020510] p-2 rounded-xl border border-blue-900/15">
                                   <div className="flex-1 text-[9px] font-mono text-blue-405 flex items-center justify-center bg-blue-955/20 rounded-lg p-1 font-bold">
-                                    Status: Outgoing for Call ·ΩØ5
+                                    Status: Outgoing for Call 5
                                   </div>
                                   <button
                                     onClick={() => onMarkCompletedBooking && onMarkCompletedBooking(book.id)}
                                     className="flex-1 bg-emerald-600/30 hover:bg-emerald-650/80 border border-emerald-500/40 text-emerald-300 font-black text-[10px] uppercase tracking-wider py-2 rounded-lg transition cursor-pointer flex items-center justify-center gap-1"
                                   >
-                                    ·Ωâ6 Complete (‡¶∏‡¶Æ‡ßç‡¶™‡¶®‡ßç‡¶®)
+                                    6 Complete ()
                                   </button>
                                 </div>
                               )}
 
                               {book.status === 'Completed' && (
                                 <div className="bg-emerald-950/20 border border-emerald-500/15 px-3 py-2 rounded-xl text-center text-emerald-400 font-bold text-[10px] flex items-center justify-center gap-1.5">
-                                  <span>‚úÖ Service successfully closed & finalized. Feedback channel active.</span>
+                                  <span>[OK] Service successfully closed & finalized. Feedback channel active.</span>
                                 </div>
                               )}
                             </div>
@@ -7392,7 +7392,7 @@ Body Touch Premium Network`;
             <div className="space-y-4 text-left">
               <div className="flex items-center justify-between border-b border-[#1c2333] pb-3">
                 <p className="text-xs text-slate-400 font-semibold leading-relaxed">
-                  ‡¶°‡¶ø‡¶ú‡¶æ‡¶á‡¶®‡ßá‡¶° ‡¶¨‡¶ø‡¶≤‡¶æ‡¶∏‡¶¨‡¶π‡ßÅ‡¶≤ ‡¶∏‡ßá‡¶´ ‡¶π‡¶æ‡¶â‡¶∏ ‡¶è‡¶¨‡¶Ç ‡¶´‡¶æ‡¶á‡¶≠-‡¶∏‡ßç‡¶ü‡¶æ‡¶∞ ‡¶∏‡ßç‡¶Ø‡ßÅ‡¶á‡¶ü ‡¶§‡¶æ‡¶≤‡¶ø‡¶ï‡¶æ‡•§ ‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶ø‡¶∏ ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶ú‡¶®‡ßç‡¶Ø ‡¶ï‡ßç‡¶≤‡¶æ‡ßü‡ßá‡¶®‡ßç‡¶ü‡¶¶‡ßá‡¶∞ ‡¶∞‡¶ø‡¶≤‡ßç‡¶Ø‡¶æ‡¶ï‡ßç‡¶∏ ‡¶Æ‡ßç‡¶Ø‡¶æ‡¶™‡ßá ‡¶∏‡ßç‡¶Ø‡ßÅ‡¶á‡¶ü‡¶ó‡ßÅ‡¶≤‡ßã ‡¶™‡ßç‡¶∞‡¶¶‡¶∞‡ßç‡¶∂‡¶ø‡¶§ ‡¶π‡ßü‡•§
+                       -            
                 </p>
                 {!showLocationForm && (
                   <button
@@ -7439,32 +7439,32 @@ Body Touch Premium Network`;
 
                     {/* Rating Stars */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase">Prestige stars rating / ‡¶∏‡ßç‡¶ü‡¶æ‡¶∞ ‡¶∞‡ßá‡¶ü‡¶ø‡¶Ç</label>
+                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase">Prestige stars rating /  </label>
                       <select
                         value={locStar}
                         onChange={(e) => setLocStar(e.target.value)}
                         className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-xs font-bold cursor-pointer"
                       >
-                        <option value="5 STAR">·ΩÖ1 5 STAR PRESTIGE ROYAL</option>
-                        <option value="4 STAR">‚≠ê 4 STAR PREMIUM CLASS</option>
-                        <option value="3 STAR">‚≠ê 3 STAR EXECUTIVE LUXURY</option>
-                        <option value="2 STAR">‚≠ê 2 STAR COMFORT SANCTUARY</option>
-                        <option value="1 STAR">‚≠ê 1 STAR STANDARD BUDGET</option>
-                        <option value="BOUTIQUE">·ºæ2 PRIVATE BOUTIQUE SANCTUARY</option>
-                        <option value="SAFE HOUSE">·Ωë2 HIGH-SECURITY SAFE HOUSE</option>
-                        <option value="5 STAR SAFE HOUSE">·ΩÖ1 ·Ωë2 5 STAR SECURE SAFE HOUSE</option>
+                        <option value="5 STAR">1 5 STAR PRESTIGE ROYAL</option>
+                        <option value="4 STAR">* 4 STAR PREMIUM CLASS</option>
+                        <option value="3 STAR">* 3 STAR EXECUTIVE LUXURY</option>
+                        <option value="2 STAR">* 2 STAR COMFORT SANCTUARY</option>
+                        <option value="1 STAR">* 1 STAR STANDARD BUDGET</option>
+                        <option value="BOUTIQUE">2 PRIVATE BOUTIQUE SANCTUARY</option>
+                        <option value="SAFE HOUSE">2 HIGH-SECURITY SAFE HOUSE</option>
+                        <option value="5 STAR SAFE HOUSE">1 2 5 STAR SECURE SAFE HOUSE</option>
                       </select>
                     </div>
 
                     {/* City Location */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Metropolis District area / ‡¶è‡¶≤‡¶æ‡¶ï‡¶æ ‡¶¨‡¶æ ‡¶¨‡¶ø‡¶≠‡¶æ‡¶ó</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Metropolis District area /   </label>
                       <select
                         value={locCity}
                         onChange={(e) => setLocCity(e.target.value)}
                         className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 cursor-pointer text-xs font-bold"
                       >
-                        <option value="" className="bg-[#11131a] text-white font-sans font-bold">Select Area / ‡¶è‡¶≤‡¶æ‡¶ï‡¶æ ‡¶∏‡¶ø‡¶≤‡ßá‡¶ï‡ßç‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶®</option>
+                        <option value="" className="bg-[#11131a] text-white font-sans font-bold">Select Area /   </option>
                         {structuredCities && structuredCities.length > 0 ? (
                           structuredCities.map((p) => (
                             <optgroup key={p.id} label={p.name.toUpperCase()} className="bg-[#11131a] text-[#dbaa61] font-bold font-sans">
@@ -7490,7 +7490,7 @@ Body Touch Premium Network`;
 
                     {/* Booking Price */}
                     <div className="space-y-1.5 flex flex-col justify-end">
-                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase">Sanctuary Charge / ‡¶≠‡¶æ‡ßú‡¶æ (‡ß≥) *</label>
+                      <label className="block text-[10px] font-black tracking-widest text-[#dbaa61] uppercase">Sanctuary Charge /  (Tk ) *</label>
                       <input
                         type="number"
                         required
@@ -7503,13 +7503,13 @@ Body Touch Premium Network`;
 
                     {/* description */}
                     <div className="space-y-1.5 sm:col-span-2">
-                      <label className="block text-[10px] font-black tracking-widest text-[#2271b1] uppercase">Sanctuary Description & Privacy Guidelines / ‡¶π‡ßã‡¶ü‡ßá‡¶≤‡ßá‡¶∞ ‡¶¨‡¶ø‡¶∏‡ßç‡¶§‡¶æ‡¶∞‡¶ø‡¶§ ‡¶¨‡¶ø‡¶¨‡¶∞‡¶£ ‡¶ì ‡¶ó‡ßã‡¶™‡¶®‡ßÄ‡ßü‡¶§‡¶æ ‡¶®‡¶ø‡ßü‡¶Æ‡¶æ‡¶¨‡¶≤‡ßÄ *</label>
+                      <label className="block text-[10px] font-black tracking-widest text-[#2271b1] uppercase">Sanctuary Description & Privacy Guidelines /       *</label>
                       <textarea
                         rows={4}
                         required
                         value={locDesc}
                         onChange={(e) => setLocDesc(e.target.value)}
-                        placeholder="‡¶π‡ßã‡¶ü‡ßá‡¶≤‡ßá‡¶∞ ‡¶¨‡¶ø‡¶¨‡¶∞‡¶£, ‡¶∏‡ßÅ‡¶Ø‡ßã‡¶ó ‡¶∏‡ßÅ‡¶¨‡¶ø‡¶ß‡¶æ ‡¶è‡¶¨‡¶Ç ‡¶ó‡ßã‡¶™‡¶®‡ßÄ‡ßü‡¶§‡¶æ ‡¶∏‡¶Æ‡ßç‡¶™‡¶∞‡ßç‡¶ï‡¶ø‡¶§ ‡¶¨‡¶ø‡¶∏‡ßç‡¶§‡¶æ‡¶∞‡¶ø‡¶§ ‡¶≤‡¶ø‡¶ñ‡ßÅ‡¶®‡•§ ‡¶Ø‡ßá‡¶Æ‡¶®: Private elevator, 100% blind safety setups, elite room amenities..."
+                        placeholder=" ,        : Private elevator, 100% blind safety setups, elite room amenities..."
                         className="w-full bg-[#11131a] border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-550 focus:outline-none focus:border-blue-500 font-medium text-xs leading-relaxed"
                       />
                     </div>
@@ -7534,7 +7534,7 @@ Body Touch Premium Network`;
 
                     {/* Image preset suite */}
                     <div className="space-y-2 sm:col-span-2">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono font-sans">Hotel Suite Photo * (‡¶õ‡¶¨‡¶ø ‡¶Ü‡¶™‡¶≤‡ßã‡¶° ‡¶ï‡¶∞‡ßÅ‡¶® ‡¶Ö‡¶•‡¶¨‡¶æ ‡¶≤‡¶ø‡¶Ç‡¶ï ‡¶¨‡¶∏‡¶æ‡¶®)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono font-sans">Hotel Suite Photo * (     )</label>
                       
                       <div className="flex flex-col sm:flex-row gap-3">
                         <input
@@ -7567,7 +7567,7 @@ Body Touch Premium Network`;
                             className="bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300 border border-blue-500/20 text-[10px] font-black uppercase px-4 py-2.5 rounded-xl cursor-pointer transition flex items-center gap-1.5 h-full"
                           >
                             <Upload className="w-3.5 h-3.5 text-blue-400" />
-                            Upload Image / ‡¶õ‡¶¨‡¶ø ‡¶Ü‡¶™‡¶≤‡ßã‡¶°
+                            Upload Image /  
                           </label>
                         </div>
                       </div>
@@ -7611,12 +7611,12 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="sm:col-span-2 border-t border-slate-850 pt-4 mt-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-400">·Ω™8 Hotel Fine Specifications (‡¶ú‡¶∞‡ßÅ‡¶∞‡ßÄ ‡¶¨‡¶ø‡¶∏‡ßç‡¶§‡¶æ‡¶∞‡¶ø‡¶§ ‡¶§‡¶•‡ßç‡¶Ø)</span>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-400">8 Hotel Fine Specifications (  )</span>
                     </div>
 
                     {/* Distance */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Distance string (‡¶¶‡ßÅ‡¶∞‡¶§‡ßç‡¶¨, e.g. 17.1 km from city center)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Distance string (, e.g. 17.1 km from city center)</label>
                       <input
                         type="text"
                         value={locDistance}
@@ -7628,7 +7628,7 @@ Body Touch Premium Network`;
 
                     {/* Address */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Street Address (‡¶™‡ßÇ‡¶∞‡ßç‡¶£ ‡¶†‡¶ø‡¶ï‡¶æ‡¶®‡¶æ)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Street Address ( )</label>
                       <input
                         type="text"
                         value={locAddress}
@@ -7640,7 +7640,7 @@ Body Touch Premium Network`;
 
                     {/* Check in & Check out */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono">Check-in Policy Time (‡¶ö‡ßá‡¶ï-‡¶á‡¶® ‡¶∏‡¶Æ‡ßü)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono">Check-in Policy Time (- )</label>
                       <input
                         type="text"
                         value={locCheckInTime}
@@ -7651,7 +7651,7 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono">Check-out Policy Time (‡¶ö‡ßá‡¶ï-‡¶Ü‡¶â‡¶ü ‡¶∏‡¶Æ‡ßü)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono">Check-out Policy Time (- )</label>
                       <input
                         type="text"
                         value={locCheckOutTime}
@@ -7663,7 +7663,7 @@ Body Touch Premium Network`;
 
                     {/* Highlighted Facilities */}
                     <div className="space-y-1.5 sm:col-span-2">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono">Highlighted Facilities (‡¶ï‡¶Æ‡¶æ ‡¶¶‡¶ø‡ßü‡ßá ‡¶≤‡¶ø‡¶ñ‡ßÅ‡¶® - Comma separated)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase font-mono">Highlighted Facilities (   - Comma separated)</label>
                       <input
                         type="text"
                         value={locHighlightedFacilities}
@@ -7675,11 +7675,11 @@ Body Touch Premium Network`;
 
                     {/* Room Type 1 Title Header */}
                     <div className="sm:col-span-2 border-t border-slate-850 pt-4 mt-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-500">·Ω¨fÔ∏è Room Option 1 Details (‡¶∞‡ßÅ‡¶Æ ‡¶Ö‡¶™‡¶∂‡¶® ‡ßß ‡¶¨‡¶ø‡¶∏‡ßç‡¶§‡¶æ‡¶∞‡¶ø‡¶§ ‡¶¨‡¶ø‡¶¨‡¶∞‡¶£)</span>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-500">f Room Option 1 Details (    )</span>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Type Name (‡¶®‡¶æ‡¶Æ)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Type Name ()</label>
                       <input
                         type="text"
                         value={locRoom1Name}
@@ -7690,7 +7690,7 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Bed Type (‡¶¨‡ßá‡¶° ‡¶ü‡¶æ‡¶á‡¶™)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Bed Type ( )</label>
                       <input
                         type="text"
                         value={locRoom1BedType}
@@ -7701,7 +7701,7 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Capacity (‡¶ß‡¶æ‡¶∞‡¶£‡¶ï‡ßç‡¶∑‡¶Æ‡¶§‡¶æ)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Capacity ()</label>
                       <input
                         type="text"
                         value={locRoom1Capacity}
@@ -7712,7 +7712,7 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">View Type (‡¶≠‡¶ø‡¶ì ‡¶ü‡¶æ‡¶á‡¶™)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">View Type ( )</label>
                       <input
                         type="text"
                         value={locRoom1ViewType}
@@ -7723,7 +7723,7 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Area (‡¶∞‡ßÅ‡¶Æ‡ßá‡¶∞ ‡¶∏‡¶æ‡¶á‡¶ú)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Area ( )</label>
                       <input
                         type="text"
                         value={locRoom1Area}
@@ -7734,7 +7734,7 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Price per night/room (‡¶≠‡¶æ‡ßú‡¶æ)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Price per night/room ()</label>
                       <input
                         type="number"
                         value={locRoom1Price}
@@ -7745,7 +7745,7 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="space-y-1.5 sm:col-span-2">
-                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Benefits/Facilities (‡¶∏‡ßÅ‡¶¨‡¶ø‡¶ß‡¶æ‡¶∏‡¶Æ‡ßÇ‡¶π, e.g. Breakfast Included, Non-Smoking room)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Benefits/Facilities (, e.g. Breakfast Included, Non-Smoking room)</label>
                       <input
                         type="text"
                         value={locRoom1Facilities}
@@ -7757,11 +7757,11 @@ Body Touch Premium Network`;
 
                     {/* Room Type 2 Title Header */}
                     <div className="sm:col-span-2 border-t border-slate-850 pt-4 mt-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-500">·Ω¨fÔ∏è Room Option 2 Details (‡¶∞‡ßÅ‡¶Æ ‡¶Ö‡¶™‡¶∂‡¶® ‡ß® ‡¶¨‡¶ø‡¶∏‡ßç‡¶§‡¶æ‡¶∞‡¶ø‡¶§ ‡¶¨‡¶ø‡¶¨‡¶∞‡¶£)</span>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-500">f Room Option 2 Details (    )</span>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Type Name (‡¶®‡¶æ‡¶Æ)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Type Name ()</label>
                       <input
                         type="text"
                         value={locRoom2Name}
@@ -7772,7 +7772,7 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Bed Type (‡¶¨‡ßá‡¶° ‡¶ü‡¶æ‡¶á‡¶™)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Bed Type ( )</label>
                       <input
                         type="text"
                         value={locRoom2BedType}
@@ -7783,7 +7783,7 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Capacity (‡¶ß‡¶æ‡¶∞‡¶£‡¶ï‡ßç‡¶∑‡¶Æ‡¶§‡¶æ)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Capacity ()</label>
                       <input
                         type="text"
                         value={locRoom2Capacity}
@@ -7794,7 +7794,7 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">View Type (‡¶≠‡¶ø‡¶ì ‡¶ü‡¶æ‡¶á‡¶™)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">View Type ( )</label>
                       <input
                         type="text"
                         value={locRoom2ViewType}
@@ -7805,7 +7805,7 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Area (‡¶∞‡ßÅ‡¶Æ‡ßá‡¶∞ ‡¶∏‡¶æ‡¶á‡¶ú)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Area ( )</label>
                       <input
                         type="text"
                         value={locRoom2Area}
@@ -7816,7 +7816,7 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Price per night/room (‡¶≠‡¶æ‡ßú‡¶æ)</label>
+                      <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Price per night/room ()</label>
                       <input
                         type="number"
                         value={locRoom2Price}
@@ -7827,7 +7827,7 @@ Body Touch Premium Network`;
                     </div>
 
                     <div className="space-y-1.5 sm:col-span-2">
-                       <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Benefits/Facilities (‡¶∏‡ßÅ‡¶¨‡¶ø‡¶ß‡¶æ‡¶∏‡¶Æ‡ßÇ‡¶π, e.g. Breakfast Included, Non-Smoking room)</label>
+                       <label className="block text-[10px] font-black tracking-widest text-zinc-400 uppercase font-mono">Room Benefits/Facilities (, e.g. Breakfast Included, Non-Smoking room)</label>
                        <input
                          type="text"
                          value={locRoom2Facilities}
@@ -7873,7 +7873,7 @@ Body Touch Premium Network`;
                     {tab === 'ALL' && <Hotel className="w-3 h-3 text-slate-400" />}
                     {tab === 'HOTELS' && <Hotel className="w-3 h-3 text-amber-500" />}
                     {tab === 'SAFE HOUSES' && <ShieldCheck className="w-3 h-3 text-blue-400" />}
-                    <span>{tab === 'SAFE HOUSES' ? 'SAFE HOUSES (‡¶∏‡ßá‡¶´ ‡¶π‡¶æ‡¶â‡¶∏)' : tab === 'HOTELS' ? 'HOTELS (‡¶π‡ßã‡¶ü‡ßá‡¶≤)' : 'ALL (‡¶∏‡¶¨)'}</span>
+                    <span>{tab === 'SAFE HOUSES' ? 'SAFE HOUSES ( )' : tab === 'HOTELS' ? 'HOTELS ()' : 'ALL ()'}</span>
                   </button>
                 ))}
               </div>
@@ -7955,7 +7955,7 @@ Body Touch Premium Network`;
                   <ImageIcon className="w-5 h-5 text-amber-500 animate-pulse" />
                   <div>
                     <h4 className="text-xs font-black uppercase tracking-wider text-amber-400">
-                      Brand Logo Uploader & Controller (‡¶¨‡ßç‡¶∞‡ßç‡¶Ø‡¶æ‡¶®‡ßç‡¶° ‡¶≤‡ßã‡¶ó‡ßã ‡¶Ü‡¶™‡¶≤‡ßã‡¶°‡¶æ‡¶∞)
+                      Brand Logo Uploader & Controller (  )
                     </h4>
                     <p className="text-[10px] text-slate-400 mt-0.5">
                       Upload your high-quality agency brand logo in PNG, JPG, SVG, or WebP. Replaces default logo instantly across all app pages.
@@ -7969,7 +7969,7 @@ Body Touch Premium Network`;
                   <div className="md:col-span-5 flex flex-col items-center justify-center p-5 bg-black/40 border border-[#232733] rounded-2xl space-y-4">
                     <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 font-mono flex items-center gap-1">
                       <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-                      Interactive Crop Circle (‡¶≤‡ßã‡¶ó‡ßã ‡¶™‡¶ú‡¶ø‡¶∂‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®)
+                      Interactive Crop Circle (  )
                     </span>
                     
                     {/* The Circular Viewport Framing Layer */}
@@ -8031,8 +8031,8 @@ Body Touch Premium Network`;
                     <div className="text-center font-mono text-[9px] text-slate-400 max-w-xs leading-normal">
                       {tempLogo ? (
                         <p className="font-semibold text-amber-400">
-                          ·Ωõ1Ô∏è Hold & Drag on the image to position! <br />
-                          (‡¶õ‡¶¨‡¶ø‡¶ü‡¶ø‡¶∞ ‡¶ì‡¶™‡¶∞ ‡¶Æ‡¶æ‡¶â‡¶∏ ‡¶¨‡¶æ ‡¶Ü‡¶ô‡ßÅ‡¶≤ ‡¶¶‡¶ø‡ßü‡ßá ‡¶°‡ßç‡¶∞‡ßç‡¶Ø‡¶æ‡¶ó ‡¶ï‡¶∞‡ßá ‡¶¨‡¶∏‡¶æ‡¶®)
+                          1 Hold & Drag on the image to position! <br />
+                          (        )
                         </p>
                       ) : (
                         <p>Luxury Vector SVG default logo is active as template.</p>
@@ -8046,7 +8046,7 @@ Body Touch Premium Network`;
                     {/* Media Selector Zone */}
                     <div className="space-y-1.5">
                       <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider">
-                        Upload Logo Image File (‡¶≤‡ßã‡¶ó‡ßã ‡¶õ‡¶¨‡¶ø ‡¶´‡¶æ‡¶á‡¶≤ ‡¶∏‡¶ø‡¶≤‡ßá‡¶ï‡ßç‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶®)
+                        Upload Logo Image File (    )
                       </label>
                       <div className="relative border-2 border-dashed border-slate-800 hover:border-amber-500/50 rounded-xl p-4 bg-black/20 text-center transition cursor-pointer group">
                         <input
@@ -8084,7 +8084,7 @@ Body Touch Premium Network`;
                     {tempLogo && (
                       <div className="p-4 bg-black/30 rounded-xl border border-slate-800/80 space-y-3.5">
                         <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-200 border-b border-white/5 pb-1.5 flex items-center justify-between">
-                          <span>Precise adjustment sliders (‡¶∏‡ßÇ‡¶ï‡ßç‡¶∑‡ßç‡¶Æ‡¶≠‡¶æ‡¶¨‡ßá ‡¶∏‡¶æ‡¶á‡¶ú ‡¶Æ‡ßá‡¶≤‡¶æ‡¶®‡ßã‡¶∞ ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶°‡¶æ‡¶∞)</span>
+                          <span>Precise adjustment sliders (   )</span>
                           <button
                             type="button"
                             onClick={() => {
@@ -8102,7 +8102,7 @@ Body Touch Premium Network`;
                         {/* Zoom Slider */}
                         <div className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-bold text-slate-400">·Ωêd Image Scale / Zoom (‡¶õ‡¶¨‡¶ø ‡¶¨‡ßú/‡¶õ‡ßã‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶®)</span>
+                            <span className="text-[9px] font-bold text-slate-400">d Image Scale / Zoom ( / )</span>
                             <span className="text-[9px] font-mono font-bold text-amber-400">{logoZoom}%</span>
                           </div>
                           <input
@@ -8118,7 +8118,7 @@ Body Touch Premium Network`;
                         {/* Move X Slider */}
                         <div className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-bold text-slate-400">‚ÜîÔ∏è Horizontal Shift (‡¶°‡¶æ‡¶®‡ßá-‡¶¨‡¶æ‡¶Æ‡ßá ‡¶∏‡¶∞‡¶æ‡¶®)</span>
+                            <span className="text-[9px] font-bold text-slate-400"> Horizontal Shift (- )</span>
                             <span className="text-[9px] font-mono font-bold text-amber-400">{logoX}px</span>
                           </div>
                           <input
@@ -8134,7 +8134,7 @@ Body Touch Premium Network`;
                         {/* Move Y Slider */}
                         <div className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-bold text-slate-400">‚ÜïÔ∏è Vertical Shift (‡¶â‡¶™‡¶∞‡ßá-‡¶®‡¶ø‡¶ö‡ßá ‡¶∏‡¶∞‡¶æ‡¶®)</span>
+                            <span className="text-[9px] font-bold text-slate-400"> Vertical Shift (- )</span>
                             <span className="text-[9px] font-mono font-bold text-amber-400">{logoY}px</span>
                           </div>
                           <input
@@ -8150,8 +8150,8 @@ Body Touch Premium Network`;
                         {/* Rotation Slider */}
                         <div className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-bold text-slate-400">·Ωê4 Rotate Image (‡¶ò‡ßã‡¶∞‡¶æ‡¶®)</span>
-                            <span className="text-[9px] font-mono font-bold text-amber-400">{logoRotate}¬∞</span>
+                            <span className="text-[9px] font-bold text-slate-400">4 Rotate Image ()</span>
+                            <span className="text-[9px] font-mono font-bold text-amber-400">{logoRotate}</span>
                           </div>
                           <input
                             type="range"
@@ -8178,7 +8178,7 @@ Body Touch Premium Network`;
                           ) : (
                             <>
                               <Check className="w-3.5 h-3.5" />
-                              Crop & Lock Logo (‡¶≤‡ßã‡¶ó‡ßã ‡¶∏‡¶æ‡¶á‡¶ú ‡¶†‡¶ø‡¶ï ‡¶ï‡¶∞‡ßá ‡¶ï‡¶æ‡¶ü‡ßÅ‡¶®)
+                              Crop & Lock Logo (    )
                             </>
                           )}
                         </button>
@@ -8188,13 +8188,13 @@ Body Touch Premium Network`;
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider">
-                          Or Paste Logo Image URL (‡¶Ö‡¶•‡¶¨‡¶æ ‡¶°‡¶ø‡¶∞‡ßá‡¶ï‡ßç‡¶ü ‡¶á‡¶Æ‡ßá‡¶ú ‡¶≤‡¶ø‡¶Ç‡¶ï ‡¶¶‡¶ø‡¶®)
+                          Or Paste Logo Image URL (    )
                         </label>
                         {tempLogo && (
                           <button
                             type="button"
                             onClick={() => {
-                              if (confirm("‡¶Ü‡¶™‡¶®‡¶ø ‡¶ï‡¶ø ‡¶®‡¶ø‡¶∂‡ßç‡¶ö‡¶ø‡¶§ ‡¶≤‡ßã‡¶ó‡ßã‡¶ü‡¶ø ‡¶∞‡¶ø‡¶Æ‡ßÅ‡¶≠ ‡¶ï‡¶∞‡ßá ‡¶°‡¶ø‡¶´‡¶≤‡ßç‡¶ü ‡¶°‡¶ø‡¶ú‡¶æ‡¶á‡¶®‡ßá ‡¶´‡¶ø‡¶∞‡ßá ‡¶Ø‡ßá‡¶§‡ßá ‡¶ö‡¶æ‡¶®?")) {
+                              if (confirm("          ?")) {
                                 setTempLogo('');
                               }
                             }}
@@ -8232,13 +8232,13 @@ Body Touch Premium Network`;
                         className="bg-emerald-600 hover:bg-emerald-550 text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg shadow-emerald-600/10 active:scale-98"
                       >
                         <CheckCircle className="w-3.5 h-3.5 text-white" />
-                        Apply & Save Logo (‡¶™‡¶∞‡¶ø‡¶¨‡¶∞‡ßç‡¶§‡¶® ‡¶∏‡ßá‡¶≠ ‡¶ï‡¶∞‡ßÅ‡¶®)
+                        Apply & Save Logo (  )
                       </button>
 
                       <button
                         type="button"
                         onClick={() => {
-                          if (confirm("‡¶Ü‡¶™‡¶®‡¶ø ‡¶ï‡¶ø ‡¶®‡¶ø‡¶∂‡ßç‡¶ö‡¶ø‡¶§ ‡¶Ø‡ßá ‡¶Ü‡¶™‡¶®‡¶ø ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ ‡¶≤‡ßã‡¶ó‡ßã ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶¶‡¶ø‡ßü‡ßá ‡¶™‡ßÇ‡¶∞‡ßç‡¶¨‡¶®‡¶ø‡¶∞‡ßç‡¶ß‡¶æ‡¶∞‡¶ø‡¶§ ‡¶°‡¶ø‡¶´‡¶≤‡ßç‡¶ü ‡¶≠‡ßá‡¶ï‡ßç‡¶ü‡¶∞ ‡¶≤‡ßã‡¶ó‡ßã‡¶§‡ßá ‡¶´‡¶ø‡¶∞‡ßá ‡¶Ø‡ßá‡¶§‡ßá ‡¶ö‡¶æ‡¶®?")) {
+                          if (confirm("               ?")) {
                             localStorage.removeItem('bt_custom_logo');
                             window.dispatchEvent(new Event('bt_logo_updated'));
                             setTempLogo('');
@@ -8249,7 +8249,7 @@ Body Touch Premium Network`;
                         className="bg-[#11131a] border border-slate-800 hover:bg-slate-800 text-slate-300 text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5"
                       >
                         <RefreshCw className="w-3 h-3" />
-                        Reset to Default (‡¶°‡¶ø‡¶´‡¶≤‡ßç‡¶ü ‡¶≤‡ßã‡¶ó‡ßã)
+                        Reset to Default ( )
                       </button>
 
                       {logoSaveSuccess && (
@@ -8272,7 +8272,7 @@ Body Touch Premium Network`;
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-black uppercase text-indigo-400 flex items-center gap-2">
                     <Server className="w-4 h-4 animate-pulse" />
-                    Telegram Notification Engine & Helpline (‡¶ü‡ßá‡¶≤‡¶ø‡¶ó‡ßç‡¶∞‡¶æ‡¶Æ ‡¶®‡ßã‡¶ü‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶® ‡¶ì ‡¶π‡ßá‡¶≤‡ßç‡¶™‡¶≤‡¶æ‡¶á‡¶®)
+                    Telegram Notification Engine & Helpline (   )
                   </h4>
                 </div>
                 <p className="text-slate-400 text-xs leading-relaxed">
@@ -8283,7 +8283,7 @@ Body Touch Premium Network`;
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
                       <Lock className="w-3.5 h-3.5 text-indigo-500" />
-                      Telegram Bot Token (‡¶ü‡ßá‡¶≤‡¶ø‡¶ó‡ßç‡¶∞‡¶æ‡¶Æ ‡¶¨‡¶ü ‡¶ü‡ßã‡¶ï‡ßá‡¶®)
+                      Telegram Bot Token (  )
                     </label>
                     <input
                       type="text"
@@ -8297,7 +8297,7 @@ Body Touch Premium Network`;
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
                       <Lock className="w-3.5 h-3.5 text-teal-500" />
-                      Telegram Group Chat ID (‡¶ó‡ßç‡¶∞‡ßÅ‡¶™ ‡¶ö‡ßç‡¶Ø‡¶æ‡¶ü ‡¶Ü‡¶á‡¶°‡¶ø)
+                      Telegram Group Chat ID (  )
                     </label>
                     <input
                       type="text"
@@ -8311,7 +8311,7 @@ Body Touch Premium Network`;
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
                       <ExternalLink className="w-3.5 h-3.5 text-amber-500" />
-                      Support Helpline Username (‡¶ü‡ßá‡¶≤‡¶ø‡¶ó‡ßç‡¶∞‡¶æ‡¶Æ ‡¶π‡ßá‡¶≤‡ßç‡¶™‡¶≤‡¶æ‡¶á‡¶®)
+                      Support Helpline Username ( )
                     </label>
                     <input
                       type="text"
@@ -8325,7 +8325,7 @@ Body Touch Premium Network`;
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
                       <Send className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
-                      Telegram Channel Username (‡¶ü‡ßá‡¶≤‡¶ø‡¶ó‡ßç‡¶∞‡¶æ‡¶Æ ‡¶ö‡ßç‡¶Ø‡¶æ‡¶®‡ßá‡¶≤ ‡¶á‡¶â‡¶ú‡¶æ‡¶∞‡¶®‡ßá‡¶Æ)
+                      Telegram Channel Username (  )
                     </label>
                     <input
                       type="text"
@@ -8339,7 +8339,7 @@ Body Touch Premium Network`;
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
                       <MessageSquare className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
-                      WhatsApp Support Phone / Link (‡¶π‡ßã‡¶Ø‡¶º‡¶æ‡¶ü‡¶∏‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™ ‡¶®‡¶æ‡¶Æ‡ßç‡¶¨‡¶æ‡¶∞/‡¶≤‡¶ø‡¶Ç‡¶ï)
+                      WhatsApp Support Phone / Link ( /)
                     </label>
                     <input
                       type="text"
@@ -8359,7 +8359,7 @@ Body Touch Premium Network`;
                       if (onSaveTelegramSettings) {
                         onSaveTelegramSettings();
                       } else {
-                        alert("‚úÖ Telegram Credentials & Support Helpline configurations have been securely added and updated in system databases!");
+                        alert("[OK] Telegram Credentials & Support Helpline configurations have been securely added and updated in system databases!");
                       }
                     }}
                     className="bg-indigo-600 hover:bg-indigo-550 text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg shadow-indigo-600/10 active:scale-98"
@@ -8379,7 +8379,7 @@ Body Touch Premium Network`;
                         if (onSetTelegramHelpline) onSetTelegramHelpline('');
                         if (onSetTelegramChannel) onSetTelegramChannel('');
                         if (onSetWhatsappSupport) onSetWhatsappSupport('');
-                        alert("‚ö†Ô∏è Disconnected: All Telegram Bot tokens, Chat IDs, and active helpline links have been completely removed and deleted from system memory!");
+                        alert("[!] Disconnected: All Telegram Bot tokens, Chat IDs, and active helpline links have been completely removed and deleted from system memory!");
                       }
                     }}
                     className="bg-rose-950/30 hover:bg-rose-900/40 border border-rose-500/25 text-rose-450 hover:text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 active:scale-98"
@@ -8391,16 +8391,16 @@ Body Touch Premium Network`;
 
                 <div className="p-3 bg-[#0a0c14] border border-blue-500/5 rounded-xl text-[10px] text-slate-400 leading-relaxed font-sans font-medium space-y-1">
                   <p>
-                    ‚ö†Ô∏è <b>‡¶¨‡¶ü ‡¶∏‡ßá‡¶ü‡¶ø‡¶Ç‡¶∏ ‡¶®‡¶ø‡¶∞‡ßç‡¶¶‡ßá‡¶∂‡¶æ‡¶¨‡¶≤‡¶ø:</b>
+                    [!] <b>  :</b>
                   </p>
                   <p>
-                    ‡ßß. ‡¶™‡ßç‡¶∞‡¶•‡¶Æ‡ßá <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-white hover:underline">@BotFather</a> ‡¶è‡¶∞ ‡¶Æ‡¶æ‡¶ß‡ßç‡¶Ø‡¶Æ‡ßá ‡¶è‡¶ï‡¶ü‡¶ø ‡¶®‡¶§‡ßÅ‡¶® ‡¶ü‡ßá‡¶≤‡¶ø‡¶ó‡ßç‡¶∞‡¶æ‡¶Æ ‡¶¨‡¶ü ‡¶§‡ßà‡¶∞‡¶ø ‡¶ï‡¶∞‡ßá ‡¶ü‡ßã‡¶ï‡ßá‡¶®‡¶ü‡¶ø ‡¶è‡¶ñ‡¶æ‡¶®‡ßá ‡¶¨‡¶∏‡¶æ‡¶®‡•§
+                    .  <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-white hover:underline">@BotFather</a>           
                   </p>
                   <p>
-                    ‡ß®. ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶°‡¶Æ‡¶ø‡¶® ‡¶ó‡ßç‡¶∞‡ßÅ‡¶™ ‡¶ö‡ßç‡¶Ø‡¶æ‡¶ü‡ßá ‡¶§‡ßà‡¶∞‡¶ø ‡¶ï‡¶∞‡¶æ ‡¶¨‡¶ü‡¶ü‡¶ø‡¶ï‡ßá ‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶ï‡¶∞‡ßÅ‡¶® ‡¶è‡¶¨‡¶Ç ‡¶ó‡ßç‡¶∞‡ßÅ‡¶™ ‡¶ö‡ßç‡¶Ø‡¶æ‡¶ü ‡¶Ü‡¶á‡¶°‡¶ø (Chat ID) ‡¶â‡¶™‡¶∞‡ßã‡¶ï‡ßç‡¶§ ‡¶¨‡¶ï‡ßç‡¶∏‡ßá ‡¶™‡ßç‡¶∞‡¶¶‡¶æ‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                    .              (Chat ID)    
                   </p>
                   <p>
-                    ‡ß©. ‡¶ï‡ßã‡¶®‡ßã ‡¶Æ‡¶°‡ßá‡¶≤ ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶∞‡¶ø‡¶ï‡ßã‡ßü‡ßá‡¶∏‡ßç‡¶ü ‡¶¶‡¶ø‡¶≤‡ßá ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ‡¶æ‡¶∞ ‡¶°‡¶ø‡¶ü‡ßá‡¶á‡¶≤‡¶∏ ‡¶∏‡¶π ‡¶®‡ßã‡¶ü‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶® ‡¶∏‡ßç‡¶¨‡ßü‡¶Ç‡¶ï‡ßç‡¶∞‡¶ø‡ßü‡¶≠‡¶æ‡¶¨‡ßá ‡¶â‡¶ï‡ßç‡¶§ ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶ó‡ßç‡¶∞‡ßÅ‡¶™‡ßá ‡¶ö‡¶≤‡ßá ‡¶Ø‡¶æ‡¶¨‡ßá‡•§
+                    .               
                   </p>
                 </div>
               </div>
@@ -8410,7 +8410,7 @@ Body Touch Premium Network`;
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-black uppercase text-amber-400 flex items-center gap-2">
                     <MessageSquare className="w-4 h-4 animate-pulse" />
-                    Live Chat Socket.io Server Settings (‡¶≤‡¶æ‡¶á‡¶≠ ‡¶ö‡ßç‡¶Ø‡¶æ‡¶ü ‡¶∏‡¶ï‡ßá‡¶ü ‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶æ‡¶∞ ‡¶∏‡ßá‡¶ü‡¶ø‡¶Ç‡¶∏)
+                    Live Chat Socket.io Server Settings (    )
                   </h4>
                   {socketUrlSaveSuccess && (
                     <motion.span
@@ -8429,13 +8429,13 @@ Body Touch Premium Network`;
 
                 <div className="space-y-1.5 text-left">
                   <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
-                    Socket Server Custom URL (‡¶∏‡¶ï‡ßá‡¶ü ‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶æ‡¶∞ ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ ‡¶á‡¶â‡¶Ü‡¶∞‡¶è‡¶≤)
+                    Socket Server Custom URL (   )
                   </label>
                   <input
                     type="text"
                     value={socketServerUrl}
                     onChange={(e) => setSocketServerUrl(e.target.value)}
-                    placeholder="e.g. https://bodytouchbd.com:3000 (‡¶Ö‡¶•‡¶¨‡¶æ ‡¶ñ‡¶æ‡¶≤‡¶ø ‡¶∞‡¶æ‡¶ñ‡ßÅ‡¶®)"
+                    placeholder="e.g. https://bodytouchbd.com:3000 (  )"
                     className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
                   />
                 </div>
@@ -8468,7 +8468,7 @@ Body Touch Premium Network`;
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-black uppercase text-teal-400 flex items-center gap-2">
                     <Mail className="w-4 h-4 animate-pulse" />
-                    SMTP / Email SMS Gateway Settings (‡¶è‡¶∏‡¶è‡¶Æ‡¶è‡¶∏ ‡¶ì ‡¶á‡¶Æ‡ßá‡¶á‡¶≤ ‡¶≠‡ßá‡¶∞‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶® ‡¶ó‡ßá‡¶ü‡¶ì‡¶Ø‡¶º‡ßá)
+                    SMTP / Email SMS Gateway Settings (    )
                   </h4>
                   {smtpSaveSuccess && (
                     <motion.span
@@ -8482,13 +8482,13 @@ Body Touch Premium Network`;
                   )}
                 </div>
                 <p className="text-slate-400 text-xs leading-relaxed">
-                  Configure your primary SMTP Server credentials to send secure verification OTP emails (SMS equivalents) to users during login and registration. Verification is locked to <strong className="text-teal-400">MUST (‡¶¨‡¶æ‡¶ß‡ßç‡¶Ø‡¶§‡¶æ‡¶Æ‡ßÇ‡¶≤‡¶ï)</strong> for absolute portal security.
+                  Configure your primary SMTP Server credentials to send secure verification OTP emails (SMS equivalents) to users during login and registration. Verification is locked to <strong className="text-teal-400">MUST ()</strong> for absolute portal security.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold">
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
-                      SMTP Host (‡¶á‡¶Æ‡ßá‡¶á‡¶≤ ‡¶π‡ßã‡¶∏‡ßç‡¶ü)
+                      SMTP Host ( )
                     </label>
                     <input
                       type="text"
@@ -8501,7 +8501,7 @@ Body Touch Premium Network`;
 
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
-                      SMTP Port (‡¶á‡¶Æ‡ßá‡¶á‡¶≤ ‡¶™‡ßã‡¶∞‡ßç‡¶ü)
+                      SMTP Port ( )
                     </label>
                     <input
                       type="text"
@@ -8514,7 +8514,7 @@ Body Touch Premium Network`;
 
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
-                      Sender Name (‡¶™‡ßç‡¶∞‡ßá‡¶∞‡¶ï‡ßá‡¶∞ ‡¶®‡¶æ‡¶Æ)
+                      Sender Name ( )
                     </label>
                     <input
                       type="text"
@@ -8528,7 +8528,7 @@ Body Touch Premium Network`;
                   <div className="space-y-1.5 md:col-span-2">
                     <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono text-cyan-400">
                       <Lock className="w-3.5 h-3.5 text-cyan-500" />
-                      SMTP User Email (‡¶á‡¶â‡¶ú‡¶æ‡¶∞ ‡¶á‡¶Æ‡ßá‡¶á‡¶≤)
+                      SMTP User Email ( )
                     </label>
                     <input
                       type="email"
@@ -8542,7 +8542,7 @@ Body Touch Premium Network`;
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono text-cyan-400">
                       <Lock className="w-3.5 h-3.5 text-cyan-500" />
-                      SMTP App Password (‡¶∏‡¶ø‡¶ï‡¶ø‡¶â‡¶∞ ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶°)
+                      SMTP App Password ( )
                     </label>
                     <input
                       type="password"
@@ -8565,7 +8565,7 @@ Body Touch Premium Network`;
                       className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 bg-black/40 border-slate-700 cursor-pointer"
                     />
                     <label htmlFor="useSeparateOtpSmtp" className="text-xs font-black uppercase text-slate-200 tracking-wider cursor-pointer select-none">
-                      ‡¶≠‡ßá‡¶∞‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶®‡ßá‡¶∞ (OTP) ‡¶ú‡¶®‡ßç‡¶Ø ‡¶Ü‡¶≤‡¶æ‡¶¶‡¶æ ‡¶ú‡¶ø‡¶Æ‡ßá‡¶á‡¶≤ ‡¶¨‡ßç‡¶Ø‡¶¨‡¶π‡¶æ‡¶∞ ‡¶ï‡¶∞‡ßÅ‡¶® (Use Separate Gmail for OTP codes)
+                       (OTP)      (Use Separate Gmail for OTP codes)
                     </label>
                   </div>
 
@@ -8579,14 +8579,14 @@ Body Touch Premium Network`;
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-cyan-400 rounded-full animate-ping" />
                         <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 font-mono">
-                          Verification OTP Specific Gateway (‡¶≠‡ßá‡¶∞‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶® ‡¶ì‡¶ü‡¶ø‡¶™‡¶ø ‡¶™‡¶æ‡¶†‡¶æ‡¶®‡ßã‡¶∞ ‡¶ó‡ßá‡¶ü‡¶ì‡¶Ø‡¶º‡ßá)
+                          Verification OTP Specific Gateway (   )
                         </span>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold">
                         <div className="space-y-1.5">
                           <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
-                            OTP SMTP Host (‡¶π‡ßã‡¶∏‡ßç‡¶ü)
+                            OTP SMTP Host ()
                           </label>
                           <input
                             type="text"
@@ -8599,7 +8599,7 @@ Body Touch Premium Network`;
 
                         <div className="space-y-1.5">
                           <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
-                            OTP SMTP Port (‡¶™‡ßã‡¶∞‡ßç‡¶ü)
+                            OTP SMTP Port ()
                           </label>
                           <input
                             type="text"
@@ -8612,7 +8612,7 @@ Body Touch Premium Network`;
 
                         <div className="space-y-1.5">
                           <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
-                            OTP Sender Name (‡¶™‡ßç‡¶∞‡ßá‡¶∞‡¶ï‡ßá‡¶∞ ‡¶®‡¶æ‡¶Æ)
+                            OTP Sender Name ( )
                           </label>
                           <input
                             type="text"
@@ -8626,7 +8626,7 @@ Body Touch Premium Network`;
                         <div className="space-y-1.5 md:col-span-2">
                           <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono text-cyan-400">
                             <Lock className="w-3.5 h-3.5 text-cyan-500" />
-                            OTP SMTP User Email (‡¶≠‡ßá‡¶∞‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶® ‡¶ú‡¶ø‡¶Æ‡ßá‡¶á‡¶≤)
+                            OTP SMTP User Email ( )
                           </label>
                           <input
                             type="email"
@@ -8640,7 +8640,7 @@ Body Touch Premium Network`;
                         <div className="space-y-1.5">
                           <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono text-cyan-400">
                             <Lock className="w-3.5 h-3.5 text-cyan-500" />
-                            OTP App Password (‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™ ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶°)
+                            OTP App Password ( )
                           </label>
                           <input
                             type="password"
@@ -8658,13 +8658,13 @@ Body Touch Premium Network`;
                 <div className="flex items-center gap-4 bg-[#0b1022] border border-[#1b254b]/60 rounded-2xl p-4.5">
                   <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
                     <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                    <span>Login & Registration Email Verifications: <b>ENFORCED / MUST (‡¶¨‡¶æ‡¶ß‡ßç‡¶Ø‡¶§‡¶æ‡¶Æ‡ßÇ‡¶≤‡¶ï ‡¶∏‡¶ï‡ßç‡¶∞‡¶ø‡ßü)</b></span>
+                    <span>Login & Registration Email Verifications: <b>ENFORCED / MUST ( )</b></span>
                   </div>
                 </div>
 
                 {smtpSaveError && (
                   <div className="text-xs text-rose-450 font-semibold bg-rose-950/20 border border-rose-500/20 p-3 rounded-xl">
-                    ‚ö†Ô∏è {smtpSaveError}
+                    [!] {smtpSaveError}
                   </div>
                 )}
 
@@ -8675,22 +8675,22 @@ Body Touch Premium Network`;
                     className="bg-[#0f766e] hover:bg-[#0d9488] text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg active:scale-98"
                   >
                     <Save className="w-4 h-4 text-white" />
-                    Save SMTP Configuration (‡¶ó‡ßá‡¶ü‡¶ì‡ßü‡ßá ‡¶∏‡ßá‡¶≠ ‡¶ï‡¶∞‡ßÅ‡¶®)
+                    Save SMTP Configuration (  )
                   </button>
                 </div>
 
                 <div className="p-3 bg-[#0a0c14] border border-blue-500/5 rounded-xl text-[10px] text-slate-400 leading-relaxed font-sans font-medium space-y-1">
                   <p>
-                    ‚ö†Ô∏è <b>‡¶ú‡¶ø‡¶Æ‡ßá‡¶á‡¶≤ (Gmail) ‡¶è‡¶∏‡¶è‡¶Æ‡¶è‡¶∏ ‡¶ì‡¶ü‡¶ø‡¶™‡¶ø ‡¶ó‡ßá‡¶ü‡¶ì‡¶Ø‡¶º‡ßá ‡¶®‡¶ø‡¶∞‡ßç‡¶¶‡ßá‡¶∂‡¶æ‡¶¨‡¶≤‡ßÄ:</b>
+                    [!] <b> (Gmail)    :</b>
                   </p>
                   <p>
-                    ‡ßß. ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶ú‡¶ø‡¶Æ‡ßá‡¶á‡¶≤ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü‡ßá ‡¶™‡ßç‡¶∞‡¶¨‡ßá‡¶∂ ‡¶ï‡¶∞‡ßá <b>2-Step Verification</b> ‡¶ö‡¶æ‡¶≤‡ßÅ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                    .      <b>2-Step Verification</b>  
                   </p>
                   <p>
-                    ‡ß®. 2-Step Verification ‡¶™‡ßá‡¶ú‡ßá‡¶∞ ‡¶®‡¶ø‡¶ö‡ßá‡¶∞ ‡¶Ö‡¶Ç‡¶∂‡ßá <b>App Passwords</b> ‡¶è ‡¶ó‡¶ø‡ßü‡ßá ‡¶è‡¶ï‡¶ü‡¶ø ‡¶®‡¶§‡ßÅ‡¶® ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™ ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶ú‡ßá‡¶®‡¶æ‡¶∞‡ßá‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                    . 2-Step Verification    <b>App Passwords</b>        
                   </p>
                   <p>
-                    ‡ß©. ‡¶∏‡ßá‡¶ñ‡¶æ‡¶® ‡¶•‡ßá‡¶ï‡ßá ‡¶™‡ßç‡¶∞‡¶æ‡¶™‡ßç‡¶§ ‡ßß‡ß¨ ‡¶Ö‡¶ï‡ßç‡¶∑‡¶∞‡ßá‡¶∞ ‡¶∏‡¶ø‡¶ï‡¶ø‡¶â‡¶∞ ‡¶ï‡ßã‡¶°‡¶ü‡¶ø ‡¶â‡¶™‡¶∞‡ßá <b>SMTP App Password</b> ‡¶è‡¶∞ ‡¶ò‡¶∞‡ßá ‡¶¨‡¶∏‡¶ø‡ßü‡ßá ‡¶¶‡¶ø‡ßü‡ßá ‡¶∏‡ßá‡¶≠ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                    .         <b>SMTP App Password</b>      
                   </p>
                 </div>
               </div>
@@ -8702,7 +8702,7 @@ Body Touch Premium Network`;
                     <Database className="w-5 h-5 text-emerald-400" />
                     <div>
                       <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400">
-                        Google Sheets Integration (‡¶ó‡ßÅ‡¶ó‡¶≤ ‡¶∂‡ßÄ‡¶ü ‡¶á‡¶®‡ßç‡¶ü‡¶ø‡¶ó‡ßç‡¶∞‡ßá‡¶∂‡¶®)
+                        Google Sheets Integration (  )
                       </h4>
                       <p className="text-[10px] text-slate-400 mt-0.5">
                         Synchronize client database profiles with real-time Google Sheets ledger spreadsheet.
@@ -8715,7 +8715,7 @@ Body Touch Premium Network`;
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
                       <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
-                      Google Sheets Web Publish Link / Embed URL (‡¶ó‡ßÅ‡¶ó‡¶≤ ‡¶∂‡ßÄ‡¶ü ‡¶™‡¶æ‡¶¨‡¶≤‡¶ø‡¶∂ ‡¶≤‡¶ø‡¶ô‡ßç‡¶ï)
+                      Google Sheets Web Publish Link / Embed URL (   )
                     </label>
                     <input
                       type="text"
@@ -8732,30 +8732,30 @@ Body Touch Premium Network`;
                       onClick={() => {
                         if (onSaveGoogleSheetUrl) {
                           onSaveGoogleSheetUrl(smtpGoogleSheetUrl);
-                          alert("‚úÖ Google Sheets synchronization URL successfully updated and saved in system database!");
+                          alert("[OK] Google Sheets synchronization URL successfully updated and saved in system database!");
                         } else {
-                          alert("‚ö†Ô∏è Google Sheets save handler is not available.");
+                          alert("[!] Google Sheets save handler is not available.");
                         }
                       }}
                       className="bg-[#0f766e] hover:bg-[#0d9488] text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg active:scale-98"
                     >
                       <Save className="w-4 h-4 text-white" />
-                      Save Google Sheet Link (‡¶∂‡ßÄ‡¶ü ‡¶≤‡¶ø‡¶ô‡ßç‡¶ï ‡¶∏‡ßá‡¶≠ ‡¶ï‡¶∞‡ßÅ‡¶®)
+                      Save Google Sheet Link (   )
                     </button>
                   </div>
 
                   <div className="p-3 bg-[#0a0c14] border border-blue-500/5 rounded-xl text-[10px] text-slate-400 leading-relaxed font-sans font-medium space-y-1">
                     <p>
-                      ·Ωåa <b>‡¶ó‡ßÅ‡¶ó‡¶≤ ‡¶∂‡ßÄ‡¶ü ‡¶∏‡ßá‡¶ü‡¶Ü‡¶™ ‡¶®‡¶ø‡¶∞‡ßç‡¶¶‡ßá‡¶∂‡¶æ‡¶¨‡¶≤‡ßÄ:</b>
+                      a <b>   :</b>
                     </p>
                     <p>
-                      ‡ßß. ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶ó‡ßÅ‡¶ó‡¶≤ ‡¶∏‡ßç‡¶™‡ßç‡¶∞‡ßá‡¶°‡¶∂‡ßÄ‡¶ü‡ßá (Google Sheet) ‡¶ó‡¶ø‡ßü‡ßá ‡¶°‡¶æ‡¶®‡¶™‡¶æ‡¶∂‡ßá‡¶∞ ‡¶ï‡ßã‡¶£‡¶æ‡ßü <b>Share</b> ‡¶è ‡¶ï‡ßç‡¶≤‡¶ø‡¶ï ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                      .    (Google Sheet)    <b>Share</b>   
                     </p>
                     <p>
-                      ‡ß®. <b>File &gt; Share &gt; Publish to web</b> ‡¶è ‡¶ï‡ßç‡¶≤‡¶ø‡¶ï ‡¶ï‡¶∞‡ßá ‡¶™‡ßÅ‡¶∞‡ßã ‡¶°‡¶ï‡ßÅ‡¶Æ‡ßá‡¶®‡ßç‡¶ü‡¶ü‡¶ø "Web Page" ‡¶π‡¶ø‡¶∏‡ßá‡¶¨‡ßá ‡¶™‡¶æ‡¶¨‡¶≤‡¶ø‡¶∂ (Publish) ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                      . <b>File &gt; Share &gt; Publish to web</b>      "Web Page"   (Publish) 
                     </p>
                     <p>
-                      ‡ß©. ‡¶™‡¶æ‡¶¨‡¶≤‡¶ø‡¶∂ ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶™‡¶∞ ‡¶Ø‡ßá ‡¶≤‡¶ø‡¶ô‡ßç‡¶ï‡¶ü‡¶ø ‡¶™‡¶æ‡¶¨‡ßá‡¶®, ‡¶∏‡ßá‡¶ü‡¶ø ‡¶ï‡¶™‡¶ø ‡¶ï‡¶∞‡ßá ‡¶â‡¶™‡¶∞‡ßá‡¶∞ ‡¶ò‡¶∞‡ßá ‡¶¨‡¶∏‡¶ø‡ßü‡ßá <b>Save Google Sheet Link</b> ‡¶¨‡¶æ‡¶ü‡¶®‡ßá ‡¶ï‡ßç‡¶≤‡¶ø‡¶ï ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                      .      ,       <b>Save Google Sheet Link</b>   
                     </p>
                   </div>
                 </div>
@@ -8767,14 +8767,14 @@ Body Touch Premium Network`;
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-black uppercase text-blue-400 flex items-center gap-2 font-mono">
                     <Mail className="w-4 h-4 text-blue-500" />
-                    SMTP Live Email Queue Logs (‡¶∏‡¶ø‡¶∏‡ßç‡¶ü‡ßá‡¶Æ ‡¶á‡¶Æ‡ßá‡¶á‡¶≤ ‡¶≤‡¶ó)
+                    SMTP Live Email Queue Logs (  )
                   </h4>
                   {emailLogs.length > 0 && (
                     <button
                       onClick={onClearEmailLogs}
                       className="text-[10px] font-bold uppercase tracking-wider text-rose-500 hover:text-rose-400 flex items-center gap-1 bg-rose-500/10 hover:bg-rose-500/15 border border-rose-550/20 px-2.5 py-1 rounded-lg transition-all duration-200 cursor-pointer"
                     >
-                      Clear Logs (‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡ßÅ‡¶®)
+                      Clear Logs ( )
                     </button>
                   )}
                 </div>
@@ -8799,7 +8799,7 @@ Body Touch Premium Network`;
                                 log.status === 'Pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse' :
                                 'bg-rose-500/10 text-rose-400 border-rose-500/20'
                               }`}>
-                                {log.status === 'Delivered' ? '·Ωæ2 DELIVERED' : log.status === 'Pending' ? '‚è≥ PENDING' : '·Ωì4 FAILED'}
+                                {log.status === 'Delivered' ? '2 DELIVERED' : log.status === 'Pending' ? '[Pending] PENDING' : '4 FAILED'}
                               </span>
                             </div>
                             <p className="text-slate-400 font-medium text-[11px]">{log.subject}</p>
@@ -8823,22 +8823,22 @@ Body Touch Premium Network`;
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-black uppercase text-rose-450 flex items-center gap-2">
                     <Megaphone className="w-4 h-4 animate-bounce text-rose-550" />
-                    Emergency Notice & Slider Text Control (‡¶ú‡¶∞‡ßÅ‡¶∞‡ßÄ ‡¶®‡ßã‡¶ü‡¶ø‡¶∂ ‡¶ì ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶°‡¶æ‡¶∞ ‡¶≤‡ßá‡¶ñ‡¶æ ‡¶®‡¶ø‡¶Ø‡¶º‡¶®‡ßç‡¶§‡ßç‡¶∞‡¶£)
+                    Emergency Notice & Slider Text Control (     )
                   </h4>
                 </div>
                 <p className="text-slate-400 text-xs leading-relaxed">
-                  ‡¶π‡ßã‡¶Æ‡¶™‡ßá‡¶ú‡ßá‡¶∞ ‡¶∏‡ßç‡¶ï‡ßç‡¶∞‡¶≤‡¶ø‡¶Ç ‡¶®‡ßã‡¶ü‡¶ø‡¶∂ ‡¶¨‡¶æ‡¶∞ ‡¶è‡¶¨‡¶Ç ‡¶õ‡¶¨‡¶ø ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶°‡¶æ‡¶∞‡ßá‡¶∞ ‡¶ú‡¶∞‡ßÅ‡¶∞‡¶ø ‡¶®‡ßã‡¶ü‡¶ø‡¶∂‡ßá‡¶∞ ‡¶≤‡ßá‡¶ñ‡¶æ‡¶ü‡¶ø ‡¶è‡¶ñ‡¶æ‡¶® ‡¶•‡ßá‡¶ï‡ßá ‡¶™‡¶∞‡¶ø‡¶¨‡¶∞‡ßç‡¶§‡¶® ‡¶ï‡¶∞‡¶§‡ßá ‡¶™‡¶æ‡¶∞‡ßá‡¶®‡•§ ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ‡¶æ‡¶∞‡¶¶‡ßá‡¶∞ ‡¶∏‡ßç‡¶ï‡ßç‡¶∞‡¶ø‡¶®‡ßá ‡¶è‡¶ü‡¶ø ‡¶∞‡¶ø‡¶Ø‡¶º‡ßá‡¶≤-‡¶ü‡¶æ‡¶á‡¶Æ‡ßá ‡¶Ü‡¶™‡¶°‡ßá‡¶ü ‡¶π‡¶Ø‡¶º‡ßá ‡¶Ø‡¶æ‡¶¨‡ßá‡•§
+                                    -   
                 </p>
 
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1 font-mono">
-                    ·Ω™8 Notice Text Content (‡¶ú‡¶∞‡ßÅ‡¶∞‡ßÄ ‡¶®‡ßã‡¶ü‡¶ø‡¶∂ ‡¶è‡¶∞ ‡¶≤‡ßá‡¶ñ‡¶æ)
+                    8 Notice Text Content (   )
                   </label>
                   <textarea
                     rows={2}
                     value={editableNotice}
                     onChange={(e) => setEditableNotice(e.target.value)}
-                    placeholder="‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶ø‡¶∏‡ßá‡¶∞ ‡¶®‡ßç‡¶Ø‡ßÇ‡¶®‡¶§‡¶Æ ‡ßß ‡¶ò‡¶£‡ßç‡¶ü‡¶æ ‡¶™‡ßÇ‡¶∞‡ßç‡¶¨‡ßá ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶¶‡¶ø‡¶¨‡ßá‡¶®‡•§ ‡¶∏‡¶æ‡¶™‡ßã‡¶∞‡ßç‡¶ü‡ßá ‡¶ï‡¶•‡¶æ ‡¶®‡¶æ ‡¶¨‡¶≤‡ßá ‡¶ï‡ßç‡¶Ø‡¶æ‡¶Æ ‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶ø‡¶∏ ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶¶‡¶ø‡¶¨‡ßá‡¶® ‡¶®‡¶æ"
+                    placeholder="               "
                     className="w-full bg-black/40 border border-[#232733] focus:border-rose-500 rounded-xl px-3 py-2.5 text-white font-sans text-xs focus:outline-none placeholder-slate-700 leading-relaxed"
                   />
                 </div>
@@ -8846,7 +8846,7 @@ Body Touch Premium Network`;
                 <div className="bg-[#18080c] border border-rose-550/15 rounded-xl p-3">
                   <span className="text-[9px] font-black uppercase tracking-widest text-rose-400 font-mono block mb-1">LIVE PREVIEW ON CLIENT INTERFACE:</span>
                   <div className="text-[11.5px] font-bold text-rose-250 leading-relaxed font-sans select-none">
-                    ·Ωé2 {editableNotice || '‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶ø‡¶∏‡ßá‡¶∞ ‡¶®‡ßç‡¶Ø‡ßÇ‡¶®‡¶§‡¶Æ ‡ßß ‡¶ò‡¶£‡ßç‡¶ü‡¶æ ‡¶™‡ßÇ‡¶∞‡ßç‡¶¨‡ßá ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶¶‡¶ø‡¶¨‡ßá‡¶®‡•§ ‡¶∏‡¶æ‡¶™‡ßã‡¶∞‡ßç‡¶ü‡ßá ‡¶ï‡¶•‡¶æ ‡¶®‡¶æ ‡¶¨‡¶≤‡ßá ‡¶ï‡ßç‡¶Ø‡¶æ‡¶Æ ‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶ø‡¶∏ ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶¶‡¶ø‡¶¨‡ßá‡¶® ‡¶®‡¶æ'}
+                    2 {editableNotice || '               '}
                   </div>
                 </div>
 
@@ -8857,7 +8857,7 @@ Body Touch Premium Network`;
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-black uppercase text-amber-500 flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-                    Manage Hero Slides & Graphics (‡¶π‡¶ø‡¶∞‡ßã ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶°‡¶æ‡¶∞ ‡¶ì ‡¶¨‡ßç‡¶Ø‡¶æ‡¶®‡¶æ‡¶∞ ‡¶Æ‡ßç‡¶Ø‡¶æ‡¶®‡ßá‡¶ú‡¶æ‡¶∞)
+                    Manage Hero Slides & Graphics (    )
                   </h4>
                   <span className="text-[10px] bg-amber-500/10 border border-amber-500/20 text-amber-400 py-1 px-2.5 rounded-lg font-black font-mono">
                     ACTIVE: {sliderSlides.length || 3} SLIDES
@@ -8865,7 +8865,7 @@ Body Touch Premium Network`;
                 </div>
                 
                 <p className="text-slate-400 text-xs leading-relaxed">
-                  ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶π‡ßã‡¶Æ‡¶™‡ßá‡¶ú‡ßá‡¶∞ ‡¶ó‡ßã‡¶≤‡ßç‡¶°‡ßá‡¶® ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶®‡¶ø‡¶Æ‡ßá‡¶ü‡ßá‡¶° ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶°‡¶æ‡¶∞‡ßá‡¶∞ (Golden Border Slider) ‡¶¨‡ßç‡¶Ø‡¶æ‡¶®‡¶æ‡¶∞, ‡¶õ‡¶¨‡¶ø, ‡¶¨‡ßú ‡¶ü‡¶æ‡¶á‡¶ü‡ßá‡¶≤ ‡¶è‡¶¨‡¶Ç ‡¶∏‡¶¨-‡¶ü‡¶æ‡¶á‡¶ü‡ßá‡¶≤ ‡¶è‡¶ñ‡¶æ‡¶® ‡¶•‡ßá‡¶ï‡ßá ‡¶™‡¶∞‡¶ø‡¶¨‡¶∞‡ßç‡¶§‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®‡•§ ‡¶ï‡ßã‡¶®‡ßã ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶° ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶° ‡¶®‡¶æ ‡¶•‡¶æ‡¶ï‡¶≤‡ßá ‡¶™‡ßÇ‡¶∞‡ßç‡¶¨‡¶®‡¶ø‡¶∞‡ßç‡¶ß‡¶æ‡¶∞‡¶ø‡¶§ ‡ß©‡¶ü‡¶ø ‡¶™‡ßç‡¶∞‡¶ø‡¶Æ‡¶ø‡ßü‡¶æ‡¶Æ ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶° ‡¶∏‡ßç‡¶¨‡ßü‡¶Ç‡¶ï‡ßç‡¶∞‡¶ø‡ßü‡¶≠‡¶æ‡¶¨‡ßá ‡¶¶‡ßá‡¶ñ‡¶æ‡¶¨‡ßá‡•§
+                       (Golden Border Slider) , ,    -                
                 </p>
 
                 {sliderStatusMsg && (
@@ -8878,12 +8878,12 @@ Body Touch Premium Network`;
                 {/* List of currently active slides */}
                 <div className="space-y-2.5 pt-1.5">
                   <span className="block text-[10px] font-black uppercase text-slate-400 tracking-wider font-mono">
-                    ·Ωåb Active Banner Slides in Carousel ({sliderSlides.length === 0 ? "Default/‡¶™‡ßÇ‡¶∞‡ßç‡¶¨‡¶®‡¶ø‡¶∞‡ßç‡¶ß‡¶æ‡¶∞‡¶ø‡¶§" : "Customized/‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ"})
+                    b Active Banner Slides in Carousel ({sliderSlides.length === 0 ? "Default/" : "Customized/"})
                   </span>
 
                   {sliderSlides.length === 0 ? (
                     <div className="p-4 bg-black/40 border border-[#232733] border-dashed rounded-xl text-center text-slate-500 text-xs">
-                      ‡¶¨‡¶∞‡ßç‡¶§‡¶Æ‡¶æ‡¶®‡ßá ‡¶ï‡ßã‡¶®‡ßã ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶° ‡¶§‡ßà‡¶∞‡¶ø ‡¶ï‡¶∞‡¶æ ‡¶®‡ßá‡¶á‡•§ ‡¶∏‡¶ø‡¶∏‡ßç‡¶ü‡ßá‡¶Æ‡ßá‡¶∞ ‡¶°‡¶ø‡¶´‡¶≤‡ßç‡¶ü ‡ß©‡¶ü‡¶ø ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶°‡¶æ‡¶∞ ‡¶á‡¶Æ‡ßá‡¶ú ‡¶ì ‡¶ú‡¶∞‡ßÅ‡¶∞‡¶ø ‡¶®‡ßã‡¶ü‡¶ø‡¶∂ ‡¶¶‡ßá‡¶ñ‡¶æ‡¶ö‡ßç‡¶õ‡ßá‡•§ ‡¶®‡¶ø‡¶ö‡ßá‡¶∞ ‡¶´‡¶∞‡ßç‡¶Æ ‡¶•‡ßá‡¶ï‡ßá ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶°‡¶æ‡¶∞ ‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
+                                             
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -8946,26 +8946,26 @@ Body Touch Premium Network`;
                 {/* Form to Add or Edit Slides */}
                 <form onSubmit={handleSaveSlide} className="p-4 bg-black/40 border border-[#232733] rounded-xl space-y-3">
                   <span className="block text-[10px] font-black uppercase text-amber-400 tracking-widest font-mono">
-                    {isEditingSlide ? "‚öôÔ∏è Edit Selected Slide Properties (‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶° ‡¶è‡¶°‡¶ø‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶®)" : "‚ûï Add New Slide/Announcement Graphics (‡¶®‡¶§‡ßÅ‡¶® ‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶° ‡¶Ø‡ßã‡¶ó ‡¶ï‡¶∞‡ßÅ‡¶®)"}
+                    {isEditingSlide ? " Edit Selected Slide Properties (  )" : " Add New Slide/Announcement Graphics (   )"}
                   </span>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     {/* Title input */}
                     <div className="space-y-1">
-                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Slide Title Text (‡¶∏‡ßç‡¶≤‡¶æ‡¶á‡¶°‡ßá‡¶∞ ‡¶ü‡¶æ‡¶á‡¶ü‡ßá‡¶≤) *</label>
+                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Slide Title Text ( ) *</label>
                       <input 
                         type="text"
                         required
                         value={slideTitle}
                         onChange={(e) => setSlideTitle(e.target.value)}
-                        placeholder="e.g. Premium Escorts & Models / ‡¶°‡¶≤ ‡¶π‡¶∏‡¶™‡¶ø‡¶ü‡¶æ‡¶≤ ‡¶Ö‡¶´‡¶æ‡¶∞‡¶∏"
+                        placeholder="e.g. Premium Escorts & Models /   "
                         className="w-full bg-black/40 border border-[#2c3142] focus:border-amber-500 rounded-lg px-3 py-2 text-white font-sans text-xs focus:outline-none placeholder-slate-700"
                       />
                     </div>
 
                     {/* Subtitle input */}
                     <div className="space-y-1">
-                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Subtitle Detail Text (‡¶¨‡¶ø‡¶∏‡ßç‡¶§‡¶æ‡¶∞‡¶ø‡¶§ ‡¶¨‡¶æ ‡¶∏‡¶¨‡¶ü‡¶æ‡¶á‡¶ü‡ßá‡¶≤)</label>
+                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Subtitle Detail Text (  )</label>
                       <input 
                         type="text"
                         value={slideSubtitle}
@@ -8977,7 +8977,7 @@ Body Touch Premium Network`;
 
                     {/* Badge text input */}
                     <div className="space-y-1">
-                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Badge Label Text (‡¶õ‡ßã‡¶ü ‡¶¨‡ßç‡¶Ø‡¶æ‡¶®‡¶æ‡¶∞ ‡¶≤‡ßá‡¶ñ‡¶æ)</label>
+                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Badge Label Text (  )</label>
                       <input 
                         type="text"
                         value={slideBadge}
@@ -8989,40 +8989,40 @@ Body Touch Premium Network`;
 
                     {/* Icon picker */}
                     <div className="space-y-1">
-                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Icon representation (‡¶Ü‡¶á‡¶ï‡¶® ‡¶ü‡¶æ‡¶á‡¶™)</label>
+                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Icon representation ( )</label>
                       <select
                         value={slideIconName}
                         onChange={(e) => setSlideIconName(e.target.value)}
                         className="w-full bg-[#10121a] border border-[#2c3142] focus:border-amber-500 rounded-lg px-3 py-2 text-white font-sans text-xs focus:outline-none"
                       >
-                        <option value="star">‚òÖ Golden Star (‡¶∏‡ßã‡¶®‡¶æ‡¶≤‡ßÄ ‡¶§‡¶æ‡¶∞‡¶æ)</option>
-                        <option value="bell">·Ωë4 Warning/Info Bell (‡¶ò‡¶£‡ßç‡¶ü‡¶æ - ‡¶è‡¶®‡¶ø‡¶Æ‡ßá‡¶∂‡¶®)</option>
-                        <option value="shield">·ΩÆ1Ô∏è Secure Shield (‡¶∏‡¶ø‡¶ï‡¶ø‡¶â‡¶∞‡¶ø‡¶ü‡¶ø ‡¶∂‡¶ø‡¶≤‡ßç‡¶°)</option>
-                        <option value="heart">·Ωâ6 Red Heart (‡¶≤‡¶æ‡¶≠ ‡¶Ü‡¶á‡¶ï‡¶® - ‡¶è‡¶®‡¶ø‡¶Æ‡ßá‡¶∂‡¶®)</option>
-                        <option value="users">·ΩÜ5 Companion Partners (‡¶á‡¶â‡¶ú‡¶æ‡¶∞ ‡¶™‡¶æ‡¶∞‡ßç‡¶ü‡¶®‡¶æ‡¶∞‡¶∏)</option>
-                        <option value="trophy">·ºº6 Premium Elite Trophy (‡¶ü‡ßç‡¶∞‡¶´‡¶ø ‡¶Ü‡¶á‡¶ï‡¶®)</option>
+                        <option value="star"> Golden Star ( )</option>
+                        <option value="bell">4 Warning/Info Bell ( - )</option>
+                        <option value="shield">1 Secure Shield ( )</option>
+                        <option value="heart">6 Red Heart (  - )</option>
+                        <option value="users">5 Companion Partners ( )</option>
+                        <option value="trophy">6 Premium Elite Trophy ( )</option>
                       </select>
                     </div>
 
                     {/* Badge Color preset selection */}
                     <div className="space-y-1">
-                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Badge Gradient Color (‡¶¨‡ßç‡¶Ø‡¶æ‡¶ú ‡¶ï‡¶æ‡¶≤‡¶æ‡¶∞ ‡¶∏‡ßç‡¶ï‡¶ø‡¶Æ)</label>
+                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Badge Gradient Color (  )</label>
                       <select
                         value={slideBadgeColor}
                         onChange={(e) => setSlideBadgeColor(e.target.value)}
                         className="w-full bg-[#10121a] border border-[#2c3142] focus:border-amber-500 rounded-lg px-3 py-2 text-white font-sans text-xs focus:outline-none"
                       >
-                        <option value="from-pink-500 to-rose-600">Rose/Pink (‡¶ó‡ßã‡¶≤‡¶æ‡¶™‡ßÄ-‡¶≤‡¶æ‡¶≤)</option>
-                        <option value="from-amber-400 to-red-650">Amber/Orange-Red (‡¶Ü‡¶ó‡ßÅ‡¶®‡ßá‡¶∞ ‡¶Æ‡¶§ ‡¶ï‡¶Æ‡¶≤‡¶æ)</option>
-                        <option value="from-cyan-500 to-blue-600">Ocean Cyan/Blue (‡¶®‡ßÄ‡¶≤-‡¶Ü‡¶ï‡¶æ‡¶∂‡ßÄ)</option>
-                        <option value="from-emerald-500 to-teal-700">Emerald/Teal Green (‡¶∏‡¶¨‡ßÅ‡¶ú)</option>
-                        <option value="from-purple-500 to-indigo-650">Cosmic Purple (‡¶¨‡ßá‡¶ó‡ßÅ‡¶®‡ßÄ)</option>
+                        <option value="from-pink-500 to-rose-600">Rose/Pink (-)</option>
+                        <option value="from-amber-400 to-red-650">Amber/Orange-Red (  )</option>
+                        <option value="from-cyan-500 to-blue-600">Ocean Cyan/Blue (-)</option>
+                        <option value="from-emerald-500 to-teal-700">Emerald/Teal Green ()</option>
+                        <option value="from-purple-500 to-indigo-650">Cosmic Purple ()</option>
                       </select>
                     </div>
 
                     {/* Image URL input */}
                     <div className="space-y-1">
-                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Hero Photo Banner URL (‡¶õ‡¶¨‡¶ø‡¶∞ ‡¶ì‡ßü‡ßá‡¶¨ ‡¶≤‡¶ø‡¶Ç‡¶ï) *</label>
+                      <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider font-mono">Hero Photo Banner URL (  ) *</label>
                       <input 
                         type="url"
                         required
@@ -9037,7 +9037,7 @@ Body Touch Premium Network`;
                   {/* Highly supportive Premium Unsplash Image Presets for rapid UX */}
                   <div className="bg-[#10121a] p-3 rounded-xl border border-slate-800/60 mt-1">
                     <span className="block text-[9px] font-bold text-amber-500/90 uppercase tracking-wider mb-2 font-mono">
-                      ‚ú® Click one premium preset to instantly import Photo URL (‡¶™‡ßç‡¶∞‡¶ø‡¶Æ‡¶ø‡ßü‡¶æ‡¶Æ ‡¶õ‡¶¨‡¶ø ‡¶∏‡¶ø‡¶≤‡ßá‡¶ï‡ßç‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶®):
+                      * Click one premium preset to instantly import Photo URL (   ):
                     </span>
                     
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -9138,188 +9138,663 @@ Body Touch Premium Network`;
               <div className="p-4.5 bg-blue-950/10 border border-blue-500/10 rounded-2xl text-xs space-y-2.5 leading-relaxed font-semibold text-slate-350">
                 <h4 className="text-xs font-black uppercase text-blue-400 flex items-center gap-2">
                   <Globe className="w-4.5 h-4.5 animate-pulse" />
-                  Metropolitan Area & Urban Locations Manager (‡¶∂‡¶π‡¶∞ ‡¶ì ‡¶è‡¶≤‡¶æ‡¶ï‡¶æ ‡¶¨‡ßç‡¶Ø‡¶¨‡¶∏‡ßç‡¶•‡¶æ‡¶™‡¶®‡¶æ)
+                  Metropolitan Area & Urban Locations Manager (   )
                 </h4>
                 <p>
-                  Manage active operational areas in a **2-Level Format** (headline division/city and sub-areas under it, e.g. **Dhaka** ‚ûî **Gulshan, Banani**). Custom locations configured here can be updated dynamically and are applied instantly across companion forms, hotels, and checkout controls.
+                  Manage active operational areas in a **2-Level Format** (headline division/city and sub-areas under it, e.g. **Dhaka** to **Gulshan, Banani**). Custom locations configured here can be updated dynamically and are applied instantly across companion forms, hotels, and checkout controls.
                 </p>
               </div>
 
               {/* Status Banner */}
               {citiesError && (
-                <div className="p-4 bg-red-950/40 border border-red-500/20 text-red-400xúÏ}}s‹∆ôÁˇ˚)⁄¥+&ú·ºpÙ¬eèIJ‚E§∏$%Øó´µ¿pf0`D1´‚T%æ-g„∫ y}óıÆ◊wÂr[Â≠Jî´ÿ˛„æ„/∞_·˙È†t7√°^l° 2g›ht?˝º˜ÔA°}?,ﬂêÔçªSæÔ¢=oñw=∑Éˆ\˚>˙—(ùΩÉÚÆÓ€ˆ 9°› m{⁄>
-}k8°„ ñÎ"k‡Ù≠–.ÔY{u0u˘ØPÊ∫≠¡Âo~ÛÔˇ˘Ëtÿ∆mÌ`≈˜=ˇË“˘I÷fwÜﬁ yÉ%◊iﬂ]<,Õ†≈À(∞√•∏}i0r›ô#‘v≠ X∑˙ˆ‚yπùZuxˇ6".ånæZE=ÔûÌ/ê/˜{¯ï–h8¥˝∂ÿÏ˝]´}^Ø}◊tÀ˚Nøm{‰û_zº¸‘Âe'Ë;Apiéé/;ÙKsÁ^˙Îô£øJ}s8˜}‘Ít–∫Ωèñù{NÄÁµ|€B◊l¸˝π£TìK∏cÒUáÂ&⁄Ìñw^¨’jçöu;Z–:^—]œá^Ëˇ Vˇ€¨VÁjUƒ÷_≤TózM’\
-3O[bÆÇêˆºÛb≥}æiÌﬁF˝›Ú<%®u≠aπVi“.˚ﬁ¿ìÕÜ;
-ƒ—Ï„Œz¯?ÚêËÖ¶–ú¨u≠ÇZÀÀh}Â5¥º∫µΩπ∫¥çÊü∑V∑Vo¨£k+≠ÂÎ´Î+®tr¸Ò…ÒG'ﬁƒ†ì„ON¸”…Ò√ì„'«_—Øﬁ?y÷…Ò¯3˛)˝ﬂNéˇÑo√}~Ú‡Ìì„˜_ÔB;“œåÑ(zM…tÔy~_2xo∞5⁄Ì;!&zõP˝°‰&ÑÏ –∑Ô·9]∂˜¨ëñf˛Zzülœ»Ôl{XEﬂÈ˜ÌZD{ü”ÊÍ`8
-+ìÍ1Œ*Ω¿⁄Œ ﬂG˛@~ßÊŸ<ñuR	ΩÎﬁæÌ/aR+ÕT|{à…œ.ÕÌ¸ÉU˛qµ|Òˆ\wMø1≠è#EyW˙£6æ«Ó–y™^ﬂ.u`Ê;—‚"Ï'?¡òì#?Ká<3£XπÃö‹ŸÓŸ®√¶3<"ß¢©óY«GS»r1wË ˚>˛9®‹Qº6“N}ÜâìOó{mX>¶*¬åïo‡tfø¿-Q›åv·¡⁄π-©f¡º¡Õa≥ı≠‘¬©Á[’¢¥S©T“Î?Àf‚∂räÒÚ≠ßˆFiZEài>Næì})0;¬5·ür€sQ–_ ˚ﬁ>·ûç©Lk)u``“1ÖC∆‡≥]¡Â€ˇu‰‡	ë˛xœrGˆ‚aö;»^	f~©g∫vƒÃdsá∑îÂwÌ∞B∫ûë˜D∂+)∂ø8eW∫¥|≠ı√jmÆ¥f—“µ’ÌÌ÷’ÎWg—÷Î◊Ø≠lGÏ/±¸-S^ÆÅ<%Bnnæö°Tè∏ÄıAoﬁ«ixPn A≠ r-∞˚Q®ÑQ≥>Œ5´¯ûˆ(XF°ÎÏÚ¿ÿÏ´¥¿Ê“ZêñíWë @¶Bi÷? b&wn§t}´„`¶PΩrË£=ﬂÎãcÙÿásëö%‹›wûøù1<çM:çiù¥g[˜DçCTÔíöZJ/M*n»jáŒ={!h[Æ]æÿDAœwwÀUŸÀÀ&°%ÃÆXó9s=VO6ÛÌd~˙{¶3 TD2l‰‚áb˘`b:@•zŸ≈rﬂEKñﬂ	P◊!óØ.bMªmó ÛgØ¯Ë|ò∏v;$§/◊ˇÆ[∂?æXØ†µ÷zÎÍ
-⁄∫˘jxƒ∫πæº≤)Ñ[†˝≈⁄›…ÒÔOéø& ‡?¡ø˜ªXØ˚G¨ñOéﬂ·wΩKU¿G'«üù<¯VUÍ^ˆÎ‘ä¿ ëÂ&`Ó”Ô,ƒÎd“ö“…9Ã®,}kX*qÇŸíîäa
-°v◊>X<‰]`ΩGŒÖ”ú¡ƒ¸ ª|ÆâÄ	Ïπﬁ~πÁt:ÿÆLJπ¥’IyFÜ˝∆˚uFæE6|≥‘†gup◊˜]9?ìoj∫À"vî⁄ Á0iàÕÇ£…ﬂz7):.bÎÎ\U≤7RÔ-]p˘ÉìÛG∂ÖkÔÖöò1ûŸÏ)yÙ≈}Oûı‰æ◊>°ø|˘ÀäÈâ)Œ7ÅáPıX5ΩdîJ«Ä˛=v.Tö◊"|F#Ç?†I	Iê9oYå´ÀH‹%©wBﬂ¸Ù£R|◊s+Æ=ËÜΩ#&à–è1ﬂ≤ú√|§~Ü¯R∑”hÙ¢∫ΩMæóËïrÕ®TozÅ⁄æÔ≠`ccœÒ˚•;xb–Å7B÷n‡π£–v∞Y¿æ€∑X¨x®É≈ñ∫!∂èn¡*)ä¨£¿`&%»å•AÅ‡Ì·Ω`}>±EK&˝Â;ªå_Ê6sÚã[&ÒEç∞ifpÜ«Ô9.ÊÇa˙∂<RÃ°∆bèÕÌB∑iıøJM~%∏)(
-\ò∏›Ù∂‹xæàﬂaÃø!~ÆXP§ºx:‚wB€*wñ)›E4«Dö“Ó®_JÀº∂}+Ë’% çBõaÕîz%ˇ]¶GÚ$›÷h∑l?B€V7@Ø˘Æb≤‘8j-ÈTJU±Ã⁄«è√æ3(˜ ;M¢sRÒ`õ0Ñ]Ç·A>iô¥íÈMΩ¨PâT#µ`'¥0ØKì"1Yv]‹∆Ë˚Â=Ã/ò≤;Œ®ü#\˙Ê_â÷=ä∞ÂÈÿ{òµu–6äâ£|Rh◊∆⁄∞≈65FÄ-ÇmÇ˛≈Ù¢°¥ê37Ÿ©%
-'˛§—5Ö®µŒ¯"˙'ÓQœb‡Jj†ZÉ¥ÆU∞0Îbc òK¬‘£]XÁFS¶≥q≤MË®±óΩ.rªÅ+è6x ÖÃMæbƒö‰äy~ôä{~˚¸Gû“Î¥Rï^π≤»πc˛>|dëX√˙‡ﬁ⁄BM™T*Jœ™¸ä˝≠ùx3Ö" n9¢M¿Ü.–ÔëŸí[çÔd3“1Ì˚»êí&†˝∞‹•’v¯ï6j%gû[fVÖ9[3"sá_\”Ÿ¥˚¯aX≥ˆ¢—g¯ïœ{˙ÔÂ3®]&æ/GxaÒ•#Yçô©Wó®¬¥Êt≈Û˚ uâÌÇÑF>[µﬁ§éÓÒÀ0 «/”høäs\˝√TÜ9ø Ó˘5k∏#∑€/k„Ä¸¢Ò@‹[NNº_ÆfP˛îä≠UúA€uÊÖgﬁ”Cp`íòÓ0pC†2¯@á„ó.«/E\NúõÒÖ‡$ÖﬂÈÑ^!ag.‰Ñ`"4ä®gñP≥<æòºY>g4\˘Î‘Ç
-ì˜VróÚ'B°…F˘”ü`hz˙îÔ>	Q◊ACØ£aàˇaÍy(Û«™%•÷~WGV˘ïaÂó6“ /q’1eHOòû÷©,[îLäIäDí±^=1h}ƒ…à·êŒÑÖÀ95D{>'—ûœNé?^@WGnÄgc&GÂ—ƒàœ)bƒMbo6T÷¶%¶ﬁÅ…ƒà©f®#6çg…Ã`ÃèKfOW</ë£NàÁ$„äôìá!«ç´É0Ù£ÓÂÙ∫®$m≠~¯WÎ€3—àÂ—„¯W•¶¨¸iF≤√§7KæÃ|Yé¬GPü«ªRﬂhΩæ∂≤æçÆ∂∂W^kΩæÖZÎÀË˙Í⁄Íˆ⁄nΩö∫{Ãg¶î˘C®Ÿ∂vâ™3›≈Ù∫o”Ë{ﬂK˘ªTëˆsqH.ôíq Ω¨4∫:_´÷Ï€)N≥ãY'ıs7qWû-¬á N/k±∞1|€µÓ€iÁñ4`>cöÚÈƒ‚ãÏ]πü¨.èÔ/·VNH"ÆI78Ÿ./O-bNm+6œÚfÓNmX}¸Htï.Z≥V†Dr:	”á?&¡˝–…Ò{‰Û'«ø±p¸g¸ë&q~|r¸;¸èÑ˚í˚˛†JÎúóLﬂP6–◊Ωj[,Ôªÿú∞˝YØè5TØ€uÌY‰˘¯'bâŸ´päC˙éòè†ûÌ€4.fπhﬂ	{(¿kÎ⁄h0J˘êÆ7¿7∏Ê‘$DT– ÄD◊¿gÃÇê˛mÑµ‰∂Á˚v;ƒh€¯{{ mhó¯wà¶µ1˘∏Ö=DŒÄZ–-¬∆0¶6ªÌÏ96x©Òçê(Œ∞˘ÑüÜ∫#ßc⁄êtÒòû›æã%[E2•ôŸSg«¨y€EõdFi& ∫b€h	å]ñ Ä˛á4œÒ}ü,Ò#J,Èó/4¢`íT3ƒõúl”Í^≠&OÇà–ù;ªñuÆv{ÆQÕÏTiZé6ﬁ/f 3ˆiﬂóŸìXƒÓBÏBö©Ä•≤|À*¯\µ"œRôX^õ∂±s……Pñ=◊µ¸-ß;PÊEO“Hj#öõC„ùB|À“«…/C≥√ iIåìnï?ëQB≤”,Õàìg∂ˇë<®OOéÜ¯{|¬π$˛˚3D˙zõ0Q¯v¶|r|L:HS¶óÑÎfk4)$≠ûtFrÒˇ¯œ»:¶YÈœ0ùà˜ˇ˙»GîÎ'“ıO~˚ëb÷•å\©KD:ÎåŒ.JrT§äÎYöÎ2ÑFpcƒˇûkíP(–’XÅN)—Õ5ºoØÿ}Àµ–…Éˇ8t=,d0icÇ÷ö‰„!:	ˇ€h<—Õ0û5Ÿh‡À1FD≠
-6§ËÉ—ò‚ªaPÀxï¸Ã®∂0€ÍÎŒ0…)EÂv.ñÿ %èºÉl§Î™P´8yMÕ…]kÛ=—Æã„ﬁZñû ’òÊ≥ØÿkPÆå6Õ£“úñHÓ≈Ü&/°x¡‘îÄ∂JíZ†§Iéß1!P¯â’zX:Õ’QôheÑê/ìB≤ì°g8ùÖâMÏÕqBQcùÍpj{ñyñƒùØºWÊ>∫7,-?∞Wôt~pMU5ÆúÑ8&©&i¯	_ôÀf*9ﬂ-_@Cü¨ﬁÎıHÂ xa<X‚wQO_ˆLB£ZU:JÖZ¢(TD˚}zˆwƒ˙ÔÔµÃÓN+œËÓéÑ⁄”µªâ$wáC„'πÀπ◊„ª¥ÀâÍÒîlÛÿK[xü]âΩ€Ëˆ√3µ„„ÙØßkÀS5u‹=OZ?…M›∑q◊+æ6sqØè=ËêHß‹kì{Pó˚gòÌ'&(l¯N3Í—ÂHhêæ‡v¡¥πÄ2◊Ö!SÌ®çôíä⁄ì=ëËÄ|ì”√»µ¸◊JæÃ¸–∑˚Œ®ül∫AøÃijªx#$Æ¿W⁄f∫=Êlµ∂FÌ∂•–«l@€`€È€x«ï"èT{ñÿ3≥dw){í≥EFÄË†eGKÎ4û"ûce«Xc˜"˛nÁ≈›∆ÖsÛÛ∑≈c¨;/⁄Õ›∆9Îv|åUhDï=ÀHà¶‹õCK≈+Ÿa∂~G„ÛL≈4{ÂãXÏKÊC¡ò∂¨{v—@%iìˆ} Ãô≥->9€~üÉç°?.+ÁÜá√	eCr¨yﬂÉAVTŸÁŒ œ∏Â."´NNx∞Ä™≥ˇãâFA[,(ïhS#m™&‰N˜nŸÓ€æÂv¯Iï§¨'§'0z∆ç|‚7G∆Wå‚#	ƒôS«DhñøÌ⁄uïH ŒŒËdµR$h\yñ»‡Î/»È›Ø¿7M¸ºüØÒ◊ƒW˝êË‹…\H> ùˇ4)©¸†≥HÌëúE:«‡Ã:◊`LöŸﬂ3
-ï"∆"Ñ$ÖQæGU!`{±YÕÍ`,íK0»ÓºÄBÑ0£ƒ4Í™–¡Ÿ£FM&j≠tú8∫MíD'ÕèhÖ%'’≥˜ÊÁA“ûBî¿EúËxXlRW;Ëe4Ω≤º∫çñn¨_YΩzs≥µ`Qs…lÅP“ÒœÄ3Åπ˙@`.DÃM£4Ωπruuk{eì¿P±‹“[rJ“ıÁ‰«w)ﬂJˆ+K◊ë≥∑=6∞©Ï^+	{hu˜◊…©qM∂9ªü&?ê‰OÉ6â,hπ*|°m/◊% ›ùåõƒ/∞¡ü‚s¥ÄPâyõﬁpmÿ;˚>ll;‘±CÀq±∫≥2ãËõ“ÏqÏ3—XÿPbÈù¢~ètÆ9Kfa-i™yWüjÏÚsÛ'«Øóì_^©T∫˙úUXF˝};ÏyùL5k‰/˝›˚XËa;€–‚µËSŒ(Ë˙jÔâKßÎuΩõæ∏Nˇd4D
-RÅú7’t°IëW˚ÿÇtïfùíRÖ$˘íMrÁUØÄ˜ÂJäu<Ìõ‹x◊Íw«¿ﬁgù-†‰85xkÄ∏∂ÄÓt˜ﬂxÈpﬂ]x˚•ô£;ÍU◊S±9ßﬁ< 5£Z'†ËGÄ%7“<ÌTî≠§Í	”LIÒ¬YÅ‘Ps
-«áúWœÕaÎì,aèˆ€ÌJ1MÑ´∂éﬁBV2Á&Q¯‰‹Ji≠4˝Í[[◊¥w∆tÜe°Ìêœ®m¿÷^5Ä<ƒΩH·M·∑âŸ≤2ÔØI&êQ&G.~ÿ£]¿!XfP`–ΩÚ¢2:îìåµ7à•å%µŒ/§8q^«ﬁÂ:y
-<@œ1èË‹‰∂a—™xãô∞˝deW6º∞˚C+Ë!NÏË÷ÍÜ˙MäVv^¨7ÍÁç€2Ë¬:w‰0(æ±é¢D	‡ô®◊X—%˘√¨0µ [(N˜èù“yR:v}SHº|⁄§L¥(u2÷õ§Odÿ~8òPOOh…ÿ\QÇÍïkU40è¬4ßhº!q]”˘ú"¢hÍ2Ÿ|óÊËo∆ç◊[W[ÀSó◊≠Æ’)‹xÛ∆“W∂ß.obZ≥√ºÊóÊË€è∑sÆ√I DÖ*…∑y∂m´›∆‘íM?©-kE∑ë†ó<ﬂJ)ÇÊ¢s>.ƒJ<DÛ∂?§	]_—¥Ïô¬[¶’≈¸tÍ2˘ÙM}düìˇ@s¿ˇÒ‰¯É‚Øarƒ´ç˚Ê±L”(9Â7©DícEπè5⁄√ ´¶…6ü≈6üx"ËŸa‘|°+	~⁄O˘	Ñ/®ˆ3≤n#öy™îO2Ï¬Í'µ’N°ÄVkÁkırcæyÓ¸ÖgRıLe˚úë:
-BØè¿ﬁD7áÆguÊnn^G‰8¸3∞5∏˘E∆_Ç–)©`Åˇ•¸Û˛’áπ{Bñìîç:&Ã∂@Di@Û#WO™ü*Ìó/‡á\àOtcXu^ZŒ±Ò¿qœ94ÓÙª(€ãÒ{!Àß»"A‰≈±˜ß$;ØGˇÁÌ˛Ñ9`%ZŒ`
-≥ö=€˜m√√ˆ¡‚‘¿+ÛØr°õ"«AçìÑcEoM∞ä,%”‡^ ’ò¥ŒÿÙõÕ¸ıJú^fÈeﬁˇ\KÄNóŸ◊y/M·µ¶∫¯(ı-rq∞˛∂(Z(ieÄ≤ïÉ∞ïôﬁbôùïÿLleE_≤≠uﬁdk• “¯ŒbÏB-ˇ8(Ω÷o†Î7Æﬁ8≈‰høÚ0bÃb"•Ä3ÕΩrΩÄo5c≈ •¨ˆ≠Æç@ƒy>1 î5Ë%≈L![hHJÀå%ıÂwÄª//„@/únV¬ö`ïDŒ`N{‰x:ıÅ4L°ô§R˜"bç2ô:/≈kà/™éË»Ÿ∏hœq5©—paÀ¿bÂ yÃ}ﬂÜäF˝ÌB6É8ÉA£≈a>/Wv™∑M∞ª·nsúnüV	 E≤–‹tì|ëáämZÒ∞XêªΩàÃ±T[öı‰€¡»¡–ËÉÆ¡ œ¢Œ≠N+X∂B≥ :Iß	◊˝¨Eø÷k£π7Jç~P-"ÑäDb»”Øœs'3yâeÄ<»»K¸Ë;u_Gâîÿ~™¨]1|X‘ÊMÑ«≥|…‘|@sBi¢’[Ê‡≠¥è ~ŸÇ˝∫Ü˘ÛAõ RN—∂uY¨#x’L <ì÷ıÈmjÂÆ-’œË‹ã,¡Oë'Nócˆò<¿±fñDçÚ‚ˆ‚ç9—{·V≥æ–¿(í/‹_$û/4ÀâÍ”K#Q§ ]5£‹a≈JVê¨.®mß*Ifàœ¨~K ö\•Ë”Yy
-F®'x®ø¸q¿>Œ”qÑì4”∂ı≈Ê„úˆt∏Çï¢d˘¬‰Dw©Q	–‰_ÜÛE*¸≤ú∫ÂS,VGé'åQaúß!—‚r˘…‰…	Ñ›ŸóöK#XaëXØ_l\∏MÆLKH}πÖÈî¿u"êKnW8hñnnn†aki{ı÷Jﬂ˙Í÷6*¶ìgY)„Çsä¥ıP≤g.$äõ§¸0íd)iii∏÷=ºâÔ<q(rxØÇs¿=à0ÚÏN≠ ª#[7öxN≥df	π”‰g?gç⁄w@i≤ÒB˙˜0ùËyY∏9ÂSyΩä÷sªÜò=í’"%V∫⁄+⁄¬*§†JWS…Od·áwÿ>Nx‚ÁsjÙ≈Ys”}Ißˆ‡Ò∞ºNuç2∏0oçﬂF\S/¬Ω¨NÎ€/Ì£#vÇwáK†sU5dµ∫Ç∆JïU¢åÖcrÍÎÛÈzK‡˝ÚBf1ö‹Eòé\£àã¸±cÖ[ÜüKZ4RÁ)6∫∞Å∆°˛Ç,ÙÚò¬-d˘5.Lä4Mf‚•ıéSúÅ≥KßÃ6E/Ü—Ç‡u†å`∆©;´TùEç‹0ëÈ4Êıs…†‡\%W–lô´«⁄P∑´o›/ÔcµßA ª/„w&Â∆≈ùä‘æ§Kí‘êÍ≈–H`·ôlœî≥™bÈÁà#Åºn±Â6Y^ìŸ1 ì[R3|x'g“È©æaêÚ≠pÑ´[â\PËÈ»\÷K<∏®‘ƒz∫U;J0µ3Ë8]è‚ &÷í˝@¸Ùæ I≈2hè≠q°væ~Òv
-PQi<..ÌÒ{„∑Æ◊%g„uGÏı5+∞` ˜
-·2(lõSïHjôE¬°h<+L≥|_5{éÇÕ§<’¿„)Kç∆∑¯uRÛŒíFF˝R&˚Y1ÑZMÔÕ∏‚a÷˘0)ø•)VY	ÔE¢!fëâ}ÄmwÀU’U&ÒBD¯(Ó∑⁄/÷Öïg—YÆüªÙ›⁄óîB›öÕ@çï© Ç,‡Õm‰XëÏÂÊæè∂	t:⁄⁄w¬vΩJœ˛ÎJrô%∑òß∂,Öhr6Ê…º‹ÕO vWaÇì∞–√¨p‘Ó⁄%7—&Y	z>}i§1œÂÒk‹Û°— «m&≠m]ÖA°éxhR’—4:uúr8 Òı~O%ÑìÄπ QmTÎM•ËM ‹TÂTÒ∑f3ØÜ˜1€HK£¥A#Äxƒ¬ 1ÇH≠ÕU4øÁÛcæØ§}Ûﬁ;Ë:˛õxãøyÔm—ZªÆ›—qä}≈E}2hé Lñ‡éÒ÷«ê:òøøeQµÆYmÙ8∂FÕ1„&4 ∆u
-”fâà[RTõv¡bp‹Ñ‚'P[πÑZoÿKnÖ”dMwjrC‰!ÒåU‡.ñõ)BÍú29ìt5V’'√-M7#À&}v∂cû √*s≠áÎ3/p}&üîO©ú^#0—Äd*ï∂±“Ñ∆fi…FÈâ&E“§$⁄O+†WﬁöùñªqÑµ∫)¬öXÒ’PygçÊ©yﬁ≤çßÀû◊€ˆ≠†ßÇ|πÈ⁄ü5?  ﬁ©CÅ
-4>ÌWI(∑…ï¬k-Ø≠ÆØnm6Ÿ≠‘ZZ∫qs}{}-ØnÆ,mﬂÿ|›∏µ≤ykuÂµ«VœÍÙ±˙2â xy–Ä©è‰dÛË˛»?@◊h>Ó´p“^vBQyàÅ‰IëakÁkÛµ:CÜ≠∂´¯¿6≤Pä©¬^⁄Z|éÍ
-?¶¢Z≈ø¢≥/æ”Ì¡Ÿ@#g'Sàéy	dÚyaAåMî	à[†IoÿÍl¡ˇLÌÏ:ll^¬H[*Kïµ"),Ùuµ=sJ)ØïØ ¨I≈òËﬂÚ ˙ˆjÎzbõ›XOÄ˜Ω∞•p2¯kö◊˘s·2=éL<?‚Â`¶oü!ô.y¡ÏdEG“EÖr≤“9πuXB8M6+T"$µÔywm†äëMA~Òom,ú;ñõ®EX≥â-‘aµ/¿´È‡MˆæF÷ãxﬂ˘1æ{•o9.…›∞ﬁ¥v‡6Mxˆ—–˜ ÕºÇ∂{6¯í	åIÈ„&Ä(Åà˚ ÒWí∞∂Îeí}c{É<Ü‹¶(≈m
-¿êGPl¨=`˘â˜Çm—ÖøNQå07+$ë“$¥{.'äü˘ÇTu\'¸ÓâÏ≤Ã=*m[wÌ ’—f}¿îŸáÆ◊Ì⁄ù’i¥Èπ6Q∂ßÒZŸ˛dß3É;·◊)Éb]îçrU%Éj,Ë="ìL¶ó‰ „ÒÁ(ÌÑ±T‹S^ﬁñ,6^ñV´'#tÏ-6≥˘B]ôΩK◊Ω4/:á}Ní¨9ÕP¸ËÅ$ÁNY–U@a”°Òµ(˜¶˚6ÿzs ¸ßD·Sígèô‡œT™r™àÚãÙ4E.J1OÕ{Ä◊7‡˛•oÚÂÂÙ˝ﬁå*òdDCiˆ›ù3i‘WΩÅˇQõ¿mKÓ˝}
-ˆSzpÅIƒ*–*à‰ÿGtL·£;™j´,}®â-haöHóÊ&Õb»≈;’Ju˛vFÁj∆¬ê)(±ßM„«6iÆ©z˜eÿŒyºıœã^ˇ,$º€‹Ï"V%k,4Ωa•∑…§	æ5”ƒâÿøßuN(6»æ-™∞¥DıCc.™Ÿà"é+âugØRõ˙aA€‹ÍjgMîvÃ√oJTh∏bdh+8¥QÓQLSåh∏ÿÅMPg‡¿&À˝›&Á∑ÚZŸ†=R∏çE“Eã~›ƒoﬂY≈Qöÿ˚Ñ*àÆ9=nÌk€k◊IªzﬁÉB¶ë?ã´∞„=Œ«⁄ÿ—bLû∫[¸⁄ŒACLÂ˚òçø◊kPÙΩLÚñÂ	Dk˙2=æ˜2q≈ˇ˜Æ{˚∂øÑôÖé¢ Ôá/Ì3±|©nM÷ÇˆRäóÂÂÈ+©0ˇÑ˘@»_}Û1‡C”Åñ˝b∫&Ù°â ]Ÿ!èf–«≈Åœ¬cÙ~gÀµ˝∞4Ï
-ò”õ"Üûi¸S‚§‰£ì„'ºÌ]	Øã≤æÄZ“¥ﬁ∆‰◊®∑Øh›∑∏Æ4’P1@¸Ä∞√h€éŒQÍ]Ω:¥s∏(∫Ò¢ê©ƒ∂ñ≈ãhÓv˛·ÔÉWnˇ‡ˆˇøØ∞?^öS?#^“O%ƒ*râ/—å·yÒg…!’wIÈÄØ”Îœ;_î∏ò #¢%2Ù)©•ÀÙ◊ƒ’3õZòÅ˘°îK®i8JâÊ‚Á\†~DdËÉﬂ—Ô®P˝#üàá§
-WåˇDã«úıõ[ëL
-*Å◊∑KU´BH"…Î( ~ARaó#†éÕÀ[dFæ&;Ù#NIâ}˚'^àÁ≠®§Œ«ºûùŸ‰„G3Í_√ƒâ¨¨Bú&¡kNÿ+Mø2ù37I©ÄÔG?ø{D‚Ä""nú’ñ÷1œ∑à˘>€L˜Ñéπ-JWö,Ò«Ëï÷”\èH∞ª=gÊ,◊.Ù¥327á∂¿gª(Ä”îaœé‰rhœÒ1œÙ|Ê˘Fo_”],MóΩˆ¶ΩáWº„µKù›Y&âﬂ‡}”≥ÒÓ“Ωºµo9p.0ƒ=ñ‚ûg—a4ŒÖÑ¸÷g±E›-πﬁ®É˚ÅU“åNˇ§‹… ´fÉ<cº©˙ùÕâaìŒ‚“ﬁÃ˜’Ç∏KıM@G[‡JõÊŒ#òJl4wYUÅS-UfÍûôY–S}köˇõP¥ÜÅ(æXÚÜFÄΩ 
-0ò˙Ù(ﬁ2˘&ËH].bæ¯P˜@èæCyÔùoﬁˇπﬁ7ı“!‡—*Ωt»∆q4£´7ßRIQÖ˘CÚÌQ#`◊LÜ?@˝ßü¶zñ∫≤Ï^∏£√G@mR§K∂Ô/ê‰.-°◊¿o\±I%"¸Ø¡¨NÛØø‘ΩeZ¡êøS≈>‚⁄Íõë(Lº,W(ﬂ0âqyìrÒƒ˝.ÙÛªQ}A
-Ò˚nMXï&¢Ãëïú(àC Yô$Ä¶á’D
-¥ôü∆5¬π…≤„˙<X¨wÈâAG˙Ü≤Ä´ﬁ∂˘æ∆˚ß≈<2FÏ#ºAó93 ìñ?ÈnœEJíAıbxoÔï]Øsz£vØ“ˆ˙Üà|PÖ‰“cÅùØ6s¡ÜÑ¢∫…wÈA=ëILûÖ,·ëËõÅÌìönﬂÆùñ}øπÒå≥ﬂlyò…Ω∆_l‚€Ì0ìﬁˆ⁄`Iëò€+dmòïôÔ‰Ê£ˇ∑ KîÑ†Œb/∂Ç¿È˜@Àv"{;j «/9óT)πß@ÙÑ>u¶´<u˚ëø–$˜c+Ñ¯=ûÊ&§ı‡©«6HÄ\o–˝NÓ¡3Ÿt$/àÓ¥eﬂvº}›iÉgrÀëWî©óøÁ©_S3!r}>‰@ê_Å•ê¬t<’÷À©ZìﬁU0ÙSÓ®3ﬂÈì◊ }.tzÂù9Énö ØM0OñÅ!Óç©ÀÀ+WZ7Øo”4P˘	"1®.ìÈ8
+                <div className="p-4 bg-red-950/40 border border-red-500/20 text-red-400 text-xs rounded-xl font-bold flex justify-between items-center transition-all animate-fadeIn">
+                  <span>[!] {citiesError}</span>
+                  <button onClick={() => setCitiesError(null)} className="text-[10px] text-slate-400 hover:text-white uppercase font-black tracking-wider cursor-pointer">Dismiss</button>
+                </div>
+              )}
 
-N]^ª±º≤Ÿ⁄æ±…*Ã|(d‰|@KëÓ^àFN]ﬁ∫π±≤è]õ•dR)G[¥∆Ñù–<Ç¸cKfúzPBmK“ª©ﬁ“§Ñ1˝1"'æÊÅÂZç’†ô+§∞ëÅ(îß0”‘%D!!Úú„∫π…@4Eâ•:π]˛WÙÜs5•r¶Yweu~Ìã¯=ÙCÇ/»  î$§;
-";§ø®Nldæ£E–HºΩxXvázû=€–gœÍí÷c%¨≈µ8ØUû◊ûõ™ñF]»MZÄD¯◊i°√ÃÚﬁ¢çgûıf"Á/Åi˚mKz[¢YRà"ßyﬂÚ€Û4|‚ioëÔï÷’:éÇ¡è∏S˜!|ı‡âÇıà‹ˇàg G±¯èàà˙"“ºNïÔ&˝IÅ&ìFçïÏ4Å¶5#˛?Õã8ò÷¢‚(Ìû8ªÆ}·‡ühkªuÂ
-Z[Y{uesK1*Ps¥Ì¯–`ïaïk˛ô•Ë‹“AŸÖ
-⁄æÁ∫ªñ_{ò≈è#Ã["%ë`˘ uŸ¯K¢“‹ÿ˝ë6ıPH÷iu:>d¢/"ﬁí¶T¸d¢ﬂ5k–!%$¢∆¸í…ı ¿ﬂ¿-ˆú.6◊; ú.⁄iõ©ƒ#ıö|L:âΩúπ!B¿´AuÚW’√µcaÆH,·!∫ØW'Píâ2];w◊q]€Øø“%±æ∂◊á≥"…T∏û¶ö–ë8¡öÂHä<ÂcãhúÁÁ=dâÉ ^gÁ^@.‰?+s¶”œÉÏ√]´”µ∑1Ä,˙R[‡¶W2j¥ê5Q¢öd!Ãb¿]˚xΩ”á|t!¿ƒãß–_æ¸yMì…òyQùÖÕÃÎƒw÷’otÑlœÏãâ)óÜØµ∆õ‡ó˙¨ˆüèﬁ)Ú^-7F≤EäÓ”ΩT±}Ã¿î‘H†ZH`
-,RøÓ†ªdÆﬁTÍ≥ıîã °nä
-ÒêOû˝e≤°≈6JùœﬁW+µÑSù6'´€^ƒ Â≈ÃA2(>%u8$7OLOä†]òñ≤ŒÀ&=g—πI•©|Ïﬂ≥ßk+,Ug0gº	öÂåy∞á˘êõJ‡‰‰	qVÒãNÑ°b¡I€}ﬂéÖú˛ö¬¿çÄ0Ö	6BˆKÏ»À…è¶∞∞á%Û2RT>zÆu?|IãÃÒ∞π4É∂ÊreœtJ)∏C5Ö¯ƒ?9Tr8xœπ∫®ì¨F®$’31ÆŒÛ Óƒ§ã\)^i˙`∂Íö)ˆØb¯M¨≤b\Ràƒt¬YﬁpÇ/⁄Ωº¿bóºeöb˜…ªÙs±òç#z:VA«0B¥˜©†D/WAói5ÖtÓ"+‰dºÃdH)AUJÎ¸«µ`∆xüë'ö`M√eÇE3ì«>üWî◊¡2 lsÆ∏ÉKrr<£TCx!£Ÿ”/Âö∏	òºIÑ$æX]1Æ ÊÉ3¡U∏‡ ø(‡ÌÀÃ™d2„£B&|-~^®e•fX‰Bo  âjœ »YzÅ«»ÄGiûg4}p£¸2[W·©&£QÁF¢
-Ælñ¨9nΩÑ¨Tûx ˇıû=L˛Ñ˘÷XI:z»Âc!Û˜¬'4•¢M•ÚGi^ÅQ
-ibvÃÊ>];®∫[m◊™∑Õ¢ã±Ú;_’·£
-‚3È{„íWx,úó°Lê∆OCTv=Èh¢ÚAgWöaå/≥"ì¡Ôó‘ExÈ0v‡¬”Î0Ú;òÏS%ƒ§ÜeºûoÔ·ÈÈÖ·0Xòõ+}{Ó•√îÔR{À/*¯ßﬁ¿s;∏k≤Ø∞™’Rº°†]/™öbb¡)A∞c¨Ajè|◊ê÷'
-ªVﬂ2Ô`¿{KP,¶¢{éÁ_2\¢¸nL(Ì/_˛Í:L:âM™jXè£§F>å>Iˆcµk˜<ñ¿ÄáﬂÜRk9∏ÓJÕóªñ"è0Î∑¬¬ àˆ˙åã´Ã¡\;Dı+-ûQF-◊≈∫UÏÚ8÷ÇDÁk‹´πäûœAIê√Ô„¡ëQ“d¸¥*h™ºKfÔ¨Ï’–êñäÁ≤f>Sgq”È"≈π’-Ë£	‰ !t-ﬂÀÖÏFUU€Z °gn⁄°¸∆Wºﬂ¯äêHA#
-¥˘Nøow=•Çn`
-˜ y±úÉ¶ŸãtÎHT8–ò:z·ç¿ncN˘âc7Ûe	Oäï¸´ûU+Z1BﬁÁ¿ËìPõåª§∂ﬁàÄjÅJ"µKHŸS≠ù^èÇ©ﬂ‰_âñºﬁ/d£√/± √Û}¨DÅ’≈zC±¡∏eJòî9&2{§˘3Eƒ_¡¿√\1doî/¶é…uPÆ\¶í¿íë”ùj 5z›L9åPo‚˛«ÀëJººö&±»Í⁄—’DÌËßjë◊Ω3YccÔß·ç∆f] *NUÖ—ÌÈ•¢<ëMs§∏3äı_ò©wŒ0}åTùaÃYÇ^Æld¯|€‘™h)œL∂ÜC°z7ÈÌcî[#!√^yßõ“åò—Fuºm@î$4H·∞Á$õfrÓ£H°4⁄W¶€5[,:ıª∫É^ááæQÿ¥zù&≥d›#ëG∆îk*∏Æ>·íÉ…∆°•‰Róëä~c\?¥’Èô—åôf¨íòóÄË<« ˇwπâyLK¡¨"4Öû£™0*¥∏6√å¶Z¡à∆ﬂ¯xŒˆ∞Aö;Ûòë<<dd¨FÊ™¿2«5V«1W)Ê±ƒXç0èOi™´§fÑ⁄T%ec»"≤Vœ¬^-Æé´!N¿jçÏV‚⁄îõ≠¢Ωöã.®~?›E)${h≈&ï‡m¶#	©”3“«‹a»EçU˛ã8¬±∫TZ⁄íé8ËS<B◊s⁄ôQæÜà›4°71pKú‚AF°«t˛˛;Ÿ:96ü2‹lËBòøñ#≈ ËÇ"≤êfTÑô~ØÜæ9˘ÌG≈‹–≤ÈU¿y†≥,ôòH÷˚ôo>n´≤à]Yƒ}P‹ÅDDD⁄çê°å…,ˆS‰F(∂‡∆ÆÑ1F¶ÓÑ"yWÜ.Ö¢¥6ùçÈXPÒ©±Úò≥<sCT›,]ÒåûRñI‰ãÔÁ’e’ûjáC‰rÿ∞˝æ5 ñ6∏àﬁNƒ>Z]&È„≥√œ¸ôunº•›†ÍSÅ\LJ©ÜõŸúO‰˘1å<˙¡‰E®iÿˆUÃáGC¨¥wÏ u!qÅ÷¢)ﬁí.1vŸ"‚˚¨ƒyA]”êÆ˙†èâm ã1ø+hºxËWŸD∫t˛ñ`˙Úy…ÿúy0Û¡U˘JÄj»Ÿë?h∂ÄË°Ωù€ÿå€π]®}œÚrzÏ’•Âï+WØ˝ó^_[ﬂ¯õÕ≠Ìõ∑^˚€◊ˇÆﬁòoû;·¢aæ(ê_	Nô9∏”Í_„ˇ]BM¸ø¸¿<ÏÕ·Ω`X∆i™—ÉD¸#¸‡¯EåËc∞HßÖ<Y≥¬^eœı<ü˛âyu«£˜˚Ï>zP÷‹2ñh∞∏ï·(Ëï‡OS|û{ïw~v·Òho ò‹%‰˛y∑tå;ŒV=°{Ú?=Dm|1÷iwZ!d Ô£e¸Åº‡Í÷ç-zÏ5üÈ√ïg_P1ñ?U‹Ád‹Üìâ˚∏Âÿ˚IN1∂^ffÅøœëL?,˚5¬ö˝∏Ã-i˚¡˚”3ø89˛ÑÿœêC¸°ƒˆ}VJH p6æ∆Œ7HÇ–NÔ0±K¶]ç≈Ó
-¸~@òspj”ìŒkÛ¶J7)E0> 2SµÄ q^Hã0úπ=g uO/«ˆ,70|hÓ=@ÄG•˙ìÙÀ¥Ó}ôâ,í_d⁄ÙWˇeπûO≠˛œ4ŒöPìß¥±ˆcóCßo£]QÁLÂÊıüØ\ˇÂÀˇ^C*¯«?T*rƒ?kb[ñÚ∑ﬁ2ˇçzˆi3”˘†LlÖºhfFÅáR®q¶)ÿVŸ¶ØB*≤a'¨}w%2áå∏å™F
-z*3§pC—V…Ñû‚≠“q™8¨D_sJ-Á¢8˛P4*(HºkxL˝íûâvæ*ˆk®"õ¢uõ(+Ê¡∑ß5’E•¸Ú"©±=–|œr—Õ»à4”èêè&ñÎÒÕ˚Ô¢%◊L¸$Ê^CÁ®ÒâûHUôŒñL¿—ZU-Õ‰≈q3<±çB‡•ﬂ˝Û¡€«ˇ#æØ>é
-–”EÖ¢M¬Tk"8‘Té|"J¶î˝,Ÿ˛ˇ§q˝£äçypÍﬁWÈäØ¥<œß—ô'M-¢~«∑ÑÁ•+D∆Eï‚∆¥ßO¢«&¶ÏÙk
-ùıœÈG—ôˇÍzQl	7Â’∂¶*O
-ò∂@R¿°T>í√¨ £gë”πO∏TÅ¸Çr≠è
+              {/* Add New Division Area Header */}
+              <div className="p-5 bg-[#11131a] rounded-2xl border border-amber-500/10 text-xs">
+                <h5 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab] mb-4 flex items-center gap-1.5 font-mono">
+                  <Plus className="w-4 h-4 text-amber-500" />
+                  1. ADD NEW DISTRICT / DIVISION HEADLINE (      )
+                </h5>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setCitiesError(null);
+                    const trimmed = newDivisionInput.trim();
+                    if (!trimmed) return;
+                    
+                    const id = trimmed.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                    if (!id) return;
 
-,5F™EqÚI„∂ªI<¢\ßXÆ«ÂC¸÷ÿj®U°Ô∫ôMâ∫TrS¥SóÈ`©Cz∏\0˜„I‰Ò…ŒX˜ú.‰œW⁄Æ3‹ı∞ÊVŸ˜Ò
-¿aª"Nzqªê‘áây@äªHLa}Ì¨‰5^¬y:›'eﬂ®Œß	⁄—‰sãóºa~RΩŒ(ªx∆‰§°L4¶ı¢T>}sX∫˚·∂ÛåÂVƒè:ó¶ˇ^É∂ñºÙ;&~^AO
-Ÿ1X‚~öÿ8TX>"rÈ∑RI=ˆ^2⁄Er?Ñpúó[Pâ‰ãò´¶n§ÌáÅ(sálBÛÑZ¯]êøŸŒ3ÿ&⁄Õñ”^˚≥b≈è§TÙ$èﬁ…ø'¿¸^?™∏†ïé±Zæm°–C705¯‡`µ¨„⁄‘Ã:≤&˙ƒKÿXÀ9âq∂5ÏÕp|}lÃ+^OZ®+◊_∫Ó¡ùVRò∏wb†ΩÙˆé]Î@©Á-q‡–T•´-ß;(Ø∆%N‰õZ‚;Äo"©O·}óïaÖ”>CúÉøE„oÒR˜Í"Õ9%öRˆÖ67RVØ/Tπﬁ¥j}Òäı,m~Ywã◊KI’´7(Ïó<Õ-Ë=ÂñÂ)Ê.Ø◊û®ä^®`{<‰∏ﬁyÅZÁŸ:Á¨+uti“ıÃëi…Ú»≈@≥\ˇ ö¯˙ÍÇ∫¢ª
-?7Ø≠mZW˚)®©=∆[Íí;&\ˇ◊∏ˆØæÓØÁäã∆ﬁ¢,V¿˝iÙ·)B∑˘•TtÕÎà&"≤∫˜ñø·DÀÜ“G|π‡~«≤⁄YÈ;.¡»y®ÃcüH}Qô˙+5|tﬁπ~g!˛ÿ ä‡<”ÕÏÅƒ£m¢
-ûP”™R„2eûDO|¨\•„8ë{~Í2ûô™“ÚMµö¥ôÙPÉ¥SRV´Ï∫ú2L“25;/Võ’µZ%MUl©!©=ñÑÀÕ+ºƒıˆ®¨R±b¥)º∞©ÀÂ2bÎE◊àÜEÀÂ<<∞√4í!«ß◊{~˘Ûâ√7	˘ƒ° ì_'’-ÜW∫Cçy´9ï£J|¶5hûËn”÷3ŸàâÇ⁄:N|¸≥…^‘’$LmE,OU1øraŒVÕ÷çK–TU«‹‰ÿ‚qå&™°&ΩÚwòò±≠u∞öTˆ ŒeÙbôñÿì∑Ûb˚‚E´Yª-∫Útï∫™íJ]¬R^>˙Ô<'<(_¨¶›~Ãe”ÔfUöŸ.÷A±ö÷[⁄O%Îxe¸Ø&aˇ&9ÿm^cRªïF∫¨JóÃtœtêÃ⁄˜‹‚xWÍ·Äçyµ66ÆØ.µ∂Wo¨o°[+õ´Wÿß1ìtüs}ÅÍ‚Tπ¸?3hªıj™Á1«órRÍmkó¶Ìcörˆ 
-ìò$o_≈¯œ≈l?…2B Î£úØp/Â|≠Z≥”,â´©5ÓÀ¥è4û! ›˜ÌN:ï 7€ËRo^©/€Ø¸ÿdë∫d§,ò¨¢Ÿ7ÛBVA\WÏ"®‚¢÷pË≤≈
-–-aÈ–÷òtö∫®Å¸>ë~ëUÆg&ÇúÂôŸÑ£KsΩy…ÃJ}mõ6‰∞°°ÔÌQDtl¿∂≠A«!‹$¢ÑÊt˝=Ùê= ï¸zx$QnËc2ı1a§h! +v∂o‹\∫VAØ{#‘∑ ±n †E'kí:Æ`ÖeÇP˛⁄Ö≈Ö#3∂œi€⁄¬¥"ík»+/—)«Ìi%Woﬂ·‡—˜únØxm«hÕñ ïñW÷nÃ¢Õï´7Ø∑6g—∆Ê ⁄ÍÕµYx  ı’Ìï
-sÅ«Z‰–©ßÆªMÇ™¯m,	Ï∂èúdﬂéÇäd2s≠éAl·NRQã¨ƒÆwﬂ(∞ê2ÒÍ»Ì
-&ﬁ<5Ò¢â‡Ñ, —D`+∆Pæ£4πy©<+•']®é9∞∞ù∫ºÌÖV¥’a†©m&/ ·ftY™BÓ}∫,«‘Â√!6äÒ¿‚í"ºˆ⁄ﬂ q®Ñ„≥8˜W∞’„⁄î€Mb‚y¿ßÿ‹3ã6±€®ö“ı¸Ç!épöU	K~-›Ì¸ª∞nk]µ(>ˆ™	ãFVhÌ;æ>[∏I-„ÈÛ'±@√ë?tOπ±“K$Òîk§W»Ûlà∞6ePü/POWÎw»ﬂæ∑üÉ*sâê∂-ø›C{P
-Ÿ®&0≥MÒ√ˆÀµπFTŒÜ+ÕräS{:ÚºÃ…E5(:Zπ≥)S„≤πÖV•dÈÖÀ*·aì+w‡îôE√û7∞âäE=nïä|Ë„U°ù#n˘"îùœxHÑa≤›zÆô_Ö>2)tﬂrèõälæB:œÎ(!∞◊†‚ùGŒ…˙UæIﬂ∞tèAõä*”xÇ÷¯ Ë>.Js…÷•lŸ-…;==Ÿ‹óPLa⁄H ˆ º$∂Yc/¨d¸
-˜X“èﬁ∫~}Í2…Ú¢”‰`À`éóW&÷‰ªÇ=H=¨Ô—¥Ω/:ıQYJ*|‹ßK]∑?E¢1[Ëk¬÷í›¬r¸·ﬂ?éˇAX%Ñ+õ1òßOÙg$jÒ;ˆz∫á©=Ù⁄ΩÈÑò§&‚û¿÷t¬q∑e‘“L|ßˆ"^’Ã>¸…r–“¶â6iJ‚Zm]@+ŒjG¨ˆ—e¸ü˛Ú”xÙK°hf®îzïﬁ¸ºÙh£tË¥f2≠
-ë´ƒ…4^¥¸61≠´Ôœ∏ã˚ñTD◊b|5ë⁄àˆ+âCöô™Ùä3 ±π–!*D0DûE=µ
-ö˝)0%]B=Ú ÅZ›è≠D¸àm(à„§ÏQk÷Â´˝ƒ≠-u1À>´f	ü,§Ÿ>ﬂ¥vog“i1´◊/6.–\Z‘ﬂ≈´´Æ#ö:0Eº˜yUyïÓÎX—‹y—ﬁõ«◊mÖÔ∫ıZku{u˝*⁄\πµ∫ÚZj≠/Ø.∑∂W∂dﬁ‰¶åAh Ã≤$IB4§>°ﬁÙÙ˙C5†}ı!€»òzΩà^p©¢Ö∏oí˘òBHumwgM≈~“EÚEØd»: ÷ItOÃßÒª◊e\≤ŸåláE$”Â© X"åÇ*œÔ&Î«d$ò«£à≤tp+<}πg›µíèç …J@&iÈ{ﬂÀLáÓQ*‰)©êw…©û'^¬™™Ï∏ú≈ﬂ«Aπv.ÅZÆ8œ‹îc@gXY\Œ=≠•u¨†ùtåEŸ‹Ö8-°HFƒˇÚÂØ⁄h›„l ıâÓoâë32·‡äscñ~Ë=Ÿ8õ%ı©π,ó-ùv%rø&“ÎÍÑπÀNh–Î0"¢jπ\ssX
-áÿ¯ª˚H M2F‚PÍ3‰îöDõ∫‡È¶ßv»Œr:∑acÈé¶ëp⁄Â™‰o≤YXmZá˘°;÷êDÒp;LN’º&õ∂Â
-Õ‡£Iì7jΩT+¸çQ√z¶a›¨a#”∞a÷poên∏7»k∏dıÖF¯S^ÉÎê`‡a3Æá—∏•¯µÆJv0∏M{±Rﬂﬂî}/ÄúhÅ–À“÷⁄&hÁ9ù4Ì»∞‹rmzuÿ÷¿?‘–5ÃQw)
-dDÑò°Jtt;6¨g'Éôö˛ıXS¡ôâ∂’OOD£ä÷úAêù	‹ˇçj^æa˙Ú"·dg!Ûkj:2øè5/ô^äLêãßg®éñ≠…âz£ﬁÅâ™5ÈL)y§££πGJs^Åàu√`ﬁ\"9Ü?ÀÆœ93Y≥	æ^Ç3Mƒ—†?o\©ê”OzÃæHH,‰û^∆˝Qqìá∏Cﬁ˜à_T{´Ó–Èë‰—tZÌ∂=âS÷!w¬±P^¬Û·`˝◊∆Sp.ƒrb®~„Ì˛r^úÎµBã$∂ËÖu∂∂;Lª5 
-P‰8“/ ®°mºRD˜d´ñ∏«À≤Á‹FW7ﬁ1RÄ®≤êﬂào<“>ò5·ZB‘,OOH6e⁄B¢uéæêÍ†.È@Ø7§:hH:–Î©®ëÏ@ØGƒ0m"jú£Oƒ”ZE‘É©^A/âvAzJÎòÔÓheìÿù(ûÖﬁ"]®3©∏zÕ
-<√ÓáNÔ:ËØ∏Ïlßo∞oÒ.Ê7∞ﬁ◊}¿éÃÈ˘Hü†«M`ú†≠ÎC}».o@”ã£7
-Jå°iõa¶∫Ì;›.6˝ƒ$X4G#»:<œ¥h÷^Ùÿ<ÆómQb¸2ıvWòΩçÕ‹N…⁄N…ÿN…÷N…‘∆dichegdfßbezv¢›’jf£·R¢”b)5qã⁄-“g4Åã∫â-“cv˙çÊW£¶Ê8	·ïvÖamzÊüå∑PÔ`£©:†®øQØ&‚3 ÇíL¬J#ÆÒ#Ûb»*yv@ú£á¨Qùòêá◊≈+±B;)î´©ó«ìÕ∞‡á öW¿±ò@¢^r˙›‹õ∞mË∑˘⁄ÉÍ Ù6’√a∞07Gæ	*£Äñ=l∂ıÁÜ=/Ù µÊ¸|µ⁄l‘ÂãÛùŒ^µ~·\gØ˛Ú˛"∂}ßLÄó,7dœÖ La®¶Ñ≥jbñ&≥®0›ãH1{D≈çÀ∑˜lﬂ∑˝/Ì¡‚‘¿+ÛØÚõ‘@IØø€„«4Õ o%ßaÇæ"óΩ»	òÏUl•≤cw^¨€ªùΩΩ€båSQS¢C≠.Ò*ø2ƒ[d`˚”G‡r•'_$˜©ˆßÈlÈ*q*ìÅ≈`¯ÿ–‹Mîª%_dk›íØ9∂R‹!yæ∆®íá9Q<√µ/  9…ô¢≤‡bffxx™ôŒÀ>Â4%CçìûSLBì€L 1qÜæ≥;≈„?sT\†•"`Q"B ê,»SÖh"ıc(T‡â2ö”Ó©û•Ù»¬¶º⁄bö<3…Ù-l˙XiÈ3ÖC‹=€∫w¿ ñ»GËu€“HıoHIO˘§^≥ùn/<≥yÌëÓç•…∑dR¡≥Å•D8Œjb·¿ÁíÁz>ï'ñ„£-ÃÃÕ˜ÑY‹öm#ü¬ûMê…Õ3¸ƒo	ã;O±ﬁ5§ÛŸ0pÇ˘◊¥˙–ÃƒI(öL2NP˚Ù¡@MÎs≠	”—≥0ÛØ˙òÑ…Ã?äê◊‰Ô¬iÏÔÓ‘øf9tÊ)ÇÒg'«ŸìGwß˛ö3Ñâßÿ]åEÄÔz\”ﬂ√è?õ…7]Ø:Xévù∂Â¢é¥}g(T-.¡Rk‹◊Xû4˘'$G'f√\e1¡÷ÕP»ñÌÓ°≠Qøoa„u≠Bﬂ£yXÕ˘∑E(>s¬ëÄÁ∆ò%NhπNõ√Ó ÿEÂÑâ‹JQóŸNQ
-$˘éñÀ¨Œ‰È.ä•ãˇ˛sÑI¯'"ÚVÑ˝¯	G˘
-–|˘çY√∏7ÌŸ1⁄œ€¸§˝Ì˙Äœ…1≠w£-" AbXø!;˜W˛!E[¸=Ï˚§·øëÌ˝˝Å>‰}ûè#9æE∞ˇâ¿6íá˛ˆ£È£|ˇúA=√ôüÛ¸B˙ò¥IØ¸}ö<	¢ﬂ©ı±v™Ò^•\{å› ΩÄêÀ–˜≤µ≤ykuiemÆ¸ÕÕï≠Ìïeºœo\πreesey¡»´b,+ÚU≤Í~˝^ˆÂ9êbeaÑ.ôc?Ä Xã‡Hö$µ—Àà.*6Ö|ÀÌƒ&
-·¶hÅ˝úEÜõ“"&Øº|Û˛ˇ è˙Ê_i6 oY¨BÕ8sB	Ω^≠∆ÛÁŒìáaÔ¡nèŒ
-´xU`^‡ÈhãBù¡kóGyúT∏dıü,*‰hP7#gNÇ∑0_ˆ0ˇƒÉ¯ÆP‡öu◊æ1
-ü,jÒ‰(1ofŒúa û»ı4/˝TR‚∂7Úü,™F‰hP;'gNÄÙgL"#¨äña∆ëiı‰ãôGOñ0ÛFÚ‰‘héŒúPaà„IRÍ$C‘yEπ©lÉúz,N
-Í®5„Z‹-}áiG©Œ8è3ûD¨oÕ€Ö)Î£˛ÆÌü÷i∫ÎéÏ$H„ÿ±$Ó†tŒè[ÆÀ´ÒIˆjÌo˘ıÿ˝€OÔ≤QJg•‚Oªl≤¥+°-_,Í©å◊JÑÄg#˝— |_|cºÉ3ÛêÎo"±]r¥j√Û√=œu<‡°†´‡∞nEÚ¢…Ω>Hﬁp⁄©æ);§Ah<}N# ∑4®diê·ÀØ,bÉû‚«õr»jÈ‹(ÚÀË?Â=4¶xuBóπ£0…^2€¡P‡˝ÂÀw.d»Å”¡J¡nø':ø#á:ﬂ2DæF•√x•c®KB]yámÿº¿FôÊÈj¬–I≈lßﬂΩÈªEkfG##Ÿ‚∏ÌQäü*Ωd$Êv—êëòJ´œ OhøΩ2dês»Ã.Óth<‰-
-÷¨Ükº∫’pù¢v5\Å˛ùÁAq>`lÌ
-ï¨zŸj[Æ]™ç€|”…ë´Rµ`
-Z√%“ŸˇQ-ÚøhÈ!”{œıˆÀ=ß”¡T"Ø¿. C¿˙1~ô≤3@¥∂¬B ”Ç§pºÄh(]Ñ˛hn>ÕºßÎyD”·Ôƒ¨Í•®∂˚ùƒ>KŒÑòÚ>•Õ[7…K∆W®7malﬁö’‰.‘©·çπT{4S23D®dY≈DBp¢≤√≤◊—Ï2}É&÷;ù+>ñqﬁ˛JxGü±*∂Áÿ3„≈ô á §JÄp^g:¿Ñ4 ‘¯
-¿_˛¸øÊU´RZ_Ö∞·´éˆ–íÌáÙ&<ªs¥¥ﬂ[$M ƒˇØè†Aä¸¡wøß5,I¿˙w¥hTú„qF ≈pòj ¢‰¥‰ì(k/ê!zŸXeêò]j‡œ›⁄˘⁄˘€)%Ågçèß&–tÀìîêÓí„+‘zJöILÑ—$<Ösi *Ê°äî¥ùÏWá9ïì“_DnVLá8ï
-s:¶ê˙¢V^jµ¢™ã¿ôœHs)§DZã∞äTuô¢d=ı∏Uï¢äJ5e-úûÕeêÛb_RÜÕ≥&∑úä+ÅC)‚Jÿﬁ∫«‰¬Ã`Æ*E/êM ì©
-$ëÃ•T§M=óS„À)æ4˘éÇ¢ÛÏ€O˘7HuŒÔé‡‚îı\t=€¢ãØ#^ZÊÛ\¶=ã2õ{tIüºX#Ü|a	FZ=`„02ÅsQ÷˚øíò,„¸gÿbˇéâ.òëÁíÎôó\∞åÇ‡Çèœe‘≥*£`ıŒDDM¨ø	¶Ô¥∫PwS®ëªaêˇØˆ<sw˘ê∂⁄ˆÔGrˆ’öˆºŒÈ¸‰<…|Â:‚?¶p¨ûºø\LÕ”g˛Â€UÈ‚Ãô¶fÚOπëe©O¸Ùqz≈”Ár2˚∞¬∆√«ÄgU∆9‰ÚC§üys≈»X-jF+,ù´¯ó}Î†hûcàU‰nÊ°Ú4OûØ%Ó4í≥veã$¸êŒŒ<ˆ©^Üm–@M¿Z‚ÍÚdVC8üL‘_·qávÂ_=ÕÀ!d.£†ø}2>£≥uöu⁄≤0∂¢πêÙ¡ÚeäÚ~ï[Ü=Ù˘ô≠Q´è	R»ÈLfÖ¢”¶‚
-ù<¯è§V¡ÀÍ–‚J†o‘˝“ÃY-€P«:}g‡‡ó°°‡®2©5<ò%©´ñ(®Ã´MVÃ.ÆJ5∏O‚T u∞HÒ6VM_º∂ë9n\kymuµ666o‹j]G[+€P`m‡	~N<oísÒoÒ≥˘Ï∏˚«<«‡=^úîi[˘Yá|œVÉ3ıãHä|¡•†ñH5ÿv`ÈI] öYlû†¬h5eEó\k◊v≥^ÇÑ™≠Ù<•©D8Á›
-ß;@[^€±√¥iÓ¬í~A÷âfä|1sié<ﬁ4ÅV]ø5{Ò⁄üÃ∏©€$Sﬂ5Sr§4M:úûEE*/g/u˝◊‹‚Ø`§ﬂ'Ÿ˘P›¨í®åy∫∞°WæhÊ∏1ñ>… ∞¨¸’‘ÂMª;r-≠Ÿ†s ï–›¸Ÿ˚_DhJ‡ç}m◊‹ëllÆ¨≠ﬁ\õ∫º·€}¿)âGÚ	≥ÂÄ”|ˇ>†O˛Ï,«≥r}u{eÍÚäã…wÃ;d6H>8Àß/Ø¨›ò∫ºl˜=¥Ù	O˛êM¿É∑'¯duu]ŸΩEtÄ‹˚Hô^o’(ﬁ¿ömáà"ë#ä.n¬~s“	5Ëﬂ2Ô»3îC¯Â/;¬º—	cÖùÇxùxD>Sí˘#Å˙U‰4˘ HÎW√ÀAÇ–ˇúÉ˝‘‰ ¡¯~íb@Qt}zÄ pΩ∞¯ÒÅ¯ ¥á
-DX«Nü#à±ñìﬁÿ"√πg∑HLäËªÖ„:@eE¢:L\ì˜Á•≈äÑ922ªX\àûYÿ˚P`-¢ù®Wjô5EdÎq/Êm‹Ì!ÅøÎ®•TâúR4ÈK¢£§ <`mÖ=˙Ï¢MCLâvk∂ø8eW∫DÎ!ÖÕc5[°e"˛u
-ÖMq‘tâéd>∆"· ≥ÎÒ.>WﬁBÓåàﬁªÿŸ›ôK~Çì‚5€øhxV¡ô≈Ä8õäØA9mà5ŒØS2ç≥c&åÉE¢~∫RíwÃeg»>
-qJ∞mıíÏï∞ßÍä3é*7§8Îà˛M’ÅÓå©E,H¿(2¯B!Ê'ä∆9‘˜DR3“{IÆe—–•“XÀ"q–h\œ¢ºL≥cnô”Í@	UìhdÊ}±ﬁO2˘¢¿ñ)¬‹øyˇ›ß"bí¸b{£¯Æs?ë¶R‘Ã"ZØwÕ
-{X2:^øæzÓ•OîÓçäˆBQ^C27$p©o+Fñ`ıØt˙BUQ&´QMª$Ö˝BïΩ¬f1Û¢	ñR2á)?&Ç¢©QCœ°ÈÇëO‘`⁄Ã6¡7ˇˆ.¿^&¯Í¡)˝ œ¯GƒÄ˛X0¥	Ì€'«Ôq∞XrÉôam∫ôã:_Íio…ÍOÃ˘“>∞RÔ˘·)qøê±úÊÁˇm
-S˚_(X0u÷˝öÆÙ1<Ω^î®Œ˚s'
-ΩæïNæ œûÖè¸…∏P∞∏[s¡s säÏ˙ñ˚P∆‰OëÂî‹„π≈ÏzÓA—xP"ÎÏ(èSX>˜ü–˚ü˚OÑÀÑ2URÊ[Ï=â‡ÁÓÍ>â-Ëg“}“XHOÃÖ2˘C◊ñ:QÿOOâÖçÊ4éîØ™©Iåù)4Ò≤9”Û&…H{+Y Í)w¨à∏‹œ=,‚ı≠Ù∞dñ˚Ÿsµd^·…¯\ÍhŸ:xÓryÓrë^ﬂróÀiŸ»S‰{ô;yÓÑ1ªû;a4Nò¨6vˆﬁò'"OüªeË˝œ›2¬UàDsE“∑ÿQ#Ÿœ]5‘Uì¥—ü&wÕ©o2q˚dNå2 :÷|gèTùßıùÕÖÈ2…√∞<ü´®õÚôb<f˛‚Ï°í7X∂€†øD•ffyS∂%=˜ÓtåxE>£0‡%RÛëû$kûNƒH¯È≤åÖg«’´H'tÕÑ—d 2¢∑Oê“Iê∑∏˘€ä≠Z¬,›ÈÄÖƒÎ‘CÌÛØy	v”=m∫üœòí©Ïkµ€ˆ0$_çI]ﬂÍ8ò	óCØbéÎ{}"lÍÛ∑˛®7/4Í\ÚxC´ÌÑÄ…¶Ük‚RFD∑Q»ô3†syìFôzV«€/˜;¸/¶£Q5H‹~©g∑Ô.9~€µì2øAÄ“øF0qÑã†Ôa:∫ﬁAÂ‡m‚`¢$û+ârnPr¬#ÖÍ™ÏO“≠.í€>ÛUÕ§‰‚xWÍŸõ+WW∑∂7[€´7÷—÷µõ€Ë˙Í˙∑–Úˇ  ˇˇÏ}ks◊ï‡˜˝Wä#Ç1	 ©GíCëîÃEqI*©îVe5Ä&Å@#›Ä(ÜaU‚⁄å'õÕ¯CVq≠«5äwdK„(é S5±´fíø±=˘˚ˆú˚Ëæ∑˚ﬁ€∑¡á(ôHE&}ﬂÁú{ﬁgy}iaÛ÷˙…Ê¸µT£áN]ﬁ{»7Ω:vH∆¢V¢T~?ÀÊn3Ÿ
-Œ')T˝aÊF7&)B2S≠T˝ªm=O35ùêµáùXﬂ€+†üé‰™áwV«{Ë7SŸ∆\µ]¸{Àk˙À=Åƒw*ÔTﬁ©ùy'‹Æ{•Zı“DıBe‚“ÖâJπ2;~W√ï\nÕddNòäûL•ﬁh5õzcÀÂ8áöä˛3˝gÑwl†Î˛víWf=aΩÈıºmñm õD¸ÀGhnì,Nöà4 Ô¬ÔD¯˚2ﬁ˜ë•¶Ò¯ŸçöjÕh∂ØoP∞Nã$í˛ø%◊nêX¡áq>Ÿd¢I>öD@*˛\‰Ä¯J‘ö{$“ª¸åÂœ˚s∫B]ú°·œbÉ>Åóëéä9∞tx˙›FxÃì8ºtñˆ <«ﬂ?yß9`xîº©È3˝Â]:L‹¯OÒ±πÊ
-|!Rﬁº´•ı˜‡À/©EíÅ««Ùæx,oõ‡/È<+C=ßÀ~W,ÏÖ»fÒáx›X◊Gd∆ô|E√Ôﬂ”ÏM˛¶sLÈcp?€≤ﬂ≈€¨Äˆ#äÆÔQºöOÈœ`"ÓgúVº¬´bq∑Áu€≤±˙ìµ∞› Z≈≠ËÌü Ff≈*m±‘JΩ“®Œ∆Iëj	©Ùg¶wÂ\OH*˚@†ôåπê√çÈxmXóûíWèÇ“ïA–üÑqQÉˇF•Ü|Jçw1≥ÑÜ3›Eg≤)2ﬁl“Äï°ò°IG—¥íeúª€ú£á¡é!Qv4¬æó!¡3òJj&ìi*÷ôË)¥ëáπ‹öŒπÆRêWΩååmëÉéºt:^∏ÅÈêî´/«k?x=GÆ˚~D®≤/ë/%¨d!_ÚÇ]øèQ©`ˆ,∏6¶€öΩ:ÑÕ!—Yuñ|T⁄	Kƒˇ˙ú0~'¸}È≥ò}!%§yÁ5gMü≈ƒ˜}⁄√ªÈ˚„â®m˙qŸ¸ÅR(F%ü∞-„;˜>%≈ü3œé{¸D‹ƒÔ—Wxˆ†ÁbâO“æéí±]œP3ˆÿ ‰Ø&≤È“≈ßÅüV©GQJ±¿ã◊£ÀèösJ•€…õ&◊çø~>ô_ÿ\˛˛Y[_^X^ΩAñVo,Ø.i◊©∑‰öfπŸ⁄¢Óúú∑≥=óÆß◊x·e8F™d˛€·”†p3&c3∫≤ÿ”Ø±™“f.∂Ïh™‘∏J´åH«ó‹(]YâıWLø¬njÁ¥∆„–˙Èøéœ@ÿí‡Õjxw1±scz≥P¬R`%&µJ∆d˘Éï§Y©ÔÖà Éå%˙ß?%£mF´˚ˇIª◊†
-àã˙LÎÈyIŸÿË)ŒVw:@≥iÜf5£OHÆ	Wøm⁄˚≈HSbÿØﬂ<9†ó¡.˙7SÄˇ%¬åˇÈï|\’à¿èM_*à2ƒ'Ä  É]≤„ÍÑ⁄œ1„Åá`í$s,ÇÚb$|`0ˇôƒì}NÑ¨˘,ñO–’åà¥ÌKEÅ‰O2‘N–ßîSEÄ^‰]Î ´Ã“|F≠vˇƒ@2NnD>Ü7}©púàœ'éß_}8ôjO$Û…ç«I”S8ŒÖ„ôWéYé„	≈tj£¿∞hx
-¡6ipˆ˙Lßπ1l4¸(2’™∫‹–|VÜN¥Si˜⁄É∂◊π≤∑G∏˚√©L¯wr÷‰ä√MëJõ*mS151◊«‚∫2◊˙XzOm%?ªIÁ¨ôò3$ˇÖ¥Ìóö¡QqµB‘NTåji™sºJÂÖOÖÕÚâ–,?°üDE˙π∞N%JŸ/©(ÒE 
-eWöR˝∑Ma˘J⁄D÷ÓZU∆Læël`Ts+€¥>É≤FOËhh”¸5Ìå9∆‰ÚTõŸﬂu≈G¥a+Ò{Yã=mdÒV ˜PrÙØc>u∑˚ËÑ≈çÃ»`s´”6(Ÿ‹B…"DséHB›Ñ{;‘b(mÒAÅˆTT:†Orz@û//e‚ú∑5Ì36Gmö>∂¶>ﬁ.jCq·òõÌ[·⁄ZSËni¬%em∞ŸÓ˙p'îJ‚‚Kı∞Âu"|Ç
-2ziü;P€áìÏcû*≤Owâ¯^áEá2›ÂNm…+í£∫ŒUföó.6Ó W¢›ï$U˛DÎÌF]™O5C$]∆õ∫ iﬂ¯ín§ŸÙ˝ÿ‹M1TK Lne⁄[›lgøÅvòùˆ†róåt§4µÅÍπÜún3cπ9Ø°ìY˛fS-„«Mæ£Â†ıV˛≠j=˙”ÓP’zu+Ò∑Tò≤ï¨›ﬂ^=:Ò
-Hêf†\vMF∏é˚ü6sˇ∂;HcØ7õ∫mHŸ>X≠»«ä>(M≤5∆€ÿÕ‘$ñ∫4b¶≈ë]”™¨!•ô5ÔL¢£EÕhç›ﬁ˙C í‘8nqµ∏eöùÙÓıÿ˙+Ÿ|%ŒøŸé˙o˜ÏUA∏«⁄ÆŸ¿—@u$c>¬·ÛÿxÆÿÊùl1üQ’Ùã∏Ü45XŒ≠ª©}H/⁄ÄáAH Ùi`<≠oPr(UXa˘µ$zz⁄(‘—¿j	òÑ∏¿Ó3"Z}y3 ´˚M…/MçM	íŒ^•eî{màÂŒz·ƒ˘Q›zÏïJ‘M›37îÓå˝n—…-
-«ì’±ªoïtÜLÚ&okÉZ∫Å¶÷°yëvjaÛ≤Œ‹;:næOÜ=>‡Ÿ ægﬂÉ=:ºC6‘“=‡9„É"«,Ω,ßl˜r"£¬ß∫Ñ∞ä‰xlë\”Ô´Á±◊ï∆©Ô-ı”ÕÒÃ˙HàÒ$Y*˛Huå˙µpRf§˝±Ï( |Æ)˛Ω¥®÷c˜ éSEX&‹<ìgﬁYXDlÍ[GŒóBæB6ëwÜF\?{u1C, úù≤Å‘,9~%eüÚtÌó	0óﬂ™T¸Ÿ≠≠ªÔ»"Î“lØÅÅd,åÍÏ’Ωùv¯Á2 ŒTYÑÌÌvoüb.}sKçb%d.—f)-ã [˙ªõ¸–Ø^ÿ,›{√æò{$E"sÕıq ˙Ä∞$†◊kÌv–t†Kú>Ÿƒ∫Ç|∂Vˆx¶ΩF–o˚ÕÂ&ìQIﬁ‚
-OM'≤ﬁd‡‰Ùb¥mœ\¬ØF8o~¨AﬂÔï∆ÿaé¡aæ÷ªˇrOqu4veÙ„ªºÙP•Áu(*†º‡Õs7›Œhçv?«øÜüÈ2
-à'åÍ◊HiæCc∆OÔ F6≈±æ6˜ÄXP˙.®}ÓÇ⁄kxà=ΩíÊG}8ˇ`¥m√›Q+3Ô„SÕ≥©≈ëiûÖèq¨y÷8ê‘<À]é¢y¶†g9Z›sÏb}‚uœ7èMÛÃ¥«©v~UÃ9ﬂy∞ÕQ6T5ü*ö3ÁzR’À≈îÀß™e˛IQÿG¬'KöEˇªPkÀ+†®ùπ∫òQÓèy/”0”'˙<N‰˝UA[¢SOºB‚T-inÒ _ÑXP¨Ç¯(£_kU4.ÓT˝ê4?ÍËË^UÚ™è6“Œ…◊Ó6òÃ^Ø∑>˙µ’F«´;ΩíÊØÑ:z∫úõ–‡T}D˙Ë8‡?VHÎ29‘H+ùé¢íñ¿·hı—…bOºB:ï&„(5“n©7Nµ”'X;-OËdÍ©a∏∞[@QÕﬁ?’Tø
-öjÈl]T’“—~„u’n¥˜Ä~Õ/Ñä˙◊BÅ¸8õßÚK	ÕÛL≤+˙içí˚’QYS(|Uïß:kI®ß'˘Z©)Ëäb5Ö ØØ≥ûB¨ÒıTT–’ù**íÊ'Eq˝J_ßök≥û˜ıª&uó¬Î≠ºk|=/Ö…”[!’¸Ñ´ØÕπFñ{(Z1"@Ø`…µ‡°s)_.Â°ÛÙÌO*Ù6ë;„∫GÈ™GéıääÊõ	œ^˝œˇ¯UMUÇ<E?©Xìßî=ö+XhFT\S4ñ¬œ◊OüñuAΩ©R@∆“5Lrï3à},i:ø$I~/*dÎä≈h›øòƒŒ∑G©õƒR}˝Ü	ŒD2J™ˇ<âÛì≈SDy˙r=‘c‘◊Oüï’•ÛôjKqjOƒé‡ÀH€Ûïpp{aÀdˆ˘◊Oﬂï‹öEÌ†Á2˚?í!ËF˜∂Â¨ˇ_“z=I5 ˘Ñ>ãß«ö<ëèí©6ûä§lˇú“®<•8> BìÚ€xœ?ˆÖºáUÃ£∏‡”œqÃß?WvÊ7"‹s1≠ÿmE¨¯âü≈uñÙı£û«††!aN5âé≠∂›¸ıÎÀ+ÀÛõKd}È˙“˙˙¸ 9G÷ÊxÎˆÊYYZº±¥~l’ÌBÀÅa(R‹Ó¢T‹N≠ ó!Bö‚Ì•˘EX‡ñ7ﬂ&+KÛÎd~eÖ÷$πµÍpK∏◊7“◊4Ç[ÜQR^¬UæN–0j`Ùuü¥7i1cW—2GπóÀÛ;¿™LG°JGÛ€0YÛ√-TÌˆ>YÒõº@ﬁ˚H∏Tu©†≈âÜ4Eæ$åfƒ7ãÆ∆ë…¢Á\ﬂ»·:$º‘ÒË
-A∑€é"‰CV—ı gÒ:ß¸5ØA-n3H+§45*ÊSkÜﬁé◊!°ˇ„!åQYª,çN◊ƒkôÈºîíN	%1ù$≠ËvKcÛ°OvÉ!≈ :ª$Úg;¨z¿æ˚^»∞ìnƒ9≤Œ©,πΩE6[m‹t ¿ETFT¸∂,jo˜Ü}“ı˙}Älæá“ﬁAÛAÓ¥Òz=•≥{fl‹ú‡RŒâ)fπ‰√å_.›±†ßÈ7`JpˆÂ»,˛ï∆ÍÉwB9Aæ∑qkµQ€Ï∞`äEu?à∑√i%“Î#Æ%ŸˇCZç◊Ò√ úΩ«AEÏ=¢\ü¬Ï=ê˘#Rß&,U%z$Ï2XÛõpˆ˙±u#kU™Ö(…]M’ÔNóÈN…é¥L∑–6¡É–£Z9∑9	eˇ!ñŒ€M+ÜÙµ¬±Ús"¢öH~™^s‰w∂í¬}Ùõ7Y †%®õ°µt)àÀ0º¿àú0#ÎåzwœY∑O‚¿êœ)”˜èºÄ≤πíò^Œ5»ó%yõöBY≥1ƒ p;Ù∑·/∏˘C*ç¬y≈îâîË*¢ÏMâ
+                    if (structuredCities.some(d => d.id === id || d.name.toLowerCase() === trimmed.toLowerCase())) {
+                      setCitiesError(`The division/district "${trimmed}" already exists.`);
+                      return;
+                    }
 
-v”Îœë=rÁæø;Gí‹ù”"È0BÅøÎã◊tp<ò†ñˆ›\¿[eé∞|Ë∫∑a* ëx?EπÔ“ûóº∞Á7s_§g{≥Ô˜PÜûÔ⁄Gﬁáˇ]!{˚ìU4O°§KÅ∑‚';Jv|rø¸fÅç…DîiˇR6d…k¥Jƒtª≈ßÜ Çø bƒ2G∑ƒåÍ;~∏ 8[“R§…gx„–≈`ˆlÔ≈rá7∫k"ﬂ⁄óqﬂÙ4Å%y!¶Ï¬:®™ò^ŒïÒU¶ÏoI e|1Q=ù◊m∏ñŒ≥ggù›\]7 	ôù"o^!U”!„Ê⁄@-Œ†®t}}iiÃx¬ÂÙ∆{÷≠ÜOçm6∂ƒ°˛TW∞]èq◊Åuê¸ /´Ú®å\.ëA+à$ÑÃt#±1ÓÌÿ1o»Ònß,@∑0÷%g8t«•°;&%S;≈#u:<±œkßåÆà√àÈÊ˚ =õ‰Pá æSˆË¥Û$>˙¢fGZcK∑§lNÓ8nh≈∂»¢
-vçå√mJ0/“Ûw»Ü?(â¨0~ìÒezJ‚M…ãa=º∆∆∆µÿ°„ªŸÿ¿1Ç< ˚ùj˜˝Õ5D>ãw9∑&«›RnöF8l#ã	”lîA,Ù∑CØ´N⁄H-i?ÁŒ±Àø∑=hë´Ëˇ¶?-><›Ñ?⁄,ó^pä°?é2H%÷„8NÂå≤sÂ(Ë˙•&=ì¶'ë*yL
-iº≥8¶ˆ€F-KçÖ6‡˝=ﬁbÚç=÷˘˛=sµ È˛_µ,†¿√Ô aü‹X^ùú)`rπ€B‡~«ÃÕPÊZ•˝ﬂSöpﬁæsƒü˜«-sÏ∑Çt0∂:5o…ÔzÌNÓ[L@ËØØ ﬂÿE!É¡£•m;¬%àÃ°}‹7âØEÑÀ"¥êÆﬁÓ	pXÅu vñÀÂ4Mò PÅùª˙{|%˙pQÉ¸∏›‚:—±#™IÒöMR≠|[Ve·èD µ1ü†lë`ãÏnJDBG?RKâÈÌ≠¥ƒÿ(êö5r"FÊ@Ì‘∆ô;±jwn|F™ç√°[˘)Î!}4èêÉm˜d ï†∂æ—éÿ∆⁄Ap!iEπ€Ë&ƒnDÌ‰ïK.È´ÊöHCÊOjÍ4æJiü‚[~óö˛¥àÿ.vÍC˘Öò$‡T—%µ{˘<ÑDYõkÇ‚\ââèÿˆ∫q€	©+åﬁÇ `≥î≤≥ı21ÈÄmoÊQÍ-Õ∂7loVû¬j<|j‘,[√G‘dEˇ‹põeN">ƒ∫≠⁄îzÄãÜE68eŒR)Wµe∫cıOı`Ó4äÁ|FÚÂ6‡'ü,‚3iôâ¥∫`£‰Yπ€∞é"8CÜhÿÌz·.g4W*ÚØSqy“m 'G£»“Úû<“]ÏX'£\o.7Á´ÕÂbsº÷.5Ìï∆ÿêC‹ßÑôgmƒw[õÑìgmƒwÎ8åsÁÉ‡€€úÉgo”/∂∑”ú<k¶>µµOsÛg˜WVüÎ€kMa€Ì -ËKáa+‡âÑÃ\®5âÈ¥›a‰WÆ»:lvÜàÔaF©Ë“/ˆÑ"A˜∑Í?Úº¶iTíÒyÿñÊ∞·óJ0˚	≤*q√.ySU5N]u8√4<ÆÁëê–ÂYa®Ÿ{±v™B4iétÌî%ÏHK:˝ÏçÛÁà~x”è’Qò}¶)'+⁄∫´&áK®◊Ê≠5rcÂ÷µ˘≤±9øπA÷o˝`Ù–a•€,µN“¬´wæUÒ*ıj≈Ó∏9#{⁄X„Ö3~°’ju∫⁄»Èæ¨∫ÚXÛÿ‹Úsù·”ÆFJB[ªìº--ÅìœÈ&Â}u sÎáÒê’âtﬁ‚©úº˝…J≤}V˜d´Îqv˜∫∂∞OÛñ◊^}r X±'Í}áΩ–Ô˝•T¸1&E†°*gØJwVﬂ=ÿ ‹H
-«ÏÉ˛v`wb _é98J‡ó]ﬂÊôã÷B¬0: ¿ú‚˝éo¬áT˘ËW%b‰H∞b√√-<G6Üı®∂˚ó›?º†)N
-Zà|«r!$å°√ë/ùén¥∑{LP˜Ò’CÉØü˛ÎûñkŒ¶V8
-π·√UA=êPGÅ:òìÅJ~¢óél6Gè úM'kﬁn0tböh§™5R{¯j‚ÜV:‹òﬂÒ⁄h∏Â‚§◊9®!yäDê.;¡ÿcÚQ¸Õ-;"∆‹˘ñø5üªGå1ãÌ®>#†_Ó8Û∂◊:ãIlÙx£l´â5z»Ò†Õ&z	3*j¡aÏéü.Gï<`câ≈ÎÃœë˘K´õdmi˝˙≠ıõÛ´Kdqy~øµ˛CgES!‘Ûb?’Ü≥$ÍŒa"C°ôq÷)®›£à‡∑åCˆt<7MBÄ∫Ì…–Ù¡CöåUwæ5{—;è9äÜY—Ézá≥´·v?Ö«eå!¬’	‰D2Ûh¢àèpCj§ƒÈÉä~cJ÷ƒ£˛ûàH≈ø∞PIìÂåÆ…í,ê˛û1‚N˛jòQŒ÷%’zÒèw≈ÃˇDWˆŸú\\·	ù7hLØ^N`ïd†ö "¥SIW5¡¢AﬂCﬂ{úÀ˙|sõ»#-ø;¯KÆı\
-’˙BÍ5©1¸Re	±y´ƒ.≤≤≠pøß∫S%ÆcvÎØ[˛Åº‡©‰áQy—nØAl¡TR˜·nÓ;Ñ`¯M¥¡P´Ñ.Jñ∏ÒAõ~∑ΩM	ÊRl∞„´¥áñ∏ﬂ†á~? Ê⁄"åíè‰J±4÷—Òû4ÉF©Yü cÃˇhl¬ÏCÁ∞8B<dqc`Ñí4‘Ñ”eõ4≥üò¸ë‹Ê™µÈX ‘YÙ∑ºag@˙@f˝V–A"∫∂º
-{—49î©üƒ_'ƒùÈ*’ï dÖ~,>oÚá€ÁÓΩ±g<é˝Ô÷ÉÊÓ 6Zì\èâŒÂÁ>˘ú=!«9•≠ÄË"ªœJŸ‘Ü˝ô‹ˆ‘èÇ)oæôﬂƒûc?,¨Ìﬁ_?˙#Óøß$Ùú>}èº±ßå∫œÀ„H9EˆÇë—Ò_™i 8}èì|B˚°ıy∞è46>≈;ë›2Oî$_â&Ô±àgxò÷ß¢€?∆ØæOC¸ü≈Wjí?Ò}ëÑ‡óÚ≈¸æÒÀ8Ñ63Éà»øó{z˚§·-RÓñ:7ª–(§P òÂ/Ïï∆Æ0∆òwíú‘Ü^ àá0jôë8ì«Ÿ<œì˝§Á•Ÿ}@Ú&N£‹ı£&Ê∞#[Ìûáqëoñ-I∫∑˛Æ´L>Õv‰’a≥ØÏµ≈∞ŒŸz$˚˘äí))ﬁ„˛Á‡Í€‡Í+≤H÷àŸ√i|e&ÌVKB*¢Rä¡§√0â¢ÏÑ^?…q.^Ç\@ø1ﬁzÙLA˝cB}∞—ÌIÀÌÓÕ9ÈRö∫ZiAYK3Xê¶ï∑ÀÀGdÃÿdW–Ïeù+®iΩBﬁ≤}iiÆÁ§‡íNJÑNÚ®Ò¸VN~5P‚ˇ#Ñ±j…éÿª˛@ÛØ,‹∞]dÆ¿˙M∂: ÇYúØUò ˆ®≤M˙û‰Ï∂4Ù#ﬂiS∞„ñÔ5ÌÔ‡[°&[¥FN÷ÂıK"≠%ºeäëÚ,ï«T$éÙ’Úd3æÄ––Ñ˛Q^gq¬˚ÛÚ‘†uê˛L	“ØyÕmüL>?;á9»Ÿ´ÀΩ‘GÊpòù+F÷√Ë8lo∑i#≥c1ÉÕ°ë/ª‚HiK√°/"ìßúe:πÊu®&e˛pAà˝á∫¶˘∆¿ı‡·ù0áàL9PëÀW‰π=Ñü‹%¸è§8Å`∏¬F-Î —òÈ\ıMÍ2B›äS§›|Ë§	à≈fqp0 7c'äõÒ§Ù(ââ‰Oo‘|∂’‚-ñ›÷ê‹˜wÅok>‹ów7f√ím≠…i)h+ÎøôÇßi	öÊqÏH£ÆU/îrﬁ†Í¨4Sµ.2qŒCã|ﬂ›£«!jùæ˙aÕU∑’<mñv&Y›‰v¬ﬁVëñl)yÖmL÷‡⁄l¶Œ›lı∫M2˛˜¸˚âôÉ-≤7='o®¸1'1zΩNªÁo¯¬ó1ãk°˘@ÖYƒ\ª◊,E‘Â≥åÍÊ. 4(Q6¥7ho°0˛¶¿⁄∫4Ò°—n E∏ÈX§´î%˘§∑Mß2iF–î¢¡ÙS£˜Rï…}2º3Ñ∏»"m$ô•Pãa~P ËG≠∞›ª?È¬E¶÷õ≠∑T-c≈%¸7]s)ûO<jÁ∏r)á1:±ÍQº∫Gm7ÒãºXIÅª2CÒ„Õ»≈,™—n8»~
-†À˛∏≠≤ Ê¡häQàÍß1(S$'ŒﬂáYÔ$Cxø–§ù∑bØƒ8BøQ-Ù¯a,UgOò≠πûÓ%”›Á_XLˆﬁO…“£˝{Ó»—lÆaO∏¯k zò[ØH˝¨-ØŒòãT<&`î√ëVÉ&Ω+à‘6DÖ\m” x
-!÷uÜ©mŸªáïˇ\Ô£æÒw>Énv&õ–’+dñºE∆,ﬁåï√#süBçOAˆUk£¸qãç?ñb‘Î‹»$å9 h^îë7û«Reë5fU+≤∆úMÜ€µ€v•û…ÿ∆¿Î51∑´xË~{π#È·‚ùD∫”“¯^"+¡°˚‰G¨∫€—ÃcdJp6Î†áç}°á¸Àÿt¶,JÌπZ∑êëttgK+&télG8≠D%ßN&VâÛ|$w‰xBä6ÊòÁì—ˆ•ëÊjÏìÆß§®•.SK®ä¸∏HÂAeuáπ£kâåN¥päS	9∏©wß#ı£-ê≥Ç÷ÄÍNj◊ÁKäÆ†Ä∆C±ƒ
-¶¶öQ≈⁄@âypf3¶+)…ΩŒSbÅeí„\Ñp8yi÷§ﬁKŸpãÏ2ØÙB˜ïÁº∫€ü¿£9∂Ö⁄ôÜ7
-t[D&π7àœ≠ÖùT±fÍeâˇ∆*âbR:ÃøÄì_‡'’‚Â‚¡"M1NœÎ∞ÄﬁGôd—‚amVΩµ“·‚ΩW÷í¥ÎÑÌ.Cá#Çz]ÍÈÉ<õ˜ëA˝à¨˘v2¸‰ªÒ‰Ä=ÉÜ4´∑¿u—q◊0~—SôÖ2≈\Í°v∞0◊K9G+â,Æœˇ`~ÖÃﬂ^\ﬁ$◊Vn-¸-∫…<£æuœÖˇÀS˙ıâ∆cZ8HÀ.œ¥4Õ∏s›™£à]=jÅ◊:±E)ËÉ%¥˙'ãÌŒ9^Å.~πKËë≤¿ê,‘%.o!¯`ijÕ∂†Ÿ Xi¸ÌˇNxc} º1|ÅAﬂüDYkVRäy˛ø0TÅ2VG±18|A≠ı{:#Yª1>ñ=üS$a^ûqô™ü•Jo+µ≥ÂRQˇˆˇ›¬«IA¨ºç˚}.Ì÷1é”_»;©Ñ@h¬&ÚèÁπ†X&Î»*v“I∑é-9FÃÿΩ∞—R—bö¢˛+LOe∞ òä©ô§¨Öõ]˙@U«[0Ërª◊ö-ºååË§Ã,Ü‰ÄÂ,_Åúìº\6∑•πêÆÏ—◊YSÛ	<&ï€z…g˘y¸¡íÜ%ø<¬mü'X≤\∂Íe◊åUä1üSŸ≠†1åÊ‘PT˛Hµ°¢’∂fÚÈáZX xÒRÿô<?c⁄ √¡NUHªQùœY2%%ÑRÕ¿$ß[“Œu«`'/∑{çŒ∞ÈG%ÈÛ8ñvRâ”∆ØÔù2/ µJKhhª≤4Ó˙ÉV–,>Mw∫lSÃe@s*ä7Æ9GÆ’G@„ß[≠•Ç©µ˙≠Ø-™rΩ˜⁄a#Ì˙zH›Eπ£Û≥“≠âµÜÎ√Ñ#YÉ∫»ı ¨˙|±úS⁄ÃSÎìgÍéÕ∫ı9ƒYG‚FúÔB|B›ámÆ√Ë4úÔiÎaù’è√ÙÎTœ|∞ﬁ8∑z∂f«C©~‡µ;Óõ∂>1v”˝t€ÉÅãsÆ´cÒM¶w˛äπ™⁄≈Ô\’ó·û∫ß£–‘Eïe¥;]ƒûü;Âv3œı≥Z»ı”§œwÒ«wpÚƒÍˆÍ’¸˝Â5r”«õtÃ’ø%◊•F„hrˆÍw˜vdÔOáë\‘?v˚á∏aRñûDÔ^ƒäâFëk2k◊!◊7èp=.Áüæd0úIkXŸOîp≥kFµ¬H>Õû¨ÒV€ÕÆ¥'8Æ|ç≤´}◊ŒL§Ã¥q’AÆ<ëo,æt˚q]ã¬z÷íÁZÄôŸ
-≈tåv2™íÀœÀtˆ1d¬Â6©TÑÉ∞äÒ€≥≥¿Ã∏y°ËSŸÊ∏ù»È¿™{≠€4∆Rñóƒ»íã=fkÃÌ⁄—…gOÏ√â¿éBVëÏﬂÆîCŒÓùóù≠+-ä£ŸùÍ#Î?<?≠º€L©*ê√˝∂îµ–∞∞btwë'¨€√ÙÂ¯|Ç∞≠üìâÇÒâÏì9⁄∫¿pÖ
-÷%÷}tµä˘öŒ®Eå≈X„	íYc˙‡£ﬁà©˝8˙“gíñ(∂TŒœt ‹M÷9˘ÚGfÌ'/0˛H∫M.]™Lù◊ƒ›«µx0mæb$Ÿ∂çÏòPFv∂%b´Wçf®v∑sLq6È4ü)3ëZ˜±¡)ëzâD*d
-$“ı¬˚X."‚PN0M¢Ã\ö —á15¢ﬂ¶gçæ6'è±}?2tŸ…)∆… ·ï"$Ø8πë‘!ﬁÖŸjá›“=ÓÆƒ/aVﬂ8{]øuœRƒ3˚±Rnò¥Tê«3ú<@¥C°_áEΩéçvπSûãiùùiìt≥<Ê<ñ€Hé$Lñ”&´iÖ!£\±	äÊíﬂ(‰Ü{ÊqfpÌ““ëäË\hé^GØ;w¢uH:”<gπq…ÀÒÄ≥zøßØC≠√sYõ_\$´K? 7ÁWoœØ»Œj◊o≠3áµÂ’SkÛ?ºIÛËÍ2Êj<Œò·jZØ$≈Tr@W0Ím6ã∫√ôútπó[3fÀgè.4ˆõÛ2‰8u]^Îµâ§U]îfozΩ!Õü∆i3äMI<”&5ÿ¢;◊Áís“3ÃÖıÙqú\VÔúÙXx∆ÌQo°w	KÍ*æÛÑ[ø˙˙”rSm]ûjÕË]Ü0⁄Zª»†«Lr±ˇäÈ˙À˝–Ä	6YäKSamû?†ÁÔ–çBÀ&⁄\‚º™∫Úà)òmWWLÕ<lc÷¨≠∂ﬂiFÑdËm[…∫π“/~¥vq¸∞[¸Õæ¬Tﬂ%u	÷ı∑‰VK–Ω2h/ó-.“
-ó{2pí[ ∑æŸQ<#c;ìò`ç¥Â^∞c>]^©uR{Ó5-ÁÚ∆-a*G˝N¥96~ß¢+P-wù0\öì‹&9⁄ôÀ$cQtó˙Á2,jÎ\∫9◊wrÈ/»˙&È	ig(-âN=^(€¸3"%Cﬂ§ﬂ-ù Üö§G/>i{ı9q≤Ê◊≤öEÿÂz¬!ﬂâœü÷6óò∆ª6$+»˛é∆ÏkÀ˛¶1úUÉM¡ãk∞SAæ≥]∑#íOM£ƒh¶·-xaUÇ“òy$ÈUF	]_fpË¯6vÿÈø^ìΩGAœÎòö¯ps¬*r3…◊ûì?qj“Ùgv®52áØÓw∂ãö_eÔÅîüë—©[GìÌ¸àêm$ΩqmÍÔ\û¢√»ü«6K!øwç/(Ó∂ﬁ˝V€ª?h˘a∞’»u≥ï	k1?[`Gq¥›â€$]ÜuõÎÌ¨¬('πe)èöqøU‹t.‘ÑΩã„ÜGALπ€¬Oˇu¸p@≤GÔ±√Jÿc„&g`ë-f4h‰4Ò≈O«
-è¬eë]˘Ä˘õ≤57s‹zlp¡/¥√Üã<hò≠§°°0,8™†,ﬁé≠Ô»wÛ¨z•üΩ™~ø<≈ﬁ.ÿ9Ω*})‹—™∑Ì5•y©ﬂGÏéœK˙R∏£ıÄ™íâ•Óö◊ªOD1(“"⁄`
-X˘iië>œÎ¸ÚC°N6)“
-SÏ0òútÚÿßJı¬C˛qø∞o=‚ç≈Ûo‰ïeÑMyï +ƒ%˘fòJRvãÍ,5±Ú¨`<ûçj·ÃÁ≠jnŸö1%ïi„|E)têIZè{{^Ï¨\˙ ±7òÆæ
-Ÿ¸0ö´ãÀ◊nØo,Òêm≤π>ø∫1OπÛ‚dl¶KÃjLçAk⁄áˇ≈˙¢™€G≠˛ï—>©¡oﬁZ\Z!+Kã7ñ÷…9r}yu~uaYƒ±/Øﬁ õÛ◊RmF9eWÿc&6Ω:ÛÎMøÛN«onc™±åõ_ß∏·¢$|?∑º¶øúH}≈M‹ºµFn¨‹∫6Ô¡∆Ê¸ÊYøıçƒ[»’ö‹´y-–ÅqÖu˛ß∞›÷±É∫‚€∏ öÈ‘¨ÁÌ0à¢uˇtò§W√∞·óJ—∞;AÍå<ª‰MR™óADµÂïÒ	¯ø©˚û?∏â€ø—ÚB‘ ∆√}áT ÁM≠h™¨yπ •jÆ÷ ÜZir?÷ô&‘5Ó»kvˆ¸U“˘.}<ñõﬁ†UÓzKïâ‘Í'5Î“Ö-Z¢ﬂ“∞jW’Hg;£K29…“∞k§Z§∞ÂvË5±(√‰ ò¨ád+∫ò0¢Q≠‘*p·¯ÂBÂRu:ù=neø6==}]d–zó)Ik≠ÀÀ÷<ÏX´bÇÃÚqŒQx™aPa¯^PèHåÄπµL-Û©K∏≤hâΩ,‚ä29ãmËw–hÂ'Ï≥÷’’≈ë^4S+/‰õ&œ—∫?d%ÿﬁŒ[ºΩåk
-‰v0»∂ÖˇHLÇ[ûm¯≈WrPÆ»≈iˆ4U=ì;oÀ!pÄ≤¥àúµS‰<rﬁ¿(∆Ú}î(é91PM\z≈ã)Ác•\]Ãåóå$’€ùfeg	«é-Së>fØkg‰TRîö˜mÆıˆ`Û…+~Nü‚Á¡ìÚKÑ1L•Ûïoè6r2y¥∆Så3U¯¥£¿“TÊq-é
-ÒBï§4ãü£ÅÆî•§G\R¯ÁMJ”c@j%~.ò<?∫/ª!t‹ƒÜŒÜ$XGçÕ3ßÿ|0lVkÜ^Ã´83öÉ”qﬁ •cëÏ(–9v“øhCË€Ωæ‚,<¬‹Ê∏Õaﬁ‚CÂòSCxÅÛÖõd≤6oÿ"¶I	7⁄€Ω√∆OÁ‹Û,ﬁX_^úC’õ ‰3-’µ˘ï˘’Ö%≤≤º±Èê1#u?ÏHbˆ4≥/jˆ+Û ßS-˜YÆ'˙ﬁ≠kdius˝álé.>≥0~¨Æí$g£ô‘Lœ(”°ı:oÃúh8'∑âå%.ÍMÀ$6Å[Ôxªf˙fu®M. Rî‰é}‹Û	¯XN∞·Ï¡ì2™!*êa‚ªá~”í—}Ù◊ÂIü±Ä≤ìÔ{_˙AØ^ZA7.ßÕæ¸äæÚ+V¯˘cˆrúÇ#ëCèDd?¸(ïüê'Dﬂb9I·o'XπÔœø~˙xB”X.¯-rHjRé≥^^–˜ÿa•≈ôs2}ö¯Z
-√=¶%ﬁ6‡ñäÃ!·öÎﬂY‘©i2ƒVj`Jàπ‘âLU´sÁèª\
-√ ,¥rá€¶VI]‘£.òŒÓPñK]œ%7s&œ7õ˝WËpJ>!{h£ÊL|YhÌÜoeèœ¬ºAÕ‡bfAö”ÍÅík;Êñ`vntt·XÃºíÌ‡ÿùU*'œYÂÏ’…I¬œ69’……|ß™/¶ØÛ4[¯=7”ñûÊ⁄¬4›?d˙Ω+Mƒ[ˆ(÷ò¬)Èzzã‹˚ÓöˆÔa›†’Äz‘ÿˇ˚~slﬂ^Í=ooÃWN˛$F∫@É˙ËJû≤´@È‘≈Ÿ]À‡l¢ú’(tÇÜ|ºDáë°xπ#‘›$b! 'ˆË‘Nú£ì_ﬁ.ì ≈9ò˛⁄M‹–*-a¥—jÎ˝ÔŸG_\ÿ(‡ãÌN¿ÌˆÚÅvÑL‘›–{ÁÑAn<Ø)Úv0ÄAÿÑO&,/#«± Îic9êm7Ü≥ï™#8”≈çœ¥·)@@/—`jÕ€ÌbA¶ìÃ±£Ç:π*AaπÍ0¡¿ó5
-‘bªS&"˛Pñ◊∫>!†Og
-d†J€‚——S‡,P÷‡ ÒnxÑ †ÒhwÇ\GP†¨É#∏äåƒ˜äBÂß¥hmq¨‰Vq(Y£ΩOj¶wãÓÏ Q√ Ã∂á˚èëo1WW*Kó´â‘ä∆ﬂx¿µ˚„ªx„6Üõ?ó¸;ﬂj\∫tq∂rW¯ª°ôF_Öï–Ù≠Æ˘)˚°ﬁ?_¨;€h˜®ÈS‘‘ìo€YZ∏µæ(llãÀkÛõo€Ì:f˝7|≠°ØVV≠ç±c¯Ìõ7Á◊Xÿ“WÕ“ßñ(i1@I95:◊rÉø≠Œ˙⁄nãßÓT ïôª¥ºRì>◊ﬂ·X,È<Lï›äô.iWäôÜxWòÃıvœÎ5⁄(Îµ|êÔra¥b“_ãX2≠´÷ ¢ŸcfÃ˚œOÑˆ¿_— hºÙô∆L…çã¬Xà˝=-y5∑üÀyã‡ówih⁄ƒfÃtô‘tãÁÙÁÿöJ∞¿¸Œ&Ω@±˙˘Ù€„J˝µ_&’’pÙ/hÌ5û)ÓËyúGI.5˜g±&f€¸2S•ﬂxn≤m≤C”⁄7ŸO#π>Â◊9HI~£e	ÖN»¸ôÓrKÄ÷‚¿dµ\§+∑‘—,‘¡êªî±≠xòz:›?Üå‘çpyÊûŒ#O$ˆõ<{UÒŒπC≈ìw=•nG(˜ó8*≈ât$ÛW}‰5s∏¨Ÿ‹m¶9{ˆLÜ[«x0ó—"gœ595ÖALçVaÊ04vlâM≥ˆ@Hâ∆ñÂºDå¡m‰‹π‹∂•∫∫o©ô∂hóÒ©ﬂıÎ“ì£ÕW}«FŒ¸Rv…'')®¡˜}öN>ÖÔeGâÁŸ(ÒÄÜ>˘√í=z/=öW(ˆO˛8BñEtÇ9s-†ì: ∏ú~Û~?`H£¸aß—ÚìóccÄòTOK_à1˘‰îUü∏¨WÏj†´Ïï÷Í›T:ló#∫J%ù…öâ∑w,0rπ››vxçê(làıuΩmˇvÿ°U¿ZÉA?öõö¢£Ú∞á≤D‘§ÌNı[¡ ò¨ŒNœÃ÷.^ò©^∏0;9;}È“åw˛R”ÛÎo!óvÖSopn´=∏“É˛π_πX9∑s•Z´åπÂˆ:É+í_ÜSMiJ)WyP«‰· >àe‘,◊vÒÆK2`∑Tæk}g⁄Î]–uu‹bœM‘ÒpÃ2Ø¨ÊVEÀ2†î^ÖIÌ	ŒE≥Û›ΩòÍ∏ù´˚"\K÷9“#ßƒßO¬≠‘†¯Ï)7%èñ=¬â€j#™{«*ﬂâ8€p‘kHÊüËãœ_‹«?ıd‹‚´PÆΩópö¯ó‚ã`w˚Õ>/Ωyáª‹ŸœU◊?•∂“•Õ˘Âï•E9YπucSû¨,9Dòå¢ÿ’˘	“ÀΩèOÇñˆÚΩÇX¬Í˚M¬l^,ôô«
-˙bé´vˆê‚K,Ò$F›k:äC(&’PåØ?y¬T¢øç#P‡˚ﬂ°&ï°!πiË-Òü˛ô§‚VLì¢⁄R¶~óÍn°…SmÚúuÛ1}Ûã8}˝#ÆÜ¶Û˝LD≥<Á:ŸëbJès1”Eœz`´]øzrt´fΩ*˙*≈fsªZO´
--§ó’ˆ@Ω•ß®„Í≠cØAÍ7BLóÀ=µ
-∑]ì´ùÃj0sî“fm-u©Ìáx™¨¥π≠#3#a’Œ—ÃZ–ÕŸπƒ'ï•k•ﬂ≤ZP¶Ê,í£K|Xq(©w.≥–.¨Â.óÛ5Œàù@ù+{˜SLÈEE8”ä™~≥=Ï:0¶´A≤ì§g0BGlÊp¬≥—£Kp?§›√^àL9ü!=hEÛ!3›«g†!U#å‰*¯„\j"çm&iqÛU±ÆP¿în¥˚£P∫i§Ù∫Èñ,Òè¥§¿{∆é‚U(LÛ.¢T*†P:{ïM=6(8+í¶D™∏VPNfó
-“ ˛¿Ç¥XŒ^“ELvPAi1jqnëxËëèTúØ˜~ßM¬&Œã6h;C…!o•Í7éÕπ√ô°£√Oìé∞êûµ$1π}+£)°¯ÿñ0ö÷çÁ82§7:xâcæπÄ⁄ıNÓP/Õpÿk`‹ Ø»∂∫áú•Câ{Èmj:˘Îœ˛W.y9‡zd∆5≠ù+ç∆UCΩh∑◊ Ejá ïC«ÊÅ?ÿÜ$Ú?vº&(Âï&…†’é$ˆÍG PÀÓ“|E´œy¨∑»&æπ”˘≤›√6ÉŒ.Òö®¢ØQ*ˇﬂ∆"RgI}HÑ~fg∆
-î$≈a›´Çz;^{¿ó±4JM¸}Çå	6{lÇøHÂN^ÓàkfâfÜÔØ–	JS-†¿Ω{¶@πN“†ˆÔíÜEãµøÏc¬É“À @ÁÇ⁄|…s∞dÏ∑jØ3uî…∫ø©√[NıJ’j•ÄêjieûÇB…–§‘0Zrm	e¬≤FœEH'/πfó?ju”(Âw·dd;XëS◊ßG+)ô´Öçõ.$ã¬ﬂ®Ï?¥¨Ë©å‚}†ïA`T(ü∏öE‹"=†·:¶'9G®*·&ú:∫ºT4ﬁóD`Md!ÙΩPö=Û4˝Tæô`”€>#¡f,Ö9±ìxãå-¡wÈ\∆Pê¢g„ÀO≠\ˇqÁ¶⁄±|"êŒh ‹l-‡\^Àß~¸»:^ø–Fd&º∆èámNá€Ω4{Né†Ç◊˝¢Õı≥·=ÈFŒÚ#!6zÈae
-8” 3!9‰“BæcTΩû¿ÄˆÔ/ØÕÊS2çã[-úthMnö
-MSÀ´Z‰'ÄºóöWˆŒúëë˚Câµ˛H&¢´ÜªÕÓK`uK$N±úπ P§=ÿ˛ bﬁ1¨q‘cNJ∞∂Rh†Ø.÷ÈS˙ˆ¯ë¢‡Å#ÒªÌﬁï≥ñ| —√Ô∂–|çßg›–7ﬁ+Ô-≤ΩâE%^,;fzòq˝«àåáç^~‘€˝‡?2Z±ÿ{e)Ø“ù6=˚m≤—˜iÃ‹o1ïpƒXˆ(ÿÕé/Ú˙ÑBˇMÔ!V-éHÈÖØ3˛Íb.fæ”	v¸fzQ/Òz…ª=t∏›Î¥ÅOá¥∑HqΩ˚n8 K«èÄºÂÀ»˘rBqb9"ÛTÈA3·#≤±”F=¶kB¸¸ºıX÷\Ÿ49áπ~ã¨ﬂEΩ˝Ì&∑jÏ⁄î1Œ*˚rêTˆw.ïgı7µÏQ,¶…-#‘‘2ÅôÎÔõ9EkÏi‰]0∫—Ú˜ÎÅ%	}•ä|À€ó∞O4M–èwÌäÄ:}´
-Ö ¢qDB+ÿ§kz÷Q∞)CsR+kï2¿C(	ìU/vT}√ófiäÂæö™#ïãŸè”Oªjs2s7ÁF5ƒ°0È67”∂vSt©≥3#^rŸúT~ÓQ6»öä€æEÓïá°Ÿª™äDÀŒ∫ÿ'1`ØŸ±˝“≈r	àø$Õ±‘É4«Ëî—…åÂô©2‡Ù¨kdäù˚è©◊ ñ¡≠ç‡7úâQ∞Xîyç¨÷∑2?5nıΩÛXô¯nùìì.ÕVÙ^$Æ)á\mr6ª‘Z´;fî»1êôDv=Âd∑Â“Bqe!qœ— BıÈãÁgjŸÑNÏœî–!äRFêÙæÛÛ£=Ä¢…*ZWì√hÚîs¥òOÍ‘mäøíRP’ÉÁ>œÿFnØ-Œo.ëÖ[ãKÃ.≤æ7ì‡£(πúcMãòoì∫ÓQÜ'Ÿê¥⁄Õ¶ﬂKe{:‹4OhƒKá	¿¨lVπÄôõ?F=ò◊Œ0;3ÓqôAÜão‡uÇÌ<>ﬁúñ…Zß*ë<9è®xG¯M’õŒKWç¡ââµ&“∆yM˜„;(©FÀÚÕ“g∆Â⁄lô[?$sèza‰-3]≠ŸŸÖq–Ê˚ï5√∂∑ü.Óë;=ù
-∑Ä˛∞˘vX ≤¬iŒ£2Hs∑Áu€BôS*-Í|Â-Ÿ£ˆ·¥*Œ>ˆ‰ÎÊ§à¬7_ÔC∏∆⁄!^:ÒA“E◊&4Ss-lT∞µg¿≠…¥ Él(éÕÀfØˇ—dç√ç‚
-1Æ	≤ú¬∑8ñ5∞úZ_‹÷÷îYyA]‚5¥+£™J;ÿkπ°≠ê…lhæ b‘ÿ Tyu–$6¨ÁgÉ“ıB≥¥S»π}bCµ¶zÖõS¿Ï;‰…“ÓáíL(úFÍ©¬eù8∞ä†+óúb9~^π˘±\‚∞ j¶´j9È±4Ñû—P"í[¡ÜÕÑG∏–&ÖC\ 3É–éèbú¶∂ÛåÖi&FA∑∏∂($¶Gï}¿íuSiñfMêøP∏ãB’°u%”í˝+ñÙ ﬁ&q}p6oˇ€‰÷ıÎ.ksÈqÉ”2ª`ÔTgπ–ñÚóÁãI(ñÉ€|≤R≥£[P 
-í∫lŒ≈}ﬁ¿4ˆ…îx÷e:rx>±≠v¿Ï‹9í˝ıM¿™?Ä˘◊øˇ'ßË§É¨†Ê.êÊ=ê—ø1∑Õ`{ª√|‹ÿÂ¡)e—ÑN{˜˛Víj}Ÿ pç·RëŒÙZÚÜ´W<ßŸ\ﬂÊÿà†∫ Kl2ÙƒB}f«ú«ö£cô‰-É0Âÿˇ˛=ós+D≈^‚±ø®6eπ«ûù≤Öπzî qRÃ√:Ö‡ç\!3≠–fhÊFë—m'˜x·>bm∑ˆí+ﬁ™¬3wE·nbπ
-vÖ˚zÛQ)>èyS~Gi/W©ûùJçºæ±£n>˘8≈»h¢dò∏«KÃœ§©PéææífG§‡)∂&f_4æ›£˛ïúKXMXC‚qÎ\Zπ—¡À¥OE&«Hø˛ÎOSÑ˛¬çŒbã$"É—n£√Öd<6Zã∞œgS7õ>§Í(ÄÄGW2ËÇ™é)wöı‡s§Y¢¶ƒœf˝òn\{§‹á#∞:•—Ú∫¯´yT¨¿uç˚˛ ãD˘·Ì∞se/ı`_=\˚∞ı0ö¿ŒﬁÈÉˆVõ∞âÀ8ÂFqu∂•(ÆjçZ1Œsä^®sr“Z•V¸≠¡Õ~ CNÃ\,R0~lë‚∑Ie´Z≠zãTCµHM£/Lñ€·∫TPé3m®≤ªl•Á‰’£†3ƒ+'ËO¢√∆÷ ˛√™-Aﬁ4v”§ÛÉ∂7πÎ£èªÊ˛€˘J≈ÄÛ“€ú¶—ÅS⁄¶≥A‘§íËh”Éïƒ”Œ*JíüÑö$1Lë˚¶Û¢5üíáœLÓl5%lÓf*a…ú¢Vò¡Ì⁄0jëyåcæ<’™u±_Ã*z$Êw«ïpáùΩJÛ◊=°©Òû≈e<^r4•œ,˜>M+ˇ¯òñy˙˜j*;⁄ç—"ëóîR˜ã>¨ÕÔ5Ø	:•m3ey—õ÷∞Ç0ı e’öa–l∂G
-Ë∆≠ZÚÀh)Ì2™0ñõÕ¡[Üæî“’î¡ÓÏUu¶2Öc>}î„Km4⁄sÛ0Õÿ¢øÂ;@ºÁÅº›¶°%öÈêÉ$¡Ñà<á‚«‚ äúßœ›≠„{êÌà=ô¥ŒÔÛZ∂É√qæv∏î2’ﬁ4qŒ‡4÷√º-0¡™“ÛÕ={ˆÍ˛«?‘‰£æ—	Í^áƒõFAœ|˙yEÓ˜ºNg›ﬂnc°(øI«†vjaÕ1¢àπR#
-6†6Ù˚P™7"^∞3≤ˇ˘7CXc<ÕUπ±Æ7R é4∂ësjlﬂV"!Ãå5`≈è—|ÍÈ•E6w˚ˆÿ≈¬§Û®»ù4_∏ßî–=À)JA†˚Qi4MQ‚EƒÎÌ~sâGª∑úΩ˙◊ˇ˛’ˇ˚Ú}≤_¯EÒgz~,√Ì?≥
-hü8å‘<Û—/à‡f√¸û2B»ÔñÊ¶ÅN?¸Œ˝6*\≤Kî¬1ÍEú3Xaπäè«ìË π˝ü≥qÌ”€}L‹Ü#¶´»±å∆¨›√Eª@oª∏æˇçÎ€†_ìı}©ÊVÜ1>eï£P´íTK6Q·ÚJQ*:·)Zπ7ÛOç˚˜˘·4?`‘gÜ¯·åG•~ÿ÷ùi ú2πÈ°vÆÁ±Bƒy∫5ÇpëyÃõNÆ GEI•IK.gG@_GåíSÂ&ê¡ºº'cƒîßò(†'‚™‡â‡3ío.2·»^Ë{£„JÏDWˆfÃùF&æò—â∑°}/§∏”†≤a4Av|“Ú¯TÜÖëÎÅ¢—†=Ùªò2ìÍƒ{ãÕeÈÙ¢2Y¿»7tÇ¡~8˘qÃW¯ÃÎÖå Q˚'¨—!#&*A»5™é7„„Ån'	^⁄éòóh^m¥ïlRÏÇ+#ìº+Ò”ã≥4‰I¡ä/∞ÜÑíbÕ_É)ú’∞éî«©‰w—íﬁÙ¨
-[^x“¨Ï∆£/C¸9:JÍ Â2umH^ã9/çÚéÉ¯´W1ûócKò}¥ ª‚¡#ÎË„0ßﬁ-oÉ∞Ñª§É¡$Eïˆ™¥/¶õœ˝Ó÷—ê`rû:_°≈d,˙Ú#V53–{~.ı>u3*ô?£Â©Ek©…ÔD¡¨{Úåï∑¶wÚÔÈøè®òoL9˝•(s˝UqsN,	@[¿E’ Y
-ùcò∆…’¨JzeXO‚EË1ËCEÃiæÃCÂƒâd,4ªya"T„ı MsÕÔtT≤«ä&¢D gjvÇh…¯ÛÀN#Fî]¡‘3¨ËB”@ayŸöh¥›»¶S)Ë£¡Ï;!ç˛0ßÅÿµabºÒöAÔ⁄÷‰85úylî‹eg–©)1jÑAßS˜B˚ëÍ å˙ß”Á8îMMë¶∞=¯$Ïv|L≠:¡.)[Üúâ±õé?ÄfÕmˇ⁄6πBùÎ¿∆*ﬁàÙA‚éòºP´åŸKê–iîq|fÁä†±Ò‘ênæñ)ÔÇcSmQf‰ÿÛRdÎV</„üßãé∆uEôÒ˙√∞ﬂQ∑ó?íFï^*æ≈TMîW±”aŸiTŸ.<f) ÎP»™¡ß÷ 6ıºz⁄8$W“¨M◊<≠W⁄E…·®FôïßGòñ=#2úG™\âe¶9A1fYû∏m@‰…ù…¸z§n.¨(Ò‰NËıG®L±wè—Áãjh®ˆrÄΩ ‰@˘NÁ«Û∆á√˝{nq<£ï’”áV ƒ`±÷å?L î‰W7rCY [)∏›Tò!ù“ão¨ÿ—d«”†/˙∂FŸ f@SóÍÊ∫Ì∂Õ∂Ä»B˚¶e#’,£mÎÈıLtﬁ¥®fY=Ã≠≤TÅ Ÿ&{}û"ïèÓ˝ÇµÍƒÖ“Ó˙@ª}V/j§zØn≈eÃzÈ-MÄJyëài"O‘nüΩ*
-Uú€¢„„±\]«~?ÈÙ?§|Ï˝…,9O†Àïç÷ j◊qsvM≈ÉãÛ∞Ãüñƒùù ‹˚v›o†éË·n∏S9Ç){.; <ëJÅ~˚/¸∆Tûì:MÂ≠6„⁄,π#3&„b’´Õ§ôå5“’å` ®÷ô@áÈÈä≈œ9jR›üô≠3i…yàü\Ë=òc≤ãKrN’vK©S°ìÄ¶!ç÷“ ÷GvG›ò$ yÊJÅ¯"%CªG∞X˛WVãj6LO.zªd∞¢«J|ÄÅªT≤n¯Ä1ˇuIUIy( äS!hõ+≤Ë«ö(˜‡%Y‡≥∏ä™ÍæY°ÓîQs∆tõIôh¯;øL¥k!jôOO◊ü¶úºì∂ëßëtrêùVÂÜ„ñ†-sÖ9·_&5§¶84uüuKcv˜tNø3∫†p	vBŸQ÷H=8Rù™yÄòm¡’#!	s|àUüpè|Hˇ˛ê|˝Ù_à®E˝,.ˆ¸1Ω13Ø€œƒmÅæÊÏ∂Ö3Ë\‚‹™≈≥Z»Ø—ÖÍíË»hŸ∫ø~¯1ô>Ø√måk€¸ô¶n˜ Ÿs¥?*íÍÚ)âr⁄q€¡*xÛ;ˇSŒ‡5èÜfÊI˚€∏*˜Ë˘~ƒx[r‚Hj^Ñ˘L>â´Üø†º<˙Sl˙˛ÑŒàr4XÁ\ïœø√9ùüãÖp’=¨˘"Ê¸úé¸ÔtºGIu˛Ò¶±≤È–’?≤/îez˙òU[Fõ|œ‡t]å„˙Ä∂˙Ç˝	}Âë¶&˚≈/IiufCxú∆3ˆÂó¥ÂÙ˝èIia„˚¿˝}o„÷Í∏©î˙1‘Q«ãó]¨ã¡NØx¬Ía™#„5ÎNL„K¡NUmºcL1+Ú;öﬁ.He‰
-Ÿˆ◊QÜ„BZ≈»ä˘˚A8¯>„yVÇÌh3Ä„)=HLê{6Üç÷;¿¡ø#§w¶aºËù7ˆƒ¿˚ÂFÙ‡ûa(C™öËCx»)>ŒÀ¶mIÔ´$?q6YÑÜÙê	√ˇäs¿≤À_»(0§8¯t-∏ÑËi◊/B‚Â˙p˘¡ñí7#<.=l¯¿ƒ¥rxZœïæﬁqΩ¢hìVZ,R éŸ „È·ÃÓÕËœóSø∞ƒÿm‹'ˆë(ç
-¸?äÇﬁ¡†?Ü˝Dºå!?VS…Wk-ù≈x$ÿ7Ë√éÊq”IËÌê:Lvÿ/ÿﬂãÇû¢UÉU|”\££ª@rˆ«bÅ‹ôøÁuvA¥ã»∆∞€ı ¡±^^DJk‹øÎÏv@K˜È™I‰F}ÇÙë|≠©A†3Ùu^É¥úÖ8” ’9ûpqÕ€ˆ¥˝ù»È"trAyQñMQùàÂl±‘∑âg‘Œduj⁄$MÂóœ6{F•TÆíì$ì^ÿ.æ›†ìªñˇ˚úi¿b~ıó6Rjf<–‹ã^túıËöì|Îîiı2úî"kO"å¬”¬*8ÿ<CÃYπŒ^Ì∞Àı’–¸‡‚N√EíöRà\O6ÒòAp¢éÄæÖAëêÀ¢jì-tLÿi˜ÄS–˚ÿ∏Néeµ9rª◊˛Ò–'¸
-z%±,ëkÀj«ãe|ˇ6¸(¢ﬁ'¿öº'ƒT&kƒ¿ìÉ_å>’új +®∑’Ó¿≠[zÄl—Ér;bª0.P≤†◊ìû&§T¬“!€¸ÂµóÜ¶ãmt”lH=æQ}. °lo3ˇÊ=D∑odLù∆˚ÿº±ËïFUYx⁄ô¨˜ï(∂P®ÚJT´ë∞˘‡m¯XäâÊˆ†ìÉØôÀ é±•º<`ê\b◊3Y†°hh–˙0J˝Ï√∏„S‘òãóF7ê≠%åØõûÓ
-⁄◊ºﬁv«k˙Qãl∂ª>)]€ÿôrÃ ÂË¥ò+$ûp™!lB@2¶ßLäÇ##}Ç·ÊL›ÇY8Í3¶FıÈUc˛S€ÊË#ééh†˝+E3ËÊMW¥’n4!°»  ìµR•ˇ·QñÂ|éÏë;˜˝›9Q rwé∞™{d»ŒﬁæôÃ(Ù%óºFã[zCtF|P¶Cáª„|w‚'waÃRˆ!ı.!oí™y6˚Ç(®izøUˇëﬂîAä€~ƒ«/GA8(ïº	Rß{WøLÎ$Ò‡?„w*wsi-ˆ˝πá*ü>ºøOJÏœÍ›˝Ò{déú]Eﬂ√$ØG,‰¿z∂˝`;Ù˙- U¸ p#a€ÍC 3`wµï˛iÍ‘Õ)⁄$◊ÈE5lª6Z‰Y`i˙i}˙6–„ê¨y=ø„fÂ!<≈òQÀ@bãvg;±h√ﬂ#Y¥]-z#∂Œå]c9´\3=ôŸf≥/zªO∆ßC∂/È‚ °ÔÇÿ:FrZçª	…˘=˜EbFF·•îx$±–¸Á,1¿3m˛k°˙ìî*â§˝-3‘=£]sﬁ”ü4s≤€Ú∑GêN à4hˆ“«ÄÜdÇÀ"r£≈a:g‰ç|a@¯`†B∆ºN«ñc5i∏Åæ(‘k“öî5i∞‘kÊΩnÃ⁄öJØMÌUyõe∑rÕJÍM……©á{∫Ì∫˝·[ñÍ∑≤Q	:ÔïPŸ:ú„±+∞Tl®˜ÿKÆ»¥Àû©kSmY¡HQÊt¡RÇ R~@=dM∞ﬁ˘$ß‡ÿ·Ä˝ÅP3Œ–ãbM,•¡ù‹FØ	±˝‚U©ä¢óé/ª~4–£Ku$t¡˛¸pî·)Ñ1ym^ÑIˆÙà4?ãGƒ˘ÄÚëèòˇ‹K«ù¡NÄ˜°}j£›6;¡;‘√€
-_:Òtä];˘Õéè˛?   ˇˇÏ]mo#Gr˛û_—ñÌïÂªHJ⁄Hkh)Ÿ,≠IæsºXxG‰Húà‰f(Ì :æ 9#…óCÄKÄ\;g8Üm¯É·À!ˆ_I¸ÚRU›=3›”ÛFIªÁbWúŒÙtWuWWuW=uKOî∏?¿°‘‰Í€˙	b·˝˛#≈ÙW‰.y˚ÛQr◊ÁŸÁpæ[}M¥ÊÿÀ¢À_•∏›]#Å≥˙›u:ﬁ±=Ì"~qI,
-bπ}€• ∏0F£!∫ΩÛy[4ÖYôìHGÓƒÍ9”Ë!INm9ÛL±l‰∏ÜkK¿5´ j—æ}ÏŸ˛†˚D°ë‡,A&Ç‚ ê·E˛ƒ*—<Ù∂‰5∏õË<êB	Æ›'pï?ÓEƒATrÙ—UdÓëV§Ø–5 ùÃƒYÀ\LÃ⁄áZ7‘áà†¨∆ˆmê•È(R∞+Õ„ó6;Õ‡E]∑ßµU∂Öxò>+u›qﬂ·0u&O∆–Ø%eBàá·â≈ñ¡[,êÊ±¨4Åt¡] œÚûı#ßã|Q_¡«·~˛–°É
-‹·ñj#=–‹û(.D:ä=ùäˆ∏¢o¿&Ä;Í(êî9÷õS”ó"@Ö˛ÍK‘7Åíän…qØ∑Ò\S‰ã·6∆ÃÄk£«∑(ˇlzà∞ÊM∏mGai#'7*"àøŸ†ç?˝Iˆ>∞∏¢}Ô}⁄yˇO°Ô	[p¶û'Ì»˚]∆^`∂AÅåãËíÇ.6PyAÂÁBFﬁFÇé*Õ”Vöq„;{Ô≥∏t∑˘R˚.ìﬁ_»∞∫_Î(ˇÛ·È©˛Æò=Ñî^y]≠/•ô¯[J6¡xOTı◊“≥*MïàÙN4èRÕî≤vémfÊ∆á|]/à%Äa}2^»çÃ®„j¢√ˇ?*ÏM@N]E»ÿß’/õ@P})BÑ7Ü®5ipπ‹’§ÁôŸ”Aîjr6#73TVIE™5YÖòC‚ÎÇ.(°<¡Æ{íZ≤àœ`◊‘
-™Ú_ûŸﬁÖπ£ß)·≥˘ƒª-àut¡∂ˆò’ÔÉïËó«ÑfÇ3∞A “·πÃ\èM,∞†¯…˚A˚M9ÙåM}IéüÀ5,Ù@°≈Ω~â˚+º/V´U3ï‚c{2§¡Ìaû›¶ ≥“b£›¨gÃJÒµ®N^d*JßÜûR–kÈµ–CÍuwÍO‡?ªè®>î«™ƒCµ∫–£Gc¶h-≈¿)˙¬≥(o9∫¥±Ìº`æ3¯Ge)|´ÉVR‘∂0é#Àèé∞˚°eØ¡˙í†Ø)i’åŸB“§:äF¡nMRwµ6hÂÒÿ2‡Ä6[F– t:pÃÓ∏ŸÓúŒúóΩ©•SÁ_0ôπÄ˘†Â˝†+§{}Œ‡Û)Í≈ù®\ÕΩ9>„0·‹πHté
-öp
-Ì=JW√Ç€∞¢ÈırÿÍzY48®¶|Âz0«R‹]S˘Œ*æÔŒùÙñD¢r"Oä
-&?úÏﬂ 	å¨vøêÉ+UWxπ“q‚+.cs¯{ï≈∫4	Ÿ‹^t0w¥å®(údÇJ7˙y◊˚¨gM‡U@íõG˜$R∂X£EDª	à˜°ËJeF÷ÙQô9 2üÊ⁄ıúÍ¿∑ò™´#g\j‘°ì“…ﬁR	Âº™±íaÖ:ocÊO.d«ÖdA≤rÿU—$c¶«FX`·¨ã,2Q‹≤Èx¶sy`_º$Ó¢7zjÑkÍã¥~L≥Ÿ‹ΩÄË3ó´"Öä‚]r°fûzJfóKÍÖ(;s÷. .õ-P}»¡ÿÀ`»\—ê≈Èπ{5—(Ò®«Wb‚»lj6ArêCÔÿA¬aæn›™´Oy¢y“ãèÁ	âæ`é„ÖØ]^2–Œ¶Éªﬂ ‰’’Àè¡‘œ∆	ÃhÛÏ Å	P	Å3l\ê—£dÒè:µÚŸs'gCÀ§˘	!A¯"ôﬁG˚˙Ù1áÍ˙~™◊πb•f÷ö'§5ìèj-EI™‰$A5…9uz•ú˙kìDr9êXﬂöZ"l¸∂5I|qôÊ¨W#üµâM˘Ó™èzÂ√•˙ÀŸÖ?wùRŸ«Q°$j+ı†Q†œ{û≥*‡‡A}∏∂ñﬁ•PΩûõNÑFˇ U*„E√
-ÍéÂS@óÄ}@ß©Ct©≠bΩGÊ¸}ÀÑ¥ò<kc¶év@≥÷√jµxÜH^Zì…äØ0OB3…D™'3‚ÂàmΩåÍG"RöP4n°@í£
-Ú5@ı·NcCqˇÒ"åHÛÎŒ◊íàœRl∑9ºñ∫ŸúUa≥ö Ò@xkÓ≠ô_œ]]”*b¢õIVƒeD⁄HãÏÖUÅC£“BkŒ¬:Gt∑›'∂◊£«º]ùE.#µpÅv¬)‚L‘wTùqoxFUÈÁPﬂ_¸"ÈyπÃMÖàìKr¶≤8ö≠	ÄD≈àìŸJr}^àÎœ¯ºw"
-Nf+ÅÙr*èR 0`Ï¥±K)*Óµm}MªSaÊéÊèÁ∑åvã¿ÖX:æ	ã 	O ∑∫,Tedí2≠e‰t‘–=ñ2 ‚€∞ßñ3Ñ—/3n¢Ü€öSRBÊf;…#yŸB¸ö
->3·S|
-òC*uDÙqÄôü“¿4E<U›º^ó ◊°22åH©PòM7ît/≥Â“∫¶ô|‘≥{òﬁeg“<Ò‘ù7	¢X8Âÿ‰i°ªx úô®Ä„úúûQqÿ&'œµÏHeTGwÛÖi‚ë≥ªl^R5%È!~ÀÂ”
-~sÄ›¸“e–ú+8âkÙ©HÊ¸ì‚Ç–:Gz§ë[ÅÑ˙©
-àé˛Ì1LÙN$¸)û2”î93ñ∫f,XŒÄs,Eê;Ks¿KÀ~$B(ƒËò?‘ßd[‚˙Cœ 5@ËÈ…¶⁄⁄LµdÅ!Iî8∂t§YÎÒ:tÀ|p@˚µGwT;ˇ<˚·]$˛-	±˝˚>öë˚3c3T<„úPÒ¢† 0>ˇhN˙=Ÿ+>%ÛüÆY«S”éòrz6:RÙöËèÿ1∏ÓƒÚÄÎ…∆gI‹îg≠}ÿh÷√mJâ&- —]¡vZ?üäø:ÿV?ï!SO3ÿÙÄﬁòïâËïæ€öµµ1®]e;s˜∂ˆ`"x ôÎù≤=œ=«1∏Zõäñ7wè†I&¿ßŸûèxµJl“Ÿ
-∫/ÿÓ¡l%D7·g+aﬂ>∂=*±·é,g¶Ü†≥»‚G¢ZK…O≥
-ÖﬂΩ4Qê—çWß8ëE+£√/ò8‡}˜aΩZ_Lﬂ¢2œIôÈãW”Í/o%»Ä‘[ª\∫RI(MØËnù	(O€¡ π°«ÿóç¨io Q˘›8⁄˜1\:√ı°›√.ÖzÄΩDq)h~Ù˚∏#=OµµPÕ‹dõ¶ ≤¨~î'ür¿~⁄l“‰P•"wìdY√£HÊﬂWXêX˘k¸í™OÖÔ‡ŸãÄ=‚M/8–áîƒ´´†Æ·w…∏ºß~^ëı’sœ€„ õÛÂÃVÛÙF‹¶õ˜†Ãós=ö,<1>k ÈÂ|ìF¿CÕJﬂ9qÚæf’≥©]¯1ﬂj˜?ÜUl4Ô‚rñC~Æ≤ôUxP[E?„Œn¸ÉÛ=˘`Ot˙Ë◊¿= ¨qﬂï0AuêöZŸ∂ïZu(Iè¢Ä& ⁄¿|»ó#ªˆÁ¢Û∂u∞ó∫≠vﬂ§∞ºA9π÷USäüÑ≥ùSWÃ›„lò‰vi‡˛îëOäœY]5≥A∞]·SÕrnw:r•5/æF_ï±2®ﬁÃ„gih!äÊ»√ŒÕ·Ê!nM√tOÃ8œ—pπ;Mcô´ÿ“À&T¯ÖÕG›¿ıNÆ
-ı‹bÇQ?O2?P®k8ÁÛR!/i˘åùS$ÑZ˘ÃB!gá ∆W?|Íu¸mL†œÓπ{$Ëê$j≠#øÑS~uÏ>ÅzTí¥É»dŒVY˙H}!ˇ€Ó≤ckË7ßMüBîêx?µÜÇÚ
-ySfŒVji\•Ÿê%¨±“π5î~£Ö¯¯˙Y∏°]ÇîbƒƒW™pmÓóöe6_OW?¥G_%œK1ÒŒ’®4§xüök:ê˛à«C◊ı®‹[Ï‘”∞cÕ%ç‘í®®óyQPdßxÅ>.gR!ùz˛gëq¿Ó•{Ø∆?ÇﬁËfıKPRôÜ'#8}Oú˘pyúøÍ˘Ñü¨˚Ë∫uv’Uﬂ[ÙMWπá3íÖ…"t…≠∫Üü,ù+æÜõ∂-l⁄d„=L) $l—‰lËõ#˜ì?ó™∏+Ed)0Ê€˜˛ç!ã£ê¢ì‚ﬂ®ÆÊOa‚_÷Æ˛I®C…≈…–•VY„Á.ƒØTn›ñ.öèA…)QÙó–¡RS- éõe∑fëÈ±""∞àô∆Õ-ÚCxc`ùZÛÖlØ€2 B˜ÔX¢ô"∫Ω«≥=Qûù¸™Ãs∞Cﬁ˛0ƒ|>Ã◊ı|uˇËB¯3Ï{),
-Ïv-Ës10€•◊ “±;‹ë]∞/L˚q≠Uâ|÷g˙~g4ô-Yí>µ˝gî»’/÷x—a˚ˆπ”£%å»Ÿ∏æa˚ßò3™∆∂≠	ÃõnZ˜=◊È≥∫fº≈Å˘˘z+%iæR3≠í§z™)õçŸYÕ2à|k”’/ùí∏Ìu€´9V¯%D`®&°˜H=&\SÛ‹…ïü¶∫ÚCÉWYı°–§B#MÜHŒ◊ûØ§∂ü5◊Ù _AÍñÅ‘GåË6[î6√ˆäÒ@<ƒï«≥{So˜]˜tdyßœÒçØgÕæ ØnÎ{ï!Èï˘ï+<70aGßgeó¨ÿ§|çe[JbU›ÓÉ_€9º”) ∂weÓ8g©€O)R^ç€Ì…é9‰‚rC®{z‚VOÏI©;˜⁄lÌ’;Î˚oln=xCÔ6ÿ·˛z˜<€€zks˚ÄÆﬂWòÒ≠⁄ º‰Æ`á÷wDQacvIÉ:≥∫#‹sû⁄C«['∂ßµ√∑ßxãøvŸ;Û–Y)xÍ@¸¢ÛﬁXÁˆA«4«k±G∑P][CΩÓd∞5^ÔèúÒÊ»rÜkóVp¨ﬁ]K‚¶Íÿ•ûQÚªÌ›ub–Î[ØΩæˇ77X˜ııCvˇÕ√√›¨tﬂùb≤Ä}PåwpŸúˆŸ–9µYwà õ<Êºœvlﬂ«l«x_û.¶∫πQ{√¬Aí¸ÉÔwABD$[‹˚4û¨b]rª4?ÑÉﬁ¿ö™)*ÿëZdã1îEú>©4:*⁄QÉz¿Eæÿ∞[uÎ¯;w,8[<Znw!‘Ë√;u´}Îë~Ä°è5˜aD¸Q~ÓπSB/åAÜjŸ1–oTå4Á…®˝D=¨ø”ö<}ßâºì#´¥∏T^Y)7€Âzµ’^xıy¥<h	ÅØÕ—vŒhËË8ŸJá7ﬁ”$»ﬁŸ–GúÉ›3|˝>ˆtmú∆&é ©”_+ı≈e¸≥≤¢à/ë°Km&\±œÅ5>Å9íá•VΩ] Ï–ö–”‹Ó¿éˆ∞m#"ÊŸdü=q–sãßÀY˛)Zï±VúüêøË}˜È⁄\ù’Ô ˇœ©.ãÀÑíèπªáô4‘6 U:ƒ©YÂ-1≥¢uM!XÌ€«~,hö·Ù◊Ê∞µﬁÃ
-^¨êhI¿Å‹Ñ]†wÁ	„¡RéœNÌIziiäæ6Gtÿ8∫≈…±3Ñéƒó¢LûØ¥∂A±<€¬7yˆZ⁄g%Ùµ"O^ov!S‹S ümÜ˚_%ﬁ0yvX´¡öÀ¨À⁄ËGù&[l√!|∑⁄pæ€∏å÷Ó‡ü%÷ZaÌ8‹f≠%÷È‡wÉﬂﬁ≈≤:ÕjÉµÍtÖé¯wäñ◊PBN‡õﬁ ﬂÙF∫j œ¿ﬂ∑ÁLUÊÑ„hU¶ﬂ9-≤Ô¯ÁL'Âñmglˇ5ÙLò8w∆∑Z√^§u¡Zº*'d›–ƒrüs¥tdC/Î/–`ñÎ<5ÚìxŸ^A‚œêíp¥‘a-d|≈ªxvÊÚ∫ˇÄÉKƒKzb©ÖG¯€RΩ*xGHÉ_√#˛º^ë◊ZM÷i·_Ò8¢∑“P^´8?”xâM_õ;ÛÜ•ÕÉtA{§ñA·m2í¿0KçßÒ¡íLÿÔŒ I&™B!∞+ŒObÛ¡kÜ≠Óéòœ|÷wßÊÆ§p%˜V™∂î[wt(¶ıô-‚Â#ıÇf∏®Uo÷ó≠GÜ@	MYÛ˚DüÙz>°˝\¢◊Öãxu«.FB=îêÚ≤\å≠‚CsáD≠#´∫`nöÒ‹%Ç\ﬁ\§÷ìÿFºê®:Q$—YD¡z£e˙ûPìòªg≤@c/T Ëªî“E‰[⁄Åÿä∫e	FN·Ò‹Ω‚ıJ`»Î®!∞C◊NùIçG\iÃ–‘ÚÄrÇÀ<ﬁµn’èıG5–9è`xı=`(c^eîºÀåV0Zà/¯I‰"°CíG™"$Ø¢˙Q°ƒeUÅ2©]Dyæ2vi?!)î^’Ç›1êÃVò°ò◊zXN‹˘ÿ†§cWapCj√±¿ $så¡=BÚÃMõjùw˙=~˜"ó˛¿}" ÎmÀ”-_≥9&ıÓw°o¬'á¿âØ.Æé\l@^†…gg±ÜT$òr¥ÂX‡õ… mç¯mˆSgöUT‹X<–ËR"óØÿ“MöQ¸,ÎÉ¡Õ%O;9)CÍ<4¶∫Rfÿv9/±ƒìzÆ^ŒEºÇoã·Tÿ b≠r( TP éXB°!•∞ûÔb<Ghù÷ﬂi◊•m⁄\\)wñÒ_Ω⁄ €4ÿ≥ÏòíaΩÎ¬§ﬂJ,•1Õ5y;›ßdTîÇÀ`È¬ú⁄ƒ)µiú\îí1Rµ≥áZêe'ê„Ã¥2x0pÏas«®ƒïåNÍ‘.JH ‚JÄÕlf¢ç.∆ˆH¢ÕÇ—¡wÙæ˝ÌÔ˛Ô´øgup∏π√ˆ76Yw˜¡´[˚;Îá[,9X4V%Î(AÌ¬pWæ mèöóAN`*¡
-vVêí	Ôî„cû=ìGÏ|‰“¸í«ˇÄ üÒT _—3_0ô<˘+ÙiÙ∑tÈ3:Á7˝≈·}eJºÅ5~CØ˘ä
-1I˛% PUóø¶ä¸≥»Ñâ>RBì®tÑ\Ö´ ºAÿàOÈ•ˇƒO˛ì~˘!PË¸∑º‡WåÀ◊ìú¸∏¥Jñ≈Pk“∏M◊ÿ¨ãTSâ†·¿L‰*–Í}¢=ÚÍkû{â”á#X˜)—ÒcB¢Âë_ˇ<ƒÅ`>ë?|@<{è'ÁQòa†v$ˆ|∫áŸ˝î˛~‰â˙\ˆﬁ†e≤îÒ≠üˆÅﬁàfËù‰≥∞Å~ê∑g¿ 4
-t$
-D™=6„d¨û–áˇläüY—¿è¢O©möO2ÿ!œì‹&5O-f¢ä˚Ë®À«˙ÍrVvQ”à°aÒu9d¸< ÚèX©kÅû:åo£%«Æﬂ SÏßv48‚ﬂÆXÔq®·bÏ0-¯ãØ∏¿èáùôƒyí1ﬁ∑˛ëø,Î¡®FŸNYõr3–0nWk°"¨± Ö`¨¨÷bvN‹x"eßvp÷Î≈•ıîÀT¬+”∑oÂﬁ’è∂â∞}ù0•1Ë≥?⁄JEm•À«Bzœda~≤–‚	A.r⁄>Ï•x\A¨«WßäéœG–ºis‡J_fﬂrΩö}:¬ì®∑ºJäX€Xﬁ]YûbFV<◊∑µ¬Ëí(I+ËÍ±J˘€2Ô0a∫—æÀ±(Àm59â8íè'Fï3EH5q¶S5»π0!,-‰ã(J^àóL1Õ7qYkÍyI»´›Å›;Ì:^oh7vmêN2Ç¡Í[º∞4˘X›3…FóüÇñsCb\ö∞o¡p6R"/cÊÖΩ˝`˜pÎ’≠.Y⁄∞µª∑πOgÏ’ı≠ÌÕ£kﬁ3∑…MÕÇRÕuª£„Ÿô9Áj¸DE(∏m©‡>µ‘,˚Æ!˝§¸3©ÊR“	ı<[Fm=ÿG3Œf	ÇSäN£ôÄ¢R⁄	x<S-¬i–X}*ƒèYÌˇgø·kP§ﬂóvﬂ»oï›∫R›I¨º
-˝là[8[#‘Œﬂ-G∏Ô\D4¸K‘~Ï>øG—‡sÍÔÅÆj⁄‰ Ô/FQ5°áè2Ó…mÿù@Ò∫3w‚>nâ∂xÍ‚ñÿîk±Ï‰%öΩ¬Ëﬁ8ßÊlSºıóÎ∆ç9æÿm^ßàIøˇ˝ÔË≥∑w6BÁ¡≠±?Çπ´ÒÑ©~LÎàøÊ´[¡B⁄»uß/±óﬁ&∂/hù—∞qkî∂ô‡ï–Iﬁ;ó™q'aq◊J=czq√>zÚaTd<∏<m≥e"W hâ°Alî˚
-"rEøö∞Lz¢@LÏA è>ëÎÅøWãgÏ¥º•jZËÄ–é©V&°üs	€ƒkŒz÷¯‹¬TD?uÏ'¥1õ>¿O–JCö`‹$k= 4`ÀıÛA€^GaOÈµÅÉÔ:„…ÙV‹É/A&H—ïøV‘8©,«∆·™3:âwVØ∑ßÒY≈N◊Ê√óï∏ ißp@l·ï·R"0Æ„©Âå£∂oíèkl_èj.2·òt*ÈJyó=¶n^zâ⁄HcˆjÅq'[qQé”´æ}≤ÿe∑BŸ√Ã/hŒø&QúäûÏŸsA]¨Õçqë_“õ#ÊiV ] ßÛU<ﬂçﬁ∑F”ä∫‚åâùRb≤⁄<ªíD]∆$≥:è≥>köÆÚ»kEÓN<õ2ple÷”RΩ⁄.3∫Zaıj≥Ωê∂vÖSö@«ç.æß·„j∂UíãÙ∂Æ>rﬂﬁ››aïL…ô4ÔG´©'–R›vb2„2í .A"œ€’À73ß0÷óZÇ≠wæßlΩìÉ≠©S≈ì Ñ{ŒE¨ª¡cE†∫HnàÅµRˇ>ë˜p˝pì}˚´ˇ 3≤ÆMæ;ﬂWÚ˝1Å|œ¨◊&jÚ∑¶£Î¨R rn)®8ödb,{˚πÒì¸jj¡ˇ'¥;(∑ˆi!ØÓn<C’x†≥5¨ öõ*£M=LfÀáØ.Wï@ËKœÜf{Ø]ÉÈ¯ù%Yl.‡‰’ü˝?   ˇˇ v€°
+                    const newDiv: ParentArea = {
+                      id,
+                      name: trimmed,
+                      subAreas: []
+                    };
+
+                    if (onUpdateStructuredCities) {
+                      onUpdateStructuredCities([...structuredCities, newDiv]);
+                      setNewDivisionInput('');
+                    }
+                  }}
+                  className="flex flex-col sm:flex-row gap-3"
+                >
+                  <input
+                    type="text"
+                    required
+                    value={newDivisionInput}
+                    onChange={(e) => setNewDivisionInput(e.target.value)}
+                    placeholder="e.g. DHAKA AREA, CHITTAGONG, SYLHET DIVISION..."
+                    className="flex-1 bg-black/40 border border-slate-800 rounded-xl px-4 py-3 text-white font-semibold placeholder-slate-650 focus:outline-none focus:border-amber-500 text-xs font-mono"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-gradient-to-tr from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-5 py-3 rounded-xl font-heavy uppercase text-[10px] tracking-wider transition-all cursor-pointer active:scale-95 shrink-0"
+                  >
+                    Create District Headline
+                  </button>
+                </form>
+              </div>
+
+              {/* Active list display (2-level Cards grid) */}
+              <div className="space-y-4">
+                <h5 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab] flex items-center gap-1.5 font-mono select-none">
+                  <Layers className="w-4 h-4 text-amber-500" />
+                  2. MANAGE SUB-AREAS UNDER DISTRICTS ( - )
+                </h5>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {structuredCities.map((division) => (
+                    <div
+                      key={division.id}
+                      className="bg-[#11131a] rounded-2xl border border-white/5 overflow-hidden flex flex-col justify-between hover:border-slate-800 transition duration-250 shadow-xl"
+                    >
+                      {/* Division Card Header */}
+                      <div className="p-4 bg-black/45 border-b border-slate-900/60 flex items-center justify-between">
+                        <div className="flex flex-col text-left">
+                          <span className="text-amber-500 text-sm font-black font-sans tracking-wide">
+                            d {division.name.toUpperCase()}
+                          </span>
+                          <span className="text-[8.5px] font-mono font-heavy text-slate-500 tracking-wider">
+                            HEADLINE ID: {division.id.toUpperCase()} * ({division.subAreas.length} active zones)
+                          </span>
+                        </div>
+                        
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Are you absolutely sure you want to delete the entire district headline "${division.name}" and all of its nested zones?`)) {
+                              setCitiesError(null);
+                              if (onUpdateStructuredCities) {
+                                const updated = structuredCities.filter(d => d.id !== division.id);
+                                onUpdateStructuredCities(updated);
+                              }
+                            }
+                          }}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
+                          title={`Delete entire division ${division.name}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Sub-areas Tags Wrapper */}
+                      <div className="p-4.5 flex-1 space-y-4">
+                        <div className="flex flex-wrap gap-1.5 min-h-[50px] items-start content-start">
+                          {division.subAreas.length === 0 ? (
+                            <div className="text-[10px] italic text-slate-500 py-3 block text-center w-full font-medium">
+                              [X] No sub-areas defined yet. Add some below to create the list!
+                            </div>
+                          ) : (
+                            division.subAreas.map((sub) => (
+                              <div
+                                key={sub}
+                                className="bg-black/40 border border-slate-900/80 px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-slate-350 flex items-center gap-1.5 hover:border-amber-500/20 transition"
+                              >
+                                <span>{sub}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCitiesError(null);
+                                    if (onUpdateStructuredCities) {
+                                      const updated = structuredCities.map(d => {
+                                        if (d.id === division.id) {
+                                          return {
+                                            ...d,
+                                            subAreas: d.subAreas.filter(s => s !== sub)
+                                          };
+                                        }
+                                        return d;
+                                      });
+                                      onUpdateStructuredCities(updated);
+                                    }
+                                  }}
+                                  className="text-slate-500 hover:text-rose-400 text-[10px] font-bold px-0.5 cursor-pointer"
+                                  title={`Remove ${sub}`}
+                                >
+                                  
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+
+                        {/* Mini Form to Add subarea Zone */}
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            setCitiesError(null);
+                            const text = subAreaInputMap[division.id]?.trim();
+                            if (!text) return;
+
+                            if (division.subAreas.map(s => s.toLowerCase()).includes(text.toLowerCase())) {
+                              setCitiesError(`The zone "${text}" already exists under ${division.name}.`);
+                              return;
+                            }
+
+                            if (onUpdateStructuredCities) {
+                              const updated = structuredCities.map(d => {
+                                if (d.id === division.id) {
+                                  return {
+                                    ...d,
+                                    subAreas: [...d.subAreas, text]
+                                  };
+                                }
+                                return d;
+                              });
+                              onUpdateStructuredCities(updated);
+                              setSubAreaInputMap({
+                                ...subAreaInputMap,
+                                [division.id]: ''
+                              });
+                            }
+                          }}
+                          className="flex gap-2 pt-2 border-t border-slate-900/60"
+                        >
+                          <input
+                            type="text"
+                            required
+                            value={subAreaInputMap[division.id] || ''}
+                            onChange={(e) => setSubAreaInputMap({
+                              ...subAreaInputMap,
+                              [division.id]: e.target.value
+                            })}
+                            placeholder={`Add zone under ${division.name} (: Gulshan)`}
+                            className="flex-1 bg-black/60 border border-slate-850 px-3 py-1.5 rounded-lg text-white font-medium placeholder-slate-650 focus:outline-none focus:border-amber-500 text-[10px]"
+                          />
+                          <button
+                            type="submit"
+                            className="bg-slate-850 hover:bg-slate-800 text-amber-500 px-3 py-1.5 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all cursor-pointer flex items-center justify-center"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+
+          {/* =======================================================
+              PAYMENT GATEWAYS AND LIMITS TAB
+              ======================================================= */}
+          {activeTab === 'gateways' && (
+            <div className="space-y-6 text-left font-semibold">
+              <div className="p-4.5 bg-[#14101e] border border-blue-500/15 rounded-2xl text-xs space-y-2.5 leading-relaxed text-slate-350">
+                <h4 className="text-xs font-black uppercase text-red-500 flex items-center gap-2">
+                  <CreditCard className="w-4.5 h-4.5 animate-pulse" />
+                  Dynamic Payment Gateway Manager (  )
+                </h4>
+                <p>
+                  You can register, edit, toggle, or remove payment gateways dynamically here to deal with single number transactional limitations. Ensure the active status, correct receiver phone numbers, and clear step instructions are specified so clients receive exact guidance upon checkout.
+                </p>
+              </div>
+
+              {/* Model Registration Fee Configuration (  ) */}
+              <div className="p-6 bg-[#0f111a] rounded-2xl border-2 border-[#dbaa61]/30 text-xs space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-800">
+                  <div className="space-y-0.5">
+                    <h5 className="text-[10px] font-black uppercase tracking-widest text-[#dbaa61] flex items-center gap-1.5 font-mono">
+                      <DollarSign className="w-4 h-4 text-[#dbaa61]" />
+                      Model Registration Fee Configuration /   
+                    </h5>
+                    <p className="text-[10px] text-slate-400">
+                       (,    )-          
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-[9px] font-mono font-bold">
+                    <span className="text-pink-400 bg-pink-400/5 px-2 py-0.5 rounded border border-pink-400/15">Female: Tk {localRegFee}</span>
+                    <span className="text-blue-400 bg-blue-400/5 px-2 py-0.5 rounded border border-blue-400/15">Male: Tk {localRegFeeMale}</span>
+                    <span className="text-amber-400 bg-amber-400/5 px-2 py-0.5 rounded border border-amber-400/15">Donor: Tk {localRegFeeSperm}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Female */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-pink-400 font-mono tracking-wider">
+                      Female Model Fee (  ):
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-pink-400/60 font-bold text-xs">Tk </span>
+                      <input
+                        type="number"
+                        value={localRegFee}
+                        onChange={(e) => setLocalRegFee(parseInt(e.target.value) || 0)}
+                        className="w-full bg-black/40 border border-slate-800 focus:border-pink-500 rounded-xl pl-8 pr-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
+                        placeholder="e.g. 3000"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Male */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-blue-400 font-mono tracking-wider">
+                      Male Model Fee (  ):
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400/60 font-bold text-xs">Tk </span>
+                      <input
+                        type="number"
+                        value={localRegFeeMale}
+                        onChange={(e) => setLocalRegFeeMale(parseInt(e.target.value) || 0)}
+                        className="w-full bg-black/40 border border-slate-800 focus:border-blue-500 rounded-xl pl-8 pr-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
+                        placeholder="e.g. 3000"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Donor */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black uppercase text-amber-500 font-mono tracking-wider">
+                      Sperm Donor Fee (  ):
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-amber-500/60 font-bold text-xs">Tk </span>
+                      <input
+                        type="number"
+                        value={localRegFeeSperm}
+                        onChange={(e) => setLocalRegFeeSperm(parseInt(e.target.value) || 0)}
+                        className="w-full bg-black/40 border border-slate-800 focus:border-amber-500 rounded-xl pl-8 pr-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
+                        placeholder="e.g. 3000"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onUpdatePricingConfig) {
+                        onUpdatePricingConfig({
+                          registrationFee: localRegFee,
+                          registrationFeeMale: localRegFeeMale,
+                          registrationFeeSperm: localRegFeeSperm,
+                          regularPlanFee: localRegularFee,
+                          premiumPlanFee: localPremiumFee,
+                          elitePlanFee: localEliteFee,
+                        });
+                        setPricingSuccess(true);
+                        setTimeout(() => setPricingSuccess(false), 3000);
+                      }
+                    }}
+                    className="px-5 py-2.5 bg-gradient-to-r from-[#dbaa61] to-[#b38644] hover:from-[#e5b36a] hover:to-[#dbaa61] text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer h-9.5"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    Save Registration Fees (   )
+                  </button>
+                </div>
+
+                {pricingSuccess && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[10.5px] text-emerald-400 font-bold flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                    <span>        (Female: Tk {localRegFee}, Male: Tk {localRegFeeMale}, Donor: Tk {localRegFeeSperm})!</span>
+                  </motion.div>
+                )}
+              </div>
+
+              {gatewayError && (
+                <div className="p-4 bg-red-950/40 border border-red-500/20 text-red-400 text-xs rounded-xl font-bold flex justify-between items-center transition-all animate-fadeIn">
+                  <span>[!] {gatewayError}</span>
+                  <button onClick={() => setGatewayError(null)} className="text-[10px] text-slate-400 hover:text-white uppercase font-black tracking-wider">Dismiss</button>
+                </div>
+              )}
+
+              {/* Add / Edit Gateway Form */}
+              <div className="p-6 bg-[#11131a] rounded-2xl border border-white/5 text-xs space-y-4">
+                <h5 className="text-[10px] font-black uppercase tracking-widest text-[#ef4444] flex items-center gap-1.5 font-mono">
+                  <Plus className="w-4 h-4 text-emerald-500" />
+                  {editingGatewayId ? 'EDIT CONFIGURATION /   ' : 'REGISTER NEW GATEWAY /    '}
+                </h5>
+                
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setGatewayError(null);
+                    
+                    const name = gwName.trim();
+                    const number = gwNumber.trim();
+                    const instructions = gwInstructions.trim();
+                    
+                    if (!name || !number || !instructions) {
+                      setGatewayError('Please write valid details (Name, Number, and Instructions).');
+                      return;
+                    }
+
+                    if (editingGatewayId) {
+                      const updated = paymentGateways.map(g => {
+                        if (g.id === editingGatewayId) {
+                          return {
+                            ...g,
+                            name,
+                            method: gwMethod,
+                            walletType: gwWalletType,
+                            number,
+                            instructions,
+                            logoUrl: gwLogoUrl.trim() || undefined
+                          };
+                        }
+                        return g;
+                      });
+                      if (onUpdatePaymentGateways) {
+                        onUpdatePaymentGateways(updated);
+                      }
+                      setEditingGatewayId(null);
+                    } else {
+                      const newGateway: PaymentGateway = {
+                        id: `gw_${Date.now()}`,
+                        name,
+                        method: gwMethod,
+                        walletType: gwWalletType,
+                        number,
+                        instructions,
+                        isActive: true,
+                        logoUrl: gwLogoUrl.trim() || undefined
+                      };
+                      if (onUpdatePaymentGateways) {
+                        onUpdatePaymentGateways([...paymentGateways, newGateway]);
+                      }
+                    }
+
+                    // Reset form fields
+                    setGwName('');
+                    setGwNumber('');
+                    setGwInstructions('');
+                    setGwMethod('BKASH');
+                    setGwWalletType('Personal');
+                    setGwLogoUrl('');
+                  }}
+                  className="space-y-4 font-semibold text-slate-300"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+                    {/* Public Display Name */}
+                    <div className="space-y-1 font-semibold">
+                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Gateway Public Label Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={gwName}
+                        onChange={(e) => setGwName(e.target.value)}
+                        placeholder="e.g. bKash Personal VIP"
+                        className="w-full bg-black/40 border border-[#232733] rounded-xl px-4 py-2.5 text-white placeholder-slate-650 focus:outline-none focus:border-red-500 font-bold text-xs"
+                      />
+                    </div>
+
+                    {/* Channel Type */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Payment Channel</label>
+                      <select
+                        value={gwMethod}
+                        onChange={(e) => setGwMethod(e.target.value as any)}
+                        className="w-full bg-black/40 border border-[#232733] rounded-xl px-4 py-2 text-white focus:outline-none focus:border-red-500 font-bold h-10 select-none text-xs"
+                      >
+                        <option value="BKASH">bKash</option>
+                        <option value="NAGAD">Nagad</option>
+                        <option value="ROCKET">Rocket</option>
+                      </select>
+                    </div>
+
+                    {/* Limit Wallet Mode */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Wallet Account Type</label>
+                      <select
+                        value={gwWalletType}
+                        onChange={(e) => setGwWalletType(e.target.value as any)}
+                        className="w-full bg-black/40 border border-[#232733] rounded-xl px-4 py-2 text-white focus:outline-none focus:border-red-500 font-bold h-10 select-none text-xs"
+                      >
+                        <option value="Personal">Personal ( )</option>
+                        <option value="Agent">Agent ( )</option>
+                        <option value="Merchant">Merchant ( )</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+                    {/* Wallet account phone number */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Wallet Number ( )</label>
+                      <input
+                        type="text"
+                        required
+                        value={gwNumber}
+                        onChange={(e) => setGwNumber(e.target.value)}
+                        placeholder="e.g. 01712-345678"
+                        className="w-full bg-black/40 border border-[#232733] rounded-xl px-4 py-2.5 text-white placeholder-slate-650 focus:outline-none focus:border-red-500 font-mono font-bold text-xs"
+                      />
+                    </div>
+
+                    {/* Custom Logo Upload/URL Input */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Gateway Logo ( )</label>
+                      <div className="flex items-center gap-2 bg-black/40 border border-[#232733] rounded-xl p-1 h-10">
+                        {gwLogoUrl ? (
+                          <div className="relative w-8 h-8 rounded bg-slate-900 border border-slate-800 flex items-center justify-center overflow-hidden shrink-0">
+                            <img src={gwLogoUrl} alt="Logo preview" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                            <button
+                              type="button"
+                              onClick={() => setGwLogoUrl('')}
+                              className="absolute inset-0 bg-black/70 hover:bg-black/85 flex items-center justify-center text-red-500 opacity-0 hover:opacity-100 transition-opacity"
+                              title="Remove logo"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 rounded border border-dashed border-slate-700 flex items-center justify-center text-slate-500 shrink-0 text-[8px] font-bold font-mono">
+                            NO LOGO
+                          </div>
+                        )}
+                        <input
+                          type="text"
+                          value={gwLogoUrl}
+                          onChange={(e) => setGwLogoUrl(e.target.value)}
+                          placeholder="Image URL or upload..."
+                          className="flex-1 bg-transparent text-white placeholder-slate-650 focus:outline-none text-[10px] font-bold min-w-0"
+                        />
+                        <label className="bg-slate-850 hover:bg-slate-800 text-slate-300 text-[8.5px] font-black uppercase px-2 py-1.5 rounded-lg cursor-pointer shrink-0 select-none border border-slate-750">
+                          Upload
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setGwLogoUrl(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Step guidance instructions */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px]xúÏ}{_€∆∂Ëˇ˜SLho1ª±ÒÁ¡	i )g· iw/áì ñ∞’»íè$áxSæ˚]kF#ç§ô—»@BR¥ªƒ∂ÊΩﬁkÕZ$v>≈Õ»≥bßπ—nì˘lÊÑ#+rHZ£Æ?n^∫∂≈‰"„Ê0ÏïóG÷bÍ¯19âùŸqCgªÅë∆⁄ãuœ:ﬁÀˇC§œ◊üÕc≈èÑƒãô≥µÇ3ZQæ:ˇ;ámÂ-oÓl]ç/˜¸(Álj◊ ◊{b˘ch—p÷»÷K9Òõ\€Ü”ä≠pÏƒ-⁄ıö∫Øôgçú	lën≠‡'éoìÉ¿w·4¸¥∑Càzi#œä¢Ck
+{pŸºò{éõCËÛ√˙FõÉ˙M˛4œæÎˆ∫O{ΩssﬂvÏÊ'èÃ>57»l—Ï∂˙ÑûÎÂƒçqZ…I?È∑·<GÛh3ò«ûÎ;M&ô|ïå {‹Ï∑€Ÿπ≥.?E™¨ÀO˝≈∫Ì~î˝î¸ ˚~w„¬s>ë±5kv…üÛ(v/M‹ÿY‹ÏÆ»Ωrl7‡}´Ω¥{6˘·“PAÂp«Å_ñÏ%ıÈ yÓË¿£+ÂãAl∑0øÜÁΩˆ˙Fo.q?´´/ŒßC'4z5Î&úxÿç’Wˇú¸b˛oñÁ9Ò)Ïbcı»	£¿∑<Éf˚¡8xz˙)]´±Q  ¿#¯œ †'¡G'‹Løz
+∏ "Àßfü„êÄZ&éıq!íHlv÷iœ>ùÁ…eà˝»≈=%£9,9lŒ◊èùP@*íI»∂ÂèOªÎ.ÂÕ¥J‹£˘pÍ*Èp~o«°eª¿öq–åCrSJ>û¬n√WîíÙ˘∆3k‰∆ãÊÛ˛Á‹vbÄt6£ëÂ90∂|a™C(ììü»Íâı—!…7Ñ1ëhïlí’cgÏF8Ê°s…_XUúÑÊ¯ÑÛ≈˙ENãﬂÀâÈ’˙?Ä?G¿ Ñœ ±˘ú"‚¡7‰Î≈πÈ/ÒŸwùNß◊±2~”Ö„…Û$zíÎpåÕçV_Bò_L˙bØ‚12&É¨N#Å∞ﬂıGO˚÷úè:Xb∑˚º˜ÏúÃÜÕôÅRŒ≥öFÕëC· ŸHÄåé8¸ÄuÎ91êD •|Â≈vàÄ∞mÖvûYoê	¸?ôüs±œ˘äú!nø;>ﬁ=<%ÉÌ”Ω_w…—‡˜¸¯fp∫˚€‡˜≤øwrJW3&bÒìjyé?é'◊kpòÙ%LT—Ÿ⁄⁄"mÄ^/,˚¨˘å≠)Ÿ:ATLÉ»ô∫9·@éBá‡cSíÃŒ!ÅA+tWC¯“[Äx«°¥Eˆ¸ÊpÓz1±ùkáˇ¥¢…crhç-˚1±@8FúòL)Gä»•ãBì~8∑æ5u„ΩEÀ¡÷ áM∂g∫6¡ˇ4GÅ5;djofªƒ{6T‚JÒ¥¶÷¨—SAB)µ¿tî<„É≥ ∏Â⁄&ÏÒÍèèEQí#˛óêJ^C'ætüD@«ùÊ·>#∫ﬂÎƒòO4†dòhﬁ"H[S¡∑◊OÒdoÑªıN{Uﬂ~Shﬂ·Ç3 ÄqÙ§Ω™ñ+˛PÌúöQD ,…^©ƒUy{∫ˇ≈mgƒ,ç$÷v¶ËÆDıS¬‡»c¢òÇnËáΩ*2Åˇ'¿ER¡Îyª®‘d2⁄¨ŸçÚ¬Ö\6'Æm√⁄À+‡ªì|å&°Îh∂+◊D'ÍN«$
+G[ŸØâÂ≈[++Ul¬˛√?ëEåÄˆYÆøÙÍ¬⁄ ¸/∂V|wÿW
+PòÑJ;E∫ÌçG≠–tãn˜<„ﬁ)»XD ÀçŒÅÚü†ì Îo¥ìûF„Æ∑çU˝º0ËﬁlˆKx˛)ÖA≤z~Œ˝lôZüöó ˆÙPÓYy	kÂ\øX«^ó¸ÏY´üjÑ#…K»ôx"7
+B t∑3°€=F£i‹œı©!Å.∑ﬁqõØ…Ó Å…+Öæ˙#Ÿb395ƒ}Ìvï—-sƒg‹∫LUe*©eÍ≤û„·√∏&»ÈVÁ)
+¡t÷Æoª„ÄR˛,ìêüv´¯)>õí…∆@⁄fsÎ=Î<Ì>OÊ6C:Rû˝⁄x^ú€√∫a’›n“∑3uBÀ≥%›Û_í¥Ä`¿≥m—r5´-bÈeÕ,5ŒDÂY°öqA§S%;(»UπÛ4û—∑(ä¿+°≈å≈É—¶ì£	öô] üSËtÚG–„
+¶Älö]>MFoÈ(Æ¡qÃ |ŒHqÅDzée„‹|–›≠ƒÆÅÿúü5íç°t˙ù¢tFb7ˆ*Ããˆl˝ﬁﬂ÷.r¶ëh+v†Üƒöà	<∆yûÇºfÉí§◊"ì≈≠ˇÉú„±ÁêìK7M»+jCë2rs≠∞Ú‚cfÈ≈ßÜµê£êƒÜ’⁄dã»Ù=‹'ìæq/}Ù;JâQ—[3háﬁìx˙‰ä¥Z-Ï·1·*Ÿ&yƒ∫‰*⁄µŒ@Àûj∆ùåá=Wuw≠µ„ÉÀ¸wtèÚh≤zE”Fr*ï√ÎW´1D„#   Ù(¶Ç7.	‘)Õãâ™›ÆCÏyh—›åœÈÌû&Bsë£›kw˚J÷õÁπ}nÄ/ˇ÷ÔÎ˘1>å›gd£»çä
+¨¿r3H≈⁄Ja@Û{5=ÊxõFˆ·‘Tå÷YkË9∂¬>ÃûÃJ\◊z 3}V∞~$ØËù2£™ftµe≠M[Â˛4J´IXÊUcäòqÊ_„“Ñi≥úØ-œ§MªHºo\y"VD,a⁄Z≈Âz√^*®…õè;L™eÄ(»M˙2u∫∂cç?LéZ°†ùÄâæI•∫Iª \z@—'¯ﬂJ€èJ3d<v¶∞	_:V	;ÆÁï ;\íyƒ%ôjPæ°$psY¿Dˆ¡Iñ¸Üıƒµ•Ñ∆f˘FÅπ&urk‰⁄’(`O’ô›î∫°£˚yÌ
+Úñƒ“‡îî·Áu√Øz}!:Åw÷ÎﬂòÊÌ8∞]Œ-QΩ”–ä&›õ”=›;Z#ùˆgÕèkR˚Ø 	XÚâóﬂ+}çÑOHª∑ñ{
+cvˆ˜NNè‘g<ÿﬁ~˚ÓÙÑ¸@vˆéw∑OﬂˇNﬁ˛∫{¸ÎﬁÓo‰t™–|…IXÕ”$N≠!≥˛Yˆƒó’r`UQÂ6ß'Çß=Ô;∂|wäˇ¬≤ù=ø$ü>‚æÓœ?Õ√˘≈±À^Yæ™B¬g0õB‡J∑ÇÜƒŒFâ|hè⁄6~HŸknd·ˆ–≤ûtÚ‹¿›#—ƒ≤ÉK˙c¡ü%ë(LÿFÅ7‹›Ò$FØK0√ˇ"A†2F¸5≥èËéÂÓÕNõ$d¢È|ÑEFö¿ÜìâÎxˆˆƒ}(`vªÀcí%K—\Ø2Ÿ(…¢©¬íûEΩ!˜X™óÄ§IEò∂ﬂæﬁ€Ÿ=<›ÏÁ–ÏÌ!… Îe§aíµñÌÅÏ\zÇ	Åì√-ó !Ãß“˝‚ÑYs2≤|Ú—u.ß—èI¬áè¡áDã)äéch≈€∏ÏòkyQ.
+Bå µà»tB[g·- ƒ„	`%±Ê¿†C˜ﬂˆÓ‘r=sa c˜¬Ö/OÅ± M…,@™sZ‰t‚†èÇÖvL°	∞ –Ö.ıõT|,?&›&ç!~{zD«¬)è,∆Ë&à‘^Dát<˝#∏@6A†„ø Qs¶‹àYÕëﬂËS»{R·}/}Å§ÍuNqÌπ®∞Ó=iúZúàt…6 ˘T@©tÂ„±cÔ˘¥—q‡9TT^Ö≥r¬˜ÙW#z`M∞ú&æ—G≈à 4:©E$q˘∞ùØX ¬EÇ=U≈[…|⁄$Hùnﬁ≥ñ¨ÇEáT˚∞ELiy±)…˙âRƒ—à*ñ®v√»bÂÚ.f•ˇ1]]_≥:*F#'ä ,—”>BMm]¡|id¶¯M‚Ib3Û™|Ê≥)PBΩA™qÇpŒ0f-˝V9QÖ7£*
+Ω¯µiX£˙§V∞‰Yª’ﬁ8/I˝IC¡*KAíŸ∞}'©Ü¿Í=*Z¨a©¢˘÷ı±ÊÏ_yÛHg©—1Ù™Å^´êßvLù˛ôÖJÕ€¶ÙˇÑ1ÌÅ»Ç5
+è˚>HâüV∏øìÙ™t¸È(ôŒ#¯#ì}˛	ç(ﬂ∫≤¢Ö?"…mµƒiÕB*∑Ó∞ËœÜF¡g'ùlA√$úÙîﬁ⁄©jÂ†`≥á˜í†-v—ÆÑF°àÑÌ=8®∆™Ô\“√¢b–Í⁄K9=ÿßÌvŸ˚U≈â∞d<óÆñ.A·Ñ2Xì±P¨»∆aÌö]u1^◊Q“†Ó∫LÚWÀCHœÙ'viÎß0πic˛˚¡•nÎ  s≤c}ÊéØ–≠…Y∞^Ÿ±$}‡‰eπøÂö˛k yAÚ ªıW˙ãÈô∞As'Tö∫≤+4`>Jw$Ó~Ü—4-œ	„∆*˛Û1˛Go≠c^cÕ•ıúP Åò—Yˇü≥ˇ˘ÔËÁÛN˛˛w+˘«˜ÎÍ1≤≈”~Z1»Iæk∆´ΩÀµ‚Ö‡!˛/Hﬂ|zw:9+•òQ+
+¶N√BíoµË6Ê1ë⁄îñŸﬁ;]Ä-™ıEøπÒ§±˙Ûj≈Û¥ﬁ'?äﬂ-=#qBÈy˜ÍÄccì¸lcıJr>L‹µ;€√‘~›Ã÷◊…	*ıé∑ ^ßä'NJ≠@Õ'nxÑâå¯¡•¶ªåˆÌ£cÁvﬁF{¯8°õÔyﬂ—Í„⁄tã∑.-/≈–c#Î˘1πJÁπô£∂˙0ñ¥ªm/ò€–◊Y^C3;˝HïõA;VÌcπ≠˙}\· ¢ùof“æÃ·{Sƒ}‰®õú≈jﬁº∆≠Õco«!0ﬁõUiÎæö]–C[5sÉfo‘8kµZ"9O|∏Ç˛H$Ë∏ı≈P¨2ør}Æ=%*lçp¥˙ßÅúΩ˝Á9|Z˘˛äO„zÖ4æøJFªÊÜGËÓìëÖaá'7iÿÑˆÏ°˚ºÑÿ∆`¢´gˇ:ø’^ÅV¸¢ÙfJQ5Ô√bå53°_î†¥|i„ê^–,π@gvã¢xeT#'ª6 ]zı\4¢≥¢˘ü¸C£úk3^TÊº‡±uÆYüÓCN’Ω^ô'£êÆ¬iç[DúããüáÅΩàÉ˘h“S›À%¨êﬂ-ï«‚iª_ô«"s'Ç'•1‰˙ $U°“4fô;KﬁENàß˘ç!Oy}à:wè9˙|1Eƒ·≥ºu‹˘EÈ˜¡≈à4»œdÌoâ7ÏØÖD‘∏{h4à"wÏnD˙∆ê(Y”ä≤E~&&Tï¯Ïnï1zá`œ˙ËÜ})3"^‡èˇñu'D]»mv¬`fó∫∞“ØË)“‹kòÉ⁄!p‘"√ùCrÒ^‹-@-'˛ìÊYèﬁ4R‘3¬“π≠P›sÂÂŒÓÎ¡ª˝S™CÛÕ±◊jÙî‘W^º›Ÿ=úæ=^Æ'¡høÚÚ‰›—Ó1ü1ËÓ≈:ÉÆÂÒò9‘™√ÕÚõÈ>) S@«∏ü•~ †'Qj∆Ûù(jv:I0,Û¨ÚPΩR˙'yêsÕ*”?Q≠∏
+UÈ¨f.ÙƒÔç˘ø“Æwî"éÊ‹ïÅjUﬁmBh ©»o»ÖhÓ¶‰r≠Ñt¡∂ÚDRÏULlÈ;åâ3	.≤i96”§#·‘”G8ÈÇ*zKTÃƒä,ˆH9XJQº—ZTÅ…ßTâUnöñ≈,.#E<Û®˚uªo-(cõÖê‰ÇãÕciMÉp°!‡wñq£®ÈOäkÙ≈¥kôËYÑû¢–¡‚ó2è˜!JEØ®Œsı—ç‹°'Zùy÷3rr:x˝öÏº⁄=>QÏÄÍ6øyö—,fì¥Ä4≥ÒåÓR∂ΩhZÛ8 —(<ohÖÕxê"~ú‚ßÚM *É¸d¶yø®DÒv¯ß6@Fptl;ƒPæ-¬[2Éº dúG˘≈ÚmñÖ∆¸o≥ƒÔ°≈Ö;ç‘VF∞NG†ºQK⁄k~ò¢ï¸Tz!M˝”¡º¸Ø™¡µsö…¢˙Ä∞D¥˜„Ú‚J<“´ù'\œs¬ÓœcÍ„S∂ÕllÚ∞•ïûÕƒç,◊ßÒåå»lëe∆Ødõg”€OáëhWèïπwäA2äÒ0FfhŸcÁ» zπŸ¢N–à¨úd⁄Ë$^–3Q^Á.Án…nj´zGyvﬁ≈(iùü&∑!‰ît4¡6•Öà¢°hÎó÷íΩŸU/Áö8∞µÚ™ƒ® √5&ıV$§›„‚˙\v6È{∫Â‘Cﬂ$yÑ:Ûô6bíQz›ı>YRùn_)cvJwNÖ‘ΩóèôGØßÕÂP∏µú≠4)frfe>Ä≤º˘æÁ• |Y`‰xπ`É™É™ÎﬂÇPa†ño	ÂÕHi,5OTW}À {r‡“B‰ n¥◊Ä æCÜƒ™4O’)∆îâ"Û˜‚Ä¸4/õL~ØLŸ§8p⁄ˆ2¥fÀ§~¨LvW»˘ó&Z •ebôÔ“LF9å|ôˇhöÔ™azù≥≈Ä¶ß;ÅA–Ç≥ïé0t¿9®¬∂.\ﬂnD¥ ≤{éÙöc‘rÈ•™ŸÈñé°›e¶fπy≠qöáóºM∫®$ë‚SÑè$cü:GrÅ¸´~_ñÚéî
+©S&í¡	'y≥9≤º{˘ïM£îÇtïEàΩ§kô‰“Ìdñ’dÈË y~Î“(ÉÁ≤£¢Hê.ÆÊ@/YˆËMrÖ&+Ê`ºìêF™Z÷˘è—ö1û—Mrk‚cr≠ä|éWó÷·1`ö Jváè‰∆]IñDÇ®$–≥/Â∏IÚ\üCˆ$•N∏hXùíüR¡ä££>†o¢MÂÎ¢«±õ–µlº,çàU‘ìÒêk≠@»ú¶AñìÙ√»≠±∞∂t˚“´Ò«Ï\ÖQM“≠•ù±*| AÅÊŸRÿ#·Ò<Œ˘iΩ¸ñÔPAÊZ© À≠…l«ä⁄√ˆ®”>7Û≤e"ÎF[ó≈M`zyCÁó\Ω$¯Rr©O≠é/MŸ◊ºj >oÊ_∫≠¥eèY¢Ì€…,…Ω¸˝U¶~‰ûeœU™Âõ@Ω)„7…πmå7	ùÿûIœ¢Õıı∏5u÷øø*ò	ı©ı¯√òÕ÷ {ÿ[ˇÉ	VÄxÖŸÉôÉÈA¸ ÕÃn¢5‘I±MÔπ/,øò‘á~áπ2vÚ.û~àËøÊ')~∂1!˝(&]+ƒKr(Twciœ»Uﬁkí∂€˙9ª´ÛÙ“∏±§H›E‡˛ª~Ñ	wGXÀ•"q¨R‘‰∂úÙöu\6ﬂ¿:eµÕ,À¶o‰9„"'&›◊–$œa∆FExÅaÛD4rVeï3óâ´…'u&ÑSòù%ã≤. ^¶“≤d◊ ≠ G‘!¯ˇ‘B˚ºﬂ/gÈL≤Âƒ¨Ïµ– ÙŸl®^.+Ç‡"KèÔßZäö™l^ß`A3◊•çí	fOù¥ÇŸì&LnÜ◊îÈSáVËNßéù¿SAíßw]M/ˇJVqë≠¸∞ã46ÕºÜ¶
+WØ‚ ûΩèúHÏxãHúªôÒHIê™ﬂÊ≈dπt —ë∞°»î¥!≠ﬁ3ßÈ?–"ÅEó‹ê&ÑÚñ©ƒÕûöc‘K˘◊9ŸÊÄ~'≥ÉEl‚Ù¬Dà(≤∆ 5‘õ\çwÒ÷óÑJôÁ^LÜ4SÃ,((¢K)KòXãTr	îãñÖP®ºÔ¡UM…!ø;ë)â1Hò{ˇÛí§Ø	´Üá€8duu vÆ:ÂΩ:‰√‡NŒÿÿﬁh¯¢±RW≤ÍCUÌ,∫ÏQAûH¶ç)R÷À)\õ®’7¨$≠k!¶KM¬‘2aØDﬂ€æVF+XU π¢ke‘/¢èQxhá:È&Õ≥."•($*ÚN1˜ù¿°ë«7¢a+∑g˙I%J#º2E◊r9 ¬Ôö‹ Ïπ*ô–çjÃÂÎ"òÂ++y™∏/∫Fë†æÇÍÍ√y⁄ªÃ˘úÉîJË2í—ﬂ^¢a„üé:H1›1#=¬åTR˝sOÆ'âÖá\«|ã∫•†WF4w%KTπŒdaf∆èX˘Œ$ª%ìÚh6K¯&Ñ=ª ç¥rÊ^πC∆H[MıUÅd.´≠.£Ø≤Ïåm5ÕŒxC]’@[•π©’∫*MOO°ñ∫z
+k}˘pY	Ò‘÷Tq•ÜMπﬁ**¨ï…¶‘CJ4T?ÔJK298¥÷¨√c4ÚsuM:<MÏ LπÆ∂™H0!Œp©.ï™vö™CúÙÜ–ÁπÈŒ(ó!&áπ•ïÿ%n0P•≥è=ı¥¯[bŸSC7◊)n	ŒßÌﬂËn•≠é⁄VG;ØØü
+\‘“Kêq;á}è¥Ùzn¨©/aè1’÷ÎjÏuam8[RoW—©•Ùˆ[2Hì<s˝=-RR,\¬nø(ÛâÁB)¯˜ÍÍ(˜ZüO5˙#'úZ>U4@ü°b1Â™doá∆C”Ùv6øXf÷π1JÎ≤`ÒÜ¡ÖRëŸúNTô	å	˙…TyÄô[Ù–·˘db€â»£X±≥,ÒëR]29Dxœ }QÂ45uô™/¨ò®®¶$∞Ò≥ì∫Ñ[WnÙ&Ÿ(Ãˆo∑Øöñ,≠ô;€ÄÓ…ß◊¿Üî1π∫ÜÕ6	ª|vvZ“Ÿy≠ˆ+åË-®W€;ªØﬂ¸Úüˇ‹?8<˙Ø„ì”wø˛ˆØﬂˇ_∑∑—ÚÙŸs√ Høﬁñr°”ˆ¿ü§~¸—‹´ÜÕq]8-„∏Àt‡?Ÿ¿¬¿œ‡OùÅ	ˆ«-∂-¸&≈ÅOZ^ÑÏü@´Ì u $Ô±üÊ™Ü1G√√mÕÊ—§Åˇ45wWY/yÁwÁ~Œ%›,ËjC
+ÓÔÈ⁄ä>‰™tî‚Ï)‹”?˙ìŸìêN«ƒ“zIv‡]‡ﬁ…€v}≥öË„Sëé2{∞Uƒs:o√ÕÑ>~uùÀ<•XZ.´TpõÏ=√∞’•ùÁ˘¸í´g	ì£ã#o2&∑ãøüc “äî≈%f…(±bÌèD¡ÆÏ¬ı±¸–Õ©˙ÖÂEÜÉVæc ósû®aÈWîÑ”/Kn,˙ãLN‡¬∞,¨ﬁJ√âÃïÙYÕ&dßªSáE	¨ÖV’µ®Ÿ!*qÔlg?¥Z-zk;ùhg–”ö∂ 3>fpï¨$ïb°Ø,<ÉEöL@Jÿ Æ
+)«B ≥âø$m#©≥`∫ü±D-)ƒó‹ƒ˜≈?<ÁzÏ*  VO¢~ÊñtVX,ohx=HÈ1ëF˝ß¨Ú:7:E 5a∞Ê˛ò˚˝†bÿµ,*··Lü\:{Í>h
+aï(yë4ß)anÕ˝O∂Ω 2QÏÕ’zCkû,NJ_®èXÆÊ„ÂFU,≥Áë¡:îwÑó™™2nY»ﬂX√yy%•…ÙöÚÖ«ƒµ?Q‘©·g¶˘∞ıuM")dÃR˙t≤J«äúΩs—^∏¡P°ûO˙Â¨ŒŒuæà√¿óÄ)%ØÖ åÙ(V^≤= RH{xY”G˝%‚Îxë}Î£;∆8ﬂ÷»sg√ §Ö÷e'ÄWÇÍhªÏ·"?KîOôïÂfœrÒÆ≈hÉÇƒ´∫#0⁄€m‹f’15Ïπ£‡FyµÍ•:3·∫¿ªÿÚÙSü‚” ˜ôl…“?·ú´ˇ≠…™îÙàêçWS˜M¡åê@ÆX
+Wπ,ùÛ-g¥Æˆ]î<M4@ëEUNŸdÈa`-Ù¸†◊q†\ã+7)'Ø8ÒÎ:•‰ıá•ﬂ¢:∏Ï8ò¶πø#≤kªxçc:~–¢ròFÃ≤Ñ3Õ†∫˙î)≈‰
+O
+öﬂnùR≥\ò!àæ5kcuuRIi`]LuÌYu÷∆€J|…^∑›hÊY•ÙµÕÛ˚*†ú∏cøπó%€ó#µ:ÊRI0õD)î◊¬0¢¨GZ´©i“˙5HÖé’Ö:-ûqøPÅ‘†TgV≠≤Dg: ØV≠*ßÚ
+úπ:óµJpfSŒ*X÷®^YÆ\ôt•∂©Áã‰i
+.È ·)å}ºP£iëF≥çKLDÁYΩÂ‚y∆ÖÛÙEÛD'ãP¥ã;W4æïÍ `5<.Ê5º‰ıªî«(ì#§§Œ¯0µ7≥è= Q7&Á¯+í	+ <ê4?ùäñä=à÷ØåKM£©IlÂeB K)ƒim°}¬$V†!O<U“nEyi¸≥Ô⁄˝ˆ≥Nßò5FUÑ°')'íO˙WUêÅK3iπÖz•€
+9VV^6õ$Ÿ|∂·Ãm–lVeXπ*Êc‚…uıV*>>5NÂÛ_ÛÑV˘ØÛ¸Bõ•ÿ°FË◊/N•}ÎR…h≈º/äZqQß0¿*]¡†RAV°TuY°
+§+◊Ÿ 2"3ﬂ¢™„[D◊[@÷Ã2úVIÑz˘nMô–⁄L™î˜2]Öò->≥Tú}7z˛‹ÍwŒESÖÆöG[RÕC8
+¡ä¡∆ á‹x—|ﬁ.ö5ïtj∫∏[˝ö§+&€óÖXKöÓ˛´â∑|GØΩ§h® 1j≥àRˇëUÚêiE•Ú˛i4?l-˜«$`˚dpt¥ø∑=8›{{xB~›=ﬁ{ù|B˜%9º*¥ZrÏÇ…„äÂª<µÜ,¢‡≈Ω¿\ >íêJy~íÁ<÷óHuŸæ≤—‚ñçNª„…èxÓÙs¶ó¢}ÂÓ√T°üªË4´Ùôøòl®”˜ pëﬂh©SóÑñëU¥°8±!¯ˆivWÜ`Ürèf3/9¨à¸*9ô#¶—òlH/µ";,Afap¡§Ç2≤|€•»â…â‚MƒÒi±ÿ≤ÄU(ÊS8ªà÷¬¥Oˆ‚ÙÌªÌ_Z‰˜`N¶÷#8f(UYl=~Lt=Ôæ⁄HâËX
+ú2ƒ˝«Äc'¸ËéÇmqÂÑÜß˙lW†=´r\¿.Ã~‚é'Õ(πNº`)‹#“ÿŸ=x˚òÔæy∑?8~Lééwˆﬁ<∆Qv˜˜Nw◊ÿ\ògl—êuòià1ÎÇÌå®ÀVÎ!vF!Ï=™ˇX"6ûG-…îˆZm‚<ÅN"ZWÉûƒ0¯dd∑,(>]‚ç≈gÉ)>F»úÌSfÔÏ‘†2˛#zMH¡„Ø4‘	…≤≥Ä∫ïóßAl•ÿ‡«ë¶¬â<G∑W
+ôÉipãY∫W^^Õ@UÑâe“úÿºÀ6«Â<TºÈk‹˚◊†>x#H∑±Ò‹û\oÔìõπ#™PçZòD}Ñz9Wú·jR+$ˇ]ztG¨Ûø√π‹Í©•Ó∂•OM84zBÛÛ9Å&S≤€ﬁ∆ÕÊ·Ãª!bèHò‚œHÕ˛^”Ò#–|xL¸uı¸u≈Ç#S{ì˛;.s÷AeÄe“éé&‰´ïÌKTCÏ≤ŸYÔ•ŸÌ”b∂“√V™åâµàIPl∂r´M)Â9∆
+≠˘LÊ
+€OŒëlN&‹°M‰1ôMﬂ°"3]µZÚ©/WÊU¥MxÕÁX\l£d†('~“Ø.ÛöJ˝∫ÿCπA"Ÿä≤;¥ËÂ„e™TX '`ıgd˝™\z‘AŒñ·Ò∞©(©±$Á`çOÄ·q]òÀ∑nî≥Ë£'BﬁÈÕ¡Êìbj√F.´—§…+CÒ˙Ô‘ú)ôø¬:ï7Hˆ˜W^“ ∂M.hÎU€B¢ îÊjwu tt∞|7W…q¡™é‘ˆf-Ç∏1úkîô/Änº,n§-ÕhÚﬂ
+!‡TMê·jD_§>ôëŒìs≈åRÔÀË˙%¸_?Ü‹?≤¥≤‘tCukµ˝∫*^—(>±(¨™|µ*
+æ
+GT›&Élı˚Uû_Ki)RmRí~ŒÀòBz+wßTVqç,ìÒÆ≥*Ö	°c1˚•`)3Ô3ÉÅD.ñ@è‹$Æñ∞3ÅüP”›”„ªæîj5©jIõ{•ÜWYW±ÏÆzèì‰ñ˝—”æ5</»5Îvü˜ûeß7TUhëë‹≈j”Æ™ãß4Íf≤›ŸwŒ≈<Á
+ãÓ‡∑¡ﬁÈﬁ·rº˚ÎﬁÓod{p∏≥∑38›-ÒeAde°)ÙñD\Q†°ÇÙ⁄^0ù©â ÎkäÒ NîH¥[‰ë®[†›EÂÉæiU!cöÎèº9^4˚)ñ˙Î/EØt ∫Ñl∑—=’XñÔ^æïÏf*Æoô¯Ã‘n$â¥ /ùTï©K÷è…LÄg≥H	≤t¯*éæ3±>X˘a”ÜÚ!ì"LyX˙·á“v_AèRv èo√p2ı<ûß◊V≈/UT	,ôÕŒì\S≈e∂æ<'dâîeUã2ômEìÙFëP9˚YÊàÔ·-Q£û#rp@¶TN∑Dg›m¸ìårÂë;Zÿ;eøF≤EÍ q9#óùõˆ*oòÂÇº∫î≤ÀÆŸsï¬ïµ§üıu`¡1([Òöç…˚ú®ﬂG}ÅêßP¡&)Üa‹:l7.>£hÂ⁄ÁàU∫ã"‘}µ…H*˝7E√ƒçµ™ÀPÅÆ≤§!ıöA;Ä•vUìc«ÚÑf¯—§…˚Œ§–
+æ1jÿ-5Ïö5ÏïˆÃ^¯≈Ü~U√mk*4ÇOUˆ—ÁÄ∆6)4k)~≠ÎÇÅNÓ›LIÖoëh ænØkÜ ‰'ikmìMrvE\{ì¨∫æãÓqÀkvVßıö·á˘(
+|WÄ¿(KPIÆœ´wvΩº¸À¬^Øó⁄
+ﬁ∏ŒNå¨iq#zmr‡˙Qy'†ˇ˜Ωˆﬂ3]º8Â](˝Zÿé“ÔKÌK©ó:‰A„‚u…éµêlê8–˚Æç’È≥ùRy≠Iù√ÚÑÍzç|fq⁄‹†}ûËÍ1j˝Is≈æTïÕ—ıﬁé†V˝ÌøVãﬁ£–gJôƒfÂ]BËè±õ™úEgtΩ–#,T˚™ÓŸµ.%ïÈ9F#gSãûCÂÜSﬁÜ˝pA¯u`À#ö<Ö$1(Læ	ÜbåâÎ≥‘ÇVl—@=≥.óV≈m∑|* •V#˝†:Çì¢Çgrj’	ãxU‘ä◊ÿÈV'£JEÑ&,T7‚àG€‡≥&\JHõU…	˘¶â¥êk]!/:ËJ:–ÀÖzíÙÚC°&E‰;–ÀYâ4ë6Æê'≤ÜE©"Ì¡TÆ`èD∫†=Â†ªgZﬁ$v'≤g°∑îA◊ÍL ÓÑ^Àœ∞˚ô;¨√˛∆òE6¡Ù£‰[¿b˛B“!ºûbnØäû+*ÎØA'î`§ÎC_ö8Y4m∫"≥zƒ@TOCw<’Oå%ÎÃc´cHÛ¿¢‰“a´®^πE#°ó’9˙ñ pµ…€“ƒÌÜ§ÌÜÑÌÜdÌÜDmIívkÌV…Ÿ-≥ë2=9—bµöÿh®îh¥ÿ.l‹ñvGÎÙôn‡ñncÎÙXﬁæ-£˝’à©B|–@•=°$›%mz‚üw∂0”`ØØäëWdÔ∂sŒÃiêz*¶5‚Qı¢ø*NØÀÉ°œ@°∫D ˜§ãOŒ]El'F.dPêWY<áwÅ∆Ë⁄PdW0…u˜¬ùé+_›0Ò≥G—·mÖ◊¸¶ﬂD≠πè9¢	®m”ıŸ$àÉfßø±—n˜{ù^Û˘Üm_¥ªœûÿ›ü.∑@˜]1…£byq2.z_jg^È†/´#FE& –«À∑6Ãäè≥b„GÌÎê7ÕÎèdl/ûø‡ÿ„˜ÕrJ.àDSEÏxùK!ÂßﬁID£û}◊uÜˆ≈ÖXñ]ñ,ªπ√¶[cjU˛y(‚;·ÍuçDâ“õ&í˜T¯i∫[∫≤\ ‡[±bâêKhÊ˙rµÔËÂ¬wÙkû*%ıÏ–∏Z„‘mW.<√≥ØS¯˙wäÒÇÁ•ù·æ©~1˙Ü€î˜3ﬁˆﬁòf3yÕ§»B¬Œ‚8tás<ﬁÚ;>ıZ¡∆Ú§WÁÂ©5ÖD2µ	h.Óc&dxÊQ2ök⁄Öû•ò¯Lym®"xñÇ◊†˙’8iÈò¬ùÂâc}\pàÂ≥…Ôé•√/ÙoI˜|Sq‹Ò$æ≥}ù–Óçπ…7≤©hŸ ÓÜéª⁄Xº`πxA»¯âÂÜ‰àπ9„æew‡X—<d	înë»m$È–æ˜î%˙’ÄŒoaHcÌ÷!'›C:Gól<¢√ı¡-Éœ◊∞·ØBÄ‹œ∏·CºË¸˜›Óﬂ,˜sÓˆ%ÓÔª›ø∏≥œ∑ŸÏn∂⁄úΩrÅ)é›ëÂ€âF°;
+ö’gGÖÌâ'*Nçí+ªa.ò‰Ω,¡√	ñ?ôOßh¢Îdœè√†ÄHXfπ7‹ÿÚ‹Q2úccFàb∂˛9¶\ß E‡π¬ ç)Z^¢*ä/¨^Wì2‹\utÓ£‚Z≥*ÎUpòø≥†áƒÓRêhãå-ç‹dï$K24úÏˇ∫∑Ω{BéwˇÎ›Ó…ÈÓ¿Ò€◊Ø_ÔÔÓlô åiaU∫ç≤lZGï°º±∞tÒ˙ƒ
+°«f@Û Qò§Ö£»OÑ*»Ì°ÂŸô<M©ŸL~.gÌZ—¶ùÀ?U3¿\ñt¨≥ùπÈ2Î-XfS§w€Ìl#≤0oz.û é'l[í‚56G'',¡Õ,ªN%‚œÜ€÷ÙÀB°b_u[rÁ0¯+PÊ ((L‚ÔÇ÷ÁÌ<˛≤`®ôƒ≈™≠πspƒ	 <õ7YÙΩ≈”`~Y8TÕ‡°vSÓqÙØå)Gõ8cW™zÛ≈Pô/ôU3˘Çj¥Iw©8¬ßÒ%Aı6ù™UıAôïÁà^“≈lç,;˜ç˝LóÎi33È;,⁄˛tzÊSˇﬁ©É`àW(Á”°ﬁ‘28ÙÊNû3ù%13‹¿‡úﬂ`µ<è[≥ã◊ÌŒø¯ÛŸM∂˜˜ÿ§'Ukozl≤@!°@!?,f¶ÀŒJÃ—ùÃ0Á>¿¯1f◊ÛÔÃ¨âz#Èe†£ å/œê^ƒADﬁXò(}a@.tiÚGi
+›#w—Ím≤k∆ã7“AÉRj1©¸QT#¶»äQOùb4˝%âsíU#Æ	ÒÍ$skaûºî–¡ê·=+¡L˘OWŸ…e…)¥òîÆ…Pç|›ÊS¬‘iaTw:~zuK£¶3£Ò –ˆ∫@È£d „ç…å{>UÉúg'MåaÊI«–È¨V≠€∫•IÒYÆ<)>7(QäO‰ƒˇ/∞–¢rvµ*ì
+Ωúå,œitñm~ƒÙ“O£]≥áNÒ·ä‚sZ<Å˛Iècç/º‡≤9qm†D^hW¿$”øa1M◊',·˝fÑ€OpßGçI◊Å?ŒbøŸy^≥ÄÏ?2ÍÛ}Z¬˜èûÂwB∫^—FNõDFÛ´Uõïµ0÷WÕj¥÷Í‘≈J®Ω^kò)åYÏ–≈àöK∑øåÊ,æ…D~`°›Æ˝:ûïf<Ä/∞§k˙D´◊Y[Œ)òpu√ó2u·∆»-Ù[‚Ë8©Â˙ÜÍHá{Ë|ÂÜÒÑl;aÃ^Ç≠•|˛s˙{ıÓ –Ã¬˘•U√X“^Ä#Úì1œóËAÍ4ë√Œ”Œ”ÛóÁÅ«ÀÒ˘å]xIã2∑‰SgÚzK¬ÉXhl·zMQ*vò¿ñï:n$s$ë˛‘„˙7:n&r‘8‘‚FßSWÿhÈ…µ¯x*gß»Ñç«+ü[∏®+Z‘,÷»ÊÕÈZ)’ZfÕ)—5™àòUFñê!4È§d®ù;Fp;X)¸∞ô2R&¥HÿiM∂î ?åiy∆ƒ„Ôƒó8‡<p¶Øõ3ÒsLxìñ∂<∞¨ØëeÅ
+∆éÙÀs-™Y◊fP¥’Zû?—\ØÎ[ˇÍ˘.˚Å=}ıÏ	èQ‡N¯ÒÅ}≠åOÔN¯–≠ıwãA0É1÷=jëY˙wœøÃç‘3÷Í4¸îö•ìØúxÿ7≥NÛX1¥Pó‡àˇX»_ÙÂ≠‘bÑ€rñÍ∂Ùd–˝9m—≈;*%Ñ√$OÀyØ≥LUÌıÂ@ÄsÒ≈XxÈßG$é7À•µ®ÓÉ ;.*w‰aK"™–∏óÉ◊'4ÓÖvvÁQ°˜˙Në•#ü1ooÁvNC∏ãJÖTa∏+	=K√êÓÛqº$ön¶üÃ2V±›∫…9ù8>Œ≠nH X~Li¯´eíAŒ»ÏåSò$r◊æùJo^ä't˙° $√&âÍYIîÿOh∫Ù∆⁄]€êßÏ©Îª∞ÊÄÕe√•EYó…BH´aÂä)√KÛµ_ΩâÀB=n9∏—erñ.ÆN…≠§¶ïæ‰¢ëy¬Ø¡Œ¡ﬁ!ø˝u∞ONvO±,÷	iêÍ∞;˝µ%“R	Û]sS¨‰\ıß."-Õ¬BeÕ˝˜™4ô¶DÂÖgØ¨∞Á§^••ßxﬁ¬ÌÂAπcüú#◊â‰ÿÚ?ê∆⁄ãu:ûi®∫<f˘·≈Ö‘Œ¶&ãR˘ÃRôá∆*Ìpı1©S]∂¸®ÀkV÷÷D˘ç/«rR≠\)¬õ’◊‰∑˚'ÕÁfFc∆ë/ºôîZyyÏåÁûí≈ƒY}qÃ ûèéwˆﬁ¨º<
+ù)¶ç∏µûw˜˜NwW^Óz∏ÕòoﬁÌŒÓ¡€ïó;Œ4 €ıªTóïΩ[áVæGkåó§≥…n†8NLX&e¬≤#õ–Æä`4MˆbôñˇıD†Ÿ¬¶±›bÅ‰åÎ&z}Ωù¢ÓIo'yA\?J<ã«ˆXÍd¬b∏xñ‘5o˛´SÖòõÎx:®|V€ëÄ‡P«çê(∫~^√®é]Ωƒ®Í9"ÿUﬂπƒ2ûdãú•5
+«¨…û.{íœ‡0œ°€+¨6#~'l*œäö≈G¬ò˘‰ÅE'Cﬂù{cêËLÄç:·÷ä”∑+XV
+0¬§B(ô ”DªÖQÇ]ÉßgñÊs¨„0ªiúaÒì∂∞
+πÚúÆªﬁ›U9~ÒéÂ⁄°∫j]ü„§ÇüGÍ›	/v∑jò‘ò?7$wG6L´æ¬ÏJ≈
+ˆuâ«íè⁄7Yr$D[&°¸‰îàÓ≥˙Ñ£ÕµN:Ru_u∑§_0I›˙u&_ÀßY„‚»2w∑æH,@ó‰RVRaªÒ§,:àKÛ†ƒı5ÚÀ"9ÊÍ(+Cíì©DS›6öäÖEÚﬁ˛(Sá∏ﬂè˚m∫ãÎ!F}îXå‡R…gVÙ¿ä'¿};ò6–∞ÃM π°iiP,˝i„Ü–-µÊdŸ í*;:Í¸¨≠(∆”k≠n≤0IØ∂Úöÿç5)1SuëÊãaÅ8≥¿eh©Ÿœ`€1f`ãäÚ[f=i¸à?ô) ¶¯Y◊Í—›Lrûm[”[≥zåñ/5{–Óâ›ÉŒey√G_ÿ∑Ãqçi˝Áõ{æIõ?ÂØœ‰¡g˛e,IeÚì«É…Cˆ|„&è%©∆=≤x‹êz<<ÃûÉá∆‡ëJXwoÔ¯úÃÚ¡‹Ò`Ó»?&`©b1ﬂ∞±#Un¨∂-h«˜»⁄—€ÃßâΩ5ã«lŒ<GjÛH~∫'Vèd67π»ëﬂ¡Ø¡ˆQ*x˛`Iûo“R:ÓØœRZ¬ó1ãt…éµx∞ä<XE§œ7nπ)πGÊë€"'v≥Á¡N¢±ìî•±ª7ò|~˙`9y∞ú‰üZY…èæa[ä†4?XSlª†sﬂΩEÂ∆/ôXfJ7ì´ÒlÆ’ˆ©xŒ
+◊$`ã¿Œ‚ÊF•‡mJ:Íëç%HÜ{AÅø„åPIkh¨íõrKvìŸµç–ø˜»ÉTdó¢˙ò‚$•¸¢T….¬C»∫m¢c¢Ω~N	2•π
+÷◊Õ£u’·V£Urd®¥k£∆S}C iÔ\œåFŒ,¶_-yÍ„–≤] ûÕ8h∆@)√`JôDÔYw„ú¿ó°€÷ÎréÃ¨ë/0ñ:MÁbR∏¿0Á≈Ï^—ƒ≤ÉÀÊ‘Êˇ≥+Ù⁄ÊåƒÄ§oOú—ám7yNûW˜hÇ*¯ØQz.J™‰ Êô,nÇ+πI≈Jjv≠ê(ï˝Izb•*€óæ ÁX@N∑µ‹S˚x˜Õﬁ…ÈÒ‡tÔÌ!9˘ÂÌÒ)Ÿﬂ;¸Á	ŸŸ;ﬁ›>}{¸;9º*4ZrËæb0|j±C≤MÇ5Âë§äª ~ˇ$À.ê∑Èï∏≤2u–âçNª„úó,ËIèı^&⁄u?y© ı!@?û‘»Gæ„Yüªêä ªú‚ø/,€ŸÛ9éûµﬂ∑ﬂwÅåº«C´—Ì<‹y⁄~¸¸È„v´›_ì’l1Ÿ(ÈÅ09*§!ëZÂê˚p›<voPÏﬁ‡jeVY^éÏ«Œ8ÀˆqÃÅnXæ5¶œebÊãı…Üd¡3Öô≤«oÏV\¸§µñ)î?í˘ÃJ0$ïBwæ5uG‰d¡ì£–8$˛@˜ﬂ∞Ë≤Ù)-ñ◊∂Gù~ö§õA£5z∂—ùãINgÄS> à2ë§nõäS≤ÜQ‡·—≈¡¨	„¢·
+˛©Ô"•Ô2¸·3À–Ñimﬁ<dSd‹≠È|ƒb"Ãæ.© ûÊnù⁄õÙﬂap©»„≈V„{%(ﬂ¿*•+©∂(G%õx1Èï°rö+»ò«=•hP)È»;ÅÁY·	f…a'‚¶!f‚£Ä◊»k«â»65(îNc}“SlM_ππ4”∏ß±a
+≈‡%ƒd_+ŒK·ÍfÚõ,1oÒi≈]4ÚTâ§/˙·Û…GÚh0ŒﬁT:_€ß{øÓí£„ΩÌΩ√7d˜Õﬁ·ÆtërGåJ?ÆL“M7≈|Üﬁx≥XjGÆ‡"—X!“ÑøSC˙µ2è“≠œ∫√™c™ﬁ8W°djÁîÄó,]Y”ª6N?êµMj≤ıh›_&éÆƒ•Âa60òLH•'ïWëÔgÕ3+å@ËàK˛†ø˛"m•ëTjÑ˚∑Îè®FÒLû≤ˆ›v!µ=å~;ß®“c®“Uzf+)Úmìí;%]HAx0|p XRÙ◊ÇÓ3¸‚‰ñÑal˙E·òCºﬂp<8>PöíW&r“~>38[&˘Çı¶,.ÊæÇ5ù„ípM€~Q¿ŒÁ>Cv˜ûÄrAÛ¨ <´€ë≤(K¿M‹ŸΩÅdú‹íBF“Ùã¬q¶j›g8Ó}˝pÃsﬁK8N&∑gM‡∏é7æ~8f9+Ô%”©-√º·+ Xe%πö1˚◊…|4r¢HUë„≈4@kv:ëN≈ı›ÿµº≠´+í87I˚1Åˇ6˚*Ôv‚»µÈ–6mUuêƒeZDÃòÀÑ´≤OJ&¶¿¡[Xt(†;A28y£Ià¶É∂“ÑIçz/≥œè‘! /÷≥s+ˇ.À^.5Dsõ≥„óùK¥ë∆o^Ì+7Á`!ÔfËÛOå∂ÃX´ã‚ê6hË¢>B¡yeì
+œcÛv®∑Á⁄‚5⁄S˝(◊˝¶¢îGë∞Á&û©∫¶3&‰õfrÅÆ©Éî7ﬂêcu≥kM‹êÙ£Mjƒ·\WIú∫SËe£¡ôB°áÀãúµ«¨“Ä“…-˝ﬁÄ}j2˙Œú™btFú;ñ«."MJ¬+≤WÑê‚hoÿœüçŒEv°˜z≤ÆK„.hP^3°∏àQä«´AˆN¨èéÑ‹)È}?uRïí2UÑî„©˝ïo–pÈ∆–ID§#”¿ñ^]¨t$LÌíÁ‡âÑNñy/Ã¶”‚∆˜ﬁìJóroÈEßÉ1°Eœ}gÿπ»"rÀ”vŸ™/ôyW ƒ√a©öBì“ó(ìå{j…X«É$~OµÀPÁ˛ùSù∂ËÓjÀÔ4éÆtß•™ÑBóJÃ‘8 E`P≠J{#©¥ÊÀ&:¨ªJœ\°1õë§JMì&ÇHÌ4ñªçá©ÎQp8
+R±ÌF3œZ¨ºÃ!H\±P˚a=±˘
+Êó%J´vÂ“/iLÆ8Ñ¿4é»ﬁH„!≤4(πSÌfÂzJÂÑﬁ°ûãΩåŒ´ëF"VØú“⁄ñTë‘N}Â%˛¢™kväk{Â»É4ùŸuÏ´FÉF_a‘œ	û“ŸÍü¿ÒöÊöù’ÛüZ#:C¶Aíâ∂A∑ÿ@RÿHΩH=fÎÇ˜J<ÇÉgÔ°ÿ„û≠oÛü∞G∑w»ä¬y7<g¸¢Œ1ÔñS÷›0"y<TœBXEv<∫ ˇ^u¥äb≤∫Pï:rŒBÑDèké¨ábL]´-taXÓ*T"Õ À1æÄ
+∏0∫A›’‰E»¨V3*»HÃ!&∏§™æk∑ù˛≈≈π 0%µÑP^Lk{≥(ˆïóWóÆBcFj°BwÏ˙◊Ï+	ÖŸur-Ëö˚L,Ä;ò-N¯a6¨–n¸ÒΩ~1<&ZSq?Oı)è«œ‚ÈqΩ⁄nc7ˆ†Kú>9≈˙B…t≠Ù∏5
+fÆcÔŸ,å9øHÚSb31}°ºI6°NNÆ;ÍˆÃ$<~âÛNé5ò9~cïÊ*Ê{@0ˇ√ó=≈STilÒÚ«˜b˜†äoyî ’–ÿìÊïõÆóXñct)≈Ô"≈g
+|ô˙ûQ˝.i<z∞ºˆ¿Ÿ‰«˙Õæ†"/Ë˛xA˜‰¸@¯A÷¸Æ˘ÅÒJg'énã≈ä>ò[U-ÓÃ‹ CISs´$‹∑¶πUÏrs+ÖÙV˜›\”H⁄{op=∏?Ê÷Ø—¥jpÔ¡»äÚAMÎÉÅµtÆ˜’¨Zœ®˙`R-=˜ ¶™π„vÔ5Ïª™`äƒÉ¸ftjæ†Tß˛XWøi€*.ÓAüŒöﬂ˚j
+t_+˘0∞*igÛõ„Õ2;¯∂¨ﬂ¨y5]›?»öˆ’^´Ú"ˆÉÅıé¨ÈïÊ‘¬*ªÅ^”ƒöÎt´ wk`Õ{Ô-¨ÖÎ˝&÷Ø›ƒ*NË~[a∏pZ√⁄ ﬁ0∑~ÊV·lMÏ≠¬—>\˘sØ,ÆÙÑæVù˚¡‰*Ë§Ù$ø)-õÆ(’≤9È˘ñ’læ∆oSœ¶´{–≥≥Ê˜≈Ó˙U3Å√´⁄L˘ÌÒÑ¶å)|€∂Wæ∆oì)4∏B°˘=∑æ™Ï˘(Z("€@Ø`…´‡ìq^vGÃÀ.ãºú5sÙ6”…“:≈*Ü˘˝Î&ΩW^v†´ı‹ö7k¶◊ﬂ‡U@˘ê ¬
+¯¥ÚùC9µ _ÒGr¿FÈ˜?[•å¡Î◊{˚{É”]rº˚z˜¯x∞B~ GÉﬂﬂæ;=!˚ª;ovè?[≠å–πpB ßuJe<Je‰ÎQîéTÇ?øÏv`ÅøÌù˛B∂˜w«d∞øO”ñø=4¿!ÛT˛ÚÙ˝ÄÉIaNV‘ID6Ùz(ƒ Eâ)ù©g…Æõ—ø“V˚bp	‹9Oík%ıåa8r‰ÑhÚGŸwÏ§‹Ü,ãø “nú¡ﬂÄ.ê§Ê±Ë‰F¡tÍF2ΩêUD≈»§ûQÚö5¢fv¯ƒ02öî≥’ÿ°uiy$t˛wÃ0jIó%1V©òàRJ®JÿeîÆìu—äã·¥±:≤ÊÑó‘$ö'ﬂ]Z∞Í8Ä}w¨ê!›à»qÇË∞‰¿vÙ9ù∏∏ËÆŸ eoFú∂,r«˛|F¶÷l@ôÏ°∞w–<¬AﬂãÂ√(ﬁ‚—Íö:}òòqåœ&2…6ñæ‹8”à§…≤N`Jpˆ≠»â˜ u´√¯}F„ìˇ<y{ÿä®AhvX3ÅU~ø•€a¥·ı%◊íÌˇ-≠∆Úú0†Ç≥∑P·˚Gè(7≈oaˆ(3R«/KÜû¬É5«Ü≥óè-Yö,/)Ò˙zùB1æbÕΩÇPLkÓq5æ-™^äi@’)æfü∞¿À¢®Ò ˇaÖ∑LˆVQÎB]6Ps/≤Ú2Ùì5èÉ2eê‘”–ä&≤‰á
+ZŒrn3b 'Ãà¡1£ îú´ÀÄ»ÂsÖ\‹PQØıuîëGs§˜ `„–√øÄ;%_R)é#%<§A'ï+›ú®k∂IÆ»Ÿg±IúoJqp°¢2u¯k20çÉ≥˚—æÌmdõÑ%ZïΩSÄCˆUæK{ﬁµBﬂ±+_„Ù¡◊Ω	j% ˛É©~‰k¯ﬂπ∫˛è≤Ål%zöa‘˝∑ìÌ(πt»$)L°óRÅ®‘<˝•¬Æ5ö4‡ÛJO·&ˇjÒ[p¨2~pÈÑ€Äí)Aí˚(Èc∫àÁ°Ø{/Öê≥§—πä:K_∆}SêÀñƒÖ®R3 †™≠zπT Ws0•K )ÂãàjÀ…∏l√•dúù8;ÎÚÊ ∫H(Ì˘qãtTáåõª@-∞˚ÍÎ„››UÂ	∑ä´ÏY∂ödjl≥±%ùâü≤¬årå{íiÄ‰D’º ®1‡â'A$ d©Å˚ß∏w©«ºyÇwó-∫µ±.;√π9.ÕÕ1)õ⁄Â◊!√£πãº.[^4èòv?òÅŒÛ—±5»ë_¯eÀ¢êŒì8VÈà-]3Pns*«1C+∂EŒ'–D∞kﬁ%†Û"æsINú∏¡≥86ì-Z†”4,ƒõÜï¬Fm¨ÆÆI±C&V≥±A u3ÈwT§≈˝ô‰ÄF¸^tÜª£
+Æô‡ncúfŒ]î aö£h}Œ8¥¶˘I+©%ÌÁáXá-œÒ«ÒÑºƒò˘i%√”@¯£Õ*ÈEB1‰«—Â°¡z\√©< Ì\+
+¶N√¶gb[©«§êñt°÷∂Ú˝ŒÊ—Dì†⁄ºˇ#i—¸˛äu~˝á:’≤¿ˇ5hàËó@ÿ77ˆõÚõ{”YÇÙª™nÜ*’!Ìˇè\ìDto¿ÒÁÎ5Õgì¿áV◊öëú©Âzïo1˝õ£ºæ¸hÅ:ÉGM[7¬%l¢_œQißut«:¥ênË˙ˆaàù≠V´H¯2;Ár>æ3`‘†é'â…Ñ˜ƒ4ËàJ,€&ùˆˇ-U»·ë†±√ÇT=#\é›∂@$dÙ£∞îîé0Õ]KK,éç©Y##ÚßÚùÍ$s#Ò"ﬂùôúQhc$p»V˛ zè‰+î`]_Pjá¿7b´¡Ì¨˝Vé%∫ﬁ¿8¢tÚ9&D¯(aE»¸Î/Uß)+•}ÚO’]J˙ì"
+`;ﬂ©WÂ∑SíÄ{–6Dó¬ÓUÀ	dm^qä≥ïæÌCÂ∂2Ã	z€úÄIFπù∂0º« ∂Ω•Ø
+oI∂}§{Cy∞‚”·£ñ≈ödD…@äQ‰ﬂ+∏YÈ$“CÍJu®°§hX‰(ÄSf! ˇ ÌVG
+Q*+ˇVN ¿”(û'3ô[¿O#Xƒa⁄2Si5tAG…Àz∑bUpÜ—|:µ¬E"HX*U™Ÿ)g∑ƒMì…—õ!E}OÈ;ñ√…2Ï≠s3fm&åÕê≠05)Kcb»-ÓS&Ã≥6¸≥ÆM&…≥6¸≥v&π'É‡›€âœﬁ¶to%y÷,ˇ≠Æ}Qöƒ§øV˛{y[≠)lõ†})‡0l<ê9QjUj:m∑MAÂï-—ÜÕ8`à¯ñåä&˝2`œ(tˇv¯ß3Jä•Eü◊@l±Á#ß—ÄŸ?&!+±3üíÛ¶∆«DVZG1+±Û˛≈ËrK4JˆûØùöUñ#Yª‹.Ö%põé|ˆ ˘'à^c˙ˇ  ˇˇÏ}{_€H≤ˆˇÁStòô`võdñ[2Ïp;@fœnﬁ¸&¬XŸÚJ6ÑÂ›ﬂ™Óñ‘-u∑Zæ23⁄ù`ÀRﬂ´∫∫Í©™ÇÊ'Í®Zü{ï≥eB7T∆‡¢ryzFﬁùÓÓëãÀùÀr~˙˜È›•¨9j|§›>|◊pWÕÜp÷10F¿û≠ŸlÆ5ª≈◊dêç—≠ÿ'.ÒfA@R`D3∏◊‰lÖïª§≤„NEpd®EùHÖrÕƒvUÈaïF»d~ÙEÆ\Í!â!âjü\ı£≈X®«˛u∆ß}ë)ƒ~Èç∞gçúp<Ñ°,DÄ[ Jg_¯7!,ªg≥ÚE¨Ù"øJ€a¨ΩT`¥X 0ãü}WGôºîﬂ.I$2»B®‚¬¡!|I.&WQ7ÙFcõ—∫†n◊œÖ,b'ŸR¡–b ˜ﬂw¬Ôf®°yø=2∏¸LîRsﬁ]zÚŒÖ≠Ç"êPGÅ:òÁARXêØN¨5ã'.¶ì3Á>òX	M{‘√NMô1¸6iCyz⁄ÿπs<4‹Ú„§„?“Ä†%	Nó>z^Ÿ˘(˘fÚÚõíb>|Á^∑·˙∏`äŸ˜¢´Iˇ≤ßôüù!YL°¶iÄøM™Q+@ûÜl.ÃT®®á∫}∑x^ÂÙ|q¿<iv6…ŒªÉìÀrvp˛ˆÙ¸xÁdÔÄÏû√ÔßÁˇ∞V40¬Uëœö8¨C¢¡&∆ãı mkùÇL–På÷ø~À·≠◊í∂)ôØåK–‡HÌ÷£àBÛ·ªŒÜ≥éæÕe{
+¢™l]Ülkx? –qΩ{_πò‹œ'¢æ!‹êI^?¢≥oÒ"l—ﬂÛ˛?Å/˚ t|˛[Öˇ·elç&.˚—8ª2h(Hômúvﬁ¡E@Èï¯9—˝∞KLABÒ·}·34´˚at¡PQ¯¯BÀı¿ª°‚2Œj¨’ÚÖVø
+G«9ànë◊‰&ì^``?Ëû#ºúÙÇn•wµJñ fyUè≥Ë!ä;80PCE®j’™Ö¢!Ihá%^8¨ŸZkCWÍu≤Ô^;LF¿L‹~‡#´8;<Å±ËÈ`SÚïZú†AÒÀq»X£˘™—®6Ëe@vâ∑B}˙˛A;èΩ
+z˜„`“ÌWπ∂!‘õxÖÅèM£3dŸ¶¨≠Å†˚pØí eQûú&_•¸¯cÒ+Ê x1ﬂ¨ON˘H»˜RèÒC/(üÜkÂSa;I◊w˚§“
+´⁄P#“"LAÌÃïÂ∑0€L–·Õ·†∑MXƒP™≈Pqè3Çú}ô¸ào’nA9∏ˆÜzùïdy◊ Zo¸]È¥ñ^=/rÆ`l∂º∏ZÎ ÇäsΩ!8º	zœ§¸Õ Ñ*oBUCîàG_0f*ı^ÀEk)°»Õ¯´	n¥&–Éª–•ë]E∑6ÀË7û›0Êmˇ/Ñ`s¢‹û	á¢r1¶¢{¨Hà)
+D°’a>·>‰≠”‘6Ÿ ?Dä¨8<J‹Ìπ®ò9É§t∏µQò:	$ˇËàaÇ‚#…zÔéU>—R«5√dmﬂ?\Ë◊>,¢/Ã“(Oéq˝À¬/VõÜ#àïÕ®EEÆ’†`¡}◊È5‹áäöäÉÜ*†SÍâ*P;Y÷:T$ñ…0âÃ‘*èy2ãÜ"˛Çè·s[ıqñÚtQcwùﬁçKÍ@ì∑Æ?œJñﬁo)»dcfYùg·íïjáﬁMúµ20C ”xœΩö0à\±öW5«ö≤™⁄πw"ºïEÇÿu|z›π±©Æ}⁄Èém'û	òH›ÇãlçQ€¸æzO¯á4bsºΩÛ3≥éZ‡1kÖ'ËÃfÑ«
+JÍ´ƒÎ}±:d&'≤x`b‡HÜÖH8Õ™p+u*„w%8_±úhÄ€‰á5$ü›{êºz_≈—M©tX[¢€æM$[Z~/≥û÷Ñ’Ñ;èeA
+}óºÅg¥õ]QV3’ã°f]u‡Øt:‚≥öÖRTæÿÎ2ÓØHQ¢lI^=ÙämÜ0∂MîdetQ@~ù9≠’…ü¶É-o∑i‰°[b<Ò•–2Pr–∆âó>É˛b‰}oË^∏1åë	ãg°π¿ÖôÀë7ÏU"äô´·…ú·Ìÿ·ATÉéΩkR‚o“ZõBM_‘]Hj`ÏoDÜ ñ)™gIØ,·z¥)U=Åf`\›yãÓKMvr◊;#àFY-≥"’Øú§√QA?Íáﬁs’FäÃÙ7ü'¢Y√L¯Ø2o[LAÌà<BQ°&zµ#à{=mÖo®Ú{Ø¯}û«§"≠ª#ã¯«„»∆Æ§®—¨ìŒ_%»Âq≈n~Üv0ﬁü`ŸKq˝,Â2$°…0*“Çp¿ê+~,’hÎ°x®0A%Fﬁ”oT¡π2èÆ™åà)≥>ó¢”á¥πè¸ÛÄ∆~˙?ÚΩpÎÒì˝≤ò¡’å	?˛Í¢¬&qêØ≥√ìMçpëIﬁ√|Eéì`åQñKuâAÉ£B°∂Å?i<„C¨m3√Ú	3ŸÓ;Zç·˜ˆrÏ\8ñ7€§C~"À	Ømîñ…ÊÏMhÒ&à ;9aå–XÆ˛ÂåX oÁZ!aŸ≤ Û≤Çºv>|<ãú1ÉMô>2ÏÆo2J&Àcgÿ√∞ïÒM˚›ÀûHÁKwÎŒû∆“S∞‰]˜H˛≈Rﬁ,¶SsÇ•<X\Ω6IÑ„Ø1ËLYîs9ôcÈà *&TH†6KP…IçIT"O‹œô4H“∆<q{r⁄æL†∆Bç}za*íZjãöX¿Uƒ€e“1IΩõÁ8LØ%“¢agS	Y X‰Àœ"_ ÃÁp–S›IÎÌNE“î–xH∂‘X®iÊTFâ6P¨≈åµFFD≤Oë⁄PŸ…q3¬uX}›—©˜2Vÿ2£ÃC¸”qÂAÉﬁ¡çÔ`4©ˆQ;”u∆AâbÀúI∂`«É„sÔ.ìdí¬‘ﬂD%QÓîÌ/qÇ)ŒÏêy„Î“¡>¡LÁkT@˜£\0›¯f´#ÔZY¸u¸‹∑EgiXj¬Fóë√ÇVΩ*4ÔÃKûµ{a´~G÷b;^≈@úÇe’†!Õà®S∏¿îòPM˝eìã‰: sôõ"n{o3IÒí&Iÿ?ﬂ˘˚ŒŸyøxIvèN˜~°Åõ≠”ç,∫==hõ'a0Å¥’Xq•ˆ»`y≥Üksøç˘Áa0x^»àmÓa‡I~¡øsÜP[<lÍ=oÃPÄj§ì®='à6ª4uœòÚ≥Z>˚vb–Œ—ÖÎÑ›æ<AktÇﬂÿÑAp©°,¿ÊToë*›“Ë‹”≤Z◊0ó[ﬁp4—[
+ôT—FÈ∑*#ºΩƒ{ Æ’ÙÔ“†$€Ùqˆ™û◊Ç¨Ú…<^qY†w¸˜Ù≈ä[;·çÀ#ùò∂Ãñí§sRRf˚÷Â°ª∫ìhSˆ	„7Å®-≠∑04’◊d*¡ê@z»ûÓ™Îm› ïMk^*≠îŸ8Àå∞,™â‰À$áB„û(€zß±∑÷ºa◊üÙ‹®"Læe@µ ]&Ç— ¸ æ´ÒD-'4ñΩ≤(√Àw‹zÂõ£(NˆÖôû≥"°:ı¡*ç∂fﬁ≥Ÿ x5*œ˝J8®…Ωia◊{^ÿÕB(7Ä’mà≠wdp,÷Ëˇßˆ◊ãDM‹I :áSÁgwå =÷¶Ny≠ébßö6„– Q-ê=Å£CQü)’AEi1»ŒT¬9À”Ñqê©ær∂“∏‹ÙÜÊŒ¡”·ÿÒ|†©Lt/¡∏o<∂y⁄T/hT´ŸÀ+y4„
+°é_Ê¯†‚–Í»B|ôç˜	ÇÆÊıä ÑÕRBù^ÿ◊mƒÙ∏Ú÷¸Î·9vq']∂≈IB3ÄÖ•7}∏QÑ5Ÿ®ÃzÙxá…XR˝mk‚†oy˚ Ÿ›ø\`lÊ?ó`˙F¶ï∞¸Jr—õ¯õ∆ÚY“jÿª<;˚ƒC,qk&mÌÑfa"cÓK≤{Òcº∏cÒŒ |ƒ∂/íË9Ø.Õ¥ŒïvÂvßA)]≠åssÇé|M–à&$%jdbÇÂã2m$Ow: Ãÿ°‘1%†*Z02≠XÜi⁄5c9£¡Oïı˘∫ÿm÷«¬¢-¡"Ò8<Í(eMù éjÀ9îã√&∏e≠•/iôöŒ.eïáT}Òàÿ4√e/£™@«€_^}·K ä——Eô®Ó„„˝U¬Ü~Sd
+NƒÚH6È€%™+D/ôˇSu©rÇÚ1,’úiìÖ∆uï¨å˚§ß≠∆ G}üRèI8‚dƒNZq÷ìZ±ã∫xŸõ>\≥≈KÌ´Øò|$Ï&Ø_7ÍÎ
+Ï‰DﬂX”o1Æ@¥ë¢8+#˝·Q≈42”<Ì≠âúR¨MÉ%Mâ2)=ì:w1¯üLÍ+2)ûËõú3&jäH<)œò'Qa.ÀêËÕÑ—ok-f„˘Ò!6ÓaC[V‡
++Dç≈#eX^yv7%´3≈‚∞æ	≥D£˘Ì˙ßOÜlz˘ÀƒHπa*Ê•1{|¡Ÿc	Bõˇö˜z2ﬁeœ1xñ õÙËD˜j∫Ï”÷d…¬ƒsZµôUfí≥„—\¿ÉM√n8¬ã/o∂Æmﬁ¥‰"e≥¨Á
+∞fZs“ôÅÆV,Ø IeDQiõØXÜJ‡É>ÌÏÔììÉøì„ùì˜;G"ËÈÌÈ9>ûº´üÌ¸„ò¥TÖÆT`üò·jM≠$≈T  (â‚û:®;lƒ≠‹Í∑ıñœÿ"4ˆÎ˝˚‡E[g˛D—U÷Ei◊Ï±3ú–HZúá0£X]êô.©¡ñáSYÀ∑Í˝∂√Én¥ ZÉ!≥ë%Ä?wk£–Ω≈†|,,û.Â,w∫w¥ÂhjD#HrÉÁñn1çØi/IÿÎø'ÜC∫ˆ\ø™|xc‰≥˙òx)’x±mıñÜ’`∫Ëä‹cˇ=X'xa¥î-&AË··Ü-Z∞”ss»¬˙àÁ%≤|W≈ÿoh5≠É;˝ÏÚÜìêX∑ÂP~áß±µ¶ç|:tπºÚ°°J›*Ö∞≈Ω) Í8Ëàb∫`õÃ¿‚ZTfÄ≥Iˇ´.‰=2û™G≤«$b.·Ç#:<ÖL∂˛!f’I´>¶ﬂÖäñìÙ5N^º—Ê‘¬õÒÃÍÀ´˙tÀÆ`“SëıC2ˇ4ÎØ ≈)Û™„5Ö<:ùÙπ0Yì¸±∏b∏ÏÉÇ;!f'¶'¯ŒF›¿¥D^ØÊ|¬x¶Ê)x‡DX·ïe}M¬£å⁄>Ã÷°Â”l±√Hˇ¬ÜAéÇ°„Î^’∆˙]M/“Øm≠:E) ”#\µ“öÔ\πæ$Q{®hŒœ ¥ °¡⁄PwÆ·LÁ!ÎM≤∂˛e´N´ô	‡äuÎEˆêÔª⁄$¸´ÛπÔ9ü«}7ÆªÖ∏Wë±ñæJv‰Î]±$Õu†±tõ∞∞IrM√~R°1ááïp≥©X®£ﬁíí˛SØ«òôr©\~F_ày,…!›«Êµ(aåµÉú[ã¨3”≠FŒˇ\èÒOO∫c!€>äb‰˙&Ìgf]‡lLÎÇohÛ^E´°”»ÆÜ“k¡R'dÄ4ÛÕ%yK_z#ﬂ™≥ßK«|	ﬂ_Jt‚‹8=°]Ú˜)ã„Ìæî.Ë<†Á˛¥aô•‹uÜüIú&ÖÙÄâv«€Sº[Ÿß∑Wä
+ﬂ™3zÊ|·í°À£Œ&Éùìûü¯‘hæ˙¬/˚ã…÷SÓX\0ˇCnY⁄µ)ˆŒ
+I≤™6”ä8•—ÿê-¶»,≈Ã®N?ﬂ≤*ïı˝B2!÷R˙\4r€ıxd≈®Ù©@Øùy–hHã˝ZﬁÏ^Ïæ?ø8‡æ∏‰Ú|Á‰bázË9Æòtˇ'2‘òjΩ»î7ˇÀ¯†¨lG5˚ˆtW¶Ú„”˝É#rt∞ˇÓ‡úº$oOvNˆcÂ√ìw‰rg7ÛŒî5g˝,t¿•s≈ wÉ†Á˙ø˘nÔcHÂpw⁄î‹ÇN∆ºvzÓa…ü˘öI⁄Õ«¿îª[ÔÏ«’ö’€¥
+†£ﬂˇSØ∞Ä+	l∏ø¶RO∞ío¬ äŒ›[(0Wâú ˝JHÄ^π™uÉàjÀ+ÍÓ±u|å√—wB‘ &’˝Ö4jÎ∫∑XRh1U€WHQ_âﬂ≈Ω§Ì›ü∏8-«Œ∏_8_*ç’LÔ´ä~Õò>ﬁ¨<jˇ&ßK“°Vil5“,ìÚÌ&tzmø:™W!πÉ∆Ë6≠l∏~y’x›\ÀÄ]Ÿm≠≠≠}DÃ
+ö”r…çπyFëÇÙ%ºÛrúµ[úl©ã£Îˇ-∏äHBÄÖY˛Ìiiì2˜Öá<·∆)Mˆ=(w‹ÌGb3fúTyˆ$ÆW4'Oqòÿ
+_“§,‰(∏π)Íº9¡af…›°◊kˇÑª  ã~]â^≤qêEì˜•.«ﬁ:4n›‰‘?C¬F$Œ÷üƒ9qæ√(°Ú+û(IúË9ozÂ”åS•ò¯IOóå%]yæè·∂Y$©ß ÀåÎçmMúRÏI˝∏Ì¡∂Óç˜0PËì“Á⁄üÙ9}Ryâ0Å©≤ﬁ¯aeﬁƒ…Œ£-;ö®$ß-ÇJ3!•ï4kà˜˙®Ï ï6t~ìzûRëíNqEíü€äXïO@‘íC[vaÚ¿Ïà'∂#Ë‰9k‚#-öö€RÛl‘,'É"<KSya¥Ä¶ìÄÑ)I'G≤EêsÇöﬂ0Ù˚·»Å„&_«†’8ΩIQÁÁB°¢®ÔoΩ·¶!äı∂èqK¬Ôf8o˙¥˛¡>ÄﬁªÛ√˝MDå√!üi©vwéh÷Û£√ãKãxyπS˜_8fØ—cˆÜbºr7∞9ÕZågÂz¢øùÓíÉìÀÛ∞6⁄ÄX°˛D‹$i8?=´!πO‰3±÷k]TO3Ov·ÛòH\ﬁ cÁı@Z˜ù{=3"\”∆∞)Ir`G>¡>9'òhvˆ†yåkƒ©•0›∑WË\\·πŒW»º"Í=0È≈§<:“{(+6?kAø•p¿Ol ‘ºí≤2Ì»-ÅSÖ.Oä<√ ,’s^€jd∂©i;L[7óÓR‡µ ≤fG¬ù^è-˛#Zùﬁ∆åtgºå	Ô{˝¿Î∫F—ÈÈÏ´‘∑, £1iV¸E°Âî€AŸº—⁄c\\9[ËQæÄ'áj4ûTcÈMµJ¯‹¶≥Z≠C®∂î>Œ£>·˜¬¿Oqı4ÙæA£?ÒI¶ﬂ‚°… ~ Ã«ŸÀt]êä™§ü»ßø~Ø¯·Ò¶C9	(ûú¿¯v{ÀèÊ÷Ec£˜ˇ±BSh˘Ö‰èH>∂ê( i”Êµ@`ıPâa`´¶·‘··+¬%rå‚Î¬%®!÷"b ¯Á∂ˆh”ûÃ«≠›‘HccövåâﬂOhfñãæßFü≥KZæÿ±iñ/æ˜v∑ØøhœpB0Kz–•©#ü€ M⁄U'?c®Ñ5¯yÆÂCî8ˆ†?fyÄì›≈Cß—¥\Œ¥s”¨g˙‚üÙ^çÎgŒ˝ ÛÃ<è≈úòÈÂ∆=[G∫ñõVÓlŸb∑¶Yµ¯ﬁüBDrQñß}&K7iNŒ@·-û∂„[ãÁ¿˘EŸÇM éw´ #·M'˜´‰-.*:X.◊∏S…Ωq˛Â?y-ZÕP,&ßÜUrF?è≈´hﬁ)ŸXD]˜k,`6<=Eæc@w[.KªΩôä’∆/ˇ·ÆçnÉE◊Lú)<§¯Æ˚˙ıFßÒ1F{°ëBù\í–h¢∂pÙåıLçNèÕµ˛j˝[ÍŒî5t[6ˆNœ˜c”˛·≈ŸŒÂﬁœf´Üü^ BWöπZ5Ÿ÷vë¿¢ﬂÔúˇ£¥ù´5ùùKŒò—g%cR/k≥Nrüç¶|u“+J≈ıçZ£˝ëÊΩBF™S√Z˚üÅΩé∂CóÚ™ú·éEW1”üÉÏ
+çyÎùa◊√≥^ﬂu«≈Ä≠è˛Z∆éWd∑[Âˇë +ÙÜ°QJ˚˚i*`KA.ìY2òpéπ»å%àÚáäyßìbÄßg*õ(„
+Õ>:TeåIÂsn\e£´#X|™bb@+«±N›ê∑ÙF¬ﬁM]†Ñ”<CÃÈdäl,Iy)%	ìÇKrø∏◊OQíÆÀñ	ƒf2=ôÉ2'ìƒ˙√]u¥'shøz]T∫˝ƒ»¢j,ÿ‡ydfx§B=á
+"Z◊%ÚÚe·ªï+y4~í„(—"ì2øi“ÖeG_?—îùÒä3á•WAF¡?ÎWÌKúÖô\≥ÚµDHÛ¨ñ§Bçáñx%k…Ïõï≠Õ)ÂŸ%^ñ+≥–Y≠9}ÍãE'Êœ+±‡
+ -˙}Fá5Òb≥—õô=◊íQïgKù˜.Ω
+≤ÿ≈WíE)1•´)•åµ˘1}ÿ&•É*1Ñ_mÈdWÀ|[ﬁ‡∆‚1B¢∞˜o‡‹∏ÔCü&]Íè«£h≥^ß7£⁄dà≤r‘¢‘G˝`TõùµvßµÒ™›|ı™SÌ¨Ω~›v÷_˜˜Í'î“∂ÒÂå_^{„Ìnå^˛{{£ÒÚnªŸj,€Öau¸Ò∂Ä;∞zGë	P\a¨f8Ô‹&g∞º‘∂Ò—&ˆ™]‰‘íI~sÔ´∆™¥Y	.ı ‹ŸÆ∆YŸ%-2T(Ñ‹V˘ÿQ}πué"º˛˙êpªyµÔÑmÜ0´‡*‚$‚ÏLÿevãØiß‰æêl∏)]©4c,—XºÁëÎãÓC⁄˛ToVæ˝ÒﬁÒÙÌóÁ@ÑòñÔÖ¥Ì}Ö©Px7îÔ€€‘˙¢h“Ó„Sõ.ïÄY}ó⁄.wèˆ≈X‰ËÙ›¥8:∞òFq©òÚg§w,ª?-‰÷›Çgw`ia›a6™ a˘S—ﬁ®}úì˜Ä≠Ä†iÉ…Q@sªp9⁄(gV,öïäœG°®W&" %±ÖöuYJ˝_)e§≤
+Å≠S4‚o'P0
+vö¢ ¶¿‰õ“ÔOØæT6Ê$ªöXΩäí‚$G!Œ*Kül*Hø{Uíe‘ëüZ}¿°¯ :Ú‡[^ı«t{e¬≈K@#îŒuZÑ1"Ω•ña´H:·“W‡_ Èl?l<f$±ÈD¢<üπ=o2∞‡Ω'A:í§óeAt-C €<È=ÒÜı‹π&S+ñ¬fÕ˙°ü$mÓd‰)§Zm\#ÖZÌ$<Täæ&®.ãıè∂´ÄiöhÒã–4)DxÑR¯±íÇﬁﬁ‘∏œX¨£§3/
+]ªÀhRJhQñﬁ∞¶'ZtkÌ…löìÜmñ÷¥uœõ¸ÃÛÜÖ!%§dΩ€Bﬁ∆Û¶–:ApúzJ„Ÿ„9•Á0q ∏RÒ|± ∆ûı*ôÛ∞QÆ^r‡Xõ}.-é>uä±“ÈÏv˚SN=@ìua:U€¢âÿÚÎ%q‰Âß≤ÅÛ•zG°w·dÿEg0ûåı%Kã4⁄¬”‘^P-d.3ˆF[ãâ⁄:óaíó–âÓá]R&;°òõpy§É˚`B¢	ˇpÁ1‚"œeG∆}/Ñ´¡q
+∂û`Å_].a˝D.Ò…;Nóﬁ#rå˝{‚ÙPB£<˛ˇ-G‰äE)!Bá^,óHzà’⁄ÁtÓoÃª±t+=¸Ôjï,«BˆÚ*·˚}ô‹Ä<WFåSeûîzœ„q˚˛EâÑÄ§KMæ7À¶É|∑Ê¢{eô9⁄”∂ Êñwy∫åÂñÓÌ[¶ÅñE⁄Ô˘g;¥x *#¢úRNﬁ £
+H!g§,â±bXô§ï∞0∏õr∆Ík€0…‚%ÁOÃ-•‚"¨ÏJ≥•Q¥M¢∏ÿsí>˝—än;2Ë∏µ˙ÌπÖyŒÑHØ∫¿ £RíÂ∞»Ü≥ÍÕﬂbƒâóÑ*ﬁaù≈⁄°.îÿ%≤}"{°ÎåÅ€–pÄ∆”)÷å_:7s–ã?`Fhõâü»Ú|ÊeèQtn\ÒÆQÊÍ`;.ÊÉ÷çAöÄÅ£	@∆Î;c~◊A˛Äìé3Å@ºÖ	ß˚Ôâ«˘∞7º•QFò©m
+ºÍe¯ñÁ÷•Y:pã@,¯“W˜íñ3ıäœ«°#—*^ü°èÚØágùbøN ¶±s'•„»úâØfºç‰|ëÜ”¨‹óz€/^àƒ=GÔP%G«te¶6·Ês≥˜Rzﬁåª≥ âx„{êØ∆Mßı(Â¨ìÂ áﬁÌRù™3Ëﬁ∞HúŸπz‡∑ó! ‡<øõº≠%2^Îÿëo2Vx∏7úÌµDP·Ÿ3ûÉÛt’~Bbú7yπQ7ÙFœ¬g{j≤bÓ‘RWæ•=m≠Ûππ‘ˆ∑ÑKX“	t{ÍÄ◊ûŒôˆôÆ˛cÁ¶açHÂîÆL˜˝ÕRvf«˜É;∑óÌ‘W‹^ävâﬁ}‰tËÄwM‡7¸lG–uÏÒd¿ﬂ¸a<û)MFdá*=hhÔID.Ó<‘c⁄F¯.ƒçyö•AÉ2´á»Ëƒ[‡n6∏5`SŒ4+çÀ,±π?ºÆu‘'nj◊£TL„F®©efÆøÔd·0«≈∂°ËnﬂÌ~æ
+qËx∫°ƒw±qôÇ˙‚WSÚ„E€†Jﬂ¬“‹†HGhúê–Vµç∏95%«–ÇhπJ•»R\∏ç™ox‡uáFÕ…—2·u›$¢∞}Ë‰L€ı·.5Æ◊ö	Lã-û¨U4‰‹¿ƒŸN&‰Ú4dåÆl"{Ü =ØÃô*eE¢admÏìå∞«Låƒ~icπ¬?⁄X¬Z`t ÈdñãÃTπ‡Z«ˆä≠ÀO∏◊8ë¡ÓùXﬁ∞Æ$!¡rØEYÙí—˙ñYÉL√Oç[#'ƒ–D:yÜ[Áƒ8:ùÜCbE∆÷&g≤KÌ°µ⁄◊ìDÅÅLÛwﬁ	b”—s•$©R‚}é¶JπZ€Xo∑Ú1zÿ«Ã°#Üeå ŸqÁÛGCXE’&ZW”…ËÒ(b4;è”3Ë≈ü“‹6ÕŸ√YÁl#Ôœˆw.»ﬁÈ˛≥ãú$ﬂı,x9d¨i≥‡]R‡˛ÇÇˆàÜ¥ƒç†ÔızÓ0¿gæë{–àóuÄVuY´
+O zi˛ı†\;;c¿f‹„gq]Ï9c«nä‰x}§c‚ùÙ‰…eD	·ˆd,-8[,¢Y3YNÏX´"M2ë”É„~≤•È5YQzO€]ì-” c´´d‡x‡ZŸ2∑¢õ-å=6ö∞_ys0{ˇ0◊±PLÙ√F?rÕk)/
+g%_Ù… Ω˚°3∫Ñ
+ßÙ¥®B &iÏ√Y*∂>¡Ò
+¢"·≈Õ◊˜¡∂1/ƒM'i"út⁄ÑÊ`jÆÖÅ
+ÆØa∏5ôÓ≈âyYè˘ü.&‘
+Ï(∂+∆6&îïÛß≤.Êá≈ªµ1JTëKW¸åÏÿïSUe·ıJ©!÷Vàl6‘o û ≤g™º|DÄ$Üı‚ H™Rh‡m∫2¶~?µ!L[SΩ¬øΩ:˚°°î„!EΩäNSï4
+a≥N¨±ÀïM≠úWaH(/,X5kÕW≠ÇàP
+FO]h()LJ¬Z¬˝[Ë+•\Ä2É–Lèq==’⁄.2fEòÑÌº2Xßêô. ·ﬁHQz-+ö†|!I•“›™≤`•„WŒœ?¶x˚‡bﬁ„‰ÙÌ[õæŸ:tL9¿Ÿ2€`?4;¸–ñAÀÛŒ§À4üéÅ⁄‚:î±Çd6õTr±o7»Ω=úºGRèÔòNÖº ôóÿµ7ÑeˆÚ%…ˇå˙&ê
+Â6ç¯ÇôAbÂ6ÀÃ⁄u ß|c∂À‡Ê∆g 7∂sp6Y6Ä—√ßòxiˆµºˇ∑¬j)Õ‘*ÚΩ-$û3lÆl≥|â†Æ œirÃƒ¿z:À÷um“∫tá-ÕI ≤¸«O6ÛVä∆câcƒ>QU ·ê°ù≠¢cŸ¬…g úå‰¬œ`_¨¸of"#€ïô’f32≥ı°»)∂”Mºtâ™[π√ï/ı‡πç¢t1âÇ\^v•ÀâïÊ”≤{ÓÓ&˝æBŸ˛Tìe©éWøl©òO/+Öã;ÎÒÑŸÌ|r£≤æëïEœ¡±&ë]5<ﬁRBNg„Sìx’P4<ùÕ[v|pãñ)»—ÕØèˇZ9”î·sÿ—ôcë¿d–’m˙u!Xéµ¶biYƒ˜;ôùMÌOµàE¿]´ÊºTUã[säfú¯ÇÄ`ó©¯gΩrLUØ9ˆQ·ÕíÓW>|Èˆù± ˘jıG¿∫úDA˜≥;∆§?n¯>Ù∑27Â…5W{NƒŸÒo√`Ï]{ÃwΩåXﬁª©–ÖÀø\∏ö-j¬XÁçùPÖpRö§é‹ÎÒ&|Ä@NΩÀlÃQPbé‚ªI„∫Ÿl:
+sTW6G≠!êÀÇÒT‚ÃZ©Ãx≠lõú´('∏Â£*¢5Æ«ákS˚1{SM”¸∫∑ûSΩw`≈∂πÄˇ∂ﬁhhﬁ¢]jÉ”¢7’~m*DKHqç=ËI“Ïºñ$˝)÷ë§V)-qª–.ö√Gby»ÙÏŒîC¡Ñ5ìÎT∂ºU¬l›ûM¢>ŸA'Ê≠zø•≠‘∆x—ëîHt«5∞á-Ω·Ω÷ä¬&™~Q{°π√ﬁnÃYîûh∫ê,jKÊp• ∫8±U/F@f`ø™ﬁ¶!årÈgû“6oÿã,`”‚z…ËHu·Êñﬁ»„P/:k-™⁄∞9LmµÔ^;òÎ∞ü˜ÆY!+≥‡3≤©sÃs≤±~öÉ´¿óª˘ÊÉÄ∂ÿrY¥ŒˆÈ“Û*zMªsüÕòﬁÁÛù\9>IFVNqaˆt«˜œ›≥Ï∏=ZµXP[fôÍ¯ÇòCù~ü…,‚ÃRcõ∞7qæNƒ7UEëJæÃ†vzÆÈ”Èˆ@.ÔGf¡“,oQlJho!è*Õ†‘iôºöaƒâà3ºˇ„rox,Ω˘p>¸óq˙¢ïû)ÖáíÅÇN˘Hbt•|A4öÛ‚#y≥õ[K”4äáîYz”I2;æa≥È∫x,o B‘˝`ﬂÆŸHˇD8òëK‘|S,Ä6vñÁê<«I∞q”≤|◊^¥»˚F≤;9vPó4tXTtí<à∫A8é»#{V®⁄E±%°—:jÃjJá.â4éÅ·π–?3‚àõ‰QLXò∫ŒÙÀ?Ó¢Ìá∂~ëfÈÉ∑oJ
+·oOI#˚ÆRrË“£N¥JÓ\“wn]z$ÉöØ'D´-,‡–`∏F™î:Ã3îsãjd˝ÆÇÁ‘…8éŒ“eH’ø/˙Ç5yˇa/Õô÷LOv©>XOb3gM√ãx÷ƒî*4Ô('*§ ïh√“®…›çN-IÇ´ÅÑDUêw(hvÙﬁ>Xv*»ò¨róÕLÁ™¥Íüál <”ì/(DQÓU´’®m=},àä8≈f•™©ºg¬9⁄–7Â›‡g8ü·=Ò—S°¨R¯’¨J·r∫ﬂbø‚¡*™u®‘˙zÉ&Á0Ëc¨ d3è˘ÀƒèxÍL™ƒ,Ø¬,p-Ä˘N≥¢g∂mTHÅy‘˚.R|ß∏:S˜:pjœ=	ÈYµæ™∑ÅúŒ˛æ»kÄûhxF4›Ô∫æ/Û!ñ6N„4 ´ºeÊPz_Åº[\°‘Å@åD¬"˜LxzÌ"ç◊¢¸è⁄|—ò&¯ tô∆?§Œ z_Ì"÷É¯u¬-Ú}[ˆ´`÷∞ÂâôÍûÕ¡(§∆•®æÂÑÊ)U-0
+W¶=.Ä’Î§Á¬ZÇ\çÔ}#ÌF@N0J“ê°®†-∆w«ZÔ∆›Ω!€ûvr•ÑO£7RÄZ˙@´±lŒGAõQ√˙ôÅîÎ5ñW2U⁄°Ô2àﬂíuSUHÆÊãoñ∞x…œkek„ í\}£I8ÚÂ·Â∑ÑZÖá 1Uß‰Íï,Ñ¥ZvG®U¥.“íZ§â@2™ô© ö5Ω(˘Ç“-E%GÙZk-GâS⁄ (-*^¥I‚-ø&⁄ s≤B&wÖ°•>˙Û2·nº@»’ªjqFF;£2KÀZΩù—i
+>1˛º!{
+*7ÿ—õÏ`&ÓÈ|zæ‡ÎÒìÏ\XœhM@}Í‹≤Ah,¢ä˙'iŒä‚‹»ZihÉ˘C—e+¯:Î¢Ùg#<ÒÅçG4ÒÏ“èÀ6:]äW;€O;$Ø›õú„JöRÜîìqL7b¨§W®f9b-¬|Û'C2†Ç12ßi)ì Wº{G0eYºïxx·`ƒ“MïÎ“.«à^E"<•ÙŒË“#Uï%Nnñﬁƒ¨Ñ™•Mn“I]∂èH6π	ˆsı3O%pΩü—õ÷vDÏ ¢∂1Y2 IE…¥Ô÷ÖÄ#1œ›.™k^…¨”ãZìÉ°
+–Q∂˝o4ùV;ª˝gXÖ*∏?["rB ∑Æ5ò‘®ã˛sNS~’úØ¬’5à‘>ZêQ⁄S_Q_wtR∞.c⁄W„-3®ÚΩπÉ∞äRòé}ÁΩ!¡®˙¯W‘ *#ÎØU˜ù{r´v»21@!˜ÙÃ€uaEˇœÜ™e"Ú3p X(VIjMÄCsò* ‡!Ò(fÄı…™≥N¨:íëÉ{zi
+[¯\ú¬÷6IÆ(Ags„R€Js«„˝YÅ◊dâ>#R•dÀ@{–&¸§SÈ)◊R®£]=–œ:N Ù"¸<"°Ñ"®QÀ=8Qæè
+`f◊∞5DR¡áÙDKG)yÕ•@ÄUÈ,≠P0™ïàK…–Îøêù	‚Ÿ$ºAÁ°õÒì5êñÓgàO¢¸©T≤õÈ2\ïΩã_a;˛€≈È… B3#/eºr?∏˙Å€º"3¢ÂúˆÙë–πôPLBì•KKØ9zŒ=¬dõ‹∏„›}õπ\‹–ÓÆÓóQée€¶Øæ`*∑ÈçUÚ	ù1∆¡§€ˇÑ¶ﬂ‚=Ô∑5®/˙Ì˚á∏‚«Z7∫˝§©J„&;Ÿ«6T—Ω~]4Ï	J6)Äµ~8‘ÑfKw%˛)âø»¯πzíQÃeŸ<L)9(˚{≈K˘UË?É!%}neÅıx•Î˙@H®RvîvU˝æı‡Ñ4ÈøG≥úïIæƒìû«Õ√Í+p∞Ÿ‡˜‹V:2ôió˙ø¢`8€ZOVzz>H÷y¢Yl+/t™ïÆ—6<Ÿ
+«A'°sGÆ†±ìQ…e¸∑(*÷Øl(XÕ¥ª¥võïúˇ≈2-«ÛˇdÛà\L»3SE§r∆±,ª0⁄Mí•ä€^Ëb‚c˙µ%{\µÈ™@O4pº4”%ÕM⁄ÏÃπqo=˜.≤⁄ˆ¨ÏÊ(ã ù’éS}d2EÅ‹Uõı5ù8\ú¶Vè…Ë¥å?Ÿ(˛Ïç#*oöÿ§^Ñ@+¢Å∏1–á Uã¶x‡PÿB†ôÅÈ≈j£ph2®Îc€,Ω≈K™–ƒ≠¯¡7¿≈Œ8˚6KÊ+à†ó8Ö ”G¿ª¬ äH»
+ØZ’>⁄sÔº!Ï˘j3≠I~‰‘⁄$Ôáﬁø'.·€À7IAÈ…)®ı¥ƒ«Ô¬ç"j¥7∫ =1˘0÷“≤Jª,Q÷µÁ√ÜYπEâÊ∂ÊE¨ì+1≈ïƒÇÿêa "ú∞±=<˚jT∏Ô!ö¨;&WLE’e<œ~ps√PSAáojB\√≠$¥ÂËõ¶DÒîsWm=ına¨FyN¥ò€gÃ‘X)äÖ3√Å"ËIû:††¢8Æ ¶˝i»Œc{ŒpêæO@iì0qsÃ7i:Jx⁄›uÜ7æ”s£>πÙ.©Ï^\ÆLÕ⁄»F-Ö⁄aœú#ƒ∫v`ku›i}aÏ`D–î™QÎ_á†µ √	Ëê¨5îI«4‘Vlê« §z÷˘Òºwì<êü›˚MQ~Òqì∞dR‰ò…√£ûyH\#únü±S‡.U›÷h’·˝
+o√á‰ŒG®≥íøImÂ‰G“ú&ßu #GP˙È’ø‹Ó∏Ü¡=7‚u≠‘¢ W*Œ*π¢cwı§»*q‡œ á∆«BäeˇD>°~eœ?í
+˚ÿ¸¯∏Úâlí•D*Œìi.¯‘˝πqÉõ–ıÅÒâ¿ÅÑaªöPd˝òÌÆFÆ¶º©“1Ùn—´¨Gﬁ“Ìg‰h'Ïˆ…K≤«¢OÔ”¥ÀpŸé˘C◊∑≥	Nå7d¬VÚáƒ˛Áﬂ§ˆ?¯<ï˝œV9Ø6˘©å~-ç≈6ÜâﬁÏß7í!vÁibôÃŸ¨ã/∏ë∏ƒŒ—EÃhOõ…ÄwéAM¥KÌ5
+´é!≠6
+Ê	[í¶sü≤é‰π±BGü5Ä:æ/;æoäÕóæxÅvqä∞2ÛK_8ˆä◊F˚ÀÑe•*fÏ0óQ
+5€R»6ÍÄ≈i”>LÎ≠j¸bP∂oän˙Sª¨B»l¿T‡&G∏CWÒE5z(›Ä≤!]—∫ÿ´:=B/fGF=¶⁄j^êçf>À{¶√ôû6hÅe©#9¡ï°ë¬ó~'î¬FÙH+TUB*_ùFÓ›h¨&ëÊT$ÇÂπ·d¬RäJäﬁ˘ùI:¶@B˘G‹˘g@,„ª 775Ω¥¶€RÓÇﬂ(D¿π	JÔ,Is Ì-≈Ø˝NG‹? Ì¥ò,∂s<â<¶_Â,ï’≤dˇm-+ﬁõ?‡ÇïBï¬5Àä∫v«›æÄπ“≠1à¯Q@=X,¬Å|÷ñ√S≠©|0‘—¿ì0"¡»Èz„{òz` 2[h‚àBAQ®JÅÈpJFˇ8wØC7ÍÔ›I§'xn i®WvÏ{çº·2KÛÈQØrö«j`Ó;Æ<Ûö@•v≈¬bX¨æT‚ Úma≠–{@ŸÎÖP6˝OªÜ⁄sZCt@Iùúª¿∫	≤IF§‰RöŒ»¥ÌLÅ«’‘TïH1T\D*{¡∞Á±pO*î\
+º0pz]2Òº÷∑M6ùK/êp\ ¢æ∑ô7Ë	_◊òõœ=ÒQ¯EæG?T©7⁄õfˇ uDwns∏˙∂1⁄Î¨Q˜, çÊˇ«…û3èÅh]◊ªΩÒg∑qª\Ñ≥ú∞>sÄ·6ÕhˆÃ‡ı–ØpåZ&¨„áÉõ.HòÚßgπæ‡\Ù’V?ìMµ∂‚Û‹ü+´¿|U‡\\"˝Z—_d
+/‰˘\)H¢E£∂Tñ˘7s.§G‚˙∞lÕf≈ÂäπHÌoÜtK˘’Cì;√q≠ùM;1ñ‹@◊≈DB¥=ö÷lËF∞„5ÁÏî3õ„Å…Îyg4ÚÔcãùÓTx™.∞7fo´ìQÍ·—ŸπÕû7ä
+>VP•u§∂áÛRU@#
+1BèJı©“±ß„ûﬁêº+€¨~§Á™E!}3{5mÚˇL‹^ΩéM;u˙ÆGï"ëÚ¡∫∫'ágƒÈı‡p≠&åEﬂ@t_çÅ¨´$…»ÅÉGeï∑R´’‘}Ãﬁ»ßîbñ¿{Ê^L	wZç6û˜—2º€LDäy.âLyó¢`~∆—˛#ªáÇÊÙ®0ﬂó=XèÉa4ï˚ã$UÛCöraK‰»6T‰ò"h´ﬂ÷π”s |§·¡.ü+<ŒfÇF≤,–RRÂ¬D∞R:4jf∏UÔ∑m‡6ä`t≠∂2]Ön‹˜‘…b,^ÔÅ ¿5F‰˝7a@x·¶©åüá⁄Ÿõ∞«€≈&h<3ñﬁ?q˝≥aø◊"€∏®¬}›èfÅ$yª¡ªﬁXM{›XÂNCS’”ù,V— Nƒu÷∞æ4˜DpÇﬁ‰‘ø¨'≤FÙ°€+ÖN§ÕÂE˙Y[ÖÊ6vá’+©ûL3ƒ¡é÷(ÿƒÏ”ôîÎqb¢ìÄ¯1≤y@œÈ:#®
+Ü‰ﬁeŒ⁄ë-◊iﬁﬁoÚ_J´@FŒ¯„*ÒÄ~±≤√çXbWò∑cÿAkoXi6`ë“oî©V*X(õ´:©(Ù}∞xõ+∞qxs•™_ê≈˛„]R¶≥jÑ5(ùZä;¿º¬ÎMTo…&b◊wtvJlÙ4VîY«tõZzì˙‘Â ë9Râ	„Æ±ò-SP_Cˇ∫
+ëwZ∂Æ ÷QÒ¥3ÄrÅ≈ƒ>$$ÛH˜Ä¢ô^zSÁù‚Ørv¸»7é¬Æà≈pdvíëia€9\äçÉÖπ¯|Ùx±Ç%¥v˚·ÅÄÿ5Óo"8ùÛ´«>¡ª8$VAüßèá•	:†A¡O°Üßg)†í3`ƒ
+À“uå&æÚ°yI}Ê_B≥ï˚ ‘≤à ¬Ùƒårg› ˙rq$:µå,úY -∆æ,ﬂ∞åHá<&“s∆˜Ω]¥|àØ“ùhÓ¬·SÀÖÿïoW(Ã˙√}x’¯°∏Ø.)Jv
+Ÿø˛∫ët
+§4:=_Y@K¢~A{òf£Tªæö§î¯†˛!%ÂMÖ¬Ûÿâ®˜ùG`œ%¬>@VÿÈ“C˙Æ£ä+ßﬂµ1	s+ßª÷áZ≠&0<Ös%’¥Åı’õ–îBÛ‚èÖû˘r∏â¨†˘4›–Ö≤Ä¯=–√’Ì: cÖM”Pß\f"L¯aªû∏öú55Ωg4¶5X-&ƒÅXoﬁl´´gønmg¢7Ø»Û•	ÜßÃ–†≤bö⁄ì¥Õ‚ã¡QpÁÜ{pîQõ~ãÜK9Z®v±ÒFr5oÿı'pT™¸⁄˚ˇß{?V^”B¯ó)KÚ∆q1i∫2‚(2¥˛e∫íÇàDSæﬁ¬õÈJ†r9-? P†\¥π[wÊ|F∫HÛ¢Y;XÁìù%Gq…=<§Ó·Ÿ(Œ*˜pùã∑µ∏Á>)HR¢“PXÇ≤àú¬†π˚ÓÿÒ|†˛8˝
+ zü ⁄<çÇˇj›∏01à.∫±¡YﬁÿUÓöDp6t–$Ue«Ÿ÷á›Í(»DW"ıJ2¬,FnSJ>0]Œïádâì‘Ön”C@çPv·òk@A¯Ä∆[ÂpóbÛƒ'Î\‚i¡Ö	$J†º‚Ω•Ä#ä9‹.ˆaEd<ˇ¥iÁÃáoﬂ6…r<™Ü‰XxiB/«oK¡hì@¥ﬂ?$›yÑ/yÒ‹Ñô]tòà∫œ,3¥û∑ﬂ6Yßr,gTÁ¬9Øé4˘‘j™kâ€Õå^Eñ|5x?…¥íA¶ôrqpÃ>ßéqﬂãR°nLä®, àä°Å–i‡g}Å∆ÉssWFı#¶ø •î+¥†HyQ‡ B˘É7ç6=3uõ‚N≥ÎÈ…ªå√ï.¸ÙÔùöqˆß$cu‹kJ∆ñqØyAIÙk{j÷˝ÆápÚDe%´‰ÙEeﬁíæNWí\#˛àÉAWGN≥Æó¸Ÿî‰ëò,ª·áf´ë⁄XhÇûXúÁÀ"æ3äÏ‰ı≠qﬂuz∆	áô”W÷54w(*åòd6àŸ)∆}˘t÷FêÍ˙“õ√3ÿN‡xÑü…Y‹"n’«˝≤Â-Ω°/F0O”Ω/ J„àé”¥k»È≈t%àvÚÈJ8wØ›0ÑFÏ«õ™# Ê9•(ü7ãŒ§©Úä
+ÖﬂC+(X∆[c‹»ƒFï£ﬂ⁄=·ÿ⁄˝–®5÷Ãˆ&ıûTòÊrÀ‘˛¯Çˇ∏ﬁˆ√´Gy„£ó:˝uz¯ ò£,≠sÑúd¿P«BG.˛Ò5‹√¥—,◊6‹@9ÄÖë'*/4gççå¶hímÚb&sCÕ∫–n-ñ“‡iJˆ€¯IH‚¯IÚ;J?`kí_å¬NZÀäc«kz·¡üTx’5ê•oE©HìØü‚ˆf”K.ª√Í˚ãÂ’¬^≥ñ
+ƒñ£>À´VÔÄò	o'p‘Ò∫ñÔ`{x©UÌy7ûmE∞ÂM∆nÈ◊"FªW˙5lb≥µâ÷⁄"@^è≈ìM8©ÔòRA≥À¬¿œ.‹å©ïW¢◊C√8√^0®`Æ—$À®d çEﬁîÕ5?äq+ÄÔÄloóÓ¥˛Ù<yI/Œåä±Ÿ=’ñMl°	I9VZØfMïLDSb±9_iÈõÜë5xÄ]Ï-é1◊˘{[6◊"ı;€6¨·hä™÷å È„KÂN{oÉ”:ZjD-RÍ≤B- ¸QSòjmÚ`
+îWöL˛çÒ,©4Œdt·çUVoº‚hZo Ûi∑éƒhëÂõçÇÌ–≤€í%§"Û‘L¡rAøñ/∂ız—F=œÓÓ÷+< jù´®Ç[~m‹A;™:È@ÿÃ…i¡i¨ÿ◊∂IÆ?RöÅUW©ëà£3¸Í¯|8‚;∑X∏[…•1ëf?.aõTn?FhñößUÁ†È∏%H≈çÓ¨‘‡jFØ¥V…r√Ï‘,_‘ﬂ¢GæÒ.5ö(4pûÍñˆc‰ﬂµ!-∑N÷÷¶êüÍírI¥®XQP‰z˘#‘5“B÷ˆÔñ∆>yc∆âÊ/>ﬁørzï>)}ååÖ_‰=˛-Ço0#üÏõn«¸‚∂fm˚”5WÆ∑lMè÷‰å√¬òdôq±]”´HÊ +XM6[ï8ıóP≈?èÉÿå&~§vH◊_2ª´º&Ê/áØÃPîs8¬Ï•ÄX®Ø“ÛWjˆäÓ7©ÎSË™§~g”[j∂åsµ(I‘nÇÙŸ ≤ïóê¿åπceÁe;èe1ˇ‹üÆÃ!ç∂(2Âﬂ˝æÛŸY.uÚZî¯ü¬¨s96 Hˆ!K_CSå§ﬂW…'¯éı?u–^N}]…_‘Q?·⁄3LQrjœ∏LÆ%áˆùá„∏◊ÉÅ[r-ïÃ…0ìN¬ÓÏi6Eäâ5È92¢}ˇ;M*ïÎ<_∞=˜÷ÎRÜÌ⁄¶˜›Ë3¶À©ì#gñUÌ{a‡ı»>Ωß|ƒÉ%¸<õûƒcöJGbëIv¿‚ÑNÉº∞ÌjŒäìR|-Rã÷XË˜!Ñ«”‘µâÂòT9&ß¯äı>-YÔCâW“˘P†Rîª".◊ø.ßO,ÅO=kYY>‘m≈P	—&N@à›p√rs¿_b¬á∫›1∞∑› ¯<p¬œ__ı∆¥Y”´„e˚l÷åòΩ¥ø2Åg∂∏=K6≤rõÚJ[öøI›v/.aÇﬂ_˛∏^v⁄,û*4$å∆'Wá™—Æ«ÃPÙ…úB…eªê?ı‰ﬁî√œ·‚ﬁûÓ T}ºs˛À¡Â·…;tq€'óÁ;{ø‡∑≥√ˇ=8∫ ó;ªÚS÷ö!¿Ü“∫tÆfYÖãâı‚Ã÷q¸„ô˜≈ı£cgË‹∏a¶ë;∆G¢ÌáÓ$DQÚ÷ˇ%;˜¡¬πu/í˜X|kºó{ı≈’°„gã`ˆˇ√·No‡éÁo?8…g˘È∫n6eÃï¸çf&;:›°ÙÛ·ªüè‡øÀÉ}≤˜ÛŒ%Ÿ}yyzB*ª¡#¬üSUEøÇÄ\†cgè¯ﬁgóÏ˘í•\é»±Eòæü£∂ÂDwnîﬁ∞p`Çîˇ¡ﬂˇ á8[öœH∞œveŸá›æ3ñÛ("f<Hî.#¸Î]µπéÅ0◊eÁYM@Ãﬂ5›v√π˛Hn=æ≠]m¥Æ◊?bxÃﬂ≠7úŒuŒ}&ÜË•g/ƒòôÏ{åiPø\òÀL
+Ñ$ 4
+F\„¥~;·|h¸÷}˘≠ÖˇÑ7WNeÌ’ÍÎ◊´≠µŒj£÷Ó¨|·àN=°As∑ó®1Á$tƒ4Ó¡Hßæ…pê≥âa<Å”	Vé+=Cßπç#	?Èa^´ç‹à«~∆í>+â¡öØ:Ñw∏Íﬁ¬‘D4∆!?föw
+Î;#˙6;w‡¬ÅÛ∞Îbò«…0‰à‹y™b9NÙOïπ^‹ﬁP(Áne{©AW ˇ[í—Ñ4b:˛Àê<,˙¢¢µ‚¨“è∏5ÀsK'≥öY,Å`´Á^G9Ád⁄	Ø∑ΩÑΩ≠≤nVÒfï≤Mxƒ®ËÅó7Ñ9%y˘Ïé4±_®îF]æ∑óË8Ù]§n˛Â⁄Ûa!1Uî
+îJutBú–u∞¶–@O{§Ç0(äΩdÌ&?bhí‡3M¨˝æEex≈Ê	#pL⁄M“⁄ {§Éàe¯¥ﬁ"k¯€∏;®FÎ¨„?ØH˚5ÈºÜèG§˝ä¨Ø„ﬂ&{|ÀZo’ö§›†wË'ˆwäéÔ5°Ñ6|Åø¥¯Kk§O@‡¯˜üK™&≥Åc±ûTø≥±(~‚Ôlf÷èyC˜_∞2Åa"*ûÃM‹VWQf	÷ÛkP˙BO7tcŸe3ZπraïıV(±¡îgÁT9üt.;Øq`Œp$·”´u“∆iÉøtƒ˜ú3_·\Ø√ˇa_—π§oºj„'¸ÌU£∆Á>¡+Mv?±ø0◊Ø„{ÌYo„øº¯Dk•O@+X´ÚÛiöKÏ˙ˆ“$Ù+ﬂ©ât%ÛJΩ`Ñèêd‚Ü]j8Œã~`ø"—™4BpÆ∏Ω…ÌÔBt=“T‰Ïlë^0&∞'0!Öâ(÷[Xïã6ÿSv∫£„∞…ŸùM¿¯ƒrA+Uj5ZçWÕˆGÖCFX·˚ªì›≤Ìº£ˆ $€∆‚e{]n≥^~4G«˝–`8_ËÆOGÎ ÈÅ,h=f,èÆ&Î.é÷]Náë/DAÇ:Ê—r\∂”q*óTíXz£:ÅÊ*NDJ±.©tﬁÉ∏ñNÇ{-õÏß_√/ΩyëoófB~F	Å\Å?ˆFuÊïôååXûåüÉÊä⁄pWÕ∆«:»úW@^Ω&
+Ñ±∞:–k`sÈØJ:Ú0Öoí)LÍâÁHÑ‚ª(~	"ø-P*±ãé<≥ájO–π¨ÀRp0Ñ!s•…êé◊Yèô¸!å'›ÇíÆ=‘¬†Ajﬂs‡ H—ﬂË{Ö√√≤¯g™∂ËœB¯aÿQ?∏„ÂÌ˘ÆfOæÍ„X,wˇ÷&\'Ø]‹ÿÅTê·œﬁfƒÒ1 üîMêñs>iúí•«ö˘«‹/ﬁ∏®®¸aÒ"3.
+¯ ©nLáíƒg#K—`IøÌXéÁ°3µ◊´;ﬁYµ,˛fìæ◊XµºíµÂ‚A∏¿rZŒ‰ê»!◊π
+òFÃÖcÊ˘tµHOßçﬂ:ç¯l⁄Z{Ω∫æÅˇo‘öp6MlñÎ™ƒHˇ	`”ÖøR2$©9…UoNèhb"öéIq2 æ{j∑‘ñrsë≤ÊÜ™SLjI∆1‹@“Xb*Õ‡Eﬂs˝ﬁÊ ëàöåu„÷ŒK–º“Ñßl∆Í\ÀŸ(Gõ&≥Ë}xÒë\¸„‚Ú‡òú\\íΩ”ì∑áÁ«;óáËƒÿ_S∂#;1éó∫°2m¥;Ë¶Ls Uq•ã4k›WìO?)∂#ÀFÒ8¶RéπTN»4ILV◊j$=⁄ÈR,0 $}±ÌIâhhJí£°YíEÔUc≠wgyDÿœ*g⁄©∑ºdˇföì£≈"Î%6Lõ¨∆¨íòﬂ&è¢ê|Y˝_Q.@’„ºVˆ¸º5CÔ›;áëwø∏]ÿHÈ`3≠ÒNóEV-7Ê*Ω+œπàzV¸∏nëÑH;Ïh1Sb=
+2€™ßíÖ|*ên$K{´ûÛ“(›=Íìn∆.G≠dOº3>zé˛>)«9œLe¬ü¬gY·Û·g∂Sâóò)!Sá~KaRïR:∑‚k„$bHƒ(hYµè≤,“ Go4z©ùçf√€ﬂ•˚|GYﬁf\û$óW√ r3Ö—[º§LAŸî—ãíó1±R`∂–r1·7ﬁsïIæmÊD) ±I…¯˜©f¶ìÛ˙S»f%ôÑ¥¥t^xQÒç|90)™ù#œkU+OÁ%øµ◊wªü˜º∞Îª-≈AA4DÔæıø¨0”°„
+¶∫´>u(1%è"Õ88ü—∫Äìàr$l'fôüaNN/ﬂÓ—”&tzvpNøë∑;áG˚J¨”ìüsT›ÇR’m[¿·ÈNñ{5^"KQµã™O!`™yﬂ‹/Ê*!;Êt\–B¥â§°îª√Ñr7”0Œòu*~dï±ƒèüßjE∫*õê›
+ÒRFÂÙ˚”‘¬Ex—S}´ G¯· eÒÇL√—˜Ç<ˇÄ≤é€cœHÚ∫•¥ûH¶*Å=‹Ü:%§ 	â )Í2AÒY,¨÷åÅ•6Kg⁄Ê6ç6)Œ±êÅ!—*îËÿìiL%Åù7Jª”™ï9^◊#˚Aw2@‡’·0¡h!©„:¸'ù∆ïÃ‚Rÿ±îº≤0ÃL˙?”Ö¬xb3…ü∫@û•å™Œ8G`:âÂ=mM∫ÁQ¨	†G˝é[.VèJÉ*pÖÛÃ∞⁄î=ƒy„±›ˆ|`8Ï
+ÊˇïÂ!¥ªvrêäY‰wF€ŒZH∫Œ÷¡L'øzÓµGô	C¿UõÒAâú⁄_¸8À–F„∂oqœy÷¨_¯ãg5ò©ˇx√.ÂºÌ<pICÀ1À±o7™n‰ËgÀ‹‰eÿ›Ÿ`û˜;˛x{IAyå$ÚÇÖ–6¬…`sct@ÛSéo(ûPu–æú9É∂ú'⁄PI>1Çlì|¢ÀπÚ=Ì#•Õ«¬∞Ö¸fLèè=˜fÂì*~OR‹)0So˚3sˆGqp…èb»˝Œ‡5˜€KC‘Ÿ±[ŸÆÂhDΩ=fdÜ3Ñ}&üN#ª∂„™¨∆≈º1WîK«,•Tñ}–Ë·◊£ÅÔ™∂æ,Ò◊QË“ ˇ,íÛ•“®uV	Ω[%çZ´≥b“0·Vƒ„uämSƒŒÃ	Hg÷WÜ·,≠3ÕRÓ?OOèIµêsÍˆk±ôŸ¸<2Z!«3Ñ¸R	Ò4Rè?Ãg√5L¨7¨¥˘¥˛¯;ù÷-¶’∏U‹UG0$v8ã˛-7âàœ'¨◊çﬂ”üü^Ó\≤öyÏ~¸Cç›ì≠W≠¨æ0)<;ORDêd™§  @ò÷y∑Û’&ìb	Í≈îêy	_SÊæÈ¯UåPª PÀZ'Y'Ç?{Lˆì‹;B˙æı]Ñÿìï∏ÿ§.òÆ«ˇ˙ˇ   ˇˇ t·⁄
