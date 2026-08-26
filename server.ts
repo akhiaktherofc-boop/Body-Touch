@@ -684,16 +684,28 @@ async function startServer() {
 
   const VISITOR_LOGS_FILE = path.join(process.cwd(), "visitor_logs.json");
 
+  const THREE_DAYS_RETENTION_MS = 3 * 24 * 60 * 60 * 1000; // 3 Days Rolling Retention Window
+
   function getVisitorLogs(): VisitorLog[] {
     try {
       if (fs.existsSync(VISITOR_LOGS_FILE)) {
         const raw = fs.readFileSync(VISITOR_LOGS_FILE, "utf8");
         const logs: VisitorLog[] = JSON.parse(raw);
-        // Absolutely filter out any admin logs by path containing 'admin' or 'turmarheda'
+        const now = Date.now();
+        // Filter out admin logs and strictly auto-purge any logs older than 3 days
         const cleanedLogs = logs.filter(log => {
           const p = (log.path || "").toLowerCase();
           const isFromAdmin = p.includes("admin") || p.includes("turmarheda");
-          return !isFromAdmin;
+          if (isFromAdmin) return false;
+
+          // Check if older than 3 days
+          if (log.timestamp) {
+            const logTime = new Date(log.timestamp).getTime();
+            if (!isNaN(logTime) && (now - logTime > THREE_DAYS_RETENTION_MS)) {
+              return false; // older than 3 days, auto-prune
+            }
+          }
+          return true;
         });
         if (cleanedLogs.length !== logs.length) {
           saveVisitorLogs(cleanedLogs);
@@ -708,11 +720,20 @@ async function startServer() {
 
   function saveVisitorLogs(logs: VisitorLog[]) {
     try {
-      // Clean and sanitize before saving (filter out admin panel URLs only)
+      const now = Date.now();
+      // Clean, sanitize and auto-purge: filter out admin panel URLs & records older than 3 days
       const cleanedLogs = logs.filter(log => {
         const p = (log.path || "").toLowerCase();
         const isFromAdmin = p.includes("admin") || p.includes("turmarheda");
-        return !isFromAdmin;
+        if (isFromAdmin) return false;
+
+        if (log.timestamp) {
+          const logTime = new Date(log.timestamp).getTime();
+          if (!isNaN(logTime) && (now - logTime > THREE_DAYS_RETENTION_MS)) {
+            return false;
+          }
+        }
+        return true;
       });
       // Limit to latest 10,000 logs to optimize performance and prevent excessive file growth
       const trimmedLogs = cleanedLogs.slice(-10000);
@@ -961,10 +982,21 @@ async function startServer() {
   app.get("/api/admin/visitors", (req, res) => {
     try {
       const logs = getVisitorLogs();
-      return res.status(200).json({ success: true, logs });
+      return res.status(200).json({ success: true, logs, retentionDays: 3 });
     } catch (err: any) {
       console.error("Failed to fetch visitor logs:", err);
       return res.status(500).json({ error: err.message || "Failed to retrieve logs" });
+    }
+  });
+
+  // API Route to clear/purge visitor history on administrator command
+  app.post("/api/admin/visitors/purge", (req, res) => {
+    try {
+      saveVisitorLogs([]);
+      return res.status(200).json({ success: true, message: "Visitor history purged successfully." });
+    } catch (err: any) {
+      console.error("Failed to purge visitor logs:", err);
+      return res.status(500).json({ error: err.message || "Failed to purge logs" });
     }
   });
 

@@ -62,7 +62,6 @@ $cleanIp = trim($ip);
 // Check if request is from Admin (by payload flag, custom header, or path contents)
 $isAdminPayload = isset($data['isAdmin']) && $data['isAdmin'] === true;
 $isAdminHeader = isset($_SERVER['HTTP_X_IS_ADMIN']) && $_SERVER['HTTP_X_IS_ADMIN'] === 'true';
-$isAdminPath = strpos(strtolower($path), 'admin') !== false || strpos(strtolower($path), 'turmarheda') !== false;
 
 if ($isAdminPayload || $isAdminHeader || $isAdminPath) {
     echo json_encode([
@@ -278,10 +277,19 @@ if (file_exists($logFile)) {
     $existingContent = file_get_contents($logFile);
     $decoded = json_decode($existingContent, true);
     if (is_array($decoded)) {
-        // Absolutely filter out any pre-existing admin logs from the display and records
-        $logs = array_filter($decoded, function($log) {
+        // 3 Days Retention Limit (3 * 24 * 60 * 60 = 259200 seconds)
+         = time() - (3 * 24 * 60 * 60);
+         = array_filter(, function() use () {
+             = isset(['path']) ? strtolower(['path']) : '';
+             = strpos(, 'admin') !== false || strpos(, 'turmarheda') !== false;
+            if () return false;
+            if (isset(['timestamp'])) {
+                 = strtotime(['timestamp']);
+                if ( &&  < ) return false;
+            }
+            return true;
+        });
             $p = isset($log['path']) ? strtolower($log['path']) : '';
-            $isFromAdmin = strpos($p, 'admin') !== false || strpos($p, 'turmarheda') !== false;
             return !$isFromAdmin;
         });
         $logs = array_values($logs);

@@ -59,7 +59,12 @@ import {
   Percent,
   Bell,
   UserPlus,
-  Target
+  Target,
+  Download,
+  FileSpreadsheet,
+  FileJson,
+  Calendar,
+  Filter
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import AdminLiveChat from './AdminLiveChat';
@@ -1521,13 +1526,19 @@ export default function AdminPanel({
   const isFirstLoadUsers = useRef(true);
   const previousUserIds = useRef<Set<string>>(new Set());
 
-  // Visitor Telemetry & History Log States
+  // Visitor Telemetry & History Log States (Strict 3-Day Rolling Window Retention)
   const [visitorLogs, setVisitorLogs] = useState<any[]>([]);
   const [isVisitorLogsLoading, setIsVisitorLogsLoading] = useState(false);
-  const [visitorDateFilterType, setVisitorDateFilterType] = useState<'all' | 'today' | 'custom'>('all');
+  const [visitorDateFilterType, setVisitorDateFilterType] = useState<'all' | 'today' | 'yesterday' | 'two_days_ago' | 'custom'>('all');
   const [visitorStartDate, setVisitorStartDate] = useState('');
   const [visitorEndDate, setVisitorEndDate] = useState('');
   const [visitorSearchQuery, setVisitorSearchQuery] = useState('');
+
+  // Helper to get Bangladesh date strings (UTC+6)
+  const getBDDateString = (dayOffset = 0) => {
+    const target = new Date(Date.now() + (6 * 60 * 60 * 1000) - (dayOffset * 24 * 60 * 60 * 1000));
+    return target.toISOString().split('T')[0];
+  };
 
   const fetchVisitorLogs = async (quiet = false) => {
     if (!quiet) setIsVisitorLogsLoading(true);
@@ -1573,15 +1584,155 @@ export default function AdminPanel({
         }
       }
 
-      if (logsData) {
+      if (logsData && Array.isArray(logsData)) {
+        // Enforce 3-day retention limit strictly in state (3 * 24 * 60 * 60 * 1000 = 259200000ms)
+        const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        const valid3DayLogs = logsData.filter((log: any) => {
+          if (!log) return false;
+          if (log.timestamp) {
+            const t = new Date(log.timestamp).getTime();
+            if (!isNaN(t) && (now - t > THREE_DAYS_MS)) return false;
+          }
+          const p = (log.path || '').toLowerCase();
+          return !p.includes('admin') && !p.includes('turmarheda');
+        });
+
         // Sort by timestamp descending (newest first)
-        const sorted = [...logsData].sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        const sorted = [...valid3DayLogs].sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
         setVisitorLogs(sorted);
       }
     } catch (e) {
       console.error('Failed to fetch visitor logs:', e);
     } finally {
       if (!quiet) setIsVisitorLogsLoading(false);
+    }
+  };
+
+  // Export Visitor Logs to CSV / Excel
+  const exportVisitorLogsToCSV = (logsToExport: any[], customFilename?: string) => {
+    if (!logsToExport || logsToExport.length === 0) {
+      alert('‡¶°‡¶æ‡¶â‡¶®‡¶≤‡ßã‡¶° ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶Æ‡¶§‡ßã ‡¶ï‡ßã‡¶®‡ßã ‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶°‡¶æ‡¶ü‡¶æ ‡¶™‡¶æ‡¶ì‡ßü‡¶æ ‡¶Ø‡¶æ‡ßü‡¶®‡¶ø‡•§');
+      return;
+    }
+
+    const headers = [
+      'Sl No.',
+      'Visit Date (BD)',
+      'Local Time',
+      'IP Address',
+      'Visitor Type',
+      'Active Time Spent (Seconds)',
+      'Active Time Spent (Formatted)',
+      'City',
+      'Region / State',
+      'Country',
+      'Network / ISP Provider',
+      'Browser',
+      'Operating System',
+      'Device Info',
+      'Visited URL Path',
+      'Referrer Source',
+      'Exact Timestamp (ISO UTC)'
+    ];
+
+    const escapeCSV = (val: any) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const rows = logsToExport.map((log, index) => {
+      const logTime = log.timestamp ? new Date(log.timestamp) : new Date();
+      const formattedTime = !isNaN(logTime.getTime())
+        ? logTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+        : 'N/A';
+      const durationSec = Number(log.duration || 0);
+      const durationFormatted = durationSec > 60
+        ? `${Math.floor(durationSec / 60)} min ${durationSec % 60} sec`
+        : `${durationSec} sec`;
+
+      return [
+        index + 1,
+        escapeCSV(log.date || 'N/A'),
+        escapeCSV(formattedTime),
+        escapeCSV(log.ip || 'N/A'),
+        escapeCSV(log.isUnique ? 'Unique Visitor' : 'Repeat Visit'),
+        durationSec,
+        escapeCSV(durationFormatted),
+        escapeCSV(log.city || 'N/A'),
+        escapeCSV(log.region || 'N/A'),
+        escapeCSV(log.country || 'N/A'),
+        escapeCSV(log.org || 'N/A'),
+        escapeCSV(log.browser || 'N/A'),
+        escapeCSV(log.os || 'N/A'),
+        escapeCSV(log.device || 'N/A'),
+        escapeCSV(log.path || '/'),
+        escapeCSV(log.referer || 'Direct / Bookmark'),
+        escapeCSV(log.timestamp || 'N/A')
+      ].join(',');
+    });
+
+    // UTF-8 BOM \uFEFF ensures proper Unicode & Bengali rendering in Excel
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    
+    const todayStr = getBDDateString(0);
+    link.setAttribute('href', url);
+    link.setAttribute('download', customFilename || `bodytouch_visitor_logs_3days_${todayStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Export Visitor Logs to JSON format
+  const exportVisitorLogsToJSON = (logsToExport: any[], customFilename?: string) => {
+    if (!logsToExport || logsToExport.length === 0) {
+      alert('‡¶°‡¶æ‡¶â‡¶®‡¶≤‡ßã‡¶° ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶Æ‡¶§‡ßã ‡¶ï‡ßã‡¶®‡ßã ‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶°‡¶æ‡¶ü‡¶æ ‡¶™‡¶æ‡¶ì‡ßü‡¶æ ‡¶Ø‡¶æ‡ßü‡¶®‡¶ø‡•§');
+      return;
+    }
+
+    const todayStr = getBDDateString(0);
+    const exportPayload = {
+      app: "bodyTOUCH Traffic Analytics",
+      exportedAt: new Date().toISOString(),
+      retentionPolicy: "3_days_rolling_window",
+      totalRecords: logsToExport.length,
+      logs: logsToExport
+    };
+
+    const jsonStr = JSON.stringify(exportPayload, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', customFilename || `bodytouch_visitor_logs_3days_${todayStr}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Purge / Clear all visitor logs on admin confirmation
+  const handlePurgeVisitorLogs = async () => {
+    if (!window.confirm('‡¶Ü‡¶™‡¶®‡¶ø ‡¶ï‡¶ø ‡¶®‡¶ø‡¶∂‡ßç‡¶ö‡¶ø‡¶§ ‡¶Ø‡ßá ‡¶Ü‡¶™‡¶®‡¶ø ‡¶∏‡¶Æ‡¶∏‡ßç‡¶§ ‡ß© ‡¶¶‡¶ø‡¶®‡ßá‡¶∞ ‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶π‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡¶ø ‡¶≤‡¶ó ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡¶§‡ßá ‡¶ö‡¶æ‡¶®?\n\n‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡¶æ‡¶∞ ‡¶™‡¶∞ ‡¶°‡¶æ‡¶ü‡¶æ ‡¶Ü‡¶∞ ‡¶´‡¶ø‡¶∞‡¶ø‡ßü‡ßá ‡¶Ü‡¶®‡¶æ ‡¶∏‡¶Æ‡ßç‡¶≠‡¶¨ ‡¶®‡ßü‡•§ ‡¶Ü‡¶™‡¶®‡¶ø ‡¶ö‡¶æ‡¶á‡¶≤‡ßá ‡¶Ü‡¶ó‡ßá CSV ‡¶¨‡¶æ JSON ‡¶°‡¶æ‡¶â‡¶®‡¶≤‡ßã‡¶° ‡¶ï‡¶∞‡ßá ‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶∞‡¶æ‡¶ñ‡¶§‡ßá ‡¶™‡¶æ‡¶∞‡ßá‡¶®‡•§')) {
+      return;
+    }
+
+    try {
+      setIsVisitorLogsLoading(true);
+      await fetch('/api/admin/visitors/purge', { method: 'POST' });
+      setVisitorLogs([]);
+      alert('‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶∏‡¶Æ‡¶∏‡ßç‡¶§ ‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶π‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡¶ø ‡¶≤‡¶ó ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá!');
+    } catch (err) {
+      setVisitorLogs([]);
+      alert('‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶≤‡¶ó ‡¶Æ‡ßá‡¶Æ‡ßã‡¶∞‡¶ø ‡¶∞‡¶ø‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§');
+    } finally {
+      setIsVisitorLogsLoading(false);
     }
   };
 
@@ -8987,4774 +9138,174 @@ Body Touch Premium Network`;
 
                 <div className="p-3.5 bg-[#0a0c14] border border-blue-500/10 rounded-xl text-[11px] text-slate-400 leading-relaxed font-sans font-medium space-y-1.5">
                   <p className="text-white font-bold mb-1.5 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
-                    ‡¶π‡ßã‡¶∏‡ßç‡¶ü‡¶ø‡¶Ç‡¶ó‡¶æ‡¶∞ ‡¶ì ‡¶ï‡ßç‡¶≤‡¶æ‡¶â‡¶°‡¶´‡ßç‡¶≤‡ßá‡¶Ø‡¶º‡¶æ‡¶∞ ‡¶è ‡¶∞‡¶ø‡¶Ø‡¶º‡ßá‡¶≤-‡¶ü‡¶æ‡¶á‡¶Æ ‡¶°‡¶æ‡¶ü‡¶æ ‡¶∂‡ßá‡¶Ø‡¶º‡¶æ‡¶∞‡¶ø‡¶Ç ‡¶è‡¶∞ ‡¶ú‡¶®‡ßç‡¶Ø ‡¶®‡¶ø‡¶∞‡ßç‡¶¶‡ßá‡¶∂‡¶æ‡¶¨‡¶≤‡¶ø:
-                  </p>
-                  <p>
-                    ‡ßß. <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-white hover:underline font-bold">Firebase Console</a> ‡¶è ‡¶ó‡¶ø‡ßü‡ßá ‡¶∏‡¶Æ‡ßç‡¶™‡ßÇ‡¶∞‡ßç‡¶£ ‡¶´‡ßç‡¶∞‡¶ø ‡¶è‡¶ï‡¶ü‡¶ø ‡¶™‡ßç‡¶∞‡¶ú‡ßá‡¶ï‡ßç‡¶ü ‡¶è‡¶¨‡¶Ç <b>Firestore Database</b> ‡¶§‡ßà‡¶∞‡¶ø ‡¶ï‡¶∞‡ßÅ‡¶®‡•§ database rules ‡¶è ‡¶ó‡¶ø‡¶Ø‡¶º‡ßá test mode ‡¶∏‡¶ø‡¶≤‡ßá‡¶ï‡ßç‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶® ‡¶Ö‡¶•‡¶¨‡¶æ ‡¶∞‡¶ø‡¶°/‡¶∞‡¶æ‡¶á‡¶ü ‡¶™‡¶æ‡¶∞‡¶Æ‡¶ø‡¶∂‡¶® ‡¶ü‡ßç‡¶∞‡ßÅ ‡¶∞‡¶æ‡¶ñ‡ßÅ‡¶®‡•§
-                  </p>
-                  <p>
-                    ‡ß®. Firebase Project Settings ‡¶è ‡¶ó‡¶ø‡ßü‡ßá ‡¶è‡¶ï‡¶ü‡¶ø <b>Web App (+)</b> ‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶ï‡¶∞‡ßá ‡¶®‡¶ø‡¶ö‡ßá‡¶∞ ‡ß¨‡¶ü‡¶ø ‡¶ï‡ßç‡¶∞‡ßá‡¶°‡ßá‡¶®‡¶∂‡¶ø‡ßü‡¶æ‡¶≤ ‡¶∏‡¶Ç‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
-                  </p>
-                  <p>
-                    ‡ß©. ‡¶ï‡ßç‡¶∞‡ßá‡¶°‡ßá‡¶®‡¶∂‡¶ø‡ßü‡¶æ‡¶≤‡¶ó‡ßÅ‡¶≤‡ßã ‡¶®‡¶ø‡¶ö‡ßá‡¶∞ ‡¶¨‡¶ï‡ßç‡¶∏‡ßá ‡¶¨‡¶∏‡¶ø‡ßü‡ßá <b>Save Connection</b> ‡¶è ‡¶ï‡ßç‡¶≤‡¶ø‡¶ï ‡¶ï‡¶∞‡ßÅ‡¶®‡•§ ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶è‡¶á ‡¶¨‡ßç‡¶∞‡¶æ‡¶â‡¶ú‡¶æ‡¶∞‡ßá ‡¶ï‡ßç‡¶≤‡¶æ‡¶â‡¶° ‡¶ï‡¶æ‡¶®‡ßá‡¶ï‡¶∂‡¶® ‡¶è‡¶ï‡¶ü‡¶ø‡¶≠ ‡¶π‡ßü‡ßá ‡¶Ø‡¶æ‡¶¨‡ßá‡•§
-                  </p>
-                  <p>
-                    ‡ß™. ‡¶è‡¶∞‡¶™‡¶∞ <b>Download Config File</b> ‡¶è ‡¶ï‡ßç‡¶≤‡¶ø‡¶ï ‡¶ï‡¶∞‡ßá <code>firebase_config.json</code> ‡¶´‡¶æ‡¶á‡¶≤‡¶ü‡¶ø ‡¶°‡¶æ‡¶â‡¶®‡¶≤‡ßã‡¶° ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
-                  </p>
-                  <p>
-                    ‡ß´. ‡¶´‡¶æ‡¶á‡¶≤‡¶ü‡¶ø ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ Hostinger ‡¶è‡¶∞ ‡¶´‡¶æ‡¶á‡¶≤‡ßá ‡¶ó‡¶ø‡ßü‡ßá <b>public_html</b> ‡¶°‡¶ø‡¶∞‡ßá‡¶ï‡ßç‡¶ü‡¶∞‡¶ø‡¶∞ ‡¶≠‡ßá‡¶§‡¶∞ ‡¶Ü‡¶™‡¶≤‡ßã‡¶° ‡¶ï‡¶∞‡ßá ‡¶¶‡¶ø‡¶®‡•§ ‡¶¨‡ßç‡¶Ø‡¶æ‡¶∏! ‡¶§‡¶æ‡¶π‡¶≤‡ßá ‡¶∏‡¶¨ ‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶è‡¶¨‡¶Ç ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ‡¶æ‡¶∞‡¶¶‡ßá‡¶∞ ‡¶°‡¶æ‡¶ü‡¶æ ‡¶∏‡¶∞‡¶æ‡¶∏‡¶∞‡¶ø ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶ï‡ßç‡¶≤‡¶æ‡¶â‡¶° ‡¶´‡¶æ‡ßü‡¶æ‡¶∞‡¶∏‡ßç‡¶ü‡ßã‡¶∞‡ßá ‡¶∏‡ßá‡¶≠ ‡¶π‡¶¨‡ßá ‡¶è‡¶¨‡¶Ç ‡¶∏‡¶¨ ‡¶∞‡¶ø‡¶Ø‡¶º‡ßá‡¶≤-‡¶ü‡¶æ‡¶á‡¶Æ‡ßá ‡¶¶‡ßá‡¶ñ‡¶æ ‡¶Ø‡¶æ‡¶¨‡ßá!
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold">
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black uppercase text-slate-350 tracking-wider font-mono">
-                      Firebase API Key (‡¶è‡¶™‡¶ø‡¶Ü‡¶á ‡¶ï‡ßÄ)
-                    </label>
-                    <input
-                      type="text"
-                      value={fbApiKey}
-                      onChange={(e) => setFbApiKey(e.target.value)}
-                      placeholder="AIzaSy..."
-                      className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black uppercase text-slate-350 tracking-wider font-mono">
-                      Firebase Project ID (‡¶™‡ßç‡¶∞‡¶ú‡ßá‡¶ï‡ßç‡¶ü ‡¶Ü‡¶á‡¶°‡¶ø)
-                    </label>
-                    <input
-                      type="text"
-                      value={fbProjectId}
-                      onChange={(e) => setFbProjectId(e.target.value)}
-                      placeholder="bodytouch-app"
-                      className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black uppercase text-slate-350 tracking-wider font-mono">
-                      Firebase App ID (‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™ ‡¶Ü‡¶á‡¶°‡¶ø)
-                    </label>
-                    <input
-                      type="text"
-                      value={fbAppId}
-                      onChange={(e) => setFbAppId(e.target.value)}
-                      placeholder="1:xxxxxxxx:web:yyyy"
-                      className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-700 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black uppercase text-slate-350 tracking-wider font-mono text-slate-500">
-                      Auth Domain (‡¶Ö‡¶™„Ç∑„Éß„Éä„É´)
-                    </label>
-                    <input
-                      type="text"
-                      value={fbAuthDomain}
-                      onChange={(e) => setFbAuthDomain(e.target.value)}
-                      placeholder="bodytouch-app.firebaseapp.com"
-                      className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-800 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black uppercase text-slate-350 tracking-wider font-mono text-slate-500">
-                      Storage Bucket (‡¶Ö‡¶™„Ç∑„Éß„Éä„É´)
-                    </label>
-                    <input
-                      type="text"
-                      value={fbStorageBucket}
-                      onChange={(e) => setFbStorageBucket(e.target.value)}
-                      placeholder="bodytouch-app.appspot.com"
-                      className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-800 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black uppercase text-slate-350 tracking-wider font-mono text-slate-500">
-                      Messaging Sender ID (‡¶Ö‡¶™„Ç∑„Éß„Éä„É´)
-                    </label>
-                    <input
-                      type="text"
-                      value={fbMessagingSenderId}
-                      onChange={(e) => setFbMessagingSenderId(e.target.value)}
-                      placeholder="1234567890"
-                      className="w-full bg-black/40 border border-[#232733] focus:border-amber-500 rounded-xl px-3 py-2.5 text-white font-mono placeholder-slate-800 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {fbStatusMessage && (
-                  <div className={`p-3 rounded-xl text-xs font-bold leading-relaxed border ${
-                    fbStatusMessage.startsWith('‚ùå') ? 'bg-rose-950/20 border-rose-500/20 text-rose-450' : 
-                    fbStatusMessage.startsWith('‚ö†Ô∏è') ? 'bg-amber-950/20 border-amber-500/20 text-amber-400' :
-                    'bg-emerald-950/20 border-emerald-500/20 text-emerald-400'
-                  }`}>
-                    {fbStatusMessage}
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-2.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleSaveFirebaseConfig}
-                    className="bg-indigo-600 hover:bg-indigo-550 text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg active:scale-98 font-mono"
-                  >
-                    <Save className="w-4 h-4 text-white" />
-                    Save Connection
-                  </button>
-
-                  {fbApiKey.trim() && (
-                    <button
-                      type="button"
-                      onClick={handleDownloadFirebaseConfigJson}
-                      className="bg-emerald-600 hover:bg-emerald-550 text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 shadow-lg active:scale-98 font-mono"
-                    >
-                      <Upload className="w-4 h-4 text-white" />
-                      Download Config File
-                    </button>
-                  )}
-
-                  {isRealFirebaseEnabled() && (
-                    <button
-                      type="button"
-                      onClick={handleClearFirebaseConfig}
-                      className="bg-rose-950/30 hover:bg-rose-900/40 border border-rose-500/25 text-rose-450 hover:text-white text-[10px] font-black uppercase tracking-wider py-2.5 px-4.5 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 active:scale-98 font-mono"
-                    >
-                      <Trash2 className="w-4 h-4 text-rose-550" />
-                      Disconnect
-                    </button>
-                  )}
-                </div>
-              </div>
-
-
-
-            </div>
-          )}
-
-          {/* =======================================================
-              CITIES & OPERATIONAL AREA DIRECTORY TAB
-              ======================================================= */}
-          {activeTab === 'cities' && (
-            <div className="space-y-6 text-left">
-              <div className="p-4.5 bg-blue-950/10 border border-blue-500/10 rounded-2xl text-xs space-y-2.5 leading-relaxed font-semibold text-slate-350">
-                <h4 className="text-xs font-black uppercase text-blue-400 flex items-center gap-2">
-                  <Globe className="w-4.5 h-4.5 animate-pulse" />
-                  Metropolitan Area & Urban Locations Manager (‡¶∂‡¶π‡¶∞ ‡¶ì ‡¶è‡¶≤‡¶æ‡¶ï‡¶æ ‡¶¨‡ßç‡¶Ø‡¶¨‡¶∏‡ßç‡¶•‡¶æ‡¶™‡¶®‡¶æ)
-                </h4>
-                <p>
-                  Manage active operational areas in a **2-Level Format** (headline division/city and sub-areas under it, e.g. **Dhaka** ‚ûî **Gulshan, Banani**). Custom locations configured here can be updated dynamically and are applied instantly across companion forms, hotels, and checkout controls.
-                </p>
-              </div>
-
-              {/* Status Banner */}
-              {citiesError && (
-                <div className="p-4 bg-red-950/40 border border-red-500/20 text-red-400 text-xs rounded-xl font-bold flex justify-between items-center transition-all animate-fadeIn">
-                  <span>‚ö†Ô∏è {citiesError}</span>
-                  <button onClick={() => setCitiesError(null)} className="text-[10px] text-slate-400 hover:text-white uppercase font-black tracking-wider cursor-pointer">Dismiss</button>
-                </div>
-              )}
-
-              {/* Add New Division Area Header */}
-              <div className="p-5 bg-[#11131a] rounded-2xl border border-amber-500/10 text-xs">
-                <h5 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab] mb-4 flex items-center gap-1.5 font-mono">
-                  <Plus className="w-4 h-4 text-amber-500" />
-                  1. ADD NEW DISTRICT / DIVISION HEADLINE (‡¶®‡¶§‡ßÅ‡¶® ‡¶™‡ßç‡¶∞‡¶ß‡¶æ‡¶® ‡¶ú‡ßá‡¶≤‡¶æ ‡¶¨‡¶æ ‡¶∂‡¶π‡¶∞ ‡¶Ø‡ßã‡¶ó ‡¶ï‡¶∞‡ßÅ‡¶®)
-                </h5>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    setCitiesError(null);
-                    const trimmed = newDivisionInput.trim();
-                    if (!trimmed) return;
-                    
-                    const id = trimmed.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                    if (!id) return;
-
-                    if (structuredCities.some(d => d.id === id || d.name.toLowerCase() === trimmed.toLowerCase())) {
-                      setCitiesError(`The division/district "${trimmed}" already exists.`);
-                      return;
-                    }
-
-                    const newDiv: ParentArea = {
-                      id,
-                      name: trimmed,
-                      subAreas: []
-                    };
-
-                    if (onUpdateStructuredCities) {
-                      onUpdateStructuredCities([...structuredCities, newDiv]);
-                      setNewDivisionInput('');
-                    }
-                  }}
-                  className="flex flex-col sm:flex-row gap-3"
-                >
-                  <input
-                    type="text"
-                    required
-                    value={newDivisionInput}
-                    onChange={(e) => setNewDivisionInput(e.target.value)}
-                    placeholder="e.g. DHAKA AREA, CHITTAGONG, SYLHET DIVISION..."
-                    className="flex-1 bg-black/40 border border-slate-800 rounded-xl px-4 py-3 text-white font-semibold placeholder-slate-650 focus:outline-none focus:border-amber-500 text-xs font-mono"
-                  />
-                  <button
-                    type="submit"
-                    className="bg-gradient-to-tr from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-5 py-3 rounded-xl font-heavy uppercase text-[10px] tracking-wider transition-all cursor-pointer active:scale-95 shrink-0"
-                  >
-                    Create District Headline
-                  </button>
-                </form>
-              </div>
-
-              {/* Active list display (2-level Cards grid) */}
-              <div className="space-y-4">
-                <h5 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab] flex items-center gap-1.5 font-mono select-none">
-                  <Layers className="w-4 h-4 text-amber-500" />
-                  2. MANAGE SUB-AREAS UNDER DISTRICTS (‡¶ú‡ßá‡¶≤‡¶æ‡¶≠‡¶ø‡¶§‡ßç‡¶§‡¶ø‡¶ï ‡¶â‡¶™-‡¶è‡¶≤‡¶æ‡¶ï‡¶æ ‡¶∏‡¶Æ‡ßÇ‡¶π)
-                </h5>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {structuredCities.map((division) => (
-                    <div
-                      key={division.id}
-                      className="bg-[#11131a] rounded-2xl border border-white/5 overflow-hidden flex flex-col justify-between hover:border-slate-800 transition duration-250 shadow-xl"
-                    >
-                      {/* Division Card Header */}
-                      <div className="p-4 bg-black/45 border-b border-slate-900/60 flex items-center justify-between">
-                        <div className="flex flex-col text-left">
-                          <span className="text-amber-500 text-sm font-black font-sans tracking-wide">
-                            üìç {division.name.toUpperCase()}
-                          </span>
-                          <span className="text-[8.5px] font-mono font-heavy text-slate-500 tracking-wider">
-                            HEADLINE ID: {division.id.toUpperCase()} ‚Ä¢ ({division.subAreas.length} active zones)
-                          </span>
-                        </div>
-                        
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (window.confirm(`Are you absolutely sure you want to delete the entire district headline "${division.name}" and all of its nested zones?`)) {
-                              setCitiesError(null);
-                              if (onUpdateStructuredCities) {
-                                const updated = structuredCities.filter(d => d.id !== division.id);
-                                onUpdateStructuredCities(updated);
-                              }
-                            }
-                          }}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
-                          title={`Delete entire division ${division.name}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      {/* Sub-areas Tags Wrapper */}
-                      <div className="p-4.5 flex-1 space-y-4">
-                        <div className="flex flex-wrap gap-1.5 min-h-[50px] items-start content-start">
-                          {division.subAreas.length === 0 ? (
-                            <div className="text-[10px] italic text-slate-500 py-3 block text-center w-full font-medium">
-                              ‚ùå No sub-areas defined yet. Add some below to create the list!
-                            </div>
-                          ) : (
-                            division.subAreas.map((sub) => (
-                              <div
-                                key={sub}
-                                className="bg-black/40 border border-slate-900/80 px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-slate-350 flex items-center gap-1.5 hover:border-amber-500/20 transition"
-                              >
-                                <span>{sub}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCitiesError(null);
-                                    if (onUpdateStructuredCities) {
-                                      const updated = structuredCities.map(d => {
-                                        if (d.id === division.id) {
-                                          return {
-                                            ...d,
-                                            subAreas: d.subAreas.filter(s => s !== sub)
-                                          };
-                                        }
-                                        return d;
-                                      });
-                                      onUpdateStructuredCities(updated);
-                                    }
-                                  }}
-                                  className="text-slate-500 hover:text-rose-400 text-[10px] font-bold px-0.5 cursor-pointer"
-                                  title={`Remove ${sub}`}
-                                >
-                                  √ó
-                                </button>
-                              </div>
-                            ))
-                          )}
-                        </div>
-
-                        {/* Mini Form to Add subarea Zone */}
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            setCitiesError(null);
-                            const text = subAreaInputMap[division.id]?.trim();
-                            if (!text) return;
-
-                            if (division.subAreas.map(s => s.toLowerCase()).includes(text.toLowerCase())) {
-                              setCitiesError(`The zone "${text}" already exists under ${division.name}.`);
-                              return;
-                            }
-
-                            if (onUpdateStructuredCities) {
-                              const updated = structuredCities.map(d => {
-                                if (d.id === division.id) {
-                                  return {
-                                    ...d,
-                                    subAreas: [...d.subAreas, text]
-                                  };
-                                }
-                                return d;
-                              });
-                              onUpdateStructuredCities(updated);
-                              setSubAreaInputMap({
-                                ...subAreaInputMap,
-                                [division.id]: ''
-                              });
-                            }
-                          }}
-                          className="flex gap-2 pt-2 border-t border-slate-900/60"
-                        >
-                          <input
-                            type="text"
-                            required
-                            value={subAreaInputMap[division.id] || ''}
-                            onChange={(e) => setSubAreaInputMap({
-                              ...subAreaInputMap,
-                              [division.id]: e.target.value
-                            })}
-                            placeholder={`Add zone under ${division.name} (‡¶Ø‡ßá‡¶Æ‡¶®: Gulshan)`}
-                            className="flex-1 bg-black/60 border border-slate-850 px-3 py-1.5 rounded-lg text-white font-medium placeholder-slate-650 focus:outline-none focus:border-amber-500 text-[10px]"
-                          />
-                          <button
-                            type="submit"
-                            className="bg-slate-850 hover:bg-slate-800 text-amber-500 px-3 py-1.5 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all cursor-pointer flex items-center justify-center"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
-                        </form>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-
-          {/* =======================================================
-              PAYMENT GATEWAYS AND LIMITS TAB
-              ======================================================= */}
-          {activeTab === 'gateways' && (
-            <div className="space-y-6 text-left font-semibold">
-              <div className="p-4.5 bg-[#14101e] border border-blue-500/15 rounded-2xl text-xs space-y-2.5 leading-relaxed text-slate-350">
-                <h4 className="text-xs font-black uppercase text-red-500 flex items-center gap-2">
-                  <CreditCard className="w-4.5 h-4.5 animate-pulse" />
-                  Dynamic Payment Gateway Manager (‡¶™‡ßá‡¶Æ‡ßá‡¶®‡ßç‡¶ü ‡¶ó‡ßá‡¶ü‡¶ì‡¶Ø‡¶º‡ßá ‡¶ï‡¶®‡¶´‡¶ø‡¶ó‡¶æ‡¶∞‡ßá‡¶∂‡¶®)
-                </h4>
-                <p>
-                  You can register, edit, toggle, or remove payment gateways dynamically here to deal with single number transactional limitations. Ensure the active status, correct receiver phone numbers, and clear step instructions are specified so clients receive exact guidance upon checkout.
-                </p>
-              </div>
-
-              {/* Model Registration Fee Configuration (‡¶Æ‡¶°‡ßá‡¶≤ ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶´‡¶ø) */}
-              <div className="p-6 bg-[#0f111a] rounded-2xl border-2 border-[#dbaa61]/30 text-xs space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-800">
-                  <div className="space-y-0.5">
-                    <h5 className="text-[10px] font-black uppercase tracking-widest text-[#dbaa61] flex items-center gap-1.5 font-mono">
-                      <DollarSign className="w-4 h-4 text-[#dbaa61]" />
-                      Model Registration Fee Configuration / ‡¶Æ‡¶°‡ßá‡¶≤ ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶´‡¶ø
-                    </h5>
-                    <p className="text-[10px] text-slate-400">
-                      ‡¶Æ‡¶°‡ßá‡¶≤ (‡¶Æ‡¶π‡¶ø‡¶≤‡¶æ, ‡¶™‡ßÅ‡¶∞‡ßÅ‡¶∑ ‡¶è‡¶¨‡¶Ç ‡¶∏‡ßç‡¶™‡¶æ‡¶∞‡ßç‡¶Æ ‡¶°‡ßã‡¶®‡¶æ‡¶∞)-‡¶¶‡ßá‡¶∞ ‡¶∏‡¶æ‡¶á‡¶ü‡ßá ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶ú‡¶®‡ßç‡¶Ø ‡¶Ü‡¶≤‡¶æ‡¶¶‡¶æ ‡¶Ü‡¶≤‡¶æ‡¶¶‡¶æ ‡¶´‡¶ø ‡¶®‡¶ø‡¶ö‡ßá ‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2 text-[9px] font-mono font-bold">
-                    <span className="text-pink-400 bg-pink-400/5 px-2 py-0.5 rounded border border-pink-400/15">Female: ‡ß≥{localRegFee}</span>
-                    <span className="text-blue-400 bg-blue-400/5 px-2 py-0.5 rounded border border-blue-400/15">Male: ‡ß≥{localRegFeeMale}</span>
-                    <span className="text-amber-400 bg-amber-400/5 px-2 py-0.5 rounded border border-amber-400/15">Donor: ‡ß≥{localRegFeeSperm}</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Female */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black uppercase text-pink-400 font-mono tracking-wider">
-                      Female Model Fee (‡¶Æ‡¶π‡¶ø‡¶≤‡¶æ ‡¶Æ‡¶°‡ßá‡¶≤ ‡¶´‡¶ø):
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-pink-400/60 font-bold text-xs">‡ß≥</span>
-                      <input
-                        type="number"
-                        value={localRegFee}
-                        onChange={(e) => setLocalRegFee(parseInt(e.target.value) || 0)}
-                        className="w-full bg-black/40 border border-slate-800 focus:border-pink-500 rounded-xl pl-8 pr-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
-                        placeholder="e.g. 3000"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Male */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black uppercase text-blue-400 font-mono tracking-wider">
-                      Male Model Fee (‡¶™‡ßÅ‡¶∞‡ßÅ‡¶∑ ‡¶Æ‡¶°‡ßá‡¶≤ ‡¶´‡¶ø):
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400/60 font-bold text-xs">‡ß≥</span>
-                      <input
-                        type="number"
-                        value={localRegFeeMale}
-                        onChange={(e) => setLocalRegFeeMale(parseInt(e.target.value) || 0)}
-                        className="w-full bg-black/40 border border-slate-800 focus:border-blue-500 rounded-xl pl-8 pr-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
-                        placeholder="e.g. 3000"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Donor */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black uppercase text-amber-500 font-mono tracking-wider">
-                      Sperm Donor Fee (‡¶∏‡ßç‡¶™‡¶æ‡¶∞‡ßç‡¶Æ ‡¶°‡ßã‡¶®‡¶æ‡¶∞ ‡¶´‡¶ø):
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-amber-500/60 font-bold text-xs">‡ß≥</span>
-                      <input
-                        type="number"
-                        value={localRegFeeSperm}
-                        onChange={(e) => setLocalRegFeeSperm(parseInt(e.target.value) || 0)}
-                        className="w-full bg-black/40 border border-slate-800 focus:border-amber-500 rounded-xl pl-8 pr-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
-                        placeholder="e.g. 3000"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onUpdatePricingConfig) {
-                        onUpdatePricingConfig({
-                          registrationFee: localRegFee,
-                          registrationFeeMale: localRegFeeMale,
-                          registrationFeeSperm: localRegFeeSperm,
-                          regularPlanFee: localRegularFee,
-                          premiumPlanFee: localPremiumFee,
-                          elitePlanFee: localEliteFee,
-                        });
-                        setPricingSuccess(true);
-                        setTimeout(() => setPricingSuccess(false), 3000);
-                      }
-                    }}
-                    className="px-5 py-2.5 bg-gradient-to-r from-[#dbaa61] to-[#b38644] hover:from-[#e5b36a] hover:to-[#dbaa61] text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer h-9.5"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    Save Registration Fees (‡¶´‡¶ø ‡¶∏‡¶Æ‡ßÇ‡¶π ‡¶∏‡ßá‡¶≠ ‡¶ï‡¶∞‡ßÅ‡¶®)
-                  </button>
-                </div>
-
-                {pricingSuccess && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[10.5px] text-emerald-400 font-bold flex items-center gap-2"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                    <span>‡¶Æ‡¶°‡ßá‡¶≤ ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶´‡¶ø ‡¶∏‡¶Æ‡ßÇ‡¶π ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶™‡¶∞‡¶ø‡¶¨‡¶∞‡ßç‡¶§‡¶® ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá (Female: ‡ß≥{localRegFee}, Male: ‡ß≥{localRegFeeMale}, Donor: ‡ß≥{localRegFeeSperm})!</span>
-                  </motion.div>
-                )}
-              </div>
-
-              {gatewayError && (
-                <div className="p-4 bg-red-950/40 border border-red-500/20 text-red-400 text-xs rounded-xl font-bold flex justify-between items-center transition-all animate-fadeIn">
-                  <span>‚ö†Ô∏è {gatewayError}</span>
-                  <button onClick={() => setGatewayError(null)} className="text-[10px] text-slate-400 hover:text-white uppercase font-black tracking-wider">Dismiss</button>
-                </div>
-              )}
-
-              {/* Add / Edit Gateway Form */}
-              <div className="p-6 bg-[#11131a] rounded-2xl border border-white/5 text-xs space-y-4">
-                <h5 className="text-[10px] font-black uppercase tracking-widest text-[#ef4444] flex items-center gap-1.5 font-mono">
-                  <Plus className="w-4 h-4 text-emerald-500" />
-                  {editingGatewayId ? 'EDIT CONFIGURATION / ‡¶ó‡ßá‡¶ü‡¶ì‡ßü‡ßá ‡¶∏‡¶Ç‡¶∂‡ßã‡¶ß‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®' : 'REGISTER NEW GATEWAY / ‡¶®‡¶§‡ßÅ‡¶® ‡¶ó‡ßá‡¶ü‡¶ì‡ßü‡ßá ‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶ï‡¶∞‡ßÅ‡¶®'}
-                </h5>
-                
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    setGatewayError(null);
-                    
-                    const name = gwName.trim();
-                    const number = gwNumber.trim();
-                    const instructions = gwInstructions.trim();
-                    
-                    if (!name || !number || !instructions) {
-                      setGatewayError('Please write valid details (Name, Number, and Instructions).');
-                      return;
-                    }
-
-                    if (editingGatewayId) {
-                      const updated = paymentGateways.map(g => {
-                        if (g.id === editingGatewayId) {
-                          return {
-                            ...g,
-                            name,
-                            method: gwMethod,
-                            walletType: gwWalletType,
-                            number,
-                            instructions,
-                            logoUrl: gwLogoUrl.trim() || undefined
-                          };
-                        }
-                        return g;
-                      });
-                      if (onUpdatePaymentGateways) {
-                        onUpdatePaymentGateways(updated);
-                      }
-                      setEditingGatewayId(null);
-                    } else {
-                      const newGateway: PaymentGateway = {
-                        id: `gw_${Date.now()}`,
-                        name,
-                        method: gwMethod,
-                        walletType: gwWalletType,
-                        number,
-                        instructions,
-                        isActive: true,
-                        logoUrl: gwLogoUrl.trim() || undefined
-                      };
-                      if (onUpdatePaymentGateways) {
-                        onUpdatePaymentGateways([...paymentGateways, newGateway]);
-                      }
-                    }
-
-                    // Reset form fields
-                    setGwName('');
-                    setGwNumber('');
-                    setGwInstructions('');
-                    setGwMethod('BKASH');
-                    setGwWalletType('Personal');
-                    setGwLogoUrl('');
-                  }}
-                  className="space-y-4 font-semibold text-slate-300"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-                    {/* Public Display Name */}
-                    <div className="space-y-1 font-semibold">
-                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Gateway Public Label Name</label>
-                      <input
-                        type="text"
-                        required
-                        value={gwName}
-                        onChange={(e) => setGwName(e.target.value)}
-                        placeholder="e.g. bKash Personal VIP"
-                        className="w-full bg-black/40 border border-[#232733] rounded-xl px-4 py-2.5 text-white placeholder-slate-650 focus:outline-none focus:border-red-500 font-bold text-xs"
-                      />
-                    </div>
-
-                    {/* Channel Type */}
-                    <div className="space-y-1">
-                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Payment Channel</label>
-                      <select
-                        value={gwMethod}
-                        onChange={(e) => setGwMethod(e.target.value as any)}
-                        className="w-full bg-black/40 border border-[#232733] rounded-xl px-4 py-2 text-white focus:outline-none focus:border-red-500 font-bold h-10 select-none text-xs"
-                      >
-                        <option value="BKASH">bKash</option>
-                        <option value="NAGAD">Nagad</option>
-                        <option value="ROCKET">Rocket</option>
-                      </select>
-                    </div>
-
-                    {/* Limit Wallet Mode */}
-                    <div className="space-y-1">
-                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Wallet Account Type</label>
-                      <select
-                        value={gwWalletType}
-                        onChange={(e) => setGwWalletType(e.target.value as any)}
-                        className="w-full bg-black/40 border border-[#232733] rounded-xl px-4 py-2 text-white focus:outline-none focus:border-red-500 font-bold h-10 select-none text-xs"
-                      >
-                        <option value="Personal">Personal (‡¶∏‡ßá‡¶®‡ßç‡¶° ‡¶Æ‡¶æ‡¶®‡¶ø)</option>
-                        <option value="Agent">Agent (‡¶ï‡ßç‡¶Ø‡¶æ‡¶∂ ‡¶Ü‡¶â‡¶ü)</option>
-                        <option value="Merchant">Merchant (‡¶Æ‡¶æ‡¶∞‡ßç‡¶ö‡ßá‡¶®‡ßç‡¶ü ‡¶™‡ßá‡¶Æ‡ßá‡¶®‡ßç‡¶ü)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-                    {/* Wallet account phone number */}
-                    <div className="space-y-1">
-                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Wallet Number (‡¶Æ‡ßã‡¶¨‡¶æ‡¶á‡¶≤ ‡¶®‡¶Æ‡ßç‡¶¨‡¶∞)</label>
-                      <input
-                        type="text"
-                        required
-                        value={gwNumber}
-                        onChange={(e) => setGwNumber(e.target.value)}
-                        placeholder="e.g. 01712-345678"
-                        className="w-full bg-black/40 border border-[#232733] rounded-xl px-4 py-2.5 text-white placeholder-slate-650 focus:outline-none focus:border-red-500 font-mono font-bold text-xs"
-                      />
-                    </div>
-
-                    {/* Custom Logo Upload/URL Input */}
-                    <div className="space-y-1">
-                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Gateway Logo (‡¶≤‡ßã‡¶ó‡ßã ‡¶Ü‡¶™‡¶≤‡ßã‡¶°)</label>
-                      <div className="flex items-center gap-2 bg-black/40 border border-[#232733] rounded-xl p-1 h-10">
-                        {gwLogoUrl ? (
-                          <div className="relative w-8 h-8 rounded bg-slate-900 border border-slate-800 flex items-center justify-center overflow-hidden shrink-0">
-                            <img src={gwLogoUrl} alt="Logo preview" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                            <button
-                              type="button"
-                              onClick={() => setGwLogoUrl('')}
-                              className="absolute inset-0 bg-black/70 hover:bg-black/85 flex items-center justify-center text-red-500 opacity-0 hover:opacity-100 transition-opacity"
-                              title="Remove logo"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="w-8 h-8 rounded border border-dashed border-slate-700 flex items-center justify-center text-slate-500 shrink-0 text-[8px] font-bold font-mono">
-                            NO LOGO
-                          </div>
-                        )}
-                        <input
-                          type="text"
-                          value={gwLogoUrl}
-                          onChange={(e) => setGwLogoUrl(e.target.value)}
-                          placeholder="Image URL or upload..."
-                          className="flex-1 bg-transparent text-white placeholder-slate-650 focus:outline-none text-[10px] font-bold min-w-0"
-                        />
-                        <label className="bg-slate-850 hover:bg-slate-800 text-slate-300 text-[8.5px] font-black uppercase px-2 py-1.5 rounded-lg cursor-pointer shrink-0 select-none border border-slate-750">
-                          Upload
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setGwLogoUrl(reader.result as string);
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                          />
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* Step guidance instructions */}
-                    <div className="space-y-1">
-                      <label className="block text-[10px] text-slate-400 uppercase tracking-widest font-bold">Payment Step Directions (‡¶®‡¶ø‡¶∞‡ßç‡¶¶‡ßá‡¶∂‡¶®‡¶æ)</label>
-                      <input
-                        type="text"
-                        required
-                        value={gwInstructions}
-                        onChange={(e) => setGwInstructions(e.target.value)}
-                        placeholder="‡¶¶‡ßü‡¶æ ‡¶ï‡¶∞‡ßá ‡¶è‡¶á ‡¶®‡¶Æ‡ßç‡¶¨‡¶∞‡ßá Send Money ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶™‡¶∞ TrxID ‡¶™‡ßç‡¶∞‡¶¶‡¶æ‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®‡•§"
-                        className="w-full bg-black/40 border border-[#232733] rounded-xl px-4 py-2.5 text-white placeholder-slate-650 focus:outline-none focus:border-red-500 font-bold text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 justify-end pt-2">
-                    {editingGatewayId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingGatewayId(null);
-                          setGwName('');
-                          setGwNumber('');
-                          setGwInstructions('');
-                          setGwMethod('BKASH');
-                          setGwWalletType('Personal');
-                          setGwLogoUrl('');
-                        }}
-                        className="bg-slate-800 hover:bg-slate-750 text-white px-5 py-2.5 rounded-xl font-heavy uppercase text-[10px] tracking-wider transition cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                    <button
-                      type="submit"
-                      className="bg-gradient-to-tr from-red-700 to-red-550 hover:opacity-95 text-white px-5 py-2.5 rounded-xl font-heavy uppercase text-[10px] tracking-wider transition cursor-pointer active:scale-95"
-                    >
-                      {editingGatewayId ? 'Save Gateway Changes' : 'Register New Gateway'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* Display Registered Gateways list */}
-              <div className="bg-[#11131a] rounded-2xl border border-white/5 p-4.5">
-                <h5 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab] border-b border-[#222938] pb-3 mb-4 flex items-center gap-1.5 font-mono text-left select-none">
-                  <CreditCard className="w-4 h-4 text-[#ef4444]" />
-                  CURRENT ACTIVE PAYMENT GATEWAYS LIST ({paymentGateways.length})
-                </h5>
-
-                {paymentGateways.length === 0 ? (
-                  <div className="p-8 text-center text-slate-500 font-semibold text-xs">
-                    No custom payment gateways are currently registered. In-built default bKash, Nagad, and Rocket methods will be served dynamically.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {paymentGateways.map((g) => (
-                      <div
-                        key={g.id}
-                        className={`border rounded-xl p-4 flex flex-col justify-between space-y-4 transition ${
-                          g.isActive 
-                            ? 'bg-black/35 border-blue-500/10' 
-                            : 'bg-black/10 border-slate-850 opacity-60'
-                        }`}
-                      >
-                        <div className="text-left space-y-2">
-                          <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-2">
-                              {g.logoUrl ? (
-                                <div className="w-8 h-8 rounded bg-slate-900 border border-slate-800 p-0.5 overflow-hidden flex items-center justify-center shrink-0">
-                                  <img src={g.logoUrl} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                                </div>
-                              ) : (
-                                <div className="w-8 h-8 rounded bg-slate-900 border border-slate-850 flex items-center justify-center shrink-0 text-[9px] font-bold text-slate-500 uppercase">
-                                  {g.method.substring(0, 3)}
-                                </div>
-                              )}
-                              <div>
-                                <span className="text-xs font-black text-white block truncate max-w-[130px]">{g.name}</span>
-                                <span className="text-[8.5px] font-mono font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 mt-1 inline-block">
-                                  {g.method}
-                                </span>
-                              </div>
-                            </div>
-                            <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                              g.walletType === 'Personal' 
-                                ? 'bg-[#1a1738] text-indigo-400 border border-indigo-500/20' 
-                                : g.walletType === 'Agent' 
-                                  ? 'bg-[#381729] text-pink-400 border border-pink-500/20' 
-                                  : 'bg-[#173822] text-emerald-400 border border-emerald-500/20'
-                            }`}>
-                              {g.walletType}
-                            </span>
-                          </div>
-
-                          <div className="bg-black/40 p-2.5 rounded border border-white/5 space-y-1">
-                            <span className="text-[8px] text-slate-500 block uppercase font-extrabold">Account Phone Number</span>
-                            <span className="text-[11px] font-bold font-mono tracking-wider text-slate-200 block">{g.number}</span>
-                          </div>
-
-                          <p className="text-[9.5px] text-slate-400 leading-normal font-sans tracking-wide py-1 line-clamp-2" title={g.instructions}>
-                            {g.instructions}
-                          </p>
-                        </div>
-
-                        <div className="flex justify-between items-center border-t border-slate-900 pt-3 text-xs">
-                          {/* Toggle Switch Button */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = paymentGateways.map(item => {
-                                if (item.id === g.id) {
-                                  return { ...item, isActive: !item.isActive };
-                                }
-                                return item;
-                              });
-                              if (onUpdatePaymentGateways) {
-                                onUpdatePaymentGateways(updated);
-                              }
-                            }}
-                            className={`px-3 py-1.5 rounded-lg text-[9px] font-extrabold uppercase transition-all duration-200 border cursor-pointer active:scale-95 ${
-                              g.isActive
-                                ? 'bg-[#103025] text-emerald-400 border-emerald-500/25 hover:border-emerald-500/55'
-                                : 'bg-slate-900 text-slate-500 border-slate-850 hover:text-slate-200 hover:border-slate-800'
-                            }`}
-                          >
-                            {g.isActive ? '‚óè Live' : '‚óã Disabled'}
-                          </button>
-
-                          <div className="flex items-center gap-1.5">
-                            {/* Edit Button */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingGatewayId(g.id);
-                                setGwName(g.name);
-                                setGwNumber(g.number);
-                                setGwInstructions(g.instructions);
-                                setGwMethod(g.method as any);
-                                setGwWalletType(g.walletType as any);
-                              }}
-                              className="p-1 px-2 rounded bg-slate-900 border border-slate-850 text-slate-400 hover:text-white transition cursor-pointer"
-                              title="Edit Gateway"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </button>
-
-                            {/* Remove Button */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated = paymentGateways.filter(item => item.id !== g.id);
-                                if (onUpdatePaymentGateways) {
-                                  onUpdatePaymentGateways(updated);
-                                }
-                                if (editingGatewayId === g.id) {
-                                  setEditingGatewayId(null);
-                                  setGwName('');
-                                  setGwNumber('');
-                                  setGwInstructions('');
-                                  setGwMethod('BKASH');
-                                  setGwWalletType('Personal');
-                                }
-                              }}
-                              className="p-1 px-2 rounded bg-red-950/20 border border-red-500/20 text-red-400 hover:text-red-350 hover:bg-red-950/35 transition cursor-pointer"
-                              title="Delete Gateway"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* =======================================================
-              ADMINISTRATIVE ACCOUNTS & DIRECTORY OVERVIEW TAB
-              ======================================================= */}
-          {activeTab === 'admins' && (
-            <div className="space-y-6 text-left font-semibold animate-fadeIn">
-              
-              {/* Luxury Header Banner */}
-              <div className="relative p-6 bg-gradient-to-r from-[#171412] to-[#0c0d12] border-l-4 border-[#dbaa61] rounded-2xl text-xs space-y-3 shadow-2xl overflow-hidden">
-                <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 opacity-10 pointer-events-none">
-                  <ShieldCheck className="w-32 h-32 text-[#dbaa61]" />
-                </div>
-                <h4 className="text-sm font-black uppercase text-[#dbaa61] flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5" />
-                  CONFIDENTIAL ADMINISTRATION GATEWAY / ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡ßç‡¶∏‡ßá‡¶∏ ‡¶ï‡¶®‡ßç‡¶ü‡ßç‡¶∞‡ßã‡¶≤
-                </h4>
-                <p className="text-slate-300 leading-relaxed font-medium">
-                  Here you can view, register, or revoke system administrator credentials dynamically. Registered administrators must supply both an authorized Email and a verified Telegram profile. These fields are mandatory to maintain instant 2-Step OTP authentication channels and elite security integrity.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
-                
-                {/* Form to Register New Admin (Takes 2 Columns) */}
-                {loggedInAdminRole !== 'super_admin' ? (
-                  <div className="lg:col-span-2 p-6 bg-red-950/10 border border-red-500/20 rounded-2xl flex flex-col items-center justify-center text-center space-y-4 shadow-xl select-none">
-                    <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-400">
-                      <Lock className="w-6 h-6" />
-                    </div>
-                    <div className="space-y-1">
-                      <h5 className="text-xs font-black uppercase tracking-wider text-red-500">
-                        Access Restricted / ‡¶∏‡ßÄ‡¶Æ‡¶æ‡¶¨‡¶¶‡ßç‡¶ß ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡ßç‡¶∏‡ßá‡¶∏
-                      </h5>
-                      <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                        ‡¶∂‡ßÅ‡¶ß‡ßÅ‡¶Æ‡¶æ‡¶§‡ßç‡¶∞ ‡¶∏‡ßÅ‡¶™‡¶æ‡¶∞ ‡¶è‡¶°‡¶Æ‡¶ø‡¶® (Super Admin) ‡¶®‡¶§‡ßÅ‡¶® ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü ‡¶®‡¶•‡¶ø‡¶≠‡ßÅ‡¶ï‡ßç‡¶§ ‡¶¨‡¶æ ‡¶∞‡ßã‡¶≤ ‡¶¨‡¶∞‡¶æ‡¶¶‡ßç‡¶¶ ‡¶ï‡¶∞‡¶§‡ßá ‡¶™‡¶æ‡¶∞‡ßá‡¶®‡•§
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="lg:col-span-2 p-5 bg-[#11131a] rounded-2xl border border-white/[0.04] text-xs space-y-5 shadow-xl">
-                    <div className="flex items-center gap-2 border-b border-white/[0.05] pb-3">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-                        <Plus className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h5 className="text-[11px] font-black uppercase tracking-wider text-white">
-                          Add New System Administrator
-                        </h5>
-                        <p className="text-[9px] text-slate-500 font-bold">‡¶®‡¶§‡ßÅ‡¶® ‡¶™‡ßç‡¶Ø‡¶æ‡¶®‡ßá‡¶≤ ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü ‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶ï‡¶∞‡ßÅ‡¶®</p>
-                      </div>
-                    </div>
-
-                     <form
-                      onSubmit={async (e) => {
-                        e.preventDefault();
-                        const form = e.currentTarget;
-                        const emailInput = form.elements.namedItem('newAdminEmail') as HTMLInputElement;
-                        const telegramInput = form.elements.namedItem('newAdminTelegram') as HTMLInputElement;
-                        const roleSelect = form.elements.namedItem('newAdminRole') as HTMLSelectElement;
-                        const passwordInput = form.elements.namedItem('newAdminPassword') as HTMLInputElement;
-                        
-                        const emailVal = emailInput?.value?.trim()?.toLowerCase();
-                        let telegramVal = telegramInput?.value?.trim();
-                        const roleVal = (roleSelect?.value as 'super_admin' | 'admin' | 'moderator') || 'admin';
-                        const passwordVal = passwordInput?.value?.trim();
-
-                        if (!emailVal || !telegramVal || !passwordVal) {
-                          alert('‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶∏‡¶†‡¶ø‡¶ï ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶á‡¶Æ‡ßá‡¶≤, ‡¶ü‡ßá‡¶≤‡¶ø‡¶ó‡ßç‡¶∞‡¶æ‡¶Æ ‡¶è‡¶¨‡¶Ç ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶≤‡¶ø‡¶ñ‡ßÅ‡¶®‡•§');
-                          return;
-                        }
-
-                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                        if (!emailRegex.test(emailVal)) {
-                          alert('‡¶¶‡¶Ø‡¶º‡¶æ ‡¶ï‡¶∞‡ßá ‡¶è‡¶ï‡¶ü‡¶ø ‡¶∏‡¶†‡¶ø‡¶ï ‡¶á‡¶Æ‡ßá‡¶≤ ‡¶è‡¶°‡ßç‡¶∞‡ßá‡¶∏ ‡¶¨‡ßç‡¶Ø‡¶¨‡¶π‡¶æ‡¶∞ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
-                          return;
-                        }
-
-                        if (passwordVal.length < 5) {
-                          alert('‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶°‡¶ü‡¶ø ‡¶Ö‡¶®‡ßç‡¶§‡¶§ ‡ß´ ‡¶Ö‡¶ï‡ßç‡¶∑‡¶∞‡ßá‡¶∞ ‡¶π‡¶§‡ßá ‡¶π‡¶¨‡ßá‡•§');
-                          return;
-                        }
-
-                        if (adminEmails.some(a => a.email.toLowerCase() === emailVal)) {
-                          alert('‡¶è‡¶á ‡¶á‡¶Æ‡ßá‡¶á‡¶≤‡¶ü‡¶ø ‡¶á‡¶§‡¶ø‡¶Æ‡¶ß‡ßç‡¶Ø‡ßá ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶π‡¶ø‡¶∏‡ßá‡¶¨‡ßá ‡¶®‡¶ø‡¶¨‡¶®‡ßç‡¶ß‡¶ø‡¶§ ‡¶Ü‡¶õ‡ßá‡•§');
-                          return;
-                        }
-
-                        if (!telegramVal.startsWith('@')) {
-                          telegramVal = '@' + telegramVal;
-                        }
-
-                        if (telegramVal.length < 3) {
-                          alert('‡¶¶‡¶Ø‡¶º‡¶æ ‡¶ï‡¶∞‡ßá ‡¶è‡¶ï‡¶ü‡¶ø ‡¶∏‡¶†‡¶ø‡¶ï ‡¶ü‡ßá‡¶≤‡¶ø‡¶ó‡ßç‡¶∞‡¶æ‡¶Æ ‡¶á‡¶â‡¶ú‡¶æ‡¶∞‡¶®‡ßá‡¶Æ ‡¶¶‡¶ø‡¶® (‡¶Ø‡ßá‡¶Æ‡¶®: @developer_akhi)‡•§');
-                          return;
-                        }
-
-                        try {
-                          // Securely save the password in firestore right now
-                          const passDocRef = doc(db, 'admin_passwords', emailVal);
-                          await setDoc(passDocRef, { password: passwordVal });
-                          await setCloudDocument('admin_passwords', emailVal, { password: passwordVal });
-
-                          const adminDocRef = doc(db, 'admin_emails', emailVal);
-                          await setDoc(adminDocRef, {
-                            email: emailVal,
-                            telegram: telegramVal,
-                            role: roleVal
-                          }, { merge: true });
-                          await setCloudDocument('admin_emails', emailVal, {
-                            email: emailVal,
-                            telegram: telegramVal,
-                            role: roleVal
-                          });
-
-                          await updateAdminEmails([...adminEmails.filter(a => a.email.toLowerCase() !== emailVal), { email: emailVal, telegram: telegramVal, role: roleVal }]);
-                          form.reset();
-                          alert(`‚úÖ ‡¶®‡¶§‡ßÅ‡¶® ‡¶è‡¶°‡¶Æ‡¶ø‡¶® "${emailVal}" (${roleVal}) ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶°‡¶∏‡¶π ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú‡ßá ‡¶∏‡ßç‡¶•‡¶æ‡ßü‡ßÄ‡¶≠‡¶æ‡¶¨‡ßá ‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá!`);
-                        } catch (err: any) {
-                          console.error(err);
-                          alert('‚ùå ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú‡ßá ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶ï‡¶∞‡¶§‡ßá ‡¶§‡ßç‡¶∞‡ßÅ‡¶ü‡¶ø ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§ ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶á‡¶®‡ßç‡¶ü‡¶æ‡¶∞‡¶®‡ßá‡¶ü ‡¶ï‡¶æ‡¶®‡ßá‡¶ï‡¶∂‡¶® ‡¶ö‡ßá‡¶ï ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
-                        }
-                      }}
-                      className="space-y-4"
-                    >
-                      {/* Email Input */}
-                      <div className="space-y-1.5">
-                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#dbaa61]">
-                          Administrator Email / ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶á‡¶Æ‡ßá‡¶≤ ‡¶è‡¶°‡ßç‡¶∞‡ßá‡¶∏ *
-                        </label>
-                        <input
-                          type="email"
-                          name="newAdminEmail"
-                          required
-                          placeholder="e.g. staff@bodytouch.com"
-                          className="w-full bg-black/40 border border-[#232733] hover:border-slate-800 rounded-xl px-4 py-2.5 text-white placeholder-slate-705 focus:outline-none focus:border-[#dbaa61] transition-all font-bold font-mono text-xs"
-                        />
-                      </div>
-
-                      {/* Telegram Username Input */}
-                      <div className="space-y-1.5">
-                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#dbaa61]">
-                          Telegram Username / ‡¶ü‡ßá‡¶≤‡¶ø‡¶ó‡ßç‡¶∞‡¶æ‡¶Æ ‡¶á‡¶â‡¶ú‡¶æ‡¶∞‡¶®‡ßá‡¶Æ *
-                        </label>
-                        <input
-                          type="text"
-                          name="newAdminTelegram"
-                          required
-                          placeholder="e.g. @akhi_ofc (‡¶¨‡¶æ @ ‡¶õ‡¶æ‡ßú‡¶æ)"
-                          className="w-full bg-black/40 border border-[#232733] hover:border-slate-800 rounded-xl px-4 py-2.5 text-white placeholder-slate-705 focus:outline-none focus:border-[#dbaa61] transition-all font-bold font-mono text-xs text-amber-400"
-                        />
-                      </div>
-
-                      {/* Assign Password Input */}
-                      <div className="space-y-1.5">
-                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#dbaa61]">
-                          Assign Secure Password / ‡¶™‡¶æ‡¶∏‡¶ì‡¶Ø‡¶º‡¶æ‡¶∞‡ßç‡¶° ‡¶∏‡ßá‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶® *
-                        </label>
-                        <input
-                          type="text"
-                          name="newAdminPassword"
-                          required
-                          placeholder="At least 5 characters long"
-                          className="w-full bg-black/40 border border-[#232733] hover:border-slate-800 rounded-xl px-4 py-2.5 text-white placeholder-slate-705 focus:outline-none focus:border-[#dbaa61] transition-all font-bold font-mono text-xs"
-                        />
-                      </div>
-
-                      {/* Role Input Dropdown */}
-                      <div className="space-y-1.5">
-                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#dbaa61]">
-                          Assign Role / ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶≠‡ßÅ‡¶Æ‡¶ø‡¶ï‡¶æ ‡¶®‡¶ø‡¶∞‡ßç‡¶¨‡¶æ‡¶ö‡¶® ‡¶ï‡¶∞‡ßÅ‡¶® *
-                        </label>
-                        <select
-                          name="newAdminRole"
-                          required
-                          className="w-full bg-black/40 border border-[#232733] hover:border-slate-800 rounded-xl px-4 py-2 text-slate-200 focus:outline-none focus:border-[#dbaa61] transition-all font-bold text-xs h-[38px] cursor-pointer"
-                        >
-                          <option value="admin">DEFAULT ADMIN (‡¶è‡¶°‡¶Æ‡¶ø‡¶®)</option>
-                          <option value="moderator">MODERATOR (‡¶Æ‡¶°‡¶æ‡¶∞‡ßá‡¶ü‡¶∞)</option>
-                          <option value="super_admin">SUPER ADMIN (‡¶∏‡ßÅ‡¶™‡¶æ‡¶∞ ‡¶è‡¶°‡¶Æ‡¶ø‡¶®)</option>
-                        </select>
-                      </div>
-
-                      {/* Submit Button */}
-                      <button
-                        type="submit"
-                        className="w-full bg-gradient-to-r from-amber-500 to-[#dbaa61] hover:brightness-110 text-black px-5 py-3 rounded-xl font-black uppercase text-[11px] tracking-wider transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10"
-                      >
-                        <ShieldCheck className="w-4 h-4" />
-                        Save & Whitelist Account
-                      </button>
-                    </form>
-                  </div>
-                )}
-
-                {/* List of Whitelisted Admins (Takes 3 Columns) */}
-                <div className="lg:col-span-3 bg-[#11131a] rounded-2xl border border-white/[0.04] p-5 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/[0.05] pb-3 mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-[#dbaa61]/10 flex items-center justify-center text-[#dbaa61]">
-                        <Users className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h5 className="text-[11px] font-black uppercase tracking-wider text-white">
-                          Current Active Admin Directory
-                        </h5>
-                        <p className="text-[9px] text-slate-500 font-bold">‡¶Ö‡¶®‡ßÅ‡¶Æ‡ßã‡¶¶‡¶ø‡¶§ ‡¶∏‡¶ï‡ßç‡¶∞‡¶ø‡ßü ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶∏‡¶¶‡¶∏‡ßç‡¶Ø‡¶¶‡ßá‡¶∞ ‡¶§‡¶æ‡¶≤‡¶ø‡¶ï‡¶æ</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-black font-mono bg-[#dbaa61]/10 border border-[#dbaa61]/20 text-[#dbaa61] px-2.5 py-0.5 rounded-full uppercase">
-                      {visibleAdminEmails.length} STAFF MEMBERS
-                    </span>
-                  </div>
-
-                  <div className="space-y-3 max-h-[480px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800/40 pr-1">
-                    {visibleAdminEmails.map((adminObj) => {
-                      const emailAddress = adminObj.email;
-                      const telegramHandle = adminObj.telegram || '@not_configured';
-                      const cleanTeleHandle = telegramHandle.startsWith('@') ? telegramHandle.substring(1) : telegramHandle;
-                      
-                      const userRole = adminObj.role || (emailAddress.toLowerCase() === '16killer2@gmail.com' ? 'super_admin' : 'admin');
-                      const isMainSuperAdmin = emailAddress.toLowerCase() === '16killer2@gmail.com';
-                      const isCurrentlyLoggedInUser = emailAddress.toLowerCase() === adminEmail.toLowerCase();
-
-                      let badgeText = 'Admin Staff';
-                      let badgeStyle = 'bg-slate-900 text-slate-400 border border-slate-800';
-                      if (userRole === 'super_admin') {
-                        badgeText = 'Super Admin üëë';
-                        badgeStyle = 'bg-amber-500/10 text-amber-500 border border-amber-500/20';
-                      } else if (userRole === 'moderator') {
-                        badgeText = 'Moderator üõ°Ô∏è';
-                        badgeStyle = 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
-                      }
-                      
-                      return (
-                        <div
-                          key={emailAddress}
-                          className="bg-black/25 border border-white/[0.02] hover:border-white/[0.05] rounded-2xl p-3.5 flex flex-col gap-3 transition-all duration-200 animate-fadeIn"
-                        >
-                          <div className="flex items-start gap-2.5">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-950/40 to-slate-900 border border-[#dbaa61]/25 flex items-center justify-center text-[#dbaa61] font-extrabold text-xs shrink-0 select-none">
-                              {emailAddress.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="text-left font-semibold min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-xs font-bold text-slate-200 block font-mono truncate" title={emailAddress}>{emailAddress}</span>
-                                {(() => {
-                                  const onlineSession = activePresenceList.find(s => s.role === 'admin' && s.identifier === emailAddress.toLowerCase());
-                                  if (!onlineSession) return null;
-                                  return (
-                                    <div className="inline-flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/25 px-2 py-0.5 rounded text-[8.5px] font-black text-blue-400 font-mono animate-pulse shrink-0 relative">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping absolute" />
-                                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 relative" />
-                                      <span>ACTIVE: {formatPresenceDuration(onlineSession.activeDurationMs)}</span>
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                {loggedInAdminRole === 'super_admin' && !isMainSuperAdmin && !isCurrentlyLoggedInUser ? (
-                                  <select
-                                    value={userRole}
-                                    onChange={(e) => {
-                                      const nextRole = e.target.value as 'super_admin' | 'admin' | 'moderator';
-                                      const updated = adminEmails.map((item) => {
-                                        if (item.email.toLowerCase() === emailAddress.toLowerCase()) {
-                                          return { ...item, role: nextRole };
-                                        }
-                                        return item;
-                                      });
-                                      updateAdminEmails(updated);
-                                      alert(`‚úÖ "${emailAddress}" ‡¶è‡¶∞ ‡¶∞‡ßã‡¶≤ ‡¶™‡¶∞‡¶ø‡¶¨‡¶∞‡ßç‡¶§‡¶® ‡¶ï‡¶∞‡ßá "${nextRole.toUpperCase()}" ‡¶ï‡¶∞‡¶æ ‡¶π‡¶Ø‡¶º‡ßá‡¶õ‡ßá!`);
-                                    }}
-                                    className="bg-[#0b0c10] border border-[#232733] hover:border-[#dbaa61]/40 rounded-lg text-[9px] font-black text-[#dbaa61] px-2 py-0.5 focus:outline-none cursor-pointer"
-                                  >
-                                    <option value="admin">ADMIN (‡¶è‡¶°‡¶Æ‡¶ø‡¶®)</option>
-                                    <option value="moderator">MODERATOR (‡¶Æ‡¶°‡¶æ‡¶∞‡ßá‡¶ü‡¶∞)</option>
-                                    <option value="super_admin">SUPER ADMIN (‡¶∏‡ßÅ‡¶™‡¶æ‡¶∞ ‡¶è‡¶°‡¶Æ‡¶ø‡¶®)</option>
-                                  </select>
-                                ) : (
-                                  <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${badgeStyle}`}>
-                                    {badgeText}
-                                  </span>
-                                )}
-                                <a
-                                  href={`https://t.me/${cleanTeleHandle}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[8.5px] font-mono font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 hover:underline cursor-pointer"
-                                  title="Contact via Telegram channel"
-                                >
-                                  üì® {telegramHandle}
-                                </a>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Actions footer inside card */}
-                          <div className="flex flex-col gap-2 border-t border-white/[0.03] pt-2.5">
-                            <div className="flex items-center gap-1.5">
-                              {/* Reset 2FA Button - Allowed only for Super Admin */}
-                              {loggedInAdminRole === 'super_admin' && (
-                                confirm2FAResetEmail === emailAddress ? (
-                                  <div className="flex-1 flex flex-col gap-1 p-1 bg-amber-955/20 border border-amber-500/25 rounded-lg text-center">
-                                    <span className="text-[8px] text-amber-300 font-bold uppercase">Reset 2FA?</span>
-                                    <div className="flex gap-1 justify-center">
-                                      <button
-                                        type="button"
-                                        onClick={async () => {
-                                          const trimmedEmail = emailAddress.trim().toLowerCase();
-                                          try {
-                                            await deleteDoc(doc(db, 'admin_totp_secrets', trimmedEmail));
-                                            alert(`‚úÖ Google Authenticator 2FA secret has been successfully reset for ${emailAddress}.`);
-                                          } catch (err: any) {
-                                            alert(`‚ùå Could not reset 2FA: ${err.message}`);
-                                          }
-                                          setConfirm2FAResetEmail(null);
-                                        }}
-                                        className="px-2 py-0.5 bg-amber-500 hover:bg-amber-400 text-black text-[8px] font-black rounded cursor-pointer transition-all"
-                                      >
-                                        Yes
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setConfirm2FAResetEmail(null)}
-                                        className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-white text-[8px] font-black rounded cursor-pointer transition-all"
-                                      >
-                                        No
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setConfirm2FAResetEmail(emailAddress);
-                                      setConfirmRemoveEmail(null);
-                                    }}
-                                    className="flex-1 py-1 px-2 rounded-lg bg-amber-950/30 hover:bg-amber-950/50 border border-amber-500/25 text-[#dbaa61] hover:text-white text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center justify-center gap-1 min-h-[28px]"
-                                    title="Reset TOTP 2FA secret for this user"
-                                  >
-                                    Reset 2FA
-                                  </button>
-                                )
-                              )}
-
-                              {isMainSuperAdmin ? (
-                                <span className="flex-1 py-1 px-2.5 rounded-lg bg-emerald-950/40 text-emerald-400 border border-emerald-500/25 text-[8px] font-black uppercase tracking-wider text-center select-none min-h-[28px] flex items-center justify-center">
-                                  Owner Key
-                                </span>
-                              ) : (
-                                /* Revoke/Delete button - Only Super Admins can revoke/delete admins, and you cannot revoke yourself */
-                                loggedInAdminRole === 'super_admin' && !isCurrentlyLoggedInUser && (
-                                  confirmRemoveEmail === emailAddress ? (
-                                    <div className="flex-1 flex flex-col gap-1 p-1 bg-red-955/20 border border-red-500/25 rounded-lg text-center">
-                                      <span className="text-[8px] text-red-300 font-bold uppercase">Remove Admin?</span>
-                                      <div className="flex gap-1 justify-center">
-                                        <button
-                                          type="button"
-                                          onClick={async () => {
-                                            const targetEmail = emailAddress.toLowerCase().trim();
-                                            const newAdminList = adminEmails.filter(e => (e.email || '').toLowerCase().trim() !== targetEmail);
-                                            await updateAdminEmails(newAdminList);
-                                            await deleteDoc(doc(db, 'admin_emails', targetEmail));
-                                            await deleteCloudDocument('admin_emails', targetEmail);
-                                            await deleteDoc(doc(db, 'admin_passwords', targetEmail));
-                                            await deleteDoc(doc(db, 'admin_totp_secrets', targetEmail));
-                                            alert(`‚úÖ "${emailAddress}" ‡¶è‡¶∞ ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶è‡¶ï‡ßç‡¶∏‡ßá‡¶∏ ‡¶∏‡ßç‡¶•‡¶æ‡ßü‡ßÄ‡¶≠‡¶æ‡¶¨‡ßá ‡¶¨‡¶æ‡¶§‡¶ø‡¶≤ ‡¶ì ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú ‡¶•‡ßá‡¶ï‡ßá ‡¶∞‡¶ø‡¶Æ‡ßÅ‡¶≠ ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§`);
-                                            setConfirmRemoveEmail(null);
-                                          }}
-                                          className="px-2 py-0.5 bg-red-500 hover:bg-red-450 text-white text-[8px] font-black rounded cursor-pointer transition-all"
-                                        >
-                                          Yes
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setConfirmRemoveEmail(null)}
-                                          className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-white text-[8px] font-black rounded cursor-pointer transition-all"
-                                        >
-                                          No
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setConfirmRemoveEmail(emailAddress);
-                                        setConfirm2FAResetEmail(null);
-                                      }}
-                                      className="flex-1 py-1 px-2 rounded-lg bg-red-950/30 hover:bg-red-900/40 border border-red-500/20 hover:border-red-500/40 text-red-400 hover:text-white text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center justify-center gap-1 min-h-[28px]"
-                                      title="Permanently remove admin ID from the directory"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                      Remove
-                                    </button>
-                                  )
-                                )
-                              )}
-                            </div>
-
-                            {/* Backup codes generation block - Allowed only for super admin on a super admin */}
-                            {loggedInAdminRole === 'super_admin' && userRole === 'super_admin' && (
-                              <button
-                                type="button"
-                                disabled={isGeneratingBackupCodes}
-                                onClick={async () => {
-                                  try {
-                                    setIsGeneratingBackupCodes(true);
-                                    const codes: string[] = [];
-                                    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-                                    for (let i = 0; i < 5; i++) {
-                                      let code = '';
-                                      for (let j = 0; j < 8; j++) {
-                                        code += chars.charAt(Math.floor(Math.random() * chars.length));
-                                      }
-                                      codes.push(code);
-                                    }
-
-                                    const trimmedEmail = emailAddress.trim().toLowerCase();
-                                    await setDoc(doc(db, 'admin_backup_codes', trimmedEmail), {
-                                      codes: codes,
-                                      generatedAt: new Date().toISOString()
-                                    });
-
-                                    setGeneratedBackupCodes(codes);
-                                    setViewingBackupCodesEmail(emailAddress);
-                                    alert(`‚úÖ "${emailAddress}" ‡¶è‡¶∞ ‡¶ú‡¶®‡ßç‡¶Ø ‡ß´‡¶ü‡¶ø ‡¶ì‡ßü‡¶æ‡¶®-‡¶ü‡¶æ‡¶á‡¶Æ ‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶ï‡ßã‡¶° ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶ú‡ßá‡¶®‡¶æ‡¶∞‡ßá‡¶ü ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá!`);
-                                  } catch (err: any) {
-                                    console.error('[Backup Codes Generation Error]', err);
-                                    alert('‚ùå ‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶ï‡ßã‡¶° ‡¶ú‡ßá‡¶®‡¶æ‡¶∞‡ßá‡¶ü ‡¶ï‡¶∞‡¶§‡ßá ‡¶∏‡¶Æ‡¶∏‡ßç‡¶Ø‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá: ' + err.message);
-                                  } finally {
-                                    setIsGeneratingBackupCodes(false);
-                                  }
-                                }}
-                                className="w-full py-1 px-2 rounded-lg bg-cyan-950/30 hover:bg-cyan-950/50 border border-cyan-500/20 hover:border-cyan-500/40 text-cyan-400 hover:text-white text-[9px] font-extrabold uppercase transition cursor-pointer flex items-center justify-center gap-1 min-h-[28px]"
-                                title="Generate 5 secure one-time backup codes for Super Admin"
-                              >
-                                üîë {isGeneratingBackupCodes ? 'Generating...' : 'Generate Backup Codes (‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶ï‡ßã‡¶° ‡¶§‡ßà‡¶∞‡¶ø ‡¶ï‡¶∞‡ßÅ‡¶®)'}
-                              </button>
-                            )}
-
-                            {/* Backup codes viewer inside the card */}
-                            {viewingBackupCodesEmail === emailAddress && generatedBackupCodes.length > 0 && (
-                              <div className="p-3 bg-cyan-950/20 border border-cyan-500/25 rounded-xl space-y-2.5 animate-fadeIn">
-                                <div className="flex items-center justify-between border-b border-cyan-500/10 pb-1.5">
-                                  <span className="text-[9px] font-black text-cyan-400 uppercase tracking-wider">
-                                    üîë Backup Codes (‡¶¨‡ßç‡¶Ø‡¶æ‡¶ï‡¶Ü‡¶™ ‡¶ï‡ßã‡¶°)
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setViewingBackupCodesEmail(null);
-                                      setGeneratedBackupCodes([]);
-                                    }}
-                                    className="text-[10px] text-slate-400 hover:text-white cursor-pointer font-bold"
-                                  >
-                                    ‚úï Close
-                                  </button>
-                                </div>
-                                <p className="text-[8.5px] text-slate-300 font-bold leading-normal">
-                                  ‡¶®‡¶ø‡¶ö‡ßá‡¶∞ ‡¶ï‡ßã‡¶°‡¶ó‡ßÅ‡¶≤‡ßã ‡¶Ö‡¶§‡ßç‡¶Ø‡¶®‡ßç‡¶§ ‡¶∏‡ßÅ‡¶∞‡¶ï‡ßç‡¶∑‡¶ø‡¶§ ‡¶∏‡ßç‡¶•‡¶æ‡¶®‡ßá ‡¶ï‡¶™‡¶ø ‡¶ï‡¶∞‡ßá ‡¶∏‡¶Ç‡¶∞‡¶ï‡ßç‡¶∑‡¶£ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§ ‡¶™‡ßç‡¶∞‡¶§‡¶ø‡¶ü‡¶ø ‡¶ï‡ßã‡¶° ‡¶Æ‡¶æ‡¶§‡ßç‡¶∞ ‡¶è‡¶ï‡¶¨‡¶æ‡¶∞ ‡¶¨‡ßç‡¶Ø‡¶¨‡¶π‡¶æ‡¶∞ ‡¶ï‡¶∞‡¶æ ‡¶Ø‡¶æ‡¶¨‡ßá‡•§ ‡¶™‡ßç‡¶Ø‡¶æ‡¶®‡ßá‡¶≤ ‡¶¨‡¶®‡ßç‡¶ß ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶™‡¶∞ ‡¶è‡¶ó‡ßÅ‡¶≤‡ßã ‡¶Ü‡¶∞ ‡¶¶‡ßá‡¶ñ‡¶æ ‡¶Ø‡¶æ‡¶¨‡ßá ‡¶®‡¶æ!
-                                </p>
-                                <div className="grid grid-cols-1 gap-1 font-mono text-center">
-                                  {generatedBackupCodes.map((code, idx) => (
-                                    <div key={code} className="flex items-center justify-between bg-black/40 px-2.5 py-1 rounded border border-white/[0.03] text-white font-bold text-[10px]">
-                                      <span>{idx + 1}. <strong className="text-cyan-400 tracking-wider font-mono">{code}</strong></span>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          navigator.clipboard.writeText(code);
-                                          alert('‚úÖ ‡¶ï‡ßã‡¶° ‡¶ï‡¶™‡¶ø ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá!');
-                                        }}
-                                        className="text-[8px] text-cyan-400 hover:underline cursor-pointer font-black"
-                                      >
-                                        Copy
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const textToCopy = generatedBackupCodes.join('\n');
-                                    navigator.clipboard.writeText(textToCopy);
-                                    alert('‚úÖ ‡¶∏‡¶¨ ‡¶ï‡ßã‡¶° ‡¶è‡¶ï‡¶∏‡¶æ‡¶•‡ßá ‡¶ï‡¶™‡¶ø ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá!');
-                                  }}
-                                  className="w-full py-1.5 rounded bg-cyan-500 hover:bg-cyan-400 text-black text-[9px] font-black uppercase transition cursor-pointer text-center"
-                                >
-                                  Copy All Codes
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Custom Passwords Editor Area to Override Default Password Codes */}
-              <div className="p-5 bg-[#11131a] rounded-2xl border border-white/[0.04] text-xs space-y-5 shadow-xl mt-6">
-                <div className="flex items-center gap-2 border-b border-white/[0.05] pb-3">
-                  <div className="w-7 h-7 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-400">
-                    <Lock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h5 className="text-[11px] font-black uppercase tracking-wider text-white font-display">
-                      Configure Administrator Sign-In Passwords
-                    </h5>
-                    <p className="text-[9px] text-slate-500 font-bold">‡¶è‡¶°‡¶Æ‡¶ø‡¶®‡¶¶‡ßá‡¶∞ ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ ‡¶∏‡¶æ‡¶á‡¶®-‡¶á‡¶® ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶™‡¶∞‡¶ø‡¶¨‡¶∞‡ßç‡¶§‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®</p>
-                  </div>
-                </div>
-
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    const form = e.currentTarget;
-                    const emailSelect = form.elements.namedItem('adminPassEmail') as HTMLSelectElement;
-                    const passInput = form.elements.namedItem('adminPassVal') as HTMLInputElement;
-                    const emailVal = emailSelect?.value?.trim()?.toLowerCase();
-                    const passVal = passInput?.value?.trim();
-
-                    if (!emailVal || !passVal) {
-                      alert('‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶∏‡¶†‡¶ø‡¶ï ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶á‡¶Æ‡ßá‡¶≤ ‡¶è‡¶¨‡¶Ç ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶™‡ßç‡¶∞‡¶¨‡ßá‡¶∂ ‡¶ï‡¶∞‡¶æ‡¶®‡•§');
-                      return;
-                    }
-
-                    if (passVal.length < 5) {
-                      alert('‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶°‡¶ü‡¶ø ‡¶Ö‡¶®‡ßç‡¶§‡¶§ ‡ß´ ‡¶Ö‡¶ï‡ßç‡¶∑‡¶∞‡ßá‡¶∞ ‡¶π‡¶§‡ßá ‡¶π‡¶¨‡ßá‡•§');
-                      return;
-                    }
-
-                    try {
-                      const passDocRef = doc(db, 'admin_passwords', emailVal);
-                      await setDoc(passDocRef, { password: passVal });
-                      alert(`‚úÖ ${emailVal} ‡¶è‡¶∞ ‡¶∏‡¶æ‡¶á‡¶®-‡¶á‡¶® ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶Ü‡¶™‡¶°‡ßá‡¶ü ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá!`);
-                      form.reset();
-                    } catch (err: any) {
-                      console.error(err);
-                      alert('‚ùå ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶Ü‡¶™‡¶°‡ßá‡¶ü ‡¶ï‡¶∞‡¶§‡ßá ‡¶§‡ßç‡¶∞‡ßÅ‡¶ü‡¶ø ‡¶π‡ßü‡ßá‡¶õ‡ßá‡•§ ‡¶Ö‡¶®‡ßÅ‡¶ó‡ßç‡¶∞‡¶π ‡¶ï‡¶∞‡ßá ‡¶Ü‡¶™‡¶®‡¶æ‡¶∞ ‡¶´‡¶æ‡ßü‡¶æ‡¶∞‡¶∏‡ßç‡¶ü‡ßã‡¶∞ ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú ‡¶ï‡¶æ‡¶®‡ßá‡¶ï‡¶∂‡¶® ‡¶ö‡ßá‡¶ï ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
-                    }
-                  }}
-                  className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end"
-                >
-                  <div className="space-y-1.5 text-left">
-                    <label className="text-[10px] uppercase font-black text-slate-400">Select Whitelisted Admin / ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶®‡¶ø‡¶∞‡ßç‡¶¨‡¶æ‡¶ö‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®</label>
-                    <select
-                      name="adminPassEmail"
-                      required
-                      className="w-full bg-[#050811] border border-slate-800 rounded-xl px-3 py-2.5 text-white font-semibold focus:outline-none focus:border-rose-500 h-[38px]"
-                    >
-                      <option value="">-- Select Admin Email --</option>
-                      {adminEmails.map(adminObj => (
-                        <option key={adminObj.email} value={adminObj.email.toLowerCase()}>
-                          {adminObj.email}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5 text-left">
-                    <label className="text-[10px] uppercase font-black text-slate-400">Set Custom Password / ‡¶®‡¶§‡ßÅ‡¶® ‡¶™‡¶æ‡¶∏‡¶ì‡ßü‡¶æ‡¶∞‡ßç‡¶° ‡¶≤‡¶ø‡¶ñ‡ßÅ‡¶®</label>
-                    <input
-                      name="adminPassVal"
-                      type="text"
-                      required
-                      placeholder="e.g. 16killer2@secure"
-                      className="w-full bg-[#050811] border border-slate-800 rounded-xl px-3 py-2 text-white font-semibold focus:outline-none focus:border-rose-500 font-mono h-[38px] text-[11px]"
-                    />
-                  </div>
-                  <div>
-                    <button
-                      type="submit"
-                      className="w-full h-[38px] bg-[#dbaa61] hover:bg-[#c99a51] text-black font-black uppercase text-[10px] tracking-wider rounded-xl transition hover:opacity-90 cursor-pointer shadow-md flex items-center justify-center gap-1.5"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      Update Password
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-            </div>
-          )}
-
-          {/* =======================================================
-              MODEL APPLICATIONS VERIFICATION (‡¶Æ‡¶°‡ßá‡¶≤ ‡¶Ø‡¶æ‡¶ö‡¶æ‡¶á‡¶ï‡¶∞‡¶£) TAB
-              ======================================================= */}
-          {activeTab === 'verification' && (
-            <div className="space-y-6 text-left font-semibold">
-              <div className="p-4.5 bg-[#14101e] border border-red-500/15 rounded-2xl text-xs space-y-2.5 leading-relaxed text-slate-300 animate-fadeIn">
-                <h4 className="text-xs font-black uppercase text-red-500 flex items-center gap-2">
-                  <UserCheck className="w-4.5 h-4.5 animate-pulse" />
-                  Model Applications Verification Suite (‡¶Æ‡¶°‡ßá‡¶≤ ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶Ø‡¶æ‡¶ö‡¶æ‡¶á‡¶ï‡¶∞‡¶£ ‡¶™‡ßç‡¶Ø‡¶æ‡¶®‡ßá‡¶≤)
-                </h4>
-                <p>
-                  Review professional candidate requests hoping to enlist onto the premium roster at bodyTOUCH. You may inspect applicant profiles, adjust and verify base or service specific rate configurations, assign official high-society badges (DEMO, REGULAR, PREMIUM, or ELITE), and instantly approve or decline their recruitment status.
-                </p>
-              </div>
-
-              {/* Stats overview boxes */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-[#11131a] border border-white/5 p-4 rounded-xl">
-                  <span className="text-[9px] text-slate-400 uppercase tracking-wider block font-bold font-sans">Total Applicants</span>
-                  <span className="text-xl font-black text-white mt-1 block font-mono">{pendingApplicantsList.length} Candidates</span>
-                </div>
-                <div className="bg-[#11131a] border border-white/5 p-4 rounded-xl">
-                  <span className="text-[9px] text-slate-400 uppercase tracking-wider block font-bold font-sans">Female Models</span>
-                  <span className="text-xl font-black text-rose-400 mt-1 block font-mono">{pendingApplicantsList.filter(c => (c.category || 'Female Model') === 'Female Model').length} Pending</span>
-                </div>
-                <div className="bg-[#11131a] border border-white/5 p-4 rounded-xl">
-                  <span className="text-[9px] text-slate-400 uppercase tracking-wider block font-bold font-sans">Male Models</span>
-                  <span className="text-xl font-black text-cyan-400 mt-1 block font-mono">{pendingApplicantsList.filter(c => c.category === 'Male Model').length} Pending</span>
-                </div>
-                <div className="bg-[#11131a] border border-white/5 p-4 rounded-xl">
-                  <span className="text-[9px] text-slate-400 uppercase tracking-wider block font-bold font-sans">Sperm Donors</span>
-                  <span className="text-xl font-black text-purple-400 mt-1 block font-mono">{pendingApplicantsList.filter(c => c.category === 'Sperm Donor').length} Pending</span>
-                </div>
-              </div>
-
-              {/* Filters Panel */}
-              <div className="p-4 bg-[#11131a] rounded-2xl border border-white/5 flex flex-col md:flex-row gap-4 items-center">
-                {/* Search field */}
-                <div className="w-full md:w-1/3 relative text-xs">
-                  <input
-                    type="text"
-                    value={verifySearch}
-                    onChange={(e) => setVerifySearch(e.target.value)}
-                    placeholder="Search applicant name, phone, or email..."
-                    className="w-full bg-black/40 border border-[#232733] rounded-xl pl-9 pr-4 py-2 text-white placeholder-slate-650 focus:outline-none focus:border-red-500 font-bold"
-                  />
-                  <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-                </div>
-
-                {/* Category filter */}
-                <div className="w-full md:w-1/4">
-                  <select
-                    value={verifyCategoryFilter}
-                    onChange={(e) => setVerifyCategoryFilter(e.target.value as any)}
-                    className="w-full bg-black/40 border border-[#232733] rounded-xl px-4 py-2 text-white focus:outline-none focus:border-red-500 font-bold select-none h-10 text-xs text-left"
-                  >
-                    <option value="ALL">All Categories / ‡¶∏‡¶ï‡¶≤ ‡¶ï‡ßç‡¶Ø‡¶æ‡¶ü‡¶æ‡¶ó‡¶∞‡¶ø</option>
-                    <option value="Female Model">Female Model / ‡¶®‡¶æ‡¶∞‡ßÄ ‡¶Æ‡¶°‡ßá‡¶≤</option>
-                    <option value="Male Model">Male Model / ‡¶™‡ßÅ‡¶∞‡ßÅ‡¶∑ ‡¶Æ‡¶°‡ßá‡¶≤</option>
-                    <option value="Sperm Donor">Sperm Donor / ‡¶∏‡ßç‡¶™‡¶æ‡¶∞‡ßç‡¶Æ ‡¶°‡ßã‡¶®‡¶æ‡¶∞</option>
-                  </select>
-                </div>
-
-                {/* Citites Filter */}
-                <div className="w-full md:w-1/4">
-                  <select
-                    value={verifyCityFilter}
-                    onChange={(e) => setVerifyCityFilter(e.target.value)}
-                    className="w-full bg-black/40 border border-[#232733] rounded-xl px-4 py-2 text-white focus:outline-none focus:border-red-500 font-bold select-none h-10 text-xs text-left"
-                  >
-                    <option value="ALL">All Cities / ‡¶∏‡¶ï‡¶≤ ‡¶∂‡¶π‡¶∞</option>
-                    {cities.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Reset button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVerifySearch('');
-                    setVerifyCategoryFilter('ALL');
-                    setVerifyCityFilter('ALL');
-                  }}
-                  className="w-full md:w-auto bg-slate-800 hover:bg-slate-755 text-white px-4 py-2.5 rounded-xl text-[10px] font-extrabold uppercase tracking-widest cursor-pointer transition whitespace-nowrap"
-                >
-                  Reset Filters
-                </button>
-              </div>
-
-              {/* Applicants list container */}
-              <div className="bg-[#11131a] rounded-2xl border border-white/5 p-4.5">
-                <h5 className="text-[10px] font-black uppercase tracking-widest text-[#5c75ab] border-b border-[#222938] pb-3 mb-4 flex items-center gap-1.5 font-mono text-left select-none">
-                  <UserCheck className="w-4 h-4 text-[#ef4444]" />
-                  AWAITING REVIEW CANDIDATES
-                </h5>
-
-                {(() => {
-                  const filtered = pendingApplicantsList.filter(comp => {
-                    const matchesSearch = !verifySearch || 
-                      comp.name.toLowerCase().includes(verifySearch.toLowerCase()) ||
-                      (comp.email || '').toLowerCase().includes(verifySearch.toLowerCase()) ||
-                      (comp.phone || '').toLowerCase().includes(verifySearch.toLowerCase());
-                    const matchesCategory = verifyCategoryFilter === 'ALL' || (comp.category || 'Female Model') === verifyCategoryFilter;
-                    const matchesCity = verifyCityFilter === 'ALL' || (comp.city || 'Dhaka') === verifyCityFilter;
-                    return matchesSearch && matchesCategory && matchesCity;
-                  });
-
-                  if (filtered.length === 0) {
-                    return (
-                      <div className="py-16 text-center text-[10px] text-slate-500 font-bold uppercase tracking-widest bg-black/20 border border-dashed border-slate-800/80 rounded-3xl select-none">
-                        üì¨ No pending model applications matching your filter specifications.
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {filtered.map(comp => {
-                        // Retrieve custom configurations state
-                        const config = verifyEditingConfig[comp.id] || {
-                          badge: comp.badge || 'REGULAR',
-                          rate: comp.rate || 8000,
-                          rateReal: comp.rateReal,
-                          rateReal_1h: comp.rateReal_1h,
-                          rateReal_2h: comp.rateReal_2h,
-                          rateReal_3h: comp.rateReal_3h,
-                          rateReal_fn: comp.rateReal_fn,
-                          rateCam: comp.rateCam,
-                          rateLiveTogether: comp.rateLiveTogether,
-                          customRealRates: comp.customRealRates && comp.customRealRates.length > 0
-                            ? comp.customRealRates
-                            : [{ id: 'init-real-1', duration: '1 Hour', rate: comp.rateReal_1h || comp.rate || 8000 }],
-                          customCamRates: comp.customCamRates && comp.customCamRates.length > 0
-                            ? comp.customCamRates
-                            : [{ id: 'init-cam-1', duration: '30 Mins', rate: comp.rateCam_30m || 3000 }],
-                          customLiveTogetherRates: comp.customLiveTogetherRates && comp.customLiveTogetherRates.length > 0
-                            ? comp.customLiveTogetherRates
-                            : [{ id: 'init-live-1', duration: '2 Days', rate: comp.rateLiveTogether_2d || 15000 }]
-                        };
-
-                        const handleFieldChange = (field: string, val: any) => {
-                          setVerifyEditingConfig(prev => ({
-                            ...prev,
-                            [comp.id]: {
-                              ...config,
-                              [field]: val
-                            }
-                          }));
-                        };
-
-                        const handleAcceptClick = () => {
-                          // Compile edits back to the model object in the database state
-                          const updated = companions.map(c => {
-                            if (c.id === comp.id) {
-                              return {
-                                ...c,
-                                badge: config.badge,
-                                rate: config.rate,
-                                rateReal: config.rateReal,
-                                rateReal_1h: config.rateReal_1h,
-                                rateReal_2h: config.rateReal_2h,
-                                rateReal_3h: config.rateReal_3h,
-                                rateReal_fn: config.rateReal_fn,
-                                rateCam: config.rateCam,
-                                rateLiveTogether: config.rateLiveTogether,
-                                customRealRates: config.customRealRates || [],
-                                customCamRates: config.customCamRates || [],
-                                customLiveTogetherRates: config.customLiveTogetherRates || [],
-                                pictures: getCompanionPictures(c.pictures || [], c.image)
-                              };
-                            }
-                            return c;
-                          });
-                          onUpdateCompanions(updated);
-                          // Trigger verification / emails
-                          if (onApproveCompanion) {
-                            onApproveCompanion(comp.id, {
-                              badge: config.badge,
-                              rate: config.rate,
-                              rateReal: config.rateReal,
-                              rateReal_1h: config.rateReal_1h,
-                              rateReal_2h: config.rateReal_2h,
-                              rateReal_3h: config.rateReal_3h,
-                              rateReal_fn: config.rateReal_fn,
-                              rateCam: config.rateCam,
-                              rateLiveTogether: config.rateLiveTogether,
-                              customRealRates: config.customRealRates || [],
-                              customCamRates: config.customCamRates || [],
-                              customLiveTogetherRates: config.customLiveTogetherRates || []
-                            });
-                          }
-                        };
-                        const configCustomRealRates = config.customRealRates || [];
-                        const configCustomCamRates = config.customCamRates || [];
-                        const configCustomLiveTogetherRates = config.customLiveTogetherRates || [];
-
-                        return (
-                          <div
-                            key={comp.id}
-                            className="bg-black/35 border border-red-500/10 hover:border-red-500/20 rounded-2xl p-5 flex flex-col justify-between space-y-4 transition text-slate-300"
-                          >
-                            <div className="space-y-4">
-                              {/* Applicant details */}
-                              <div className="flex gap-4 items-start pb-4 border-b border-white/5">
-                                <img
-                                  src={comp.image || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150"}
-                                  alt={comp.name}
-                                  className="w-14 h-14 rounded-xl object-cover border border-red-500/15"
-                                  referrerPolicy="no-referrer"
-                                />
-                                <div className="text-left space-y-1">
-                                  <h4 className="text-sm font-black text-white flex items-center gap-2">
-                                    {comp.name}
-                                    <span className="text-[9px] text-[#2ebdff] font-mono tracking-wider font-semibold">{comp.tag || '@partner'}</span>
-                                  </h4>
-                                  <div className="flex gap-2">
-                                    <span className="text-[8px] uppercase tracking-wider px-2 py-0.5 rounded bg-pink-950/40 text-pink-400 border border-pink-500/10 font-bold block">
-                                      {comp.category || 'Female Model'}
-                                    </span>
-                                    <span className="text-[8px] uppercase tracking-wider px-2 py-0.5 rounded bg-slate-900 border border-slate-805 text-slate-400 font-bold block">
-                                      {comp.city || 'Dhaka'}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Attributes Overview */}
-                              <div className="grid grid-cols-3 gap-2.5 text-[10px] text-slate-400 font-bold">
-                                <div className="bg-[#11131a] p-2 rounded-xl text-left">
-                                  <span className="text-slate-550 text-[8px] uppercase block font-mono">Age:</span>
-                                  <span className="text-white font-heavy">{comp.age} Years</span>
-                                </div>
-                                <div className="bg-[#11131a] p-2 rounded-xl text-left">
-                                  <span className="text-slate-550 text-[8px] uppercase block font-mono">Height:</span>
-                                  <span className="text-white font-heavy">{comp.height}</span>
-                                </div>
-                                <div className="bg-[#11131a] p-2 rounded-xl text-left">
-                                  <span className="text-slate-550 text-[8px] uppercase block font-mono">Complexion:</span>
-                                  <span className="text-white font-heavy">{comp.bodyColor || 'Fair Skin'}</span>
-                                </div>
-                              </div>
-
-                              {/* Measurements Overview */}
-                              <div className="grid grid-cols-4 gap-2 text-[10px] text-slate-400 font-bold">
-                                <div className="bg-[#11131a] p-2 rounded-xl text-left">
-                                  <span className="text-slate-550 text-[7.5px] uppercase block font-mono">Weight (‡¶ì‡¶ú‡¶®):</span>
-                                  <span className="text-white font-heavy text-[10.5px]">{comp.weight || 'N/A'}</span>
-                                </div>
-                                <div className="bg-[#11131a] p-2 rounded-xl text-left">
-                                  <span className="text-slate-550 text-[7.5px] uppercase block font-mono">Breast (‡¶∏‡ßç‡¶§‡¶®):</span>
-                                  <span className="text-white font-heavy text-[10.5px]">{comp.bust || 'N/A'}</span>
-                                </div>
-                                <div className="bg-[#11131a] p-2 rounded-xl text-left">
-                                  <span className="text-slate-550 text-[7.5px] uppercase block font-mono">Waist (‡¶ï‡ßã‡¶Æ‡¶∞):</span>
-                                  <span className="text-white font-heavy text-[10.5px]">{comp.waist || 'N/A'}</span>
-                                </div>
-                                <div className="bg-[#11131a] p-2 rounded-xl text-left">
-                                  <span className="text-slate-550 text-[7.5px] uppercase block font-mono">Hip (‡¶®‡¶ø‡¶§‡¶Æ‡ßç‡¶¨):</span>
-                                  <span className="text-white font-heavy text-[10.5px]">{comp.hip || 'N/A'}</span>
-                                </div>
-                              </div>
-
-                              {/* Biological description block */}
-                              <div className="bg-[#11131a] p-3 rounded-xl border border-white/5 space-y-1 text-xs text-left">
-                                <span className="text-slate-550 text-[8px] font-black uppercase tracking-wider block font-mono">Self Summary / Intro (‡¶¨‡¶æ‡ßü‡ßã‡¶°‡¶æ‡¶ü‡¶æ):</span>
-                                <p className="text-slate-300 italic font-medium leading-relaxed leading-tight text-[10.5px]">
-                                  "{comp.specialty || '‡¶ï‡ßç‡¶Ø‡¶æ‡¶∞‡¶ø‡¶Ø‡¶º‡¶æ‡¶∞ ‡¶π‡¶ø‡¶∏‡ßá‡¶¨‡ßá ‡¶™‡ßá‡¶∂‡¶æ‡¶¶‡¶æ‡¶∞ ‡¶∞‡¶Ø‡¶º‡ßç‡¶Ø‡¶æ‡¶≤ ‡¶ï‡ßç‡¶Ø‡¶æ‡¶ü‡¶æ‡¶ó‡¶∞‡¶ø ‡¶™‡ßã‡¶∞‡ßç‡¶ü‡¶æ‡¶≤‡ßá ‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶π‡¶ì‡¶Ø‡¶º‡¶æ‡¶∞ ‡¶ö‡¶Æ‡ßé‡¶ï‡¶æ‡¶∞ ‡¶Ö‡¶≠‡¶ø‡¶ú‡ßç‡¶û‡¶§‡¶æ ‡¶Ö‡¶∞‡ßç‡¶ú‡¶® ‡¶ï‡¶∞‡¶§‡ßá ‡¶á‡¶ö‡ßç‡¶õ‡ßÅ‡¶ï‡•§'}"
-                                </p>
-                              </div>
-
-                              {(comp.category || 'Female Model') !== 'Sperm Donor' && (
-                                <div className="bg-[#11131a] p-3.5 rounded-xl border border-white/5 space-y-2 text-xs text-left">
-                                  <span className="text-slate-550 text-[8.5px] font-black uppercase tracking-wider block font-mono text-[#dbaa61]">
-                                    SERVICES REQUESTED / OFFFERED:
-                                  </span>
-                                  <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className={comp.isRealActive !== false ? "text-emerald-400 font-mono" : "text-rose-500 font-mono"}>
-                                        {comp.isRealActive !== false ? "‚úî" : "‚ùå"}
-                                      </span>
-                                      <span className={comp.isRealActive !== false ? "text-slate-200" : "text-slate-500 line-through font-normal"}>
-                                        Real Service
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                      <span className={comp.isCamActive !== false ? "text-emerald-400 font-mono" : "text-rose-500 font-mono"}>
-                                        {comp.isCamActive !== false ? "‚úî" : "‚ùå"}
-                                      </span>
-                                      <span className={comp.isCamActive !== false ? "text-slate-200" : "text-slate-500 line-through font-normal"}>
-                                        Video / Cam
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                      <span className={comp.isMakeOutActive !== false ? "text-emerald-400 font-mono" : "text-rose-500 font-mono"}>
-                                        {comp.isMakeOutActive !== false ? "‚úî" : "‚ùå"}
-                                      </span>
-                                      <span className={comp.isMakeOutActive !== false ? "text-slate-200" : "text-slate-500 line-through font-normal"}>
-                                        Makeout
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                      <span className={comp.isTourActive !== false ? "text-emerald-400 font-mono" : "text-rose-500 font-mono"}>
-                                        {comp.isTourActive !== false ? "‚úî" : "‚ùå"}
-                                      </span>
-                                      <span className={comp.isTourActive !== false ? "text-slate-200" : "text-slate-500 line-through font-normal"}>
-                                        Tour Service
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 col-span-2">
-                                      <span className={comp.isLiveTogetherActive !== false ? "text-emerald-400 font-mono" : "text-rose-500 font-mono"}>
-                                        {comp.isLiveTogetherActive !== false ? "‚úî" : "‚ùå"}
-                                      </span>
-                                      <span className={comp.isLiveTogetherActive !== false ? "text-slate-200" : "text-slate-500 line-through font-normal"}>
-                                        Live Together
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Phone and Email */}
-                              <div className="grid grid-cols-2 gap-3 text-xs">
-                                <div className="bg-[#11131a] p-2.5 rounded-xl border border-slate-900 text-left">
-                                  <span className="text-slate-550 text-[8px] uppercase block font-mono">Mobile Number</span>
-                                  <span className="text-blue-400 font-mono font-bold font-black tracking-normal select-all">{comp.phone || '01XXXXXXXXX'}</span>
-                                </div>
-                                <div className="bg-[#11131a] p-2.5 rounded-xl border border-slate-900 text-left">
-                                  <span className="text-slate-550 text-[8px] uppercase block font-mono">Email Address</span>
-                                  <span className="text-[#2ebdff] font-mono font-bold tracking-tight select-all text-[11px] block truncate">{comp.email || 'N/A'}</span>
-                                </div>
-                              </div>
-                              {/* Model Portfolio Photos Gallery */}
-                              {(() => {
-                                const reviewPics = getCompanionPictures(comp.pictures || [], comp.image);
-                                return (
-                                  <div className="p-3 bg-blue-950/10 border border-blue-500/10 rounded-xl space-y-2 text-left">
-                                    <span className="text-[8.5px] font-black uppercase tracking-wider text-blue-400 block font-mono">
-                                      üì∏ Model Portfolio Gallery / ‡¶Æ‡¶°‡ßá‡¶≤ ‡¶ó‡ßç‡¶Ø‡¶æ‡¶≤‡¶æ‡¶∞‡¶ø ‡¶õ‡¶¨‡¶ø ({reviewPics.length} Photos)
-                                    </span>
-                                    <div className="grid grid-cols-4 gap-2">
-                                      {reviewPics.map((imgUrl, idx) => (
-                                        <div key={idx} className="bg-black/40 border border-blue-500/10 rounded-lg p-1 text-center flex flex-col justify-between items-center h-20 relative group">
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setZoomedImage(imgUrl);
-                                              setZoomScale(1);
-                                              setZoomRotation(0);
-                                            }}
-                                            className="block w-full h-full relative overflow-hidden rounded border border-blue-500/10 cursor-zoom-in active:scale-95 transition-all"
-                                          >
-                                            <img src={imgUrl} alt={`Portfolio ${idx + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                          </button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                );
-                              })()}
-
-                              {/* Model Identity Verification Documents */}
-                              {(comp.nidFront || comp.nidBack || comp.selfie) && (
-                                <div className="p-3 bg-red-950/10 border border-red-500/10 rounded-xl space-y-2 text-left">
-                                  <span className="text-[8.5px] font-black uppercase tracking-wider text-red-400 block font-mono">
-                                    üÜî Verification Documents (NID / Birth Certificate) / ‡¶Ü‡¶á‡¶°‡¶ø ‡¶ì ‡¶∏‡ßá‡¶≤‡¶´‡¶ø ‡¶≠‡ßá‡¶∞‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶®
-                                  </span>
-                                  <div className="grid grid-cols-3 gap-2">
-                                    {/* Selfie Verification */}
-                                    {comp.selfie ? (
-                                      <div className="bg-black/40 border border-[#2b1717] rounded-lg p-1.5 text-center flex flex-col justify-between items-center h-20">
-                                        <span className="text-[7.5px] text-slate-400 uppercase font-mono tracking-tight block truncate w-full">Selfie / ‡¶∏‡ßá‡¶≤‡¶´‡¶ø</span>
-                                        <button 
-                                          type="button"
-                                          onClick={() => {
-                                            setZoomedImage(comp.selfie);
-                                            setZoomScale(1);
-                                            setZoomRotation(0);
-                                          }}
-                                          className="block w-full h-11 relative overflow-hidden rounded border border-red-500/10 cursor-zoom-in active:scale-95 transition-all"
-                                        >
-                                          <img src={comp.selfie} alt="Selfie" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <div className="bg-black/20 border border-slate-900 rounded-lg p-1.5 h-20 flex items-center justify-center text-[7.5px] text-slate-550 uppercase">
-                                        No Selfie
-                                      </div>
-                                    )}
-
-                                    {/* NID Front / Birth Certificate */}
-                                    {comp.nidFront ? (
-                                      <div className="bg-black/40 border border-[#2b1717] rounded-lg p-1.5 text-center flex flex-col justify-between items-center h-20">
-                                        <span className="text-[7.5px] text-slate-400 uppercase font-mono tracking-tight block truncate w-full">Front / ‡¶ú‡¶®‡ßç‡¶Æ‡¶®‡¶ø‡¶¨‡¶®‡ßç‡¶ß‡¶®</span>
-                                        <button 
-                                          type="button"
-                                          onClick={() => {
-                                            setZoomedImage(comp.nidFront);
-                                            setZoomScale(1);
-                                            setZoomRotation(0);
-                                          }}
-                                          className="block w-full h-11 relative overflow-hidden rounded border border-red-500/10 cursor-zoom-in active:scale-95 transition-all"
-                                        >
-                                          <img src={comp.nidFront} alt="NID Front / Birth Certificate" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <div className="bg-black/20 border border-slate-900 rounded-lg p-1.5 h-20 flex items-center justify-center text-[7.5px] text-slate-550 uppercase">
-                                        No Doc Front
-                                      </div>
-                                    )}
-
-                                    {/* NID Back */}
-                                    {comp.nidBack ? (
-                                      <div className="bg-black/40 border border-[#2b1717] rounded-lg p-1.5 text-center flex flex-col justify-between items-center h-20">
-                                        <span className="text-[7.5px] text-slate-400 uppercase font-mono tracking-tight block truncate w-full">Back / ‡¶™‡ßá‡¶õ‡¶®‡ßá‡¶∞ ‡¶Ö‡¶Ç‡¶∂</span>
-                                        <button 
-                                          type="button"
-                                          onClick={() => {
-                                            setZoomedImage(comp.nidBack);
-                                            setZoomScale(1);
-                                            setZoomRotation(0);
-                                          }}
-                                          className="block w-full h-11 relative overflow-hidden rounded border border-red-500/10 cursor-zoom-in active:scale-95 transition-all"
-                                        >
-                                          <img src={comp.nidBack} alt="NID Back" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <div className="bg-black/20 border border-slate-900 rounded-lg p-1.5 h-20 flex items-center justify-center text-[7.5px] text-slate-550 uppercase">
-                                        No Doc Back
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Agent Recruitment Payment Info */}
-                              {(comp.paymentTrx || comp.paymentMethod) && (
-                                <div className="p-3 bg-emerald-950/20 border border-emerald-500/20 rounded-xl space-y-2 text-left">
-                                  <span className="text-[8.5px] font-black uppercase tracking-wider text-emerald-400 block font-mono">
-                                    üí∞ Recruitment Payment / ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶´‡¶ø ‡¶¨‡¶ø‡¶¨‡¶∞‡¶£‡ßÄ
-                                  </span>
-                                  <div className="grid grid-cols-2 gap-2 text-[10.5px] text-slate-300">
-                                    <div className="bg-black/30 p-1.5 rounded border border-emerald-950/40">
-                                      <span className="text-[7.5px] text-slate-500 block uppercase">Gateway</span>
-                                      <strong className="text-emerald-400 font-mono">{comp.paymentMethod || 'MFS'}</strong>
-                                    </div>
-                                    <div className="bg-black/30 p-1.5 rounded border border-emerald-950/40">
-                                      <span className="text-[7.5px] text-slate-500 block uppercase">Transaction ID</span>
-                                      <strong className="text-white font-mono uppercase">{comp.paymentTrx || 'N/A'}</strong>
-                                    </div>
-                                    <div className="bg-black/30 p-1.5 rounded border border-emerald-950/40 col-span-2 sm:col-span-1">
-                                      <span className="text-[7.5px] text-slate-500 block uppercase">Sender Number</span>
-                                      <strong className="text-slate-200 font-mono">{comp.paymentSender || 'N/A'}</strong>
-                                    </div>
-                                    <div className="bg-black/30 p-1.5 rounded border border-emerald-950/40 col-span-2 sm:col-span-1">
-                                      <span className="text-[7.5px] text-slate-500 block uppercase">Amount Paid</span>
-                                      <strong className="text-[#dbaa61] font-mono">‡ß≥{(comp.paymentAmount || 3000).toLocaleString()}</strong>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Administration verification inputs */}
-                              <div className="p-4.5 bg-black/40 rounded-xl border border-dashed border-red-500/10 space-y-3.5 text-left">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-[#ef4444] border-b border-[#222938] pb-1.5 block">
-                                  ADMIN APPROVAL SETTINGS (‡¶Ö‡¶®‡ßÅ‡¶Æ‡ßá‡¶æ‡¶¶‡¶® ‡¶ï‡¶®‡¶´‡¶ø‡¶ó‡¶æ‡¶∞‡ßá‡¶∂‡¶®)
-                                </span>
-
-                                <div className="grid grid-cols-1 gap-3.5 text-left">
-                                  {/* Verification Tier badge selection */}
-                                  <div className="space-y-1">
-                                    <label className="block text-[8.5px] text-slate-400 uppercase tracking-widest font-bold">Assign Society Rank (‡¶≤‡ßá‡¶≠‡ßá‡¶≤)</label>
-                                    <select
-                                      value={config.badge}
-                                      onChange={(e) => handleFieldChange('badge', e.target.value as any)}
-                                      className="w-full bg-black border border-[#232733] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-red-500 font-bold select-none text-xs h-9"
-                                    >
-                                      <option value="REGULAR">Regular Member (‡¶∞‡ßá‡¶ó‡ßÅ‡¶≤‡¶æ‡¶∞ ‡¶ï‡ßç‡¶Ø‡¶æ‡¶ü‡¶æ‡¶ó‡¶∞‡¶ø)</option>
-                                      <option value="PREMIUM">Premium Member (‡¶™‡ßç‡¶∞‡¶ø‡¶Æ‡¶ø‡ßü‡¶æ‡¶Æ ‡¶ï‡ßç‡¶Ø‡¶æ‡¶ü‡¶æ‡¶ó‡¶∞‡¶ø)</option>
-                                      <option value="ELITE">Elite Society (‡¶è‡¶≤‡¶ø‡¶ü ‡¶ï‡ßç‡¶Ø‡¶æ‡¶ü‡¶æ‡¶ó‡¶∞‡¶ø)</option>
-                                      <option value="DEMO">Demo Class (‡¶°‡¶ø‡¶Æ‡ßã ‡¶ï‡ßç‡¶Ø‡¶æ‡¶ü‡¶æ‡¶ó‡¶∞‡¶ø)</option>
-                                    </select>
-                                  </div>
-                                </div>
-
-                                {/* Row 1: Real Meet Custom Rates */}
-                                <div className="p-3 bg-red-950/5 border border-red-500/10 rounded-xl space-y-2">
-                                  <span className="text-[8.5px] font-black uppercase tracking-wider text-red-400 block font-mono">
-                                    üìç Real Meet Rates / ‡¶∏‡¶∞‡¶æ‡¶∏‡¶∞‡¶ø ‡¶∏‡¶æ‡¶ï‡ßç‡¶∑‡¶æ‡ßé ‡¶∞‡ßá‡¶ü (‡¶ò‡¶£‡ßç‡¶ü‡¶æ ‡¶Ö‡¶®‡ßÅ‡¶Ø‡¶æ‡ßü‡ßÄ)
-                                  </span>
-                                  <div className="space-y-2">
-                                    {configCustomRealRates.map((slot, idx) => (
-                                      <div key={slot.id || idx} className="flex gap-2 items-center bg-black/40 border border-[#232733] rounded-lg p-1.5">
-                                        <input
-                                          type="text"
-                                          value={slot.duration}
-                                          onChange={(e) => {
-                                            const newList = [...configCustomRealRates];
-                                            newList[idx] = { ...newList[idx], duration: e.target.value };
-                                            handleFieldChange('customRealRates', newList);
-                                          }}
-                                          placeholder="e.g. 1 Hour"
-                                          className="flex-1 bg-black border border-slate-900 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
-                                        />
-                                        <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-900">
-                                          <span className="text-slate-500 text-[10px]">‡ß≥</span>
-                                          <input
-                                            type="number"
-                                            value={slot.rate || ''}
-                                            onChange={(e) => {
-                                              const newList = [...configCustomRealRates];
-                                              newList[idx] = { ...newList[idx], rate: Number(e.target.value) };
-                                              handleFieldChange('customRealRates', newList);
-                                            }}
-                                            placeholder="0"
-                                            className="w-28 bg-black border border-slate-900 rounded px-2 py-0.5 text-xs text-emerald-450 font-mono font-bold focus:outline-none text-right"
-                                          />
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const newList = configCustomRealRates.filter((_, i) => i !== idx);
-                                            handleFieldChange('customRealRates', newList);
-                                          }}
-                                          className="text-red-500 hover:text-red-400 px-1.5 text-sm transition active:scale-90"
-                                        >
-                                          ‚úï
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      handleFieldChange('customRealRates', [...configCustomRealRates, { id: Math.random().toString(), duration: '', rate: 0 }]);
-                                    }}
-                                    className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-red-500/30 text-slate-400 hover:text-white text-[8.5px] font-black uppercase tracking-wider py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer font-bold"
-                                  >
-                                    ‚ûï Add Real Meet Option (+ ‡¶®‡¶§‡ßÅ‡¶® ‡¶∞‡ßá‡¶ü ‡¶Ø‡ßã‡¶ó ‡¶ï‡¶∞‡ßÅ‡¶®)
-                                  </button>
-                                </div>
-
-                                {/* Row 2: Video Cam Custom Rates */}
-                                <div className="p-3 bg-cyan-950/5 border border-cyan-500/10 rounded-xl space-y-2">
-                                  <span className="text-[8.5px] font-black uppercase tracking-wider text-cyan-400 block font-mono">
-                                    üé• Video Cam Rates / ‡¶≠‡¶ø‡¶°‡¶ø‡¶ì ‡¶ï‡¶≤ ‡¶∞‡ßá‡¶ü
-                                  </span>
-                                  <div className="space-y-2">
-                                    {configCustomCamRates.map((slot, idx) => (
-                                      <div key={slot.id || idx} className="flex gap-2 items-center bg-black/40 border border-[#232733] rounded-lg p-1.5">
-                                        <input
-                                          type="text"
-                                          value={slot.duration}
-                                          onChange={(e) => {
-                                            const newList = [...configCustomCamRates];
-                                            newList[idx] = { ...newList[idx], duration: e.target.value };
-                                            handleFieldChange('customCamRates', newList);
-                                          }}
-                                          placeholder="e.g. 30 Mins"
-                                          className="flex-1 bg-black border border-slate-900 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
-                                        />
-                                        <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-900">
-                                          <span className="text-slate-500 text-[10px]">‡ß≥</span>
-                                          <input
-                                            type="number"
-                                            value={slot.rate || ''}
-                                            onChange={(e) => {
-                                              const newList = [...configCustomCamRates];
-                                              newList[idx] = { ...newList[idx], rate: Number(e.target.value) };
-                                              handleFieldChange('customCamRates', newList);
-                                            }}
-                                            placeholder="0"
-                                            className="w-28 bg-black border border-slate-900 rounded px-2 py-0.5 text-xs text-emerald-450 font-mono font-bold focus:outline-none text-right"
-                                          />
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const newList = configCustomCamRates.filter((_, i) => i !== idx);
-                                            handleFieldChange('customCamRates', newList);
-                                          }}
-                                          className="text-red-500 hover:text-red-400 px-1.5 text-sm transition active:scale-90"
-                                        >
-                                          ‚úï
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      handleFieldChange('customCamRates', [...configCustomCamRates, { id: Math.random().toString(), duration: '', rate: 0 }]);
-                                    }}
-                                    className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-cyan-500/30 text-slate-400 hover:text-white text-[8.5px] font-black uppercase tracking-wider py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer font-bold"
-                                  >
-                                    ‚ûï Add Video Cam Option (+ ‡¶®‡¶§‡ßÅ‡¶® ‡¶∞‡ßá‡¶ü ‡¶Ø‡ßã‡¶ó ‡¶ï‡¶∞‡ßÅ‡¶®)
-                                  </button>
-                                </div>
-
-                                {/* Row 3: Live Together Custom Rates */}
-                                <div className="p-3 bg-purple-950/5 border border-purple-500/10 rounded-xl space-y-2">
-                                  <span className="text-[8.5px] font-black uppercase tracking-wider text-purple-400 block font-mono">
-                                    üè† Live Together Rates / ‡¶≤‡¶æ‡¶á‡¶≠ ‡¶ü‡ßÅ‡¶ó‡ßá‡¶¶‡¶æ‡¶∞ ‡¶∞‡ßá‡¶ü
-                                  </span>
-                                  <div className="space-y-2">
-                                    {configCustomLiveTogetherRates.map((slot, idx) => (
-                                      <div key={slot.id || idx} className="flex gap-2 items-center bg-black/40 border border-[#232733] rounded-lg p-1.5">
-                                        <input
-                                          type="text"
-                                          value={slot.duration}
-                                          onChange={(e) => {
-                                            const newList = [...configCustomLiveTogetherRates];
-                                            newList[idx] = { ...newList[idx], duration: e.target.value };
-                                            handleFieldChange('customLiveTogetherRates', newList);
-                                          }}
-                                          placeholder="e.g. 2 Days"
-                                          className="flex-1 bg-black border border-slate-900 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none"
-                                        />
-                                        <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded border border-slate-900">
-                                          <span className="text-slate-500 text-[10px]">‡ß≥</span>
-                                          <input
-                                            type="number"
-                                            value={slot.rate || ''}
-                                            onChange={(e) => {
-                                              const newList = [...configCustomLiveTogetherRates];
-                                              newList[idx] = { ...newList[idx], rate: Number(e.target.value) };
-                                              handleFieldChange('customLiveTogetherRates', newList);
-                                            }}
-                                            placeholder="0"
-                                            className="w-28 bg-black border border-slate-900 rounded px-2 py-0.5 text-xs text-emerald-450 font-mono font-bold focus:outline-none text-right"
-                                          />
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const newList = configCustomLiveTogetherRates.filter((_, i) => i !== idx);
-                                            handleFieldChange('customLiveTogetherRates', newList);
-                                          }}
-                                          className="text-red-500 hover:text-red-400 px-1.5 text-sm transition active:scale-90"
-                                        >
-                                          ‚úï
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      handleFieldChange('customLiveTogetherRates', [...configCustomLiveTogetherRates, { id: Math.random().toString(), duration: '', rate: 0 }]);
-                                    }}
-                                    className="w-full bg-[#11131a] hover:bg-black border border-slate-800 hover:border-purple-500/30 text-slate-400 hover:text-white text-[8.5px] font-black uppercase tracking-wider py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer font-bold"
-                                  >
-                                    ‚ûï Add Live Together Option (+ ‡¶®‡¶§‡ßÅ‡¶® ‡¶∞‡ßá‡¶ü ‡¶Ø‡ßã‡¶ó ‡¶ï‡¶∞‡ßÅ‡¶®)
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Verification action buttons */}
-                            <div className="flex gap-3 border-t border-white/5 pt-4">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (onDeclineCompanion) {
-                                    onDeclineCompanion(comp.id);
-                                  }
-                                }}
-                                className="flex-1 bg-red-955/20 hover:bg-red-950/40 border border-red-500/20 text-red-500 hover:text-red-350 text-[10px] font-black uppercase tracking-wider py-3 rounded-xl transition cursor-pointer"
-                              >
-                                Decline Candidate (‡¶¨‡¶æ‡¶§‡¶ø‡¶≤ ‡¶ï‡¶∞‡ßÅ‡¶®)
-                              </button>
-                              <button
-                                type="button"
-                                onClick={handleAcceptClick}
-                                className="flex-1 bg-gradient-to-tr from-[#113824] to-[#125832] hover:opacity-95 border border-emerald-500/30 text-emerald-400 hover:text-white text-[10px] font-black uppercase tracking-wider py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md shadow-emerald-950/30 font-bold"
-                              >
-                                <CheckCircle className="w-3.5 h-3.5" />
-                                Verify & Deploy (‡¶Ö‡¶®‡ßÅ‡¶Æ‡ßã‡¶¶‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®)
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
-
-          {/* =======================================================
-              REGISTRATION SHORT LINKS DIRECTORY TAB
-              ======================================================= */}
-          {activeTab === 'shortlinks' && (
-            <div className="space-y-6 text-left font-semibold">
-              <div className="p-4.5 bg-[#14101e] border border-[#dbaa61]/35 rounded-2xl text-xs space-y-2.5 leading-relaxed text-slate-300 animate-fadeIn shadow-[0_0_20px_rgba(219,170,97,0.05)]">
-                <h4 className="text-xs font-black uppercase text-[#dbaa61] flex items-center gap-2">
-                  <Link2 className="w-4.5 h-4.5 text-[#dbaa61]" />
-                  Registration Route Manager (‡¶®‡¶ø‡¶¨‡¶®‡ßç‡¶ß‡¶ï‡¶∞‡¶£ ‡¶∂‡¶∞‡ßç‡¶ü ‡¶≤‡¶ø‡¶Ç‡¶ï ‡¶°‡¶ø‡¶∞‡ßá‡¶ï‡ßç‡¶ü‡¶∞‡¶ø)
-                </h4>
-                <p className="text-slate-300 font-semibold font-sans">
-                  ‡¶®‡¶ø‡¶ö‡ßá‡¶∞ ‡¶≤‡¶ø‡¶Ç‡¶ï‡¶ó‡ßÅ‡¶≤‡ßã ‡¶∏‡¶∞‡¶æ‡¶∏‡¶∞‡¶ø ‡¶¨‡ßç‡¶Ø‡¶¨‡¶π‡¶æ‡¶∞‡¶ï‡¶æ‡¶∞‡ßÄ ‡¶¨‡¶æ ‡¶Æ‡¶°‡ßá‡¶≤ ‡¶™‡ßç‡¶∞‡¶æ‡¶∞‡ßç‡¶•‡ßÄ‡¶¶‡ßá‡¶∞ ‡¶∏‡¶æ‡¶•‡ßá ‡¶∂‡ßá‡ßü‡¶æ‡¶∞ ‡¶ï‡¶∞‡¶æ ‡¶Ø‡¶æ‡¶¨‡ßá‡•§ ‡¶ï‡ßç‡¶≤‡¶ø‡¶ï ‡¶ï‡¶∞‡¶æ‡¶∞ ‡¶∏‡¶æ‡¶•‡ßá ‡¶∏‡¶æ‡¶•‡ßá ‡¶∏‡¶Ç‡¶∂‡ßç‡¶≤‡¶ø‡¶∑‡ßç‡¶ü ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶´‡¶∞‡¶Æ‡ßá‡¶∞ ‡¶Æ‡¶°‡¶æ‡¶≤ ‡¶â‡¶á‡¶®‡ßç‡¶°‡ßã‡¶ü‡¶ø ‡¶¨‡ßç‡¶∞‡¶æ‡¶â‡¶ú‡¶æ‡¶∞‡ßá ‡¶∏‡ßç‡¶¨‡ßü‡¶Ç‡¶ï‡ßç‡¶∞‡¶ø‡ßü‡¶≠‡¶æ‡¶¨‡ßá ‡¶ì‡¶™‡ßá‡¶® ‡¶π‡ßü‡ßá ‡¶Ø‡¶æ‡¶¨‡ßá‡•§ ‡¶™‡ßç‡¶∞‡¶æ‡¶∞‡ßç‡¶•‡ßÄ‡¶¶‡ßá‡¶∞ ‡¶Ø‡ßã‡¶ó‡ßç‡¶Ø‡¶§‡¶æ ‡¶Ö‡¶®‡ßÅ‡¶Ø‡¶æ‡ßü‡ßÄ ‡¶∏‡¶†‡¶ø‡¶ï ‡¶≤‡¶ø‡¶Ç‡¶ï ‡¶ï‡¶™‡¶ø ‡¶ï‡¶∞‡ßá ‡¶¶‡¶ø‡¶®‡•§
-                </p>
-              </div>
-
-              {/* Dynamic System Pricing Customizer */}
-              <div className="bg-[#0b0c15] border-2 border-[#ac843c]/40 rounded-2xl p-6 space-y-5 shadow-lg relative overflow-hidden font-sans">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[#ac843c]/5 rounded-full blur-2xl pointer-events-none" />
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-800">
-                  <div>
-                    <h3 className="text-sm font-black text-[#dbaa61] uppercase tracking-wider flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 text-[#dbaa61]" />
-                      Dynamic System Pricing & Fees Config (‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶ø‡¶∏ ‡¶ì ‡¶´‡¶ø ‡¶ï‡¶®‡¶´‡¶ø‡¶ó‡¶æ‡¶∞‡ßá‡¶∂‡¶®)
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-1">
-                      ‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶ø‡¶∏‡ßá‡¶∞ ‡¶Æ‡ßá‡¶Æ‡ßç‡¶¨‡¶æ‡¶∞‡¶∂‡¶ø‡¶™ ‡¶™‡ßç‡¶≤‡ßç‡¶Ø‡¶æ‡¶® ‡¶™‡ßá‡¶Æ‡ßá‡¶®‡ßç‡¶ü ‡¶è‡¶¨‡¶Ç ‡¶Æ‡¶°‡ßá‡¶≤ ‡¶§‡¶æ‡¶≤‡¶ø‡¶ï‡¶æ‡¶≠‡ßÅ‡¶ï‡ßç‡¶§‡¶ø ‡¶´‡¶ø ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶™‡ßç‡¶Ø‡¶æ‡¶®‡ßá‡¶≤ ‡¶•‡ßá‡¶ï‡ßá ‡¶™‡¶∞‡¶ø‡¶¨‡¶∞‡ßç‡¶§‡¶® ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
-                    </p>
-                  </div>
-                  <span className="text-[10px] uppercase font-mono font-black text-rose-450 border border-rose-500/10 px-2.5 py-1.5 rounded-full bg-rose-500/5">
-                    ‚óè ACTIVE PRICING ENGINE
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* Fee 1 - Female */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-black uppercase text-pink-400 font-mono tracking-wider">
-                      Female Reg Fee (‡¶Æ‡¶π‡¶ø‡¶≤‡¶æ ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶´‡¶ø) (‡ß≥):
-                    </label>
-                    <input
-                      type="number"
-                      value={localRegFee}
-                      onChange={(e) => setLocalRegFee(parseInt(e.target.value) || 0)}
-                      className="w-full bg-zinc-950/80 border border-slate-800 focus:border-pink-500 rounded-xl px-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
-                    />
-                  </div>
-                  {/* Fee 1b - Male */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-black uppercase text-blue-400 font-mono tracking-wider">
-                      Male Reg Fee (‡¶™‡ßÅ‡¶∞‡ßÅ‡¶∑ ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶´‡¶ø) (‡ß≥):
-                    </label>
-                    <input
-                      type="number"
-                      value={localRegFeeMale}
-                      onChange={(e) => setLocalRegFeeMale(parseInt(e.target.value) || 0)}
-                      className="w-full bg-zinc-950/80 border border-slate-800 focus:border-blue-500 rounded-xl px-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
-                    />
-                  </div>
-                  {/* Fee 1c - Sperm Donor */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-black uppercase text-amber-500 font-mono tracking-wider">
-                      Sperm Donor Reg Fee (‡¶∏‡ßç‡¶™‡¶æ‡¶∞‡ßç‡¶Æ ‡¶°‡ßã‡¶®‡¶æ‡¶∞ ‡¶´‡¶ø) (‡ß≥):
-                    </label>
-                    <input
-                      type="number"
-                      value={localRegFeeSperm}
-                      onChange={(e) => setLocalRegFeeSperm(parseInt(e.target.value) || 0)}
-                      className="w-full bg-zinc-950/80 border border-slate-800 focus:border-amber-500 rounded-xl px-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
-                    />
-                  </div>
-                  {/* Fee 2 */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-black uppercase text-slate-300 font-mono tracking-wider">
-                      Regular Plan Membership (‡ß≥):
-                    </label>
-                    <input
-                      type="number"
-                      value={localRegularFee}
-                      onChange={(e) => setLocalRegularFee(parseInt(e.target.value) || 0)}
-                      className="w-full bg-zinc-950/80 border border-slate-800 focus:border-[#dbaa61] rounded-xl px-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
-                    />
-                  </div>
-                  {/* Fee 3 */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-black uppercase text-slate-300 font-mono tracking-wider">
-                      Premium Plan Membership (‡ß≥):
-                    </label>
-                    <input
-                      type="number"
-                      value={localPremiumFee}
-                      onChange={(e) => setLocalPremiumFee(parseInt(e.target.value) || 0)}
-                      className="w-full bg-zinc-950/80 border border-slate-800 focus:border-[#dbaa61] rounded-xl px-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
-                    />
-                  </div>
-                  {/* Fee 4 */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-black uppercase text-slate-300 font-mono tracking-wider">
-                      Elite Plan Membership (‡ß≥):
-                    </label>
-                    <input
-                      type="number"
-                      value={localEliteFee}
-                      onChange={(e) => setLocalEliteFee(parseInt(e.target.value) || 0)}
-                      className="w-full bg-zinc-950/80 border border-slate-800 focus:border-[#dbaa61] rounded-xl px-3.5 py-2 text-xs text-white font-mono font-bold focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {pricingSuccess && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-400 font-bold flex items-center gap-2"
-                  >
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span>‡¶™‡¶¶‡ßç‡¶ß‡¶§‡¶ø‡¶ó‡¶§ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶Æ‡¶æ‡¶â‡¶®‡ßç‡¶ü ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ‡¶™‡¶∞‡¶ø‡¶¨‡¶∞‡ßç‡¶§‡¶® ‡¶ï‡¶∞‡¶æ ‡¶π‡ßü‡ßá‡¶õ‡ßá ‡¶è‡¶¨‡¶Ç ‡¶Æ‡ßá‡¶Æ‡ßç‡¶¨‡¶æ‡¶∞‡¶∂‡¶ø‡¶™ ‡¶∏‡ßç‡¶ï‡ßç‡¶∞‡¶ø‡¶®‡ßá ‡¶™‡ßç‡¶∞‡¶¶‡¶∞‡ßç‡¶∂‡¶ø‡¶§ ‡¶π‡¶ö‡ßç‡¶õ‡ßá!</span>
-                  </motion.div>
-                )}
-
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onUpdatePricingConfig) {
-                        onUpdatePricingConfig({
-                          registrationFee: localRegFee,
-                          registrationFeeMale: localRegFeeMale,
-                          registrationFeeSperm: localRegFeeSperm,
-                          regularPlanFee: localRegularFee,
-                          premiumPlanFee: localPremiumFee,
-                          elitePlanFee: localEliteFee,
-                        });
-                        setPricingSuccess(true);
-                        setTimeout(() => setPricingSuccess(false), 3000);
-                      }
-                    }}
-                    className="px-5 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-[#04d98c] text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Save className="w-4 h-4" />
-                    Save Pricing Config
-                  </button>
-                </div>
-              </div>
-
-              {/* Grid with 3 registration modes */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                
-                {/* 1. Female Model */}
-                <div className="bg-[#0f111a] border border-[#1b1f32] hover:border-slate-700 rounded-2xl p-6 flex flex-col justify-between space-y-5 transition-all duration-300 shadow-md">
-                  <div className="space-y-3.5">
-                    <div className="flex justify-between items-start">
-                      <span className="text-[10px] bg-rose-500/10 text-rose-400 font-mono font-bold px-2.5 py-1 rounded-md border border-rose-500/10 uppercase tracking-widest">
-                        Female Model
-                      </span>
-                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse mt-1.5" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-black text-white font-display">Female Model Registry</h3>
-                      <p className="text-xs text-slate-400 font-semibold mt-1">‡¶´‡¶ø‡¶Æ‡ßá‡¶≤ ‡¶Æ‡¶°‡ßá‡¶≤ ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶™‡ßã‡¶∞‡ßç‡¶ü‡¶æ‡¶≤</p>
-                    </div>
-                    
-                    {/* Visitor stats counter */}
-                    <div className="grid grid-cols-2 gap-2 mt-2 bg-black/30 border border-slate-800/60 p-2 rounded-xl text-center">
-                      <div>
-                        <span className="block text-[10px] text-slate-400 font-mono uppercase font-black">Clicks</span>
-                        <span className="text-sm font-black text-cyan-400 font-mono">
-                          {((shortLinkStats['join-female-1']?.clicks || 0) + (shortLinkStats['join-female-2']?.clicks || 0)).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="border-l border-slate-800">
-                        <span className="block text-[10px] text-slate-400 font-mono uppercase font-black font-sans">Joins</span>
-                        <span className="text-sm font-black text-emerald-400 font-mono">
-                          {((shortLinkStats['join-female-1']?.joins || 0) + (shortLinkStats['join-female-2']?.joins || 0)).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-slate-400 leading-normal font-sans border-t border-white/5 pt-3">
-                      ‡¶¨‡¶ø‡¶≤‡¶æ‡¶∏‡¶¨‡¶π‡ßÅ‡¶≤ ‡¶∏‡¶æ‡¶∞‡ßç‡¶≠‡¶ø‡¶∏‡ßá‡¶∞ ‡¶ú‡¶®‡ßç‡¶Ø ‡¶´‡¶ø‡¶Æ‡ßá‡¶≤ ‡¶ï‡ßç‡¶Ø‡¶æ‡¶®‡ßç‡¶°‡¶ø‡¶°‡ßá‡¶ü‡¶¶‡ßá‡¶∞ ‡¶ï‡¶æ‡¶õ‡ßá ‡¶è‡¶á ‡¶≤‡¶ø‡¶Ç‡¶ï ‡¶∂‡ßá‡ßü‡¶æ‡¶∞ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
-                    </p>
-                  </div>
-
-                  <div className="space-y-3 pt-2">
-                    {/* Link 1: /#join */}
-                    <div className="space-y-1.5">
-                      <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400 font-mono">Short Link 1:</span>
-                      <div className="flex items-center gap-2 bg-black/40 border border-slate-800 p-2.5 rounded-xl text-xs font-mono">
-                        <span className="text-[#00e5ff] font-bold select-all truncate flex-1">{window.location.origin}/#join</span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleCopyToClipboard(`${window.location.origin}/#join`, 'join-female-1')}
-                            className="text-slate-400 hover:text-white transition p-1"
-                            title="Copy To Clipboard"
-                          >
-                            {copiedId === 'join-female-1' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                          <button
-                            onClick={() => window.open('/#join', '_blank')}
-                            className="text-slate-400 hover:text-white transition p-1"
-                            title="Test Route"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Link 2: /#register */}
-                    <div className="space-y-1.5">
-                      <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400 font-mono">Short Link 2 (Alternative):</span>
-                      <div className="flex items-center gap-2 bg-black/40 border border-slate-800 p-2.5 rounded-xl text-xs font-mono">
-                        <span className="text-[#00e5ff] font-bold select-all truncate flex-1">{window.location.origin}/#register</span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleCopyToClipboard(`${window.location.origin}/#register`, 'join-female-2')}
-                            className="text-slate-400 hover:text-white transition p-1"
-                            title="Copy To Clipboard"
-                          >
-                            {copiedId === 'join-female-2' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                          <button
-                            onClick={() => window.open('/#register', '_blank')}
-                            className="text-slate-400 hover:text-white transition p-1"
-                            title="Test Route"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Male Model */}
-                <div className="bg-[#0f111a] border border-[#1b1f32] hover:border-slate-700 rounded-2xl p-6 flex flex-col justify-between space-y-5 transition-all duration-300 shadow-md">
-                  <div className="space-y-3.5">
-                    <div className="flex justify-between items-start">
-                      <span className="text-[10px] bg-blue-500/10 text-blue-400 font-mono font-bold px-2.5 py-1 rounded-md border border-blue-500/10 uppercase tracking-widest">
-                        Male Companion
-                      </span>
-                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse mt-1.5" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-black text-white font-display">Male Model Registry</h3>
-                      <p className="text-xs text-slate-400 font-semibold mt-1">‡¶Æ‡ßá‡¶á‡¶≤ ‡¶Æ‡¶°‡ßá‡¶≤ ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶™‡ßã‡¶∞‡ßç‡¶ü‡¶æ‡¶≤</p>
-                    </div>
-
-                    {/* Visitor stats counter */}
-                    <div className="grid grid-cols-2 gap-2 mt-2 bg-black/30 border border-slate-800/60 p-2 rounded-xl text-center font-sans">
-                      <div>
-                        <span className="block text-[10px] text-slate-400 font-mono uppercase font-black">Clicks</span>
-                        <span className="text-sm font-black text-cyan-400 font-mono">
-                          {((shortLinkStats['join-male-1']?.clicks || 0) + (shortLinkStats['join-male-2']?.clicks || 0)).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="border-l border-slate-800">
-                        <span className="block text-[10px] text-slate-400 font-mono uppercase font-black">Joins</span>
-                        <span className="text-sm font-black text-emerald-400 font-mono">
-                          {((shortLinkStats['join-male-1']?.joins || 0) + (shortLinkStats['join-male-2']?.joins || 0)).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-slate-400 leading-normal font-sans border-t border-white/5 pt-3">
-                      ‡¶Æ‡ßá‡¶á‡¶≤ ‡¶ï‡¶Æ‡ßç‡¶™‡ßç‡¶Ø‡¶æ‡¶®‡¶ø‡¶Ø‡¶º‡¶® ‡¶™‡ßç‡¶∞‡¶æ‡¶∞‡ßç‡¶•‡ßÄ‡¶¶‡ßá‡¶∞ ‡¶ú‡¶®‡ßç‡¶Ø ‡¶è‡¶á ‡¶°‡ßá‡¶°‡¶ø‡¶ï‡ßá‡¶ü‡ßá‡¶° ‡¶∏‡¶∞‡¶æ‡¶∏‡¶∞‡¶ø ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶≤‡¶ø‡¶Ç‡¶ï ‡¶∂‡ßá‡ßü‡¶æ‡¶∞ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
-                    </p>
-                  </div>
-
-                  <div className="space-y-3 pt-2">
-                    {/* Link 1: /#joinmale */}
-                    <div className="space-y-1.5">
-                      <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400 font-mono">Short Link 1:</span>
-                      <div className="flex items-center gap-2 bg-black/40 border border-slate-800 p-2.5 rounded-xl text-xs font-mono">
-                        <span className="text-[#00e5ff] font-bold select-all truncate flex-1">{window.location.origin}/#joinmale</span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleCopyToClipboard(`${window.location.origin}/#joinmale`, 'join-male-1')}
-                            className="text-slate-400 hover:text-white transition p-1"
-                            title="Copy To Clipboard"
-                          >
-                            {copiedId === 'join-male-1' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                          <button
-                            onClick={() => window.open('/#joinmale', '_blank')}
-                            className="text-slate-400 hover:text-white transition p-1"
-                            title="Test Route"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Link 2: /#join-male */}
-                    <div className="space-y-1.5">
-                      <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400 font-mono">Short Link 2 (Alternative):</span>
-                      <div className="flex items-center gap-2 bg-black/40 border border-slate-800 p-2.5 rounded-xl text-xs font-mono">
-                        <span className="text-[#00e5ff] font-bold select-all truncate flex-1">{window.location.origin}/#join-male</span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleCopyToClipboard(`${window.location.origin}/#join-male`, 'join-male-2')}
-                            className="text-slate-400 hover:text-white transition p-1"
-                            title="Copy To Clipboard"
-                          >
-                            {copiedId === 'join-male-2' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                          <button
-                            onClick={() => window.open('/#join-male', '_blank')}
-                            className="text-slate-400 hover:text-white transition p-1"
-                            title="Test Route"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Sperm Donor */}
-                <div className="bg-[#0f111a] border border-[#1b1f32] hover:border-slate-700 rounded-2xl p-6 flex flex-col justify-between space-y-5 transition-all duration-300 shadow-md">
-                  <div className="space-y-3.5">
-                    <div className="flex justify-between items-start">
-                      <span className="text-[10px] bg-amber-500/10 text-amber-500 font-mono font-bold px-2.5 py-1 rounded-md border border-amber-500/10 uppercase tracking-widest">
-                        Sperm Donor
-                      </span>
-                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse mt-1.5" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-black text-white font-display">Sperm Donor Registry</h3>
-                      <p className="text-xs text-slate-400 font-semibold mt-1">‡¶∏‡ßç‡¶™‡¶æ‡¶∞‡ßç‡¶Æ ‡¶°‡ßã‡¶®‡¶æ‡¶∞ ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶™‡ßã‡¶∞‡ßç‡¶ü‡¶æ‡¶≤</p>
-                    </div>
-
-                    {/* Visitor stats counter */}
-                    <div className="grid grid-cols-2 gap-2 mt-2 bg-black/30 border border-slate-800/60 p-2 rounded-xl text-center font-sans">
-                      <div>
-                        <span className="block text-[10px] text-slate-400 font-mono uppercase font-black font-sans">Clicks</span>
-                        <span className="text-sm font-black text-cyan-400 font-mono">
-                          {((shortLinkStats['join-sparm-1']?.clicks || 0) + (shortLinkStats['join-sparm-2']?.clicks || 0)).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="border-l border-slate-800">
-                        <span className="block text-[10px] text-slate-400 font-mono uppercase font-black">Joins</span>
-                        <span className="text-sm font-black text-emerald-400 font-mono">
-                          {((shortLinkStats['join-sparm-1']?.joins || 0) + (shortLinkStats['join-sparm-2']?.joins || 0)).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-slate-400 leading-normal font-sans border-t border-white/5 pt-3">
-                      ‡¶∏‡ßç‡¶™‡¶æ‡¶∞‡ßç‡¶Æ ‡¶°‡ßã‡¶®‡¶æ‡¶∞ ‡¶ï‡ßç‡¶Ø‡¶æ‡¶®‡ßç‡¶°‡¶ø‡¶°‡ßá‡¶ü‡¶¶‡ßá‡¶∞ ‡¶ï‡¶æ‡¶õ‡ßá ‡¶è‡¶á ‡¶∞‡¶ø‡¶ï‡ßç‡¶∞‡ßÅ‡¶ü‡¶Æ‡ßá‡¶®‡ßç‡¶ü ‡¶∏‡¶æ‡¶¨‡¶Æ‡¶ø‡¶∂‡¶® ‡¶´‡¶∞‡¶Æ‡ßá‡¶∞ ‡¶≤‡¶ø‡¶Ç‡¶ï ‡¶∏‡¶∞‡¶æ‡¶∏‡¶∞‡¶ø ‡¶∂‡ßá‡ßü‡¶æ‡¶∞ ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
-                    </p>
-                  </div>
-
-                  <div className="space-y-3 pt-2">
-                    {/* Link 1: /#joinsparm */}
-                    <div className="space-y-1.5">
-                      <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400 font-mono">Short Link 1:</span>
-                      <div className="flex items-center gap-2 bg-black/40 border border-slate-800 p-2.5 rounded-xl text-xs font-mono">
-                        <span className="text-[#00e5ff] font-bold select-all truncate flex-1">{window.location.origin}/#joinsparm</span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleCopyToClipboard(`${window.location.origin}/#joinsparm`, 'join-sparm-1')}
-                            className="text-slate-400 hover:text-white transition p-1"
-                            title="Copy To Clipboard"
-                          >
-                            {copiedId === 'join-sparm-1' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                          <button
-                            onClick={() => window.open('/#joinsparm', '_blank')}
-                            className="text-slate-400 hover:text-white transition p-1"
-                            title="Test Route"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Link 2: /#join-sparm */}
-                    <div className="space-y-1.5">
-                      <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400 font-mono">Short Link 2 (Alternative):</span>
-                      <div className="flex items-center gap-2 bg-black/40 border border-slate-800 p-2.5 rounded-xl text-xs font-mono">
-                        <span className="text-[#00e5ff] font-bold select-all truncate flex-1">{window.location.origin}/#join-sparm</span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleCopyToClipboard(`${window.location.origin}/#join-sparm`, 'join-sparm-2')}
-                            className="text-slate-400 hover:text-white transition p-1"
-                            title="Copy To Clipboard"
-                          >
-                            {copiedId === 'join-sparm-2' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                          <button
-                            onClick={() => window.open('/#join-sparm', '_blank')}
-                            className="text-slate-400 hover:text-white transition p-1"
-                            title="Test Route"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Instructions Callout Box */}
-              <div className="bg-[#0e0c15] border border-blue-500/10 p-5 rounded-xl font-sans space-y-2 leading-relaxed">
-                <h4 className="text-white text-xs font-black uppercase tracking-wider">üí° ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶∞‡¶ø‡¶Æ‡¶æ‡¶á‡¶®‡ßç‡¶°‡¶æ‡¶∞ / Instructions:</h4>
-                <p className="text-slate-400 text-xs font-semibold">
-                  ‡ßß. ‡¶è‡¶á ‡¶≤‡¶ø‡¶Ç‡¶ï‡¶ó‡ßÅ‡¶≤‡ßã ‡¶¨‡ßç‡¶∞‡¶æ‡¶â‡¶ú‡¶æ‡¶∞‡ßá‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶°‡ßç‡¶∞‡ßá‡¶∏ ‡¶¨‡¶æ‡¶∞‡ßá ‡¶ï‡¶™‡¶ø ‡¶ï‡¶∞‡ßá ‡¶∏‡¶∞‡¶æ‡¶∏‡¶∞‡¶ø ‡¶∞‡¶ø‡¶°‡¶æ‡¶á‡¶∞‡ßá‡¶ï‡ßç‡¶ü ‡¶π‡¶ì‡ßü‡¶æ ‡¶ö‡ßá‡¶ï ‡¶ï‡¶∞‡¶§‡ßá ‡¶™‡¶æ‡¶∞‡ßá‡¶®‡•§<br />
-                  ‡ß®. ‡¶≤‡¶ø‡¶Ç‡¶ï‡ßá ‡¶ï‡ßç‡¶≤‡¶ø‡¶ï ‡¶ï‡¶∞‡¶æ ‡¶Æ‡¶æ‡¶§‡ßç‡¶∞‡¶á ‡¶ó‡ßç‡¶∞‡¶æ‡¶π‡¶ï‡ßá‡¶∞ ‡¶∏‡ßç‡¶ï‡ßç‡¶∞‡¶ø‡¶®‡ßá ‡¶Æ‡ßÇ‡¶≤ ‡¶Æ‡¶°‡¶æ‡¶≤ ‡¶¨‡¶æ ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶ï‡¶æ‡¶∞‡ßç‡¶° ‡¶≠‡ßá‡¶∏‡ßá ‡¶â‡¶†‡¶¨‡ßá‡•§ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶™‡ßá‡¶∞ ‡¶≠‡ßá‡¶§‡¶∞‡ßá‡¶∞ ‡¶∏‡¶æ‡¶ß‡¶æ‡¶∞‡¶£ ‡¶ï‡ßç‡¶Ø‡¶æ‡¶ü‡¶æ‡¶≤‡¶ó ‡¶¶‡ßá‡¶ñ‡¶§‡ßá ‡¶ö‡¶æ‡¶á‡¶≤‡ßá ‡¶ï‡ßç‡¶Ø‡¶æ‡¶®‡ßç‡¶°‡¶ø‡¶°‡ßá‡¶ü‡¶ï‡ßá ‡¶∂‡ßÅ‡¶ß‡ßÅ ‡¶Æ‡ßÇ‡¶≤ ‡¶ì‡ßü‡ßá‡¶¨‡¶∏‡¶æ‡¶á‡¶ü‡ßá‡¶∞ ‡¶°‡ßã‡¶Æ‡ßá‡¶á‡¶®‡¶ü‡¶ø ‡¶∂‡ßá‡ßü‡¶æ‡¶∞ ‡¶ï‡¶∞‡¶¨‡ßá‡¶®‡•§
-                </p>
-              </div>
-
-            </div>
-          )}
-
-          {/* =======================================================
-              AFFILIATE REFERRALS & PAYOUTS LEDGER TAB
-              ======================================================= */}
-          {activeTab === 'referrals' && (
-            <div className="space-y-8 text-left animate-fadeIn">
-              
-              {/* HEADER WITH CLEAR ALL ACTION */}
-              <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 bg-slate-950/40 p-5 rounded-2xl border border-slate-800">
-                <div>
-                  <h3 className="text-base font-black text-white uppercase tracking-wider flex items-center gap-2 font-sans">
-                    <Award className="w-5 h-5 text-[#dbaa61]" />
-                    Agent Performance Ledger (‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü ‡¶™‡¶æ‡¶∞‡¶´‡¶∞‡¶Æ‡ßç‡¶Ø‡¶æ‡¶®‡ßç‡¶∏ ‡¶≤‡ßá‡¶ú‡¶æ‡¶∞)
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-1 font-semibold">
-                    Manage agent commission rates, inspect active agent accounts, and process withdrawal requests.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (confirm('Are you absolutely sure you want to clear ALL Agent & Referral records? This will delete all referrers, signup mappings, and withdrawal history permanently!')) {
-                      if (onUpdateReferrals) {
-                        onUpdateReferrals([]);
-                        localStorage.setItem('bt_referrals', JSON.stringify([]));
-                      }
-                      if (onUpdateWithdrawals) {
-                        onUpdateWithdrawals([]);
-                        localStorage.setItem('bt_withdrawals', JSON.stringify([]));
-                      }
-                      alert('All agent & referral management data has been successfully cleared!');
-                    }
-                  }}
-                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 font-extrabold text-[11px] uppercase tracking-widest px-4 py-2.5 rounded-xl border border-red-500/30 transition flex items-center gap-2 cursor-pointer self-start md:self-auto"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Clear All Agent Records (‡¶∏‡¶¨ ‡¶§‡¶•‡ßç‡¶Ø ‡¶Æ‡ßÅ‡¶õ‡ßÅ‡¶®)</span>
-                </button>
-              </div>
-
-              {(() => {
-                // Calculate aggregated calculations per referrer (Agents)
-                const referrersMap: { [key: string]: {
-                  username: string;
-                  totalReferredCount: number;
-                  conversionsCount: number;
-                  totalEarned: number;
-                  totalWithdrawn: number;
-                  pendingAmount: number;
-                } } = {};
-
-                // Initialize referrers we know from referrals
-                referrals.forEach(ref => {
-                  const refName = ref.referrer.trim().toLowerCase();
-                  if (!refName) return;
-                  if (!referrersMap[refName]) {
-                    referrersMap[refName] = {
-                      username: ref.referrer,
-                      totalReferredCount: 0,
-                      conversionsCount: 0,
-                      totalEarned: 0,
-                      totalWithdrawn: 0,
-                      pendingAmount: 0
-                    };
-                  }
-                  const r = referrersMap[refName];
-                  r.totalReferredCount += 1;
-                  if (ref.tier !== 'FREE') {
-                    r.conversionsCount += 1;
-                  }
-                  r.totalEarned += ref.commission;
-                });
-
-                // Factoring in withdrawal records for those referrers
-                withdrawals.forEach(w => {
-                  const uName = w.username.trim().toLowerCase();
-                  if (!referrersMap[uName]) {
-                    referrersMap[uName] = {
-                      username: w.username,
-                      totalReferredCount: 0,
-                      conversionsCount: 0,
-                      totalEarned: 0,
-                      totalWithdrawn: 0,
-                      pendingAmount: 0
-                    };
-                  }
-                  const r = referrersMap[uName];
-                  if (w.status === 'Approved') {
-                    r.totalWithdrawn += w.amount;
-                  } else if (w.status === 'Pending') {
-                    r.pendingAmount += w.amount;
-                  }
-                });
-
-                const existingAgentUsernames = new Set(registeredAgents.map(a => (a.username || '').trim().toLowerCase()));
-                const derivedAgents: any[] = [];
-                companions.forEach(c => {
-                  const rName = (c.recruiter || c.telegram || '').trim();
-                  if (rName && rName.length > 0) {
-                    const rLower = rName.toLowerCase();
-                    if (!existingAgentUsernames.has(rLower) && !derivedAgents.some(da => da.username.toLowerCase() === rLower)) {
-                      derivedAgents.push({
-                        id: `derived-${rLower}`,
-                        username: rName,
-                        password: 'PIN-Auto-Imported',
-                        fullName: `Auto-Imported Agent (${rName})`,
-                        phone: 'N/A',
-                        email: 'N/A',
-                        dateRegistered: 'Legacy Recruiter',
-                        isAutoImported: true
-                      });
-                    }
-                  }
-                });
-
-                const combinedAgentsList = [...registeredAgents, ...derivedAgents];
-
-                // Loop through all registered agents and add 10% commission for completed bookings of recruited companions
-                combinedAgentsList.forEach(agent => {
-                  const agentUserLower = (agent.username || '').trim().toLowerCase();
-                  if (!agentUserLower) return;
-                  
-                  if (!referrersMap[agentUserLower]) {
-                    referrersMap[agentUserLower] = {
-                      username: agent.username || '',
-                      totalReferredCount: 0,
-                      conversionsCount: 0,
-                      totalEarned: 0,
-                      totalWithdrawn: 0,
-                      pendingAmount: 0
-                    };
-                  }
-                  
-                  // Find companions recruited by this agent
-                  const agentCompanions = companions.filter(c => 
-                    (c.recruiter && c.recruiter.toLowerCase() === agentUserLower) ||
-                    (c.telegram && c.telegram.toLowerCase() === agentUserLower)
-                  );
-                  let recruitBookingCommissions = 0;
-                  
-                  agentCompanions.forEach(c => {
-                    const companionBookings = bookings.filter(b => 
-                      b.status === 'Completed' && (
-                        (b.modelUsername && c.modelUsername && b.modelUsername.toLowerCase() === c.modelUsername.toLowerCase()) ||
-                        (b.modelName && c.name && b.modelName.toLowerCase() === c.name.toLowerCase())
-                      )
-                    );
-                    companionBookings.forEach(b => {
-                      recruitBookingCommissions += (b.cost || 0) * 0.10;
-                    });
-                  });
-                  
-                  // Add this recruit commission to the total earned for this agent
-                  referrersMap[agentUserLower].totalEarned += recruitBookingCommissions;
-                });
-
-                const summaryList = combinedAgentsList.map(agent => {
-                  const usernameLower = (agent.username || '').trim().toLowerCase();
-                  const stats = referrersMap[usernameLower] || {
-                    username: agent.username || '',
-                    totalReferredCount: 0,
-                    conversionsCount: 0,
-                    totalEarned: 0,
-                    totalWithdrawn: 0,
-                    pendingAmount: 0
-                  };
-                  return {
-                    username: agent.username || '',
-                    password: agent.password || '',
-                    fullName: agent.fullName || '',
-                    phone: agent.phone || '',
-                    email: agent.email || '',
-                    dateRegistered: agent.dateRegistered || '',
-                    isAutoImported: !!agent.isAutoImported,
-                    ...stats
-                  };
-                });
-
-                const totalAgents = summaryList.length;
-                const totalConverted = referrals.filter(r => r.tier !== 'FREE').length;
-                const totalEarnedCommission = Object.values(referrersMap).reduce((sum, r) => sum + r.totalEarned, 0);
-                
-                const approvedWithdrawalsSum = withdrawals
-                  .filter(w => w.status === 'Approved')
-                  .reduce((sum, w) => sum + w.amount, 0);
-                  
-                const pendingWithdrawalsSum = withdrawals
-                  .filter(w => w.status === 'Pending')
-                  .reduce((sum, w) => sum + w.amount, 0);
-
-                return (
-                  <div className="space-y-8">
-                    {/* TOP GLOBAL STATS ROW */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 bg-[#0a0b10] border border-blue-500/10 p-4 rounded-2xl">
-                      <div className="bg-[#11131c] border border-blue-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
-                        <div className="flex items-center justify-between text-blue-400">
-                          <span className="text-[10px] font-black uppercase tracking-wider">Total Agents</span>
-                          <Users className="w-4 h-4 bg-blue-500/10 p-0.5 rounded" />
-                        </div>
-                        <div className="mt-3">
-                          <span className="text-xl font-black text-white font-mono">{totalAgents}</span>
-                          <span className="text-[9px] text-slate-500 block">Registered partners</span>
-                        </div>
-                      </div>
-
-                      <div className="bg-[#11131c] border border-green-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
-                        <div className="flex items-center justify-between text-emerald-400">
-                          <span className="text-[10px] font-black uppercase tracking-wider font-sans">Active Conversions</span>
-                          <Sparkles className="w-4 h-4 bg-emerald-500/10 p-0.5 rounded" />
-                        </div>
-                        <div className="mt-3">
-                          <span className="text-xl font-black text-white font-mono">{totalConverted}</span>
-                          <span className="text-[9px] text-slate-500 block">Sales & Subscriptions</span>
-                        </div>
-                      </div>
-
-                      <div className="bg-[#11131c] border border-cyan-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
-                        <div className="flex items-center justify-between text-cyan-400">
-                          <span className="text-[10px] font-black uppercase tracking-wider">Total Commission</span>
-                          <DollarSign className="w-4 h-4 bg-cyan-500/10 p-0.5 rounded" />
-                        </div>
-                        <div className="mt-3">
-                          <span className="text-xl font-black text-white font-mono">‡ß≥{totalEarnedCommission.toLocaleString()}</span>
-                          <span className="text-[9px] text-slate-500 block">Generated earnings</span>
-                        </div>
-                      </div>
-
-                      <div className="bg-[#11131c] border border-amber-500/10 p-4.5 rounded-2xl flex flex-col justify-between">
-                        <div className="flex items-center justify-between text-amber-400">
-                          <span className="text-[10px] font-black uppercase tracking-wider">Pending Payouts</span>
-                          <Clock className="w-4 h-4 bg-amber-500/10 p-0.5 rounded" />
-                        </div>
-                        <div className="mt-3">
-                          <span className="text-xl font-black text-white font-mono">‡ß≥{pendingWithdrawalsSum.toLocaleString()}</span>
-                          <span className="text-[9px] text-slate-500 block">Awaiting approval</span>
-                        </div>
-                      </div>
-
-                      <div className="bg-[#11131c] border border-red-500/10 p-4.5 rounded-2xl flex flex-col justify-between col-span-2 md:col-span-1">
-                        <div className="flex items-center justify-between text-[#ef4444]">
-                          <span className="text-[10px] font-black uppercase tracking-wider">Disbursed Payouts</span>
-                          <HandCoins className="w-4 h-4 bg-red-500/10 p-0.5 rounded" />
-                        </div>
-                        <div className="mt-3">
-                          <span className="text-xl font-black text-white font-mono">‡ß≥{approvedWithdrawalsSum.toLocaleString()}</span>
-                          <span className="text-[9px] text-slate-500 block">Transferred to wallets</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* SECTION A: AGENTS PERFORMANCE DIRECTORY */}
-                    <div className="bg-[#0b0c15] border border-blue-500/10 rounded-2xl p-5 sm:p-6 space-y-4">
-                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-800 pb-3">
-                        <div>
-                          <h3 className="text-sm font-black text-[#58a6ff] uppercase tracking-wider flex items-center gap-2">
-                            <TrendingUp className="w-4.5 h-4.5 text-[#58a6ff]" />
-                            Agents & Recruiters Performance (‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü ‡¶ì ‡¶∞‡¶ø‡¶ï‡ßç‡¶∞‡ßÅ‡¶ü‡¶æ‡¶∞ ‡¶§‡¶æ‡¶≤‡¶ø‡¶ï‡¶æ)
-                          </h3>
-                          <p className="text-[11px] text-slate-400">
-                            ‡¶∏‡¶æ‡¶∞‡¶∏‡¶Ç‡¶ï‡ßç‡¶∑‡ßá‡¶™: ‡¶™‡ßç‡¶∞‡¶§‡¶ø‡¶ü‡¶ø ‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü‡ßá‡¶∞ ‡¶ï‡¶Æ‡¶ø‡¶∂‡¶®, ‡¶™‡ßá‡¶Æ‡ßá‡¶®‡ßç‡¶ü, ‡¶â‡¶á‡¶•‡¶°‡ßç‡¶∞ ‡¶è‡¶¨‡¶Ç ‡¶∞‡¶ø‡ßü‡ßá‡¶≤‡¶ü‡¶æ‡¶á‡¶Æ ‡¶¨‡ßç‡¶Ø‡¶æ‡¶≤‡ßá‡¶®‡ßç‡¶∏‡ßá‡¶∞ ‡¶π‡¶ø‡¶∏‡¶æ‡¶¨‡•§
-                          </p>
-                        </div>
-                        {derivedAgents.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                setIsSending(true);
-                                let migratedCount = 0;
-                                for (const da of derivedAgents) {
-                                  const agentDocRef = doc(db, 'agents', da.username.toLowerCase());
-                                  await setDoc(agentDocRef, {
-                                    username: da.username,
-                                    password: '1234', // Default placeholder PIN code
-                                    fullName: da.fullName,
-                                    phone: '01700-000000',
-                                    email: `${da.username.toLowerCase()}@bodytouch-partner.com`,
-                                    role: 'agent',
-                                    dateRegistered: new Date().toLocaleString()
-                                  });
-                                  migratedCount++;
-                                }
-                                alert(`‚úÖ ‡¶∏‡¶´‡¶≤‡¶≠‡¶æ‡¶¨‡ßá ${migratedCount} ‡¶ú‡¶® ‡¶∏‡¶æ‡¶¨‡ßá‡¶ï ‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü‡¶ï‡ßá ‡¶∏‡¶ø‡¶∏‡ßç‡¶ü‡ßá‡¶Æ‡ßá ‡¶∏‡ßç‡¶•‡¶æ‡¶Ø‡¶º‡ßÄ‡¶≠‡¶æ‡¶¨‡ßá ‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶ï‡¶∞‡¶æ ‡¶π‡¶Ø‡¶º‡ßá‡¶õ‡ßá! (‡¶∏‡¶¶‡¶∏‡ßç‡¶Ø‡¶∞‡¶æ ‡¶è‡¶ñ‡¶® ‡¶§‡¶æ‡¶¶‡ßá‡¶∞ ‡¶è‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü ‡¶è‡¶ï‡ßç‡¶∏‡ßá‡¶∏ ‡¶ï‡¶∞‡¶§‡ßá ‡¶™‡¶æ‡¶∞‡¶¨‡ßá‡¶®)`);
-                              } catch (err: any) {
-                                console.warn('Failed to migrate agents:', err);
-                                alert('‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü ‡¶Æ‡¶æ‡¶á‡¶ó‡ßç‡¶∞‡ßá‡¶∂‡¶® ‡¶¨‡ßç‡¶Ø‡¶∞‡ßç‡¶• ‡¶π‡¶Ø‡¶º‡ßá‡¶õ‡ßá: ' + err.message);
-                              } finally {
-                                setIsSending(false);
-                              }
-                            }}
-                            disabled={isSending}
-                            className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer transition whitespace-nowrap shadow-md self-start sm:self-center"
-                          >
-                            ‚ö° Auto-Add {derivedAgents.length} Legacy Agents (‡¶∏‡¶æ‡¶¨‡ßá‡¶ï {derivedAgents.length} ‡¶è‡¶ú‡ßá‡¶®‡ßç‡¶ü ‡¶Ø‡ßÅ‡¶ï‡ßç‡¶§ ‡¶ï‡¶∞‡ßÅ‡¶®)
-                          </button>
-                        )}
-                      </div>
-
-                      {summaryList.length === 0 ? (
-                        <div className="py-8 text-center text-slate-500 font-bold text-xs">
-                          No active agents or recruiters registered yet.
-                        </div>
-                      ) : (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left border-collapse text-xs">
-                            <thead>
-                              <tr className="border-b border-slate-800 text-slate-400 font-extrabold uppercase text-[9.5px] tracking-wider bg-black/20">
-                                <th className="py-2.5 px-3">Agent Username</th>
-                                <th className="py-2.5 px-3 text-center font-sans">Badge / Level</th>
-                                <th className="py-2.5 px-3 text-center">Invited Clients</th>
-                                <th className="py-2.5 px-3 text-center">Conversions</th>
-                                <th className="py-2.5 px-3 text-right text-cyan-400">Total Earned</th>
-                                <th className="py-2.5 px-3 text-right text-rose-400">Total Withdrawn</th>
-                                <th className="py-2.5 px-3 text-right">Pending Payout</th>
-                                <th className="py-2.5 px-3 text-right text-emerald-400 font-bold">Balance Available</th>
-                                <th className="py-2.5 px-3 text-right">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800/40 text-[11px] font-semibold text-slate-300">
-                              {summaryList.map((user, idx) => {
-                                const availableBal = user.totalEarned - user.totalWithdrawn - user.pendingAmount;
-                                return (
-                                  <tr key={idx} className="hover:bg-slate-800/20 transition">
-                                    <td className="py-3 px-3 text-left">
-                                      <div className="font-bold text-white font-mono flex items-center gap-1.5 flex-wrap">
-                                        <span>@{user.username}</span>
-                                        {user.isAutoImported && (
-                                          <span className="text-[7.5px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/25 uppercase font-bold tracking-wider leading-none">
-                                            Legacy Agent
-                                          </span>
-                                        )}
-                                        {(() => {
-                                          const onlineSession = activePresenceList.find(s => s.role === 'agent' && s.identifier === user.username.toLowerCase());
-                                          if (!onlineSession) return null;
-                                          return (
-                                            <div className="inline-flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/25 px-1.5 py-0.5 rounded text-[8.5px] font-black text-blue-400 font-mono animate-pulse relative shrink-0">
-                                              <span className="w-1.2 h-1.2 rounded-full bg-blue-400 animate-ping absolute" />
-                                              <span className="w-1.2 h-1.2 rounded-full bg-blue-500 relative" />
-                                              <span>{formatPresenceDuration(onlineSession.activeDurationMs)}</span>
-                                            </div>
-                                          );
-                                        })()}
-                                      </div>
-                                      {user.fullName && (
-                                        <div className="text-[10px] text-[#dbaa61] mt-0.5 font-sans">{user.fullName}</div>
-                                      )}
-                                      {(user.phone || user.email) && (
-                                        <div className="text-[9px] text-slate-500 font-mono mt-0.5">
-                                          {user.phone} {user.email && `| ${user.email}`}
-                                        </div>
-                                      )}
-                                      <div className="text-[9.5px] text-slate-400 mt-1 font-mono">
-                                        PIN: <span className="text-amber-500 font-bold">{user.password || 'Not Set'}</span>
-                                      </div>
-                                    </td>
-                                    <td className="py-3 px-3 text-center">
-                                      <span className={`px-2 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider ${
-                                        user.conversionsCount >= 5 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/25' :
-                                        user.conversionsCount >= 2 ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/25' :
-                                        'bg-blue-500/10 text-blue-400 border border-blue-500/25'
-                                      }`}>
-                                        {user.conversionsCount >= 5 ? 'Elite Partner' :
-                                         user.conversionsCount >= 2 ? 'Premium Partner' : 'Standard Partner'}
-                                      </span>
-                                    </td>
-                                    <td className="py-3 px-3 text-center font-mono text-slate-300">{user.totalReferredCount} joins</td>
-                                    <td className="py-3 px-3 text-center font-mono">
-                                      <span className="text-emerald-400">{user.conversionsCount} sales</span>
-                                    </td>
-                                    <td className="py-3 px-3 text-right font-mono text-cyan-400 font-bold">‡ß≥{user.totalEarned.toLocaleString()}</td>
-                                    <td className="py-3 px-3 text-right font-mono text-rose-400">‡ß≥{user.totalWithdrawn.toLocaleString()}</td>
-                                    <td className="py-3 px-3 text-right font-mono text-amber-400">‡ß≥{user.pendingAmount.toLocaleString()}</td>
-                                    <td className="py-3 px-3 text-right font-mono text-emerald-400 font-extrabold text-xs">
-                                      ‡ß≥{(availableBal < 0 ? 0 : availableBal).toLocaleString()}
-                                    </td>
-                                    <td className="py-3 px-3 text-right">
-                                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                                        <button
-                                          type="button"
-                                          onClick={() => handleResetAgent2FA(user.username)}
-                                          className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded text-[9px] font-black uppercase tracking-wider transition active:scale-95 flex items-center gap-1 cursor-pointer"
-                                          title="Reset Agent Google 2FA Authenticator"
-                                        >
-                                          <RefreshCw className="w-2.5 h-2.5 shrink-0" />
-                                          2FA
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleDeleteAgent(user.username)}
-                                          className="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 rounded text-[9px] font-black uppercase tracking-wider transition active:scale-95 flex items-center gap-1 cursor-pointer"
-                                          title="Permanently Delete Agent"
-                                        >
-                                          <Trash2 className="w-2.5 h-2.5 shrink-0" />
-                                          Delete
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* SECTION C: PAYOUTS & WITHDRAWAL AUDIT BLOCK (‡¶®‡¶ø‡¶¨‡¶®‡ßç‡¶ß‡¶ø‡¶§ ‡¶â‡¶á‡¶•‡¶°‡ßç‡¶∞‡ßü‡ßá‡¶∞ ‡¶π‡¶ø‡¶∏‡ßá‡¶¨) */}
-              <div className="bg-[#0b0c15] border border-blue-500/10 rounded-2xl p-5 sm:p-6 space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between gap-4 border-b border-slate-800 pb-4">
-                  <div className="text-left">
-                    <h3 className="text-sm font-black text-[#ef4444] uppercase tracking-wider flex items-center gap-2 font-sans">
-                      <HandCoins className="w-4.5 h-4.5 text-red-500" />
-                      Referral Withdrawals & Payout Audit (‡¶â‡¶á‡¶•‡¶°‡ßç‡¶∞ ‡¶Ü‡¶¨‡ßá‡¶¶‡¶® ‡¶ì ‡¶®‡¶ø‡¶∑‡ßç‡¶™‡¶§‡ßç‡¶§‡¶ø‡¶∞ ‡¶∞‡ßá‡¶ú‡¶ø‡¶∏‡ßç‡¶ü‡¶æ‡¶∞)
-                    </h3>
-                    <p className="text-[11px] text-slate-400">
-                      ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶´‡¶ø‡¶≤‡¶ø‡¶Ø‡¶º‡ßá‡¶ü ‡¶¨‡ßç‡¶Ø‡¶¨‡¶π‡¶æ‡¶∞‡¶ï‡¶æ‡¶∞‡ßÄ‡¶¶‡ßá‡¶∞ ‡¶ï‡¶Æ‡¶ø‡¶∂‡¶® ‡¶ï‡ßç‡¶Ø‡¶æ‡¶∂ÿ¢‡¶â‡¶ü ‡¶¨‡¶æ ‡¶â‡¶á‡¶•‡¶°‡ßç‡¶∞ ‡¶Ü‡¶¨‡ßá‡¶¶‡¶®‡ßá‡¶∞ ‡¶¨‡¶ø‡¶∏‡ßç‡¶§‡¶æ‡¶∞‡¶ø‡¶§ ‡¶≤‡¶ø‡¶∏‡ßç‡¶ü ‡¶è‡¶¨‡¶Ç ‡¶™‡ßá‡¶Æ‡ßá‡¶®‡ßç‡¶ü ‡¶®‡¶ø‡¶∑‡ßç‡¶™‡¶§‡ßç‡¶§‡¶ø‡¶∞ ‡¶¨‡¶ø‡¶¨‡¶∞‡¶£‡•§
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                      <input
-                        type="search"
-                        placeholder="Search withdrawals..."
-                        value={withdSearch}
-                        onChange={(e) => setWithdSearch(e.target.value)}
-                        className="bg-black/40 text-xs text-white border border-slate-800 focus:border-red-500 focus:outline-none pl-9 pr-3.5 py-2 rounded-xl w-48 sm:w-64"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {(() => {
-                  const filteredWithdrawals = withdrawals.filter(w =>
-                    w.username.toLowerCase().includes(withdSearch.toLowerCase()) ||
-                    (w.fullName || '').toLowerCase().includes(withdSearch.toLowerCase()) ||
-                    w.accountNumber.includes(withdSearch) ||
-                    w.method.toLowerCase().includes(withdSearch.toLowerCase())
-                  );
-
-                  if (filteredWithdrawals.length === 0) {
-                    return (
-                      <div className="py-12 flex flex-col items-center justify-center text-slate-500">
-                        <AlertCircle className="w-8 h-8 text-slate-650 mb-2" />
-                        <span className="text-xs font-bold">No withdrawal tickets found.</span>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="overflow-x-auto text-left">
-                      <table className="w-full text-left border-collapse text-xs">
-                        <thead>
-                          <tr className="border-b border-slate-800 text-slate-400 font-extrabold uppercase text-[9.5px] tracking-wider bg-black/20">
-                            <th className="py-2.5 px-3">User</th>
-                            <th className="py-2.5 px-3">Requested Amount</th>
-                            <th className="py-2.5 px-3">Payout Gateway Details</th>
-                            <th className="py-2.5 px-3">Date Submitted</th>
-                            <th className="py-2.5 px-3 text-center">Status</th>
-                            <th className="py-2.5 px-3 text-right">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/40 text-[11px] font-semibold text-slate-300">
-                          {filteredWithdrawals.map((w) => (
-                            <tr key={w.id} className="hover:bg-slate-800/10 transition">
-                              <td className="py-3 px-3">
-                                <div className="font-bold text-white">{w.fullName || 'VIP Member'}</div>
-                                <div className="text-[10px] text-slate-500 font-mono">@{w.username}</div>
-                              </td>
-                              <td className="py-3 px-3 text-xs font-extrabold text-amber-400 font-mono">
-                                ‡ß≥{w.amount.toLocaleString()} BDT
-                              </td>
-                              <td className="py-3 px-3">
-                                <span className="bg-slate-800/40 border border-slate-700 font-bold px-2 py-0.5 rounded text-[10.5px] block w-fit">
-                                  {w.method}
-                                </span>
-                                <span className="text-xs font-mono text-cyan-300 font-black tracking-wide block mt-1">
-                                  {w.accountNumber}
-                                </span>
-                              </td>
-                              <td className="py-3 px-3 font-mono text-slate-450">{w.date}</td>
-                              <td className="py-3 px-3 text-center">
-                                <span className={`px-2 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider ${
-                                  w.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-555/20' :
-                                  w.status === 'Pending' ? 'bg-amber-500/10 text-amber-500 border border-amber-555/20 animate-pulse' :
-                                  'bg-rose-500/10 text-rose-500 border border-rose-555/20'
-                                }`}>
-                                  {w.status}
-                                </span>
-                              </td>
-                              <td className="py-3 px-3 text-right">
-                                <div className="flex items-center justify-end gap-1.5">
-                                  {w.status === 'Pending' && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const updated = withdrawals.map(item => 
-                                            item.id === w.id ? { ...item, status: 'Approved' as const } : item
-                                          );
-                                          if (onUpdateWithdrawals) {
-                                            onUpdateWithdrawals(updated);
-                                            localStorage.setItem('bt_withdrawals', JSON.stringify(updated));
-                                            alert(`Withdrawal of ‡ß≥${w.amount} approved! payout complete.`);
-                                          }
-                                        }}
-                                        className="h-7 px-2 bg-emerald-990/60 hover:bg-emerald-800 text-emerald-300 border border-emerald-500/20 text-[9px] font-bold rounded-lg transition-all cursor-pointer"
-                                      >
-                                        Approve
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const updated = withdrawals.map(item => 
-                                            item.id === w.id ? { ...item, status: 'Rejected' as const } : item
-                                          );
-                                          if (onUpdateWithdrawals) {
-                                            onUpdateWithdrawals(updated);
-                                            localStorage.setItem('bt_withdrawals', JSON.stringify(updated));
-                                            alert(`Withdrawal request marked as Rejected.`);
-                                          }
-                                        }}
-                                        className="h-7 px-2 bg-rose-990/60 hover:bg-rose-800 text-rose-350 border border-rose-500/20 text-[9px] font-bold rounded-lg transition-all cursor-pointer"
-                                      >
-                                        Reject
-                                      </button>
-                                    </>
-                                  )}
-                                  
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (confirm(`Delete payout record of ‡ß≥${w.amount}?`)) {
-                                        const updated = withdrawals.filter(item => item.id !== w.id);
-                                        if (onUpdateWithdrawals) {
-                                          onUpdateWithdrawals(updated);
-                                          localStorage.setItem('bt_withdrawals', JSON.stringify(updated));
-                                        }
-                                        alert('Record deleted.');
-                                      }
-                                    }}
-                                    className="p-1 text-slate-500 hover:text-red-400 transition cursor-pointer"
-                                    title="Delete record"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })()}
-
-                {/* ADD NEW MANUAL WITHDRAWAL FOR AUDITING/PAYMENTS */}
-                <div className="bg-black/30 border border-slate-800 rounded-xl p-4 sm:p-5 mt-4 space-y-4">
-                  <h4 className="text-xs font-black text-[#ef4444] uppercase tracking-widest flex items-center gap-1.5 font-sans">
-                    <Plus className="w-4 h-4 text-amber-500" />
-                    Manually Record Payout/Withdrawal Ticket (‡¶Æ‡ßç‡¶Ø‡¶æ‡¶®‡ßÅ‡ßü‡¶æ‡¶≤‡¶ø ‡¶â‡¶á‡¶•‡¶°‡ßç‡¶∞ ‡¶ü‡ßç‡¶∞‡ßç‡¶Ø‡¶æ‡¶ï‡¶ø‡¶Ç ‡¶ü‡¶ø‡¶ï‡¶ø‡¶ü ‡¶Ø‡ßã‡¶ó ‡¶ï‡¶∞‡ßÅ‡¶®)
-                  </h4>
-
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (!newWithdUser || !newWithdAmount || !newWithdAccount) {
-                        alert('Required fields missing.');
-                        return;
-                      }
-
-                      const val = Number(newWithdAmount);
-                      if (isNaN(val) || val <= 0) {
-                        alert('Invalid withdrawal amount.');
-                        return;
-                      }
-
-                      const id = 'w-' + Date.now();
-                      const curDate = new Date().toISOString().split('T')[0];
-
-                      const newTicket: WithdrawalRecord = {
-                        id,
-                        username: newWithdUser.trim().toLowerCase(),
-                        fullName: newWithdUser.trim().toUpperCase() + ' manual payout',
-                        amount: val,
-                        method: newWithdMethod,
-                        accountNumber: newWithdAccount.trim(),
-                        date: curDate,
-                        status: 'Approved'
-                      };
-
-                      const updated = [newTicket, ...withdrawals];
-                      if (onUpdateWithdrawals) {
-                        onUpdateWithdrawals(updated);
-                        localStorage.setItem('bt_withdrawals', JSON.stringify(updated));
-                        alert('Manual payout recorded under confirmed status.');
-                      }
-
-                      // Reset fields
-                      setNewWithdUser('');
-                      setNewWithdAmount('');
-                      setNewWithdAccount('');
-                      setNewWithdMethod('bKash Personal');
-                    }}
-                    className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-left"
-                  >
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Affiliate Username *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="akhiaktherofc"
-                        value={newWithdUser}
-                        onChange={(e) => setNewWithdUser(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-805 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Withdraw Amount (‡ß≥) *</label>
-                      <input
-                        type="number"
-                        required
-                        placeholder="5000"
-                        value={newWithdAmount}
-                        onChange={(e) => setNewWithdAmount(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-805 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Gateway Method *</label>
-                      <select
-                        value={newWithdMethod}
-                        onChange={(e) => setNewWithdMethod(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs text-white border border-slate-850 rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 cursor-pointer"
-                      >
-                        <option value="bKash Personal">bKash Personal</option>
-                        <option value="bKash Agent">bKash Agent</option>
-                        <option value="Nagad Personal">Nagad Personal</option>
-                        <option value="Nagad Agent">Nagad Agent</option>
-                        <option value="Rocket Personal">Rocket Personal</option>
-                        <option value="Bank Transfer direct">Bank Transfer (Direct)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Target bKash/Nagad Number *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="017xxxxxxxx"
-                        value={newWithdAccount}
-                        onChange={(e) => setNewWithdAccount(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-805 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-4 flex justify-end pt-2">
-                      <button
-                        type="submit"
-                        className="bg-amber-650 hover:bg-amber-600 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>DISBURSE PAYOUT TRANSACTION</span>
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-
-            </div>
-          )}
-
-          {/* =======================================================
-              MODEL LEDGER & FINANCIAL AUDITING TAB
-              ======================================================= */}
-          {activeTab === 'model_ledger' && (
-            <div className="space-y-8 text-left animate-fadeIn">
-              
-              {/* TOP GLOBAL LEDGER STATS ROW */}
-              {(() => {
-                const completedBookings = bookings.filter(b => b.status === 'Completed');
-                const grossRev = completedBookings.reduce((sum, b) => sum + (b.cost || 0), 0);
-                const netModelShare = grossRev * 0.6;
-                const totalApprovedWithd = withdrawals
-                  .filter(w => w.status === 'Approved')
-                  .reduce((sum, w) => sum + (w.amount || 0), 0);
-                const totalDues = Math.max(0, netModelShare - totalApprovedWithd);
-
-                return (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                    {/* Stat 1 */}
-                    <div className="bg-gradient-to-br from-[#0c1020] to-[#070913] border border-[#1e2333]/60 p-5 rounded-2xl flex items-center justify-between shadow-xl">
-                      <div>
-                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Total Jobs Completed</span>
-                        <span className="block text-2xl font-black text-white mt-1">{completedBookings.length} Dispatches</span>
-                        <span className="text-[10px] text-slate-500 font-semibold mt-1 block">Manually & Auto Logged</span>
-                      </div>
-                      <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/10 flex items-center justify-center text-blue-400">
-                        <TrendingUp className="w-6 h-6" />
-                      </div>
-                    </div>
-
-                    {/* Stat 2 */}
-                    <div className="bg-gradient-to-br from-[#0c1020] to-[#070913] border border-[#1e2333]/60 p-5 rounded-2xl flex items-center justify-between shadow-xl">
-                      <div>
-                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Gross Dispatch Value</span>
-                        <span className="block text-2xl font-black text-white mt-1">‡ß≥{grossRev.toLocaleString()}</span>
-                        <span className="text-[10px] text-emerald-500 font-semibold mt-1 block">Total billing handled</span>
-                      </div>
-                      <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/10 flex items-center justify-center text-emerald-400">
-                        <CreditCard className="w-6 h-6" />
-                      </div>
-                    </div>
-
-                    {/* Stat 3 */}
-                    <div className="bg-gradient-to-br from-[#0c1020] to-[#070913] border border-[#1e2333]/60 p-5 rounded-2xl flex items-center justify-between shadow-xl">
-                      <div>
-                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Model Share (60%)</span>
-                        <span className="block text-2xl font-black text-amber-200 mt-1">‡ß≥{netModelShare.toLocaleString()}</span>
-                        <span className="text-[10px] text-amber-500 font-semibold mt-1 block">Gateway Charge (40%): ‡ß≥{Math.round(grossRev * 0.4).toLocaleString()}</span>
-                      </div>
-                      <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-[#dbaa61]/20 flex items-center justify-center text-[#dbaa61]">
-                        <HandCoins className="w-6 h-6" />
-                      </div>
-                    </div>
-
-                    {/* Stat 4 */}
-                    <div className="bg-gradient-to-br from-[#0c1020] to-[#070913] border border-[#1e2333]/60 p-5 rounded-2xl flex items-center justify-between shadow-xl">
-                      <div>
-                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Pending Payout Balances</span>
-                        <span className="block text-2xl font-black text-rose-400 mt-1">‡ß≥{totalDues.toLocaleString()}</span>
-                        <span className="text-[10px] text-rose-500/80 font-semibold mt-1 block">Unpaid outstanding dues</span>
-                      </div>
-                      <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/10 flex items-center justify-center text-rose-400">
-                        <DollarSign className="w-6 h-6" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* GRID: FORM + MODEL BALANCE LIST */}
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                
-                {/* 1. MANUAL LEDGER JOB ENTRY FORM */}
-                <div className="xl:col-span-1 bg-[#0b0c13] border border-[#1e2333] p-6 rounded-2xl space-y-6">
-                  <div>
-                    <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2 font-display">
-                      <Plus className="w-4 h-4 text-[#dbaa61]" />
-                      <span>Record Manual Job Dispatch</span>
-                    </h3>
-                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                      ‡¶è‡¶°‡¶Æ‡¶ø‡¶® ‡¶™‡ßç‡¶Ø‡¶æ‡¶®‡ßá‡¶≤ ‡¶•‡ßá‡¶ï‡ßá ‡¶Ø‡ßá‡¶ï‡ßã‡¶®‡ßã ‡¶Æ‡¶°‡ßá‡¶≤‡ßá‡¶∞ ‡¶ú‡¶®‡ßç‡¶Ø ‡¶ï‡¶æ‡¶ú‡ßá‡¶∞ ‡¶¨‡¶ø‡¶¨‡¶∞‡¶£ (‡¶§‡¶æ‡¶∞‡¶ø‡¶ñ, ‡¶∏‡¶Æ‡ßü, ‡¶ï‡¶æ‡¶ú‡ßá‡¶∞ ‡¶∏‡ßç‡¶•‡¶æ‡¶® ‡¶ì ‡¶™‡ßá‡¶Æ‡ßá‡¶®‡ßç‡¶ü) ‡¶∏‡¶∞‡¶æ‡¶∏‡¶∞‡¶ø ‡¶è‡¶®‡ßç‡¶ü‡ßç‡¶∞‡¶ø ‡¶ï‡¶∞‡ßÅ‡¶®‡•§
-                    </p>
-                  </div>
-
-                  {ledgerSuccess && (
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs p-3.5 rounded-xl">
-                      {ledgerSuccess}
-                    </div>
-                  )}
-
-                  {ledgerError && (
-                    <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-3.5 rounded-xl">
-                      {ledgerError}
-                    </div>
-                  )}
-
-                  <form onSubmit={handleAddManualLedger} className="space-y-4">
-                    {/* Model Choice */}
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Select Model Companion *</label>
-                      <select
-                        required
-                        value={ledgerModelUsername}
-                        onChange={(e) => setLedgerModelUsername(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 cursor-pointer"
-                      >
-                        <option value="">-- Select Companion --</option>
-                        {companions.map((comp) => (
-                          <option key={comp.id} value={comp.modelUsername || comp.id}>
-                            {comp.name} ({comp.modelUsername ? `@${comp.modelUsername}` : 'No user linked'})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Date picker */}
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Dispatch Date *</label>
-                      <input
-                        type="date"
-                        required
-                        value={ledgerDate}
-                        onChange={(e) => setLedgerDate(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-
-                    {/* Time string */}
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Dispatch Time *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. 08:00 PM or Night Shift"
-                        value={ledgerTime}
-                        onChange={(e) => setLedgerTime(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-
-                    {/* Place / Location */}
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Dispatch Location / Hotel Place *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. InterContinental Suite 501"
-                        value={ledgerPlace}
-                        onChange={(e) => setLedgerPlace(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-
-                    {/* Cost/Payment */}
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Total Job Cost/Payment (‡ß≥) *</label>
-                      <input
-                        type="number"
-                        required
-                        placeholder="e.g. 15000"
-                        value={ledgerCost}
-                        onChange={(e) => setLedgerCost(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-
-                    {/* Duration */}
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Duration / Service Duration</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 2 Hours, Short Stay, Full Night"
-                        value={ledgerDuration}
-                        onChange={(e) => setLedgerDuration(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-
-                    {/* Client Reference / Phone */}
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold mb-1">Client Reference / Order Source</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Phone Booking #017xxx"
-                        value={ledgerClientRef}
-                        onChange={(e) => setLedgerClientRef(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs text-white border border-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full bg-[#dbaa61] hover:bg-[#c99850] text-black font-extrabold text-xs py-3 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-lg mt-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>RECORD LEDGER DISPATCH</span>
-                    </button>
-                  </form>
-                </div>
-
-                {/* 2. MODEL BALANCES LEDGER SUMMARY */}
-                <div className="xl:col-span-2 bg-[#0b0c13] border border-[#1e2333] p-6 rounded-2xl flex flex-col h-full justify-between">
-                  <div>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.04] pb-4 mb-4">
-                      <div>
-                        <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2 font-display">
-                          <HandCoins className="w-4 h-4 text-[#dbaa61]" />
-                          <span>Model Roster Financial Sheets</span>
-                        </h3>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          ‡¶™‡ßç‡¶∞‡¶§‡¶ø‡¶ü‡¶ø ‡¶Ö‡¶®‡ßÅ‡¶Æ‡ßã‡¶¶‡¶ø‡¶§ ‡¶Æ‡¶°‡ßá‡¶≤‡ßá‡¶∞ ‡¶ï‡¶æ‡¶ú, ‡¶∏‡¶∞‡ßç‡¶¨‡¶Æ‡ßã‡¶ü ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶Æ‡ßÇ‡¶≤‡ßç‡¶Ø, ‡¶§‡¶æ‡¶¶‡ßá‡¶∞ ‡¶™‡ßç‡¶∞‡¶æ‡¶™‡ßç‡¶Ø ‡¶∂‡ßá‡ßü‡¶æ‡¶∞ (‡ßÆ‡ß¶%) ‡¶è‡¶¨‡¶Ç ‡¶â‡¶§‡ßç‡¶§‡ßã‡¶≤‡¶®‡¶Ø‡ßã‡¶ó‡ßç‡¶Ø ‡¶¨‡¶æ‡¶ï‡¶ø ‡¶¨‡ßç‡¶Ø‡¶æ‡¶≤‡ßá‡¶®‡ßç‡¶∏‡ßá‡¶∞ ‡¶π‡¶ø‡¶∏‡¶æ‡¶¨‡•§
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
-                        <thead>
-                          <tr className="border-b border-white/[0.04] text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-                            <th className="pb-3 pl-2">Model Companion</th>
-                            <th className="pb-3 text-center">Jobs</th>
-                            <th className="pb-3">Gross Value</th>
-                            <th className="pb-3 text-amber-200">Share (60%)</th>
-                            <th className="pb-3 text-emerald-400">Paid Out</th>
-                            <th className="pb-3 text-rose-400">Withdrawable Due</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/[0.02]">
-                          {companions.map((comp) => {
-                            const modelUser = comp.modelUsername || comp.id;
-                            // Match bookings
-                            const compBookings = bookings.filter(
-                              (b) =>
-                                b.status === 'Completed' &&
-                                (b.modelUsername?.toLowerCase() === modelUser.toLowerCase() ||
-                                  b.modelName?.toLowerCase() === comp.name.toLowerCase())
-                            );
-                            const grossVal = compBookings.reduce((sum, b) => sum + (b.cost || 0), 0);
-                            const shareVal = grossVal * 0.6;
-                            // Match withdrawals
-                            const approvedWithd = withdrawals
-                              .filter(
-                                (w) =>
-                                  w.status === 'Approved' &&
-                                  w.username?.toLowerCase() === modelUser.toLowerCase()
-                              )
-                              .reduce((sum, w) => sum + (w.amount || 0), 0);
-                            const dueVal = Math.max(0, shareVal - approvedWithd);
-
-                            return (
-                              <tr key={comp.id} className="hover:bg-white/[0.01] transition-all">
-                                <td className="py-3 pl-2 flex items-center gap-2.5">
-                                  <img
-                                    src={comp.imageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120'}
-                                    alt={comp.name}
-                                    className="w-8 h-8 rounded-lg object-cover border border-white/[0.08]"
-                                  />
-                                  <div className="text-left">
-                                    <span className="block font-bold text-white leading-none">{comp.name}</span>
-                                    <span className="block text-[9px] text-slate-500 font-mono mt-1">
-                                      @{modelUser}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="py-3 text-center font-bold text-slate-300">
-                                  {compBookings.length}
-                                </td>
-                                <td className="py-3 font-semibold text-slate-300 font-mono">
-                                  ‡ß≥{grossVal.toLocaleString()}
-                                </td>
-                                <td className="py-3 font-bold text-[#dbaa61] font-mono">
-                                  ‡ß≥{shareVal.toLocaleString()}
-                                </td>
-                                <td className="py-3 font-semibold text-emerald-400 font-mono">
-                                  ‡ß≥{approvedWithd.toLocaleString()}
-                                </td>
-                                <td className="py-3 font-black text-rose-400 font-mono">
-                                  ‡ß≥{dueVal.toLocaleString()}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* DETAILED TRANSACTION LOGS TABLE */}
-              <div className="bg-[#0b0c13] border border-[#1e2333] p-6 rounded-2xl">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.04] pb-4 mb-4">
-                  <div className="text-left">
-                    <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2 font-display">
-                      <Clock className="w-4 h-4 text-[#dbaa61]" />
-                      <span>Detailed Ledger Transactions Logs</span>
-                    </h3>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      ‡¶Ö‡¶®‡ßÅ‡¶Æ‡ßã‡¶¶‡¶ø‡¶§ ‡¶ï‡¶æ‡¶ú‡ßá‡¶∞ ‡¶π‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡¶ø‡•§ ‡¶è‡¶ñ‡¶æ‡¶®‡ßá ‡¶Ü‡¶™‡¶®‡¶ø ‡¶Æ‡ßç‡¶Ø‡¶æ‡¶®‡ßÅ‡ßü‡¶æ‡¶≤‡¶ø ‡¶è‡¶®‡ßç‡¶ü‡ßç‡¶∞‡¶ø ‡¶ï‡¶∞‡¶æ ‡¶ï‡ßã‡¶®‡ßã ‡¶ï‡¶æ‡¶ú‡ßá‡¶∞ ‡¶π‡¶ø‡¶∏‡¶æ‡¶¨ ‡¶∏‡¶Ç‡¶∂‡ßã‡¶ß‡¶® ‡¶¨‡¶æ ‡¶°‡¶ø‡¶≤‡¶ø‡¶ü ‡¶ï‡¶∞‡¶§‡ßá ‡¶™‡¶æ‡¶∞‡¶¨‡ßá‡¶®‡•§
-                    </p>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-white/[0.04] text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-                        <th className="pb-3 pl-2">Job Reference</th>
-                        <th className="pb-3">Model Companion</th>
-                        <th className="pb-3">Date / Time</th>
-                        <th className="pb-3">Location Place</th>
-                        <th className="pb-3">Gross Payment</th>
-                        <th className="pb-3 text-amber-200">Share (60%)</th>
-                        <th className="pb-3">Notes</th>
-                        <th className="pb-3 text-right pr-2">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.01]">
-                      {(() => {
-                        const completedList = bookings.filter((b) => b.status === 'Completed');
-                        if (completedList.length === 0) {
-                          return (
-                            <tr>
-                              <td colSpan={8} className="py-8 text-center text-slate-500 font-medium">
-                                No completed dispatches or ledger records found in database.
-                              </td>
-                            </tr>
-                          );
-                        }
-
-                        return completedList.map((book) => {
-                          const netShare = (book.cost || 0) * 0.6;
-                          return (
-                            <tr key={book.id} className="hover:bg-white/[0.01] transition-all">
-                              <td className="py-3.5 pl-2 font-mono text-[10px] text-slate-400 font-bold">
-                                {book.id}
-                              </td>
-                              <td className="py-3.5 text-left">
-                                <span className="block font-bold text-white">{book.modelName}</span>
-                                <span className="block text-[9px] text-slate-500 font-mono mt-0.5">
-                                  {book.modelUsername ? `@${book.modelUsername}` : 'Direct match'}
-                                </span>
-                              </td>
-                              <td className="py-3.5 text-slate-300 font-mono text-[11px]">
-                                <span className="block">{book.date}</span>
-                                <span className="block text-[10px] text-slate-500 mt-0.5">{book.time}</span>
-                              </td>
-                              <td className="py-3.5 text-slate-300 font-medium text-[11px]">
-                                {book.location}
-                              </td>
-                              <td className="py-3.5 font-bold text-slate-300 font-mono">
-                                ‡ß≥{book.cost?.toLocaleString() || 0}
-                              </td>
-                              <td className="py-3.5 font-bold text-[#dbaa61] font-mono">
-                                ‡ß≥{netShare.toLocaleString()}
-                              </td>
-                              <td className="py-3.5 text-slate-400 text-[11px] max-w-xs truncate" title={book.notes}>
-                                {book.notes || '‚Äî'}
-                              </td>
-                              <td className="py-3.5 text-right pr-2">
-                                <button
-                                  onClick={async () => {
-                                    if (confirm('Are you sure you want to delete this completed job entry from the ledger? This will instantly adjust the model\'s balance sheet!')) {
-                                      try {
-                                        await deleteDoc(doc(db, 'bookings', book.id));
-                                        alert('Ledger transaction entry deleted successfully!');
-                                      } catch (err) {
-                                        console.error('Error deleting booking:', err);
-                                        alert('Failed to delete transaction.');
-                                      }
-                                    }
-                                  }}
-                                  className="p-1.5 hover:bg-rose-500/10 text-rose-500 hover:text-rose-400 rounded-lg transition active:scale-95 cursor-pointer"
-                                  title="Delete transaction entry"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        });
-                      })()}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-            </div>
-          )}
-
-          {activeTab === 'promocodes' && (
-            <div className="space-y-8 animate-fadeIn text-left">
-              {/* Form & List Grid */}
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                {/* Promo Code Creator Card */}
-                <div className="xl:col-span-1 bg-[#0b0c13] border border-[#1e2333] p-6 rounded-2xl space-y-6">
-                  <div>
-                    <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2 font-display">
-                      <Tag className="w-4 h-4 text-[#dbaa61]" />
-                      <span>{editingPromo ? 'Edit Promo Code' : 'Create Promo Code'}</span>
-                    </h3>
-                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                      Set up custom discounts that customers can apply on the acquisition invoice page.
-                    </p>
-                  </div>
-
-                  <form onSubmit={handleSavePromo} className="space-y-4">
-                    {/* Promo Code Name */}
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold tracking-wide mb-1.5 font-mono">
-                        Promo Code *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. VIP50"
-                        value={promoCodeName}
-                        onChange={(e) => setPromoCodeName(e.target.value.toUpperCase())}
-                        disabled={!!editingPromo}
-                        className="w-full bg-[#11131c] text-xs font-mono font-bold text-white border border-[#1e2333] rounded-xl px-4 py-3 focus:outline-none focus:border-[#dbaa61] disabled:opacity-50 uppercase tracking-widest"
-                      />
-                    </div>
-
-                    {/* Discount Percentage */}
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold tracking-wide mb-1.5 font-mono">
-                        Discount Percentage (%) *
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        max="100"
-                        placeholder="35"
-                        value={promoDiscount || ''}
-                        onChange={(e) => setPromoDiscount(Number(e.target.value))}
-                        className="w-full bg-[#11131c] text-xs font-mono font-bold text-white border border-[#1e2333] rounded-xl px-4 py-3 focus:outline-none focus:border-[#dbaa61]"
-                      />
-                    </div>
-
-                    {/* Description */}
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold tracking-wide mb-1.5 font-mono">
-                        Short Description *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. 35% Special VIP Discount"
-                        value={promoDesc}
-                        onChange={(e) => setPromoDesc(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs text-white border border-[#1e2333] rounded-xl px-4 py-3 focus:outline-none focus:border-[#dbaa61]"
-                      />
-                    </div>
-
-                    {/* Max Uses (Optional) */}
-                    <div>
-                      <label className="block text-[10px] uppercase text-slate-400 font-extrabold tracking-wide mb-1.5 font-mono">
-                        Max Allowed Uses (Optional)
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        placeholder="Unlimited if blank"
-                        value={promoMaxUses}
-                        onChange={(e) => setPromoMaxUses(e.target.value)}
-                        className="w-full bg-[#11131c] text-xs font-mono text-white border border-[#1e2333] rounded-xl px-4 py-3 focus:outline-none focus:border-[#dbaa61]"
-                      />
-                    </div>
-
-                    {/* Is Active Status Switch */}
-                    <div className="flex items-center justify-between p-3 bg-[#11131c] rounded-xl border border-[#1e2333]">
-                      <div className="text-left">
-                        <span className="block text-[11px] font-bold text-white">Active Status</span>
-                        <span className="block text-[9.5px] text-slate-400 mt-0.5">Allow users to apply this code</span>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={promoIsActive}
-                        onChange={(e) => setPromoIsActive(e.target.checked)}
-                        className="w-4 h-4 text-[#dbaa61] bg-black border-[#1e2333] rounded focus:ring-0 cursor-pointer"
-                      />
-                    </div>
-
-                    {promoCodeError && (
-                      <p className="text-red-400 text-xs font-semibold bg-red-950/20 p-3 rounded-xl border border-red-500/20 leading-relaxed">
-                        {promoCodeError}
-                      </p>
-                    )}
-                    {promoCodeSuccess && (
-                      <p className="text-emerald-400 text-xs font-semibold bg-emerald-950/20 p-3 rounded-xl border border-emerald-500/20 leading-relaxed">
-                        {promoCodeSuccess}
-                      </p>
-                    )}
-
-                    <div className="flex gap-2.5 pt-2">
-                      {editingPromo && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingPromo(null);
-                            setPromoCodeName('');
-                            setPromoDiscount(35);
-                            setPromoDesc('');
-                            setPromoIsActive(true);
-                            setPromoMaxUses('');
-                            setPromoCodeError('');
-                            setPromoCodeSuccess('');
-                          }}
-                          className="flex-1 bg-transparent border border-[#1e2333] hover:border-slate-505 text-slate-300 font-bold text-xs py-3 rounded-xl transition cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                      <button
-                        type="submit"
-                        className="flex-1 bg-gradient-to-r from-[#dbaa61] to-[#b38642] text-black font-black uppercase text-[10px] tracking-widest py-3 rounded-xl hover:brightness-110 transition duration-200 shadow-md shadow-[#dbaa61]/10 cursor-pointer"
-                      >
-                        {editingPromo ? 'UPDATE CODE' : 'CREATE CODE'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-
-                {/* Promo Codes List Table */}
-                <div className="xl:col-span-2 bg-[#0b0c13] border border-[#1e2333] rounded-2xl overflow-hidden flex flex-col justify-between">
-                  <div>
-                    <div className="p-6 border-b border-[#1c2333] flex items-center justify-between">
-                      <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2 font-display">
-                        <Percent className="w-4 h-4 text-[#dbaa61]" />
-                        <span>Active Promo Codes Catalog</span>
-                      </h3>
-                      <span className="text-[10px] font-mono bg-red-500/10 text-red-400 font-bold px-2.5 py-1 rounded-full border border-red-500/20">
-                        {adminPromoCodes.length} Total Codes
-                      </span>
-                    </div>
-
-                    {adminPromoCodes.length === 0 ? (
-                      <div className="p-12 text-center text-slate-500 space-y-2">
-                        <Tag className="w-10 h-10 mx-auto text-slate-600 animate-pulse" />
-                        <p className="text-xs font-semibold">No dynamic promo codes found in database.</p>
-                        <p className="text-[10px] text-slate-600 max-w-xs mx-auto">
-                          Create your first promo code using the form to offer custom user acquisition discounts.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse text-xs">
-                          <thead>
-                            <tr className="bg-[#11131c] text-slate-400 font-black uppercase text-[9.5px] tracking-wider border-b border-[#1c2333]">
-                              <th className="p-4 pl-6">Code Name</th>
-                              <th className="p-4">Discount</th>
-                              <th className="p-4">Description</th>
-                              <th className="p-4">Uses (Used/Max)</th>
-                              <th className="p-4 text-center">Status</th>
-                              <th className="p-4 pr-6 text-right">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-[#131722]">
-                            {adminPromoCodes.map((promo) => (
-                              <tr key={promo.id} className="hover:bg-white/[0.01] transition-colors">
-                                <td className="p-4 pl-6 font-mono font-bold text-white tracking-widest uppercase">
-                                  {promo.code}
-                                </td>
-                                <td className="p-4">
-                                  <span className="px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold font-mono">
-                                    {promo.discountPercent}% OFF
-                                  </span>
-                                </td>
-                                <td className="p-4 text-slate-300 max-w-[150px] truncate" title={promo.description}>
-                                  {promo.description}
-                                </td>
-                                <td className="p-4 font-mono text-slate-400 font-semibold">
-                                  {promo.usedCount} / {promo.maxUses !== undefined && promo.maxUses !== null ? promo.maxUses : '‚àû'}
-                                </td>
-                                <td className="p-4 text-center">
-                                  <button
-                                    onClick={() => handleTogglePromoStatus(promo)}
-                                    className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase transition cursor-pointer ${
-                                      promo.isActive
-                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25'
-                                        : 'bg-red-500/10 text-red-400 border border-red-500/25'
-                                    }`}
-                                  >
-                                    {promo.isActive ? 'Active' : 'Inactive'}
-                                  </button>
-                                </td>
-                                <td className="p-4 pr-6 text-right space-x-2">
-                                  <button
-                                    onClick={() => {
-                                      setEditingPromo(promo);
-                                      setPromoCodeName(promo.code);
-                                      setPromoDiscount(promo.discountPercent);
-                                      setPromoDesc(promo.description);
-                                      setPromoIsActive(promo.isActive);
-                                      setPromoMaxUses(promo.maxUses !== undefined && promo.maxUses !== null ? String(promo.maxUses) : '');
-                                      setPromoCodeError('');
-                                      setPromoCodeSuccess('');
-                                    }}
-                                    className="p-1.5 bg-[#1e2333]/40 border border-[#1e2333] hover:border-slate-500 text-slate-300 rounded-lg hover:text-white transition cursor-pointer inline-flex items-center"
-                                    title="Edit Code"
-                                  >
-                                    <Edit className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeletePromo(promo.id)}
-                                    className="p-1.5 bg-red-950/20 border border-red-500/20 hover:border-red-500/50 text-red-400 rounded-lg transition cursor-pointer inline-flex items-center"
-                                    title="Delete Code"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'livechat' && (
-            <AdminLiveChat socketServerUrl={socketServerUrl} />
-          )}
-
-          {activeTab === 'broadcast_notifications' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                
-                {/* Left: Compose Form */}
-                <div className="lg:col-span-5 bg-[#0f111a] border border-[#1c2333] rounded-3xl p-6 shadow-xl relative overflow-hidden text-left">
-                  <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600" />
-                  
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-[#dbaa61]">
-                      <Megaphone className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-sm font-black text-white uppercase tracking-wider">Compose Push Alert</h2>
-                      <p className="text-[10px] text-slate-500 font-bold mt-0.5 font-sans">‡¶®‡¶§‡ßÅ‡¶® ‡¶¨‡¶æ‡¶∞‡ßç‡¶§‡¶æ ‡¶¨‡¶æ ‡¶è‡¶≤‡¶æ‡¶∞‡ßç‡¶ü ‡¶§‡ßà‡¶∞‡¶ø ‡¶ï‡¶∞‡ßÅ‡¶®</p>
-                    </div>
-                  </div>
-
-                  <form onSubmit={handleSendBroadcast} className="space-y-5">
-                    
-                    {/* Target Client dropdown */}
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between items-center">
-                        <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Target Client / ‡¶™‡ßç‡¶∞‡¶æ‡¶™‡¶ï</label>
-                        <span className="text-[9px] text-slate-500 font-bold">Default: All Users (‡¶∏‡¶¨‡¶æ‡¶∞ ‡¶ú‡¶®‡ßç‡¶Ø)</span>
-                      </div>
-                      <select
-                        value={broadcastTargetUser}
-                        onChange={(e) => setBroadcastTargetUser(e.target.value)}
-                        className="w-full bg-[#11131a] border border-[#1c2333] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 transition-colors"
-                      >
-                        <option value="">üì¢ All Users (Global Broadcast / ‡¶∏‡¶¨‡¶æ‡¶∞ ‡¶ú‡¶®‡ßç‡¶Ø)</option>
-                        {allRegisteredUsers.map(user => (
-                          <option key={user.id} value={user.username || user.id}>
-                            üë§ {user.fullName || user.username || user.id} ({user.username || 'No Username'})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Alert Type */}
-                    <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Alert Type / ‡¶ß‡¶∞‡¶®</label>
-                      <select
-                        value={broadcastType}
-                        onChange={(e) => setBroadcastType(e.target.value as any)}
-                        className="w-full bg-[#11131a] border border-[#1c2333] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 transition-colors"
-                      >
-                        <option value="info">‚ÑπÔ∏è Info (‡¶∏‡¶æ‡¶ß‡¶æ‡¶∞‡¶£ ‡¶§‡¶•‡ßç‡¶Ø)</option>
-                        <option value="success">‚úÖ Success (‡¶∏‡¶´‡¶≤‡¶§‡¶æ)</option>
-                        <option value="alert">‚ö†Ô∏è Urgent Alert (‡¶ú‡¶∞‡ßÅ‡¶∞‡¶ø ‡¶è‡¶≤‡¶æ‡¶∞‡ßç‡¶ü)</option>
-                        <option value="booking">üìÖ Booking Update (‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶Ü‡¶™‡¶°‡ßá‡¶ü)</option>
-                        <option value="system">‚öôÔ∏è System Alert (‡¶∏‡¶ø‡¶∏‡ßç‡¶ü‡ßá‡¶Æ ‡¶è‡¶≤‡¶æ‡¶∞‡ßç‡¶ü)</option>
-                      </select>
-                    </div>
-
-                    {/* Notification Title */}
-                    <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Alert Title / ‡¶∂‡¶ø‡¶∞‡ßã‡¶®‡¶æ‡¶Æ *</label>
-                      <input
-                        type="text"
-                        required
-                        value={broadcastTitle}
-                        onChange={(e) => setBroadcastTitle(e.target.value)}
-                        placeholder="e.g. Server Maintenance / VIP Escorts Added"
-                        className="w-full bg-[#11131a] border border-[#1c2333] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
-                      />
-                    </div>
-
-                    {/* Notification Message */}
-                    <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black tracking-widest text-slate-400 uppercase">Alert Message / ‡¶¨‡¶ø‡¶∏‡ßç‡¶§‡¶æ‡¶∞‡¶ø‡¶§ ‡¶¨‡¶æ‡¶∞‡ßç‡¶§‡¶æ *</label>
-                      <textarea
-                        required
-                        rows={4}
-                        value={broadcastMessage}
-                        onChange={(e) => setBroadcastMessage(e.target.value)}
-                        placeholder="Dear VIP clients, we have just onboarded 5 premium international models. Check them out on the catalog!"
-                        className="w-full bg-[#11131a] border border-[#1c2333] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors resize-none"
-                      />
-                    </div>
-
-                    {/* Send Button */}
-                    <button
-                      type="submit"
-                      disabled={isSendingBroadcast}
-                      className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-amber-850/40 text-black text-xs font-black tracking-wider uppercase py-3 rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>{isSendingBroadcast ? 'Broadcasting Alert...' : 'Broadcast Alert (‡¶è‡¶≤‡¶æ‡¶∞‡ßç‡¶ü ‡¶™‡¶æ‡¶†‡¶æ‡¶®)'}</span>
-                    </button>
-
-                  </form>
-                </div>
-
-                {/* Right: Notification History list */}
-                <div className="lg:col-span-7 bg-[#0f111a] border border-[#1c2333] rounded-3xl p-6 shadow-xl text-left">
-                  <div className="flex items-center justify-between mb-5 border-b border-[#1c2333]/60 pb-4">
-                    <div>
-                      <h2 className="text-sm font-black text-white uppercase tracking-wider">Alert History & Status</h2>
-                      <p className="text-[10px] text-slate-500 font-bold mt-0.5">‡¶™‡ßÇ‡¶∞‡ßç‡¶¨‡ßá ‡¶™‡¶æ‡¶†‡¶æ‡¶®‡ßã ‡¶®‡ßã‡¶ü‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶® ‡¶∏‡¶Æ‡ßÇ‡¶π</p>
-                    </div>
-                    <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono font-bold">
-                      {adminNotifications.length} Alerts
-                    </span>
-                  </div>
-
-                  {adminNotifications.length === 0 ? (
-                    <div className="py-12 text-center text-slate-500 select-none">
-                      <Bell className="w-8 h-8 mx-auto text-slate-600 mb-2.5" />
-                      <p className="text-xs font-black uppercase tracking-wide">No Notifications Dispatched</p>
-                      <p className="text-[10px] mt-0.5">Create your first push notification using the composer form.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3.5 max-h-[500px] overflow-y-auto pr-1.5 scrollbar-none">
-                      {adminNotifications.map((notif) => {
-                        // determine styles based on notification type
-                        let badgeBg = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-                        if (notif.type === 'success') badgeBg = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-                        if (notif.type === 'alert') badgeBg = 'bg-red-500/15 text-red-400 border-red-500/30';
-                        if (notif.type === 'booking') badgeBg = 'bg-purple-500/10 text-purple-400 border-purple-500/20';
-                        if (notif.type === 'system') badgeBg = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-
-                        return (
-                          <div
-                            key={notif.id}
-                            className="bg-[#11131a] border border-[#1d232a] hover:border-slate-800 rounded-2xl p-4 flex gap-3 items-start justify-between transition-all"
-                          >
-                            <div className="space-y-1.5 flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`text-[8px] font-mono font-black uppercase px-1.5 py-0.5 rounded border ${badgeBg}`}>
-                                  {notif.type || 'info'}
-                                </span>
-                                
-                                {notif.username ? (
-                                  <span className="text-[8.5px] bg-[#dbaa61]/10 text-[#dbaa61] font-mono font-extrabold px-1.5 rounded uppercase border border-[#dbaa61]/20">
-                                    üë§ {notif.username}
-                                  </span>
-                                ) : (
-                                  <span className="text-[8.5px] bg-slate-800 text-slate-300 font-mono font-extrabold px-1.5 rounded uppercase border border-slate-700/50">
-                                    üì¢ Global
-                                  </span>
-                                )}
-
-                                <span className="text-[9px] text-slate-500 font-mono font-bold">
-                                  {new Date(notif.timestamp || 0).toLocaleString()}
-                                </span>
-                              </div>
-
-                              <h3 className="text-xs font-black text-white leading-snug">{notif.title}</h3>
-                              <p className="text-[11px] text-slate-400 font-sans leading-relaxed break-words">{notif.message}</p>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteNotification(notif.id)}
-                              title="Recall & Delete / ‡¶®‡ßã‡¶ü‡¶ø‡¶´‡¶ø‡¶ï‡ßá‡¶∂‡¶®‡¶ü‡¶ø ‡¶™‡ßç‡¶∞‡¶§‡ßç‡¶Ø‡¶æ‡¶π‡¶æ‡¶∞ ‡¶ì ‡¶°‡¶ø‡¶≤‡¶ø‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶®"
-                              className="p-1.5 rounded-lg bg-[#181a24] border border-slate-800 text-rose-500 hover:text-white hover:bg-rose-950/30 transition cursor-pointer shrink-0 ml-1"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                </div>
-
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'visitors' && (
-            <div className="space-y-6 text-left">
-              {/* Analytics Summary Cards (Premium Bento Grid) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                {/* Metric 1: Total Pageviews */}
-                <div className="bg-[#0f111a] border border-[#1c2333] p-5 rounded-3xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 h-1 bg-amber-500 w-1/3" />
-                  <span className="block text-[10px] font-black tracking-wider text-slate-500 uppercase">Total Pageviews (‡¶Æ‡ßã‡¶ü ‡¶™‡ßá‡¶ú‡¶≠‡¶ø‡¶â)</span>
-                  <div className="flex items-baseline gap-2 mt-2">
-                    <span className="text-2xl font-black text-white font-mono">{visitorLogs.length}</span>
-                    <span className="text-[10px] text-emerald-400 font-bold">hits</span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-2 font-medium font-sans">Accumulated server-side tracked page hits.</p>
-                </div>
-
-                {/* Metric 2: Unique Visitors */}
-                <div className="bg-[#0f111a] border border-[#1c2333] p-5 rounded-3xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 h-1 bg-[#dbaa61] w-1/2" />
-                  <span className="block text-[10px] font-black tracking-wider text-slate-500 uppercase">Unique Sessions (‡¶á‡¶â‡¶®‡¶ø‡¶ï ‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞)</span>
-                  <div className="flex items-baseline gap-2 mt-2">
-                    <span className="text-2xl font-black text-amber-200 font-mono">
-                      {visitorLogs.filter(v => v.isUnique).length}
-                    </span>
-                    <span className="text-[10px] text-amber-500 font-bold">visitors</span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-2 font-medium font-sans">Distinct browser sessions logged on mount.</p>
-                </div>
-
-                {/* Metric 3: Today's Visitors */}
-                <div className="bg-[#0f111a] border border-[#1c2333] p-5 rounded-3xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 h-1 bg-emerald-500 w-2/3" />
-                  <span className="block text-[10px] font-black tracking-wider text-slate-500 uppercase">Today's Hits (‡¶Ü‡¶ú‡¶ï‡ßá‡¶∞ ‡¶ü‡ßç‡¶∞‡¶æ‡¶´‡¶ø‡¶ï)</span>
-                  <div className="flex items-baseline gap-2 mt-2">
-                    <span className="text-2xl font-black text-emerald-400 font-mono">
-                      {(() => {
-                        const todayStr = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString().split('T')[0];
-                        return visitorLogs.filter(v => v.date === todayStr).length;
-                      })()}
-                    </span>
-                    <span className="text-[10px] text-emerald-500 font-bold">pageviews</span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-2 font-medium font-sans">Page views tracked in Bangladesh Standard Time.</p>
-                </div>
-
-                {/* Metric 4: Top Location */}
-                <div className="bg-[#0f111a] border border-[#1c2333] p-5 rounded-3xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 h-1 bg-blue-500 w-3/4" />
-                  <span className="block text-[10px] font-black tracking-wider text-slate-500 uppercase">Top Country (‡¶™‡ßç‡¶∞‡¶ß‡¶æ‡¶® ‡¶¶‡ßá‡¶∂)</span>
-                  <div className="flex items-baseline gap-2 mt-2">
-                    <span className="text-lg font-black text-blue-300 uppercase tracking-tight truncate max-w-full font-mono">
-                      {(() => {
-                        const counts: { [key: string]: number } = {};
-                        visitorLogs.forEach(v => {
-                          if (v.country) counts[v.country] = (counts[v.country] || 0) + 1;
-                        });
-                        const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-                        return top ? `${top[0]} (${top[1]})` : "None";
-                      })()}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-2 font-medium font-sans">Region contributing the highest overall traffic.</p>
-                </div>
-              </div>
-
-              {/* Advanced Filter, Search & Custom Date Picker Panel */}
-              <div className="bg-[#0f111a] border border-[#1c2333] rounded-3xl p-6 space-y-6">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[#dbaa61]">
-                      <Globe className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black text-white uppercase tracking-wider font-sans">Log Filters & Custom Range</h3>
-                      <p className="text-[10px] text-slate-500 font-bold mt-0.5">‡¶´‡¶ø‡¶≤‡ßç‡¶ü‡¶æ‡¶∞ ‡¶ï‡¶∞‡ßÅ‡¶® ‡¶è‡¶¨‡¶Ç ‡¶®‡¶ø‡¶∞‡ßç‡¶¶‡¶ø‡¶∑‡ßç‡¶ü ‡¶§‡¶æ‡¶∞‡¶ø‡¶ñ ‡¶Ö‡¶®‡ßÅ‡¶Ø‡¶æ‡ßü‡ßÄ ‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶π‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡¶ø ‡¶¶‡ßá‡¶ñ‡ßÅ‡¶®</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* Filter Type Buttons */}
-                    <button
-                      onClick={() => {
-                        setVisitorDateFilterType('all');
-                        setVisitorStartDate('');
-                        setVisitorEndDate('');
-                      }}
-                      className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all border cursor-pointer ${
-                        visitorDateFilterType === 'all'
-                          ? 'bg-amber-500/10 border-amber-500/30 text-[#dbaa61]'
-                          : 'bg-black/30 border-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      All Time (‡¶∏‡¶¨ ‡¶∏‡¶Æ‡ßü)
-                    </button>
-                    <button
-                      onClick={() => {
-                        const todayStr = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString().split('T')[0];
-                        setVisitorDateFilterType('today');
-                        setVisitorStartDate(todayStr);
-                        setVisitorEndDate(todayStr);
-                      }}
-                      className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all border cursor-pointer ${
-                        visitorDateFilterType === 'today'
-                          ? 'bg-amber-500/10 border-amber-500/30 text-[#dbaa61]'
-                          : 'bg-black/30 border-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      Today (‡¶Ü‡¶ú‡¶ï‡ßá)
-                    </button>
-                    <button
-                      onClick={() => setVisitorDateFilterType('custom')}
-                      className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all border cursor-pointer ${
-                        visitorDateFilterType === 'custom'
-                          ? 'bg-amber-500/10 border-amber-500/30 text-[#dbaa61]'
-                          : 'bg-black/30 border-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      Custom Date (‡¶§‡¶æ‡¶∞‡¶ø‡¶ñ ‡¶®‡¶ø‡¶∞‡ßç‡¶ß‡¶æ‡¶∞‡¶£)
-                    </button>
-
-                    <button
-                      onClick={fetchVisitorLogs}
-                      disabled={isVisitorLogsLoading}
-                      className="ml-2 p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition disabled:opacity-50 flex items-center gap-1 cursor-pointer"
-                      title="Reload Log Data"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isVisitorLogsLoading ? 'animate-spin' : ''}`} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Date Picker Range Inputs (Conditional) */}
-                {visitorDateFilterType === 'custom' && (
-                  <div className="p-4 bg-black/20 border border-slate-800/60 rounded-2xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end animate-in fade-in slide-in-from-top-1 duration-200">
-                    <div className="space-y-1.5 text-left">
-                      <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Start Date (‡¶∂‡ßÅ‡¶∞‡ßÅ‡¶∞ ‡¶§‡¶æ‡¶∞‡¶ø‡¶ñ)</label>
-                      <input
-                        type="date"
-                        value={visitorStartDate}
-                        onChange={(e) => setVisitorStartDate(e.target.value)}
-                        className="w-full bg-[#141722] border border-slate-800 text-white font-mono text-xs rounded-xl p-2.5 focus:outline-none focus:border-amber-500/40"
-                      />
-                    </div>
-                    <div className="space-y-1.5 text-left">
-                      <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">End Date (‡¶∂‡ßá‡¶∑‡ßá‡¶∞ ‡¶§‡¶æ‡¶∞‡¶ø‡¶ñ)</label>
-                      <input
-                        type="date"
-                        value={visitorEndDate}
-                        onChange={(e) => setVisitorEndDate(e.target.value)}
-                        className="w-full bg-[#141722] border border-slate-800 text-white font-mono text-xs rounded-xl p-2.5 focus:outline-none focus:border-amber-500/40"
-                      />
-                    </div>
-                    <div>
-                      <button
-                        onClick={() => {
-                          if (!visitorStartDate || !visitorEndDate) {
-                            alert('‡¶¶‡ßü‡¶æ ‡¶ï‡¶∞‡ßá ‡¶∂‡ßÅ‡¶∞‡ßÅ‡¶∞ ‡¶è‡¶¨‡¶Ç ‡¶∂‡ßá‡¶∑‡ßá‡¶∞ ‡¶§‡¶æ‡¶∞‡¶ø‡¶ñ ‡¶∏‡¶ø‡¶≤‡ßá‡¶ï‡ßç‡¶ü ‡¶ï‡¶∞‡ßÅ‡¶®‡•§');
-                          } else {
-                            fetchVisitorLogs();
-                          }
-                        }}
-                        className="w-full h-10 px-4 bg-gradient-to-tr from-amber-600 to-amber-500 hover:brightness-110 text-white text-xs font-black uppercase tracking-wider rounded-xl transition cursor-pointer active:scale-95 font-sans"
-                      >
-                        Apply Filter (‡¶™‡ßç‡¶∞‡¶Ø‡¶º‡ßã‡¶ó ‡¶ï‡¶∞‡ßÅ‡¶®)
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Global Search Filter Input */}
-                <div className="relative">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input
-                    type="text"
-                    value={visitorSearchQuery}
-                    onChange={(e) => setVisitorSearchQuery(e.target.value)}
-                    placeholder="Search by IP address, country name, city, browser, or path (‡¶Ü‡¶á‡¶™‡¶ø, ‡¶¶‡ßá‡¶∂ ‡¶¨‡¶æ ‡¶∂‡¶π‡¶∞ ‡¶¶‡¶ø‡ßü‡ßá ‡¶ñ‡ßÅ‡¶Å‡¶ú‡ßÅ‡¶®)..."
-                    className="w-full pl-10 pr-4 py-3 bg-[#131520] border border-slate-800 text-slate-200 text-xs rounded-2xl focus:outline-none focus:border-amber-500/40"
-                  />
-                </div>
-              </div>
-
-              {/* Geographic Hotspots Breakdown (Bento Columns) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Countries List */}
-                <div className="bg-[#0f111a] border border-[#1c2333] rounded-3xl p-5 text-left">
-                  <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-4 pb-2 border-b border-white/5 font-sans">
-                    Top Countries (‡¶™‡ßç‡¶∞‡¶ß‡¶æ‡¶® ‡¶¶‡ßá‡¶∂‡¶∏‡¶Æ‡ßÇ‡¶π)
-                  </h4>
-                  <div className="space-y-3.5 max-h-[240px] overflow-y-auto scrollbar-thin">
-                    {(() => {
-                      const counts: { [key: string]: { hits: number; uniques: number; code: string } } = {};
-                      visitorLogs.forEach(v => {
-                        const c = v.country || "Unknown Country";
-                        if (!counts[c]) {
-                          counts[c] = { hits: 0, uniques: 0, code: v.countryCode || "UN" };
-                        }
-                        counts[c].hits++;
-                        if (v.isUnique) counts[c].uniques++;
-                      });
-                      const sorted = Object.entries(counts).sort((a, b) => b[1].hits - a[1].hits);
-                      
-                      if (sorted.length === 0) {
-                        return <p className="text-[10px] text-slate-500 py-4 font-mono font-bold text-center">No location metrics captured yet.</p>;
-                      }
-                      
-                      return sorted.map(([country, stat], index) => {
-                        const percent = Math.min(100, Math.round((stat.hits / (visitorLogs.length || 1)) * 100));
-                        return (
-                          <div key={country} className="space-y-1">
-                            <div className="flex justify-between items-center text-[11px]">
-                              <div className="flex items-center gap-2">
-                                <span className="text-slate-500 font-mono font-bold">#{index + 1}</span>
-                                <span className="font-bold text-white">{country}</span>
-                                <span className="text-[9px] bg-slate-800 px-1 py-0.2 rounded font-mono font-bold text-slate-400 uppercase">{stat.code}</span>
-                              </div>
-                              <span className="text-slate-400 font-mono font-black">
-                                {stat.hits} hits <span className="text-slate-500">/</span> {stat.uniques} unique
-                              </span>
-                            </div>
-                            <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
-                              <div className="h-full bg-amber-500 rounded-full" style={{ width: `${percent}%` }} />
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-
-                {/* Visited Paths List */}
-                <div className="bg-[#0f111a] border border-[#1c2333] rounded-3xl p-5 text-left">
-                  <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-4 pb-2 border-b border-white/5 font-sans">
-                    Popular Paths & Pages (‡¶ú‡¶®‡¶™‡ßç‡¶∞‡¶ø‡ßü ‡¶™‡ßá‡¶ú‡¶∏‡¶Æ‡ßÇ‡¶π)
-                  </h4>
-                  <div className="space-y-3.5 max-h-[240px] overflow-y-auto scrollbar-thin">
-                    {(() => {
-                      const counts: { [key: string]: number } = {};
-                      visitorLogs.forEach(v => {
-                        const p = v.path || "/";
-                        counts[p] = (counts[p] || 0) + 1;
-                      });
-                      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-                      
-                      if (sorted.length === 0) {
-                        return <p className="text-[10px] text-slate-500 py-4 font-mono font-bold text-center">No path tracking data logged.</p>;
-                      }
-                      
-                      return sorted.map(([path, hits], index) => {
-                        const percent = Math.min(100, Math.round((hits / (visitorLogs.length || 1)) * 100));
-                        return (
-                          <div key={path} className="space-y-1">
-                            <div className="flex justify-between items-center text-[11px]">
-                              <div className="flex items-center gap-2 truncate max-w-[70%]">
-                                <span className="text-slate-500 font-mono font-bold">#{index + 1}</span>
-                                <span className="font-mono text-xs text-amber-200/90 truncate">{path}</span>
-                              </div>
-                              <span className="text-slate-400 font-mono font-black shrink-0">{hits} pageviews</span>
-                            </div>
-                            <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
-                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${percent}%` }} />
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-              </div>
-
-              {/* Master Traffic Log Table */}
-              <div className="bg-[#0f111a] border border-[#1c2333] rounded-3xl overflow-hidden shadow-xl">
-                <div className="p-5 border-b border-white/5 flex items-center justify-between">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-white font-sans">
-                    Detailed History Logs (‡¶¨‡¶ø‡¶∏‡ßç‡¶§‡¶æ‡¶∞‡¶ø‡¶§ ‡¶≠‡¶ø‡¶ú‡¶ø‡¶ü‡¶∞ ‡¶≤‡¶ó)
-                  </h4>
-                  <span className="text-[10px] bg-[#dbaa61]/10 text-[#dbaa61] font-mono font-bold px-2 py-0.5 rounded border border-[#dbaa61]/20">
-                    {
-                      (() => {
-                        let filtered = [...visitorLogs];
-                        if (visitorDateFilterType === 'today') {
-                          const todayStr = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString().split('T')[0];
-                          filtered = filtered.filter(v => v.date === todayStr);
-                        } else if (visitorDateFilterType === 'custom' && visitorStartDate && visitorEndDate) {
-                          filtered = filtered.filter(v => {
-                            return v.date >= visitorStartDate && v.date <= visitorEndDate;
-                          });
-                        }
-                        
-                        if (visitorSearchQuery.trim()) {
-                          const q = visitorSearchQuery.toLowerCase();
-                          filtered = filtered.filter(v => 
-                            (v.ip && v.ip.toLowerCase().includes(q)) ||
-                            (v.country && v.country.toLowerCase().includes(q)) ||
-                            (v.city && v.city.toLowerCase().includes(q)) ||
-                            (v.browser && v.browser.toLowerCase().includes(q)) ||
-                            (v.path && v.path.toLowerCase().includes(q))
-                          );
-                        }
-                        
-                        return filtered.length;
-                      })()
-                    } records found
-                  </span>
-                </div>
-
-                <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-[#dbaa61]/20 scrollbar-track-transparent">
-                  <table className="w-full min-w-[1200px] text-left text-xs border-collapse font-sans">
-                    <thead>
-                      <tr className="bg-black/30 border-b border-white/5 text-[10px] text-slate-500 font-black uppercase tracking-widest">
-                        <th className="p-4 pl-6">IP / Network Provider</th>
-                        <th className="p-4">Time Spent</th>
-                        <th className="p-4">Geographic Location</th>
-                        <th className="p-4">Browser & OS</th>
-                        <th className="p-4">Visited Path</th>
-                        <th className="p-4">Referrer Domain</th>
-                        <th className="p-4 pr-6 text-right">Visit Timestamp</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.03]">
-                      {(() => {
-                        let filtered = [...visitorLogs];
-                        if (visitorDateFilterType === 'today') {
-                          const todayStr = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString().split('T')[0];
-                          filtered = filtered.filter(v => v.date === todayStr);
-                        } else if (visitorDateFilterType === 'custom' && visitorStartDate && visitorEndDate) {
-                          filtered = filtered.filter(v => {
-                            return v.date >= visitorStartDate && v.date <= visitorEndDate;
-                          });
-                        }
-                        
-                        if (visitorSearchQuery.trim()) {
-                          const q = visitorSearchQuery.toLowerCase();
-                          filtered = filtered.filter(v => 
-                            (v.ip && v.ip.toLowerCase().includes(q)) ||
-                            (v.country && v.country.toLowerCase().includes(q)) ||
-                            (v.city && v.city.toLowerCase().includes(q)) ||
-                            (v.browser && v.browser.toLowerCase().includes(q)) ||
-                            (v.path && v.path.toLowerCase().includes(q))
-                          );
-                        }
-
-                        if (filtered.length === 0) {
-                          return (
-                            <tr>
-                              <td colSpan={7} className="p-10 text-center text-slate-500 font-bold font-mono text-[11px]">
-                                No matched visitor sessions logged for the selected dates.
-                              </td>
-                            </tr>
-                          );
-                        }
-
-                        return filtered.map((log) => {
-                          const logTime = new Date(log.timestamp);
-                          const formattedTime = logTime.toLocaleString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                            hour12: true
-                          });
-
-                          return (
-                            <tr key={log.id} className="hover:bg-white/[0.01] transition-colors">
-                              {/* IP & ISP */}
-                              <td className="p-4 pl-6 space-y-1">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="font-mono text-xs font-black text-amber-200">{log.ip}</span>
-                                  {log.isUnique && (
-                                    <span className="bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase tracking-widest px-1 rounded border border-emerald-500/20">
-                                      Unique
-                                    </span>
-                                  )}
-                                </div>
-                                <span className="block text-[9px] text-slate-500 font-bold max-w-[180px] truncate font-sans" title={log.org}>
-                                  {log.org || 'Local Dev Server'}
-                                </span>
-                              </td>
-
-                              {/* Time Spent */}
-                              <td className="p-4">
-                                {(() => {
-                                  // Compute if the visit happened within the last 25 seconds (active session)
-                                  const isLive = log.timestamp 
-                                    ? (Math.abs(Date.now() - new Date(log.timestamp).getTime()) < 25000) 
-                                    : false;
-                                  
-                                  const durationVal = log.duration || 0;
-
-                                  const formatDuration = (val: number) => {
-                                    const pad = (num: number) => String(num).padStart(2, '0');
-                                    if (val <= 0) return "01 sec";
-                                    const h = Math.floor(val / 3600);
-                                    const m = Math.floor((val % 3600) / 60);
-                                    const s = val % 60;
-                                    
-                                    if (h > 0) {
-                                      return `${pad(h)} hr ${pad(m)} min ${pad(s)} sec`;
-                                    }
-                                    if (m > 0) {
-                                      return `${pad(m)} min ${pad(s)} sec`;
-                                    }
-                                    return `${pad(s)} sec`;
-                                  };
-
-                                  if (isLive) {
-                                    return (
-                                      <span className="font-mono text-[10px] font-black px-2 py-0.5 rounded border bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse">
-                                        {formatDuration(durationVal)} ‚Ä¢ Live
-                                      </span>
-                                    );
-                                  }
-
-                                  return (
-                                    <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded border bg-slate-500/5 text-slate-400 border-slate-500/10">
-                                      {formatDuration(durationVal)}
-                                    </span>
-                                  );
-                                })()}
-                              </td>
-
-                              {/* Location */}
-                              <td className="p-4 space-y-1">
-                                <div className="flex items-center gap-1.5 font-bold text-white">
-                                  <span>{log.city || 'Localhost'}</span>
-                                </div>
-                                <span className="block text-[9px] text-slate-400 font-medium font-sans">
-                                  {log.region ? `${log.region}, ` : ''}{log.country || 'Bangladesh'}
-                                </span>
-                              </td>
-
-                              {/* Browser & OS */}
-                              <td className="p-4 space-y-1">
-                                <span className="block text-xs font-bold text-slate-300">{log.browser || 'Other'}</span>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="block text-[9px] text-slate-500 font-black uppercase tracking-wider font-mono">{log.os || 'Unknown OS'}</span>
-                                  {log.device && log.device !== 'Desktop / Laptop' && log.device !== 'Android Device' && log.device !== 'iOS Device' && (
-                                    <span className="bg-[#dbaa61]/10 text-[#dbaa61] text-[8px] font-black uppercase tracking-widest px-1 py-0.5 rounded border border-[#dbaa61]/20 font-mono">
-                                      {log.device}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-
-                              {/* Path */}
-                              <td className="p-4">
-                                <span className="font-mono text-xs bg-slate-900/60 border border-slate-800 px-2 py-1 rounded text-blue-300 max-w-[120px] truncate block" title={log.path}>
-                                  {log.path || '/'}
-                                </span>
-                              </td>
-
-                              {/* Referrer */}
-                              <td className="p-4">
-                                <span className="text-slate-400 max-w-[140px] truncate block font-sans" title={log.referer}>
-                                  {log.referer || 'Direct / Bookmark'}
-                                </span>
-                              </td>
-
-                              {/* Timestamp */}
-                              <td className="p-4 pr-6 text-right font-mono text-slate-400 text-xs font-medium">
-                                <span className="block text-slate-300">{formattedTime}</span>
-                                <span className="block text-[9px] text-slate-500 font-bold mt-0.5 font-sans">BST / GMT+6</span>
-                              </td>
-                            </tr>
-                          );
-                        });
-                      })()}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* =======================================================
-              MARKETING & AD TRACKING PIXELS TAB
-             ======================================================= */}
-          {activeTab === 'marketing' && (
-            <MarketingPixelsManager
-              settings={currentMarketingSettings}
-              onSaveSettings={handleSaveMarketingSettingsInternal}
-              loggedInAdminEmail={adminEmail}
-            />
-          )}
-
-        </div>
-
-      </div>
-
-      {/* FLOATING HIGHLIGHTED CHAT BUTTON (Bottom Right - Logo Styled like Client Panel's Message Logo) */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <button
-          onClick={() => setActiveTab('livechat')}
-          className="relative flex flex-col items-center justify-center w-16 h-16 rounded-full bg-gradient-to-tr from-[#1e40af] via-[#3b82f6] to-[#60a5fa] border border-blue-400/20 hover:scale-110 hover:rotate-2 active:scale-95 transition-all duration-300 cursor-pointer group shadow-[0_4px_24px_rgba(37,99,235,0.45)]"
-          aria-label="Live Support Chat"
-        >
-          {/* Pulsing Outer Rings */}
-          <span className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping opacity-75 pointer-events-none" />
-
-          {/* Overlapping black chat speech bubbles with custom mask gap */}
-          <svg viewBox="0 0 100 100" className="w-8.5 h-8.5 select-none pointer-events-none transition-transform duration-300 group-hover:scale-110">
-            <defs>
-              <mask id="chat-bubble-mask-admin">
-                {/* Everything white is kept */}
-                <rect width="100" height="100" fill="white" />
-                {/* Black area is removed (the left bubble + stroke gap) */}
-                <path 
-                  d="M 41 28 C 52.5 28 62 35.5 62 45 C 62 51.5 56.5 57 49 59.5 L 47 66 L 41.5 62 C 41 62.1 40.5 62.1 40 62.1 C 28.5 62.1 19 54.5 19 45 C 19 35.5 28.5 28 40 28 Z" 
-                  fill="black" 
-                  stroke="black" 
-                  strokeWidth="6" 
-                  strokeLinejoin="round" 
-                />
-              </mask>
-            </defs>
-            
-            {/* Right Bubble (behind) masked */}
-            <path 
-              d="M 59 40 C 68.5 40 76 46.5 76 54.5 C 76 60 72.5 65 67 67.5 L 68.5 74 L 62.5 70.5 C 62 70.6 61.5 70.6 61 70.6 C 49.5 70.6 42 64 42 54.5 C 42 46.5 49.5 40 59 40 Z" 
-              fill="black" 
-              mask="url(#chat-bubble-mask-admin)" 
-            />
-            
-            {/* Left Bubble (front) */}
-            <path 
-              d="M 41 28 C 52.5 28 62 35.5 62 45 C 62 51.5 56.5 57 49 59.5 L 47 66 L 41.5 62 C 41 62.1 40.5 62.1 40 62.1 C 28.5 62.1 19 54.5 19 45 C 19 35.5 28.5 28 40 28 Z" 
-              fill="black" 
-            />
-          </svg>
-
-          {/* Green Online status dot at bottom right */}
-          <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#020714] flex items-center justify-center shadow-lg">
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-          </span>
-
-          {/* Dynamic Highlight badge */}
-          <span className="absolute -top-1 -right-1 flex h-4 w-4">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[9px] font-bold text-white items-center justify-center">!</span>
-          </span>
-
-          {/* Hover Tooltip/Label */}
-          <div className="absolute right-18 bg-[#0a0b10]/95 backdrop-blur-md border border-[#dbaa61]/30 text-[#dbaa61] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-xl">
-            Live Support Console
-          </div>
-        </button>
-      </div>
-
-      {/* Custom Confirmation Dialog for Database Reset */}
-      <AnimatePresence>
-        {showConfirmClear && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowConfirmClear(false)}
-              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ scale: 0.9, y: 15, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.9, y: 15, opacity: 0 }}
-              className="bg-[#0e0a0a] border border-red-500/30 rounded-3xl p-6 max-w-md w-full relative z-10 shadow-[0_0_50px_rgba(239,68,68,0.15)] space-y-6 animate-in fade-in zoom-in duration-200"
-            >
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/35 flex items-center justify-center text-red-500 shrink-0">
-                  <ShieldAlert className="w-6 h-6 animate-pulse" />
-                </div>
-                <div className="space-y-2 text-left">
-                  <h3 className="text-base font-black uppercase tracking-wider text-white font-mono">‚ö†Ô∏è SYSTEM RESET CONFIRMATION</h3>
-                  <p className="text-xs text-slate-300 font-semibold leading-relaxed">
-                    ‡¶Ü‡¶™‡¶®‡¶ø ‡¶ï‡¶ø ‡¶®‡¶ø‡¶∂‡ßç‡¶ö‡¶ø‡¶§ ‡¶Ø‡ßá ‡¶Ü‡¶™‡¶®‡¶ø ‡¶∏‡¶ï‡¶≤ ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ‡¶æ‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü, ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶π‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡¶ø ‡¶è‡¶¨‡¶Ç ‡¶ü‡ßç‡¶∞‡¶æ‡¶®‡¶ú‡ßá‡¶ï‡¶∂‡¶® ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú ‡¶•‡ßá‡¶ï‡ßá ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡¶§‡ßá ‡¶ö‡¶æ‡¶®?
-                  </p>
-                  <p className="text-[11px] text-red-400 font-bold leading-relaxed bg-red-950/20 p-2.5 rounded-lg border border-red-500/10">
-                    ‡¶è‡¶á ‡¶Ö‡¶™‡¶æ‡¶∞‡ßá‡¶∂‡¶®‡¶ü‡¶ø ‡¶∏‡¶Æ‡ßç‡¶™‡ßÇ‡¶∞‡ßç‡¶£ ‡¶Ö‡¶™‡¶∞‡¶ø‡¶¨‡¶∞‡ßç‡¶§‡¶®‡ßÄ‡¶Ø‡¶º ‡¶è‡¶¨‡¶Ç ‡¶°‡¶æ‡¶ü‡¶æ‡¶¨‡ßá‡¶ú‡ßá‡¶∞ ‡¶∏‡¶ï‡¶≤ ‡¶ï‡¶æ‡¶∏‡ßç‡¶ü‡¶Æ‡¶æ‡¶∞ ‡¶Ö‡ßç‡¶Ø‡¶æ‡¶ï‡¶æ‡¶â‡¶®‡ßç‡¶ü, ‡¶¨‡ßÅ‡¶ï‡¶ø‡¶Ç ‡¶π‡¶ø‡¶∏‡ßç‡¶ü‡ßç‡¶∞‡¶ø ‡¶è‡¶¨‡¶Ç ‡¶™‡ßá‡¶Æ‡ßá‡¶®‡ßç‡¶ü ‡¶∞‡ßá‡¶ï‡¶∞‡ßç‡¶° ‡¶∏‡ßç‡¶•‡¶æ‡ßü‡ßÄ‡¶≠‡¶æ‡¶¨‡ßá ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶Ø‡¶æ‡¶¨‡ßá‡•§
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmClear(false)}
-                  className="px-4 py-2.5 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer"
-                >
-                  ‡¶®‡¶æ, ‡¶´‡¶ø‡¶∞‡ßá ‡¶Ø‡¶æ‡¶® (Cancel)
-                </button>
-                <button
-                  type="button"
-                  onClick={executeClearClientAccounts}
-                  className="px-4 py-2.5 bg-gradient-to-tr from-red-800 to-red-600 hover:brightness-110 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
-                >
-                  ‡¶π‡ßç‡¶Ø‡¶æ‡¶Å, ‡¶°‡¶æ‡¶ü‡¶æ ‡¶Æ‡ßÅ‡¶õ‡ßá ‡¶´‡ßá‡¶≤‡ßÅ‡¶®
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Custom Alert/Success Dialog */}
-      <AnimatePresence>
-        {resetModalMessage && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setResetModalMessage(null)}
-              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ scale: 0.9, y: 15, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.9, y: 15, opacity: 0 }}
-              className={`border rounded-3xl p-6 max-w-md w-full relative z-10 shadow-2xl space-y-6 text-left animate-in fade-in zoom-in duration-200 ${
-                resetModalMessage.type === 'success' 
-                  ? 'bg-[#080d0a] border-emerald-500/30 shadow-emerald-950/25' 
-                  : 'bg-[#0e0a0a] border-rose-500/30 shadow-rose-950/25'
-              }`}
-            >
-              <div className="flex items-start gap-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 border ${
-                  resetModalMessage.type === 'success'
-                    ? 'bg-emerald-500/10 border-emerald-500/35 text-emerald-400'
-                    : 'bg-rose-500/10 border-rose-500/35 text-rose-500'
-                }`}>
-                  {resetModalMessage.type === 'success' ? (
-                    <CheckCircle2 className="w-6 h-6" />
-                  ) : (
-                    <XCircle className="w-6 h-6 animate-bounce" />
-                  )}
-                </div>
-                <div className="space-y-1.5 flex-1">
-                  <h3 className="text-base font-black uppercase tracking-wider text-white font-mono">
-                    {resetModalMessage.type === 'success' ? 'SYSTEM NOTIFICATION' : 'OPERATION FAILED'}
-                  </h3>
-                  <p className="text-xs text-slate-300 font-semibold leading-relaxed">
-                    {resetModalMessage.text}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setResetModalMessage(null)}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer ${
-                    resetModalMessage.type === 'success'
-                      ? 'bg-gradient-to-tr from-emerald-800 to-emerald-600 text-white hover:brightness-110 shadow-lg shadow-emerald-950/20'
-                      : 'bg-gradient-to-tr from-rose-800 to-rose-600 text-white hover:brightness-110 shadow-lg shadow-rose-950/20'
-                  }`}
-                >
-                  ‡¶†‡¶ø‡¶ï ‡¶Ü‡¶õ‡ßá (OK)
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Dynamic High-Fidelity Image Zoom Overlay */}
-      {zoomedImage && (
-        <div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 select-none">
-          {/* Top bar */}
-          <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-50">
-            <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-full border border-slate-800">
-              üîç Document Inspector / ‡¶®‡¶•‡¶ø‡¶™‡¶§‡ßç‡¶∞ ‡¶™‡¶∞‡¶ø‡¶¶‡¶∞‡ßç‡¶∂‡¶ï (Zoomed)
-            </span>
-            <button
-              onClick={() => {
-                setZoomedImage(null);
-                setZoomScale(1);
-                setZoomRotation(0);
-              }}
-              className="p-2.5 bg-red-650 hover:bg-red-500 rounded-full text-white cursor-pointer transition-all shadow-lg active:scale-95"
-              title="Close / ‡¶¨‡¶®‡ßç‡¶ß ‡¶ï‡¶∞‡ßÅ‡¶®"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Interactive canvas / Viewport */}
-          <div className="relative flex-1 w-full max-w-4xl max-h-[80vh] flex items-center justify-center overflow-hidden border border-slate-800/60 rounded-3xl bg-zinc-950/40">
-            <div className="absolute inset-0 flex items-center justify-center overflow-auto p-8">
-              <img
-                src={zoomedImage}
-                alt="Document Inspector Zoomed"
-                className="max-w-full max-h-full object-contain shadow-2xl transition-all duration-200"
-                style={{
-                  transform: `scale(${zoomScale}) rotate(${zoomRotation}deg)`,
-                  transformOrigin: 'center center'
-                }}
-                referrerPolicy="no-referrer"
-              />
-            </div>
-          </div>
-
-          {/* Control Bar */}
-          <div className="mt-5 bg-slate-900/90 border border-slate-800 px-5 py-3 rounded-2xl flex flex-wrap gap-4 items-center justify-center shadow-2xl z-50">
-            <button
-              onClick={() => setZoomScale(prev => Math.max(0.5, prev - 0.25))}
-              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-mono text-[10px] font-black rounded-lg transition-all active:scale-95 cursor-pointer"
-            >
-              ZOOM -
-            </button>
-            <span className="text-[10px] font-mono font-black text-[#dbaa61]">
-              {Math.round(zoomScale * 100)}%
-            </span>
-            <button
-              onClick={() => setZoomScale(prev => Math.min(4, prev + 0.25))}
-              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-mono text-[10px] font-black rounded-lg transition-all active:scale-95 cursor-pointer"
-            >
-              ZOOM +
-            </button>
-            
-            <div className="w-px h-4 bg-slate-800" />
-
-            <button
-              onClick={() => setZoomRotation(prev => prev - 90)}
-              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-mono text-[10px] font-black rounded-lg transition-all active:scale-95 cursor-pointer"
-            >
-              ROTATE ‚Ü∫
-            </button>
-            <button
-              onClick={() => setZoomRotation(prev => prev + 90)}
-              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-mono text-[10px] font-black rounded-lg transition-all active:scale-95 cursor-pointer"
-            >
-              ROTATE ‚Üª
-            </button>
-
-            <div className="w-px h-4 bg-slate-800" />
-
-            <button
-              onClick={() => {
-                setZoomScale(1);
-                setZoomRotation(0);
-              }}
-              className="px-3.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-[#dbaa61] border border-[#dbaa61]/25 font-mono text-[10px] font-black rounded-lg transition-all active:scale-95 cursor-pointer"
-            >
-              RESET / ‡¶∏‡ßç‡¶¨‡¶æ‡¶≠‡¶æ‡¶¨‡¶ø‡¶ï
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Real-time Client Alerts Toasts Container */}
-      {renderFloatingToasts()}
-
-    </div>
-  );
-}
+                    <Sparkles className="w-4 h-4 text-amber-400" xúÏ}{s«ïÔˇ˚)⁄¥+HBÆ(&)âí‚íîΩ^≠VC`¨wf`äaXg+ÒÊ:Y◊^GÒ≠ƒY≠Ô îÆ¢ÿ*mU"WmŸ‹/¬r>¿Ê#‹>˝òÈôÈÓÈA=lOïeòÓÈÈ>}ﬁ˝;SÁˇ
+IÆ£√/éÓæt¯¯ËÓ/èo~ut¯ì£√èéø<:|à˛ˇwã¸¯à|˜Û£√Oéœæπ˚ﬁ—·ÁGáˇ›˛˛Ô!ÈÖ|ø?*ìéÒ¯√gà¥ˇí~Ö?¸1’ÙD;¸¯ËyÿÁ˛Ç_íœá§·I´dt_ÕI^Ò‹T_ˆÊÁ§ﬂ‚˘∏{∑ÇŒY®„€;Ûcù0ÏsSSMØxÆ]Ÿq|{€
+ÏJ€Û⁄¯s”ÎNç°–Ú€v8?v}€µz7∆êoªÛc=œÎ€=€G=we˚æÌè°¶k¡ö’µÁ«B˚fXﬁÌ8°ç:ﬁ;∂?7Ëµlﬂuz6⁄Òzay€s[cÁ/∞¢:ÇsS÷y6À¡\‹Ωçg¡Ú~FfÂ˛—›ü˙ƒ
+fïNÈ-∫»à‹I˘òL$]„€ÙÆ∞Á∂…„Éø Z¥BrnjpÁËÓ?G›ﬁ"|ñÁ”;®≈ÓD˛¿µq∞ú$Pà;E]Øe”ë≈))C‹%˛”£√O…òæåàÎì)Ú•©€‰mı|F~ˇ#myõΩ„›wøˇ◊—HGA,˜*(Z¢uﬂ{€nÜh”Cß◊dÎ$¨ ûﬁ7Ïm‘Ë˜QÈ˚l^?'££Ûp'öá˜"“ˇô'º/Ó>àÚ…˜`k¡ø˜»êß¬+?¢”L∂5[Û/“À6ä…¯ø£—êaºK÷¸˝Ïã¡:”>”¿hÑN!ûµMÎ≤zx≤Ø«fÓëO·oeÛËgÑNÓ≈Ã
+ìyõ ﬁ>f§Dûûf}¥◊/	S"ÀI-^Ÿ£√?P∂ ÷¸s∆¢˝£ôÁ˚∆…Î<Ñ9YÙv{Ægµ`^vú6&J◊Œù<õMº	œsÆvΩIWﬁ`V…OÑÉ∞mˆ(¢∏O¯t‹£´ÕÀhÈÈ˜˘„ìÀx…`ªaN…°YÅèÙ”lªNÛz'Ï∫lä>·b%ÊAú—@w ?‹°Ë√”oO9$©Qö¢Kˇ¯¬1·œ/¢1aö~@˙ÜFìoGT˘Ää@Jiëh˛åÛ∏√h≥$DÈcNƒè#÷ú¶x	9ì…b{Ûa¸4xøá|®8J‘ÑéÉd/¢˙|Ç‡ó_”¡∆ª‚SZ97’rﬁ9ˇWŸÔÒ◊¢hm˚N¡?Â¶ÁÂÍ∂Ê‚è3®mıÀ≥à‡õï∂Å›u®ƒï&’–∑övyØ\´‘•˜„Æµmªbõm◊kﬁ†œºZ´ˆo^cRﬁµ◊É~ﬂˆõ C»ÅkÖvy¶^E°è∆ƒ]ﬁu∞r@õtΩûßx,äÖQc}˝¿ﬁC%≤T˜…‚¸å≤;L?ûê{äå[ÒNNØ?œ˜˙LßS‹ÒéÂÏ˘˝ùÌFﬂ¡;P‹Êı:ﬁÕÛ˚%{ÕüGÅ^`mJvÖ™Z“ŸÑ™è>ûTªÉW”ˆÁ«À?¥6˜*ïäj`¬"ÌñwÆã∂€t]¶f´h€ÛaÊÈˇ W_úûô>=3´◊sÏk´ªçˇ≠W´»˜@çkïo∫®ìZØ<]©#AŸã÷P&[Ú”∏⁄±7A,˜ºû-¯îîR;‰˘§aÆP-/+ı’ü<¸)R5Îr´aGÕÜ¢ÌmØµzÉfßlı˚ﬂ—˜ÛFﬂ†˙S⁄˛©†-‹VHØ(9ì&CërmÓ&ªÊvÌÌπ=|}G–œAã˜·©S“wcv–¢◊µú•Ì√˚˛…ü˛¸Owˇ¸OˇÛœˇÙ˚ßI—xdt`…:jw|6˘ê‡Ô¶◊}®¸ÃwTûΩ6Cœ∑⁄6zm–ºaáœ°≥¡—±£ıD”ê;˛/Ë{·w§˛¸í˙™VwÄ6mpRGJÀ3CÔ—È ã™-ôÊ√©0”3≥ıSßœú≠~ã]ÒuÊ{¬î¨p–π∂—˜æáJ˘ªdˇ≠>~5·U^ÿ ◊∂Z@‹æÌZ7Ìü∆óˆ•ÔíF%¿Îo8aß4˛ıÔ~1>Å^A„xU|/∞ÀgÎ’©iæ0Ù+<Û˘b∂^Gs®¯√~ÛÔˇ˝¯ÉËyt]ìå÷:z"˝f∂
+èî>∫≤ª∂oπ≠Tg¸[±;˛t(ÈÓ‡≠˘∂M/¶l{(Ëo•\ˇ›ékﬂDOy◊∑˙ƒ]î›À5πn{Ü^O:T DËrÍ∆,¡uö7Ê˜1chπ6D∏ÖFùÈÚÕ/rÂvŸÈµú∂W>ÖwçÊ≈ﬂ’ÎUqSÊ3Ô$∑f€oÒY¸?q'¯V/p ÇZﬂÇ? 5¸¨Ê¿<ø‹˜ú^‹&?∏îõ6˘Êt¨ñ∑[v€»jÜŒ;ˆ\–¥\LÙgVÚÍ
+NN¢2	7ã:‹ÕJ^}LŒH∞*ïËHââÆ†T∞F>≈JË;›“ÑäµË	≈ÑT2ƒ¬√.IÇ˘õ¿SI≤·0A7—N˝Üéät∫\Èì‡’p‰Éê,˙•PF8eìq&L\N∞a[._‡•ûµÌ⁄≠'JdX¬˘&,)M]ëõ®ã~âÖ@F„àÂ[=)ﬂX„gíGEÅ[æt¶ïHÁ¶^’°4)ÜÙ≤∑Kƒ'WÆíÑöπ5I…˚S/£˘·Æ‘„ñ∑ñó6—˜–Âı•ç∆÷ÚÂµ∆
+jl,5–‚Ú∆“¬÷Âç7—V„µT´!üç^ûgeü.Ùñµ¢Ò&&;œnCïôuä.§kÔÑ%"›¶O»îËÊ∫ÉjÈÕB~ÅÕRã5ÒiA?Âè≤Ok®âàc Xì(8Á:≥ôƒ°HñY~dl≥†‡K∑Õ¥\â∫Ëz€i	éﬂ!ˇZ=ß#Ï‹@≈âWÌ–˜˙ûÎÑV5|€¬îr≈ﬂ∆Vº&Ÿ⁄ZµzÑÍK$o‚ã8≈ÏïæE√√Q¸¸IJΩ„4öùµ5œMuf%s'M.†£`ºyxÚ»,Yxÿrz»B/ø<]^±ﬂ¡¯œ«/ˇÚÀ®‘¡+IR¥0¡8n2ÖÈpœNÉÌ2mMπ¥O"ª“Æ‡~;÷7ˇ˙ﬂ~Ö?]ƒSà˚$zè¢Áº¸ÚD-Ç–Î"7ö'öâ11µtl/ûEº:É~ØBµˆzV◊¡<œ•«FVøÔ:¯7ßáÕå^ø41€Çæ∫}¸ Ãbwãìòùá∂ãˇ-õªyõÄDº|nPëÃlfÂVpj¿ªAÓ[rì{Ë∆]Ú}œóÀP…fÑ≠àßÇÏƒ¨ÿ≤ìF|‚Á˚Dê6±—Hv∆€x÷ùùΩÚ∂Ó⁄v/πSb…T∆”mÄ´e/˜‰;Ô˘ﬁyj◊%ﬁÛ‡‹˘Im∫ƒ"øƒΩq˚Ro‡∫&¿∞¿@f´asÅe§tRﬁéù«¬¨ÎÅZhIÂSVÖíh¥ZhÕﬁ≈íÓ .·≠$•êÏ˙V|ı≈Z≠6S≥Æ%ÿmíbÉπ≠øî°÷UsôØÃ!”~^¨7O◊≠Ìk®ªç)T≠°ËÇÁ÷]º]TjGÙB
+ñ[´†∆‚"Z[zã‡Õ≠çÂÖ-4Öˇ|}yKgti©±∏≤º∂ÏˆI⁄dïQ,˝.ÕeC<™˛às_ñõÀYÙÁ$Ë£Dñóî◊%”lG2xØ∑9ÿÓ:a‰ãì{lÏJﬂ«l∏.⁄;÷¿K-ΩO∂g‰wB6/^El,v1øúG={ó”Ê2¯#ô)oÏÏ†“¨ÌÚÌp‡˜‰wjûÌ¿cY'ï–[ÒvmìZi¢‚€ƒYWö∫˙èV˘á’ÚŸkSÌI4~}\7GäÚÆ ÙÕd
+ùßJ‡uÌRfæUÅaΩ
+ˇÔG?¬±x±ì#?Ká<1°XπÃöºµ’DgÀ¡#rö!{iüu|0Ü,sá÷≤o‚üÉ [ä◊F⁄©óör|ÚÈrœ°u,5{!aFÛ 7pZìä_`äÊ¯å®n¬Z< òCWØ…G™Y0ØwÖ»˚Õ‘¬©Á[’¢tµR©§◊íÕƒ5Â„Â[KÌç“∏äe6ÈÅÏK©ßØÈπ(ËŒëø}oópœô¨'e°Í B^¡∑ˇ« ÷-Èè,∫êÊr€[X»ÃùQT!S ‰‚•∆ƒ–öDóñ∑∂/Ø]úDõoÆ\Z⁄äÿΩ2«-5·Âö&ÏGíÒÖY∞·g2—Ö»ä…FN’eU4#a’®Ïwy "◊˚1ì;7xR⁄>∂‘0S(á^9Ù—éÔu≈1zÏCÏÆÓàøåÓ;]Mx4÷È4¶uRlWº≥ó6„∏zó‘‘Rzi QítáÄ´Œwz7 “àî‹ë±ÄŸÎ"gŒóò…£ı fôon54®%Ê‚áb˘`b⁄C•il¨É˘µ`˘≠Ä‰ÛN®ã‹û=y≈œ@Á√l¿µõ!ÆI©w≈⁄≥˝·5¿È
+Zm¨5..°Õ+ØïÅGl¢+kãKëB∏	⁄_¨›ÒîÛ;ÙåIt$‡ÁX+,gÌpz∞Ë'XT©{πú>{öLö<æüQY∫VøT‚·≥
+',æG!‘nÿ{Û˚º¨˜ò˘RMÃ≤ÀßÍò¿éÎÌñ;N´ÖÌ §îK[ùÃ3õfø2œË4f©Ã˘~”-Ê‡Ñ]`∞£‘ò8áCú	éz‰	Käp-üíπûRÔ≠Ã6–≈a˛‘nºD`qg6{Jﬁ]qﬂSÅÜg=πÔµèAË/∑?¸%äÈâ)ŒWÄáPıX5ΩdîJ«Ä˛=Æû©‘#ÆE¯å FíY)˘ëÛ6ë≈∏º8áƒ]íz'Ùıèˇ*≈7p=∑‚⁄Ωvÿ9‡æµbæ»CÃf@FÊó∫ù6
+óI$ÆîkF•z”‘ˆ]ßáwhÖ∏¸nÈ-<1hœ k;‹Ahª{ÿ,`ﬂÌZ=,V<‘¬b‚*ÿ>¬ª´§(≤é"ü#6ìd∆¯˛∞‡Ì‡Ω`}> Ô ôÙWﬁ“ÿe¸2∑ôìØX‹2â/jÑqOÊ< ¯«≈¸B0L_¿ñß@äπ#‘ÿAÏ±π]Ë6≠˛W©…√Ø7≠	°0∑ùﬁ∂ÇèÊRA<ÓÁäE ãß#~'t!ªfë“]DsL@§)Ì-ıKiôó2™¶â£ÈCeÙwUé\ƒ9„∑¨vÄﬁ-‡]≈d®q‘Z“©î™$9,∞ﬁ]ßWÓîØ÷âŒI≈#I
+"Ów0<»'-ìV2]‚°©¢W*ëj§¢ÏÑÊuiR$&ãêz»:Ka£2»n9ÉnépAËÎﬂ˝≠yB¨§eÔ`÷÷B{ÿ(&ébI°mkO¿õ‘∂∂ÅÏ§†bzQÅ–öÀôõÏ‘Ö“Ëö¬‘Zg|˝˜®g1p%5P≠¡Z◊ô*Xò$Œæ'e.	S'z‘ÿ3	5ôñqªÅ+è6x ÖÃMæbƒö‰äy~ôä{~˚¸Fû“Î∏Rï^π≤»πe˛>|dëX√˙‡ﬁ⁄BM™T*Jœ™¸ä˝≠≠x3Ö" n9¢M¿Ü.–ÔÅŸí[çÔd3“2Ì˚¿êíF†˝∞‹•’v¯ï6j%'ä€fXÊlUÃàÃ5~qMg√Ó‚áaÕÿãFü·W>ÔAËˇ}îœ†rtô¯æ·Ö≈óéd5f¶^]¢
+”™”sHûH]"á€ °—ﬂÉœV≠7©£{¸2åÚÒÀ4⁄«Ø‚óEˇ0ï°yŒ/à{~’Í_¯€µW¥q@~—x Ó-''ﬁ/W3(J≈÷*NØÈZxÛ¬3åoäÈ!80IÃwò	∏±Ïï¥†â√ÒKè„ó".'ŒÕBpî¬ÔxBØê∞3rB0E‘3I®Y_L^Ç,ü3ö
+Æ|ÅulAÖ…{3πÉK˘ì°–d£¸ÈO0Ü94.;.!^yÔ>
+Q◊IBçòÊA(Û«™%•÷~◊œ¢W˛!-zi#≠¸bWSÜÙÑÒq=ë b±E…§8ë§H$Î’É÷GúåÔø“ô∞p9ßÜhœÁ$⁄ÛŸ—·Ω9ƒ“'rTMå¯î"F\ØFœd÷¶xçxF#¶ö°éÿ4û%3É1?j,ô5<]ÒºDé:!ûìå?(fNù‘;L4XÑ°u/ß◊E%ik3$Yˇ´ıÌôhƒÚËq¸´RSV˛4Q0√^˚d9
+Gó_øﬁxsuim]ll-Ω—xs5÷— ÚÍÚ÷ÊÀ´ocz›µˆÜÃ¨œ”RÊŸ_}±6[´÷Ïk ,˚z·,˚—Á’≥L„biı∏ïíàÎ1rÎi¬7Z∑ˆ∫¯ëË"]&1ü˛>c˙rëÉ#}D>ﬂ>:¸0Üﬂ$¡˝{˘Ì´Íï£© ”:çSÎﬂÙ$Y›∑€ÿú∞˝IØè5TØ›vÌI‰˘¯'bâ˜Ÿ´päK$µì§w≥\¥ÎÑ‡µum‘ •|œj≤¨}◊¡úöfŒW–RèD◊¿gÃÇê…IüƒÇÔû˛«∆ﬂ˚®ﬂiCª‰˘pÿ
+∑∞˚$ëÙRíêˆAﬂn:;êcx¯FH
+xgÿ|¬OCÌÅ”≤zMH∫ÜxKÆ?fN˝™◊≤]¥Afîf†∂Õª±‹ †Äœ8‚Ê#ƒîFò~øöbˇ}eíT”«õúl”ÍN≠&OÇà–´/∂∂-ÎTÌú;KÔTiZé6ﬁ/f 3ˆiﬂóŸìXƒnCÏBö©pFy†‚sU5P√hÚäÿ¥ùKNÜ≤ËπÆÂo:Ìû2ß(zíFR—‹ñË‚[ñ>N~Èõ~PNKbút´|¡Äáøú§ÒÔÚÃˆ?•-)Æ2„íø‰÷êœÄ5' "&Á„óò2[£Iπ≈±;3ò◊?„Yá4#+˝˘˜È3Ü—ç;ì@ rPV5,´Jó29≠œËÏ¨$GEâ≤© uÈC#8Ü1‚Oë≥§”†@Wc:•<D7◊æΩ`w-◊ûCGwˇséYπò¥1AkMÚÒDßÎ¯˘@”ÒD7√xVe£Å/áQÑ
+Å" 	”1≈w√†Ò*˘ôQmb∂’’ùa*Ü2Z´<=ÀF∫Æ
+ıìÜ‹âHUÄÿ1ÀæbØAπ.0⁄4èJsZ"πÂ zƒù‘îÄ∂JíZ†§Iéß1!P¯â’zX:MM£2— /ﬁ#_$&Öd&Cœp:õ>ÿõ„Ñ¢∆:’·‘ˆ,Û,â;_yØÃ}¥7,ı-?∞ó{ôt~pMU5Æú"Ë?iêë••¡‹Ú‘˜…J¿9˚HÂí"	G —‡ ûIò©VïNEÖR°ñ(  —~üù˝¨.∫øW3ª;≠p<ßª;jœ÷Ó&ítÿçüÊ.Á^èo”.'™«3≤Õc/m·}Nt%ˆ2l£ÿœ’éè”øû≠-O’‘a˜<i˝47ΩÿÔõ≤Î_õπÇ∏◊«ÓµH§Û$A‡ÙŸ~bÇ¬∫Ô41C†]^Ä¥Å6 ÈnLõsH s]2’é⁄ò)©X†=Ÿâ»79=\À_w≠‰¿·Àú¡˜}ªÎ∫…¶ÎÙÀú¶∂ã7B≤·|•m¶—cﬁ¿Vks–l⁄AP
+}Ã¥∂úÆçw\)BHı∞cπÅ=1Ivó≤'9ãQdàZv¥tö∆Sƒs¨ÏkÏ^ƒﬂ]}q{ÊÃ©ŸŸk‚1÷´/⁄ıÌôS÷µ¯´–à*{ñëMπ7•x_$^…≥u[üg*¶Ÿ)ü≈b_2∆∏Ñ˘ÅJ“&Ì˚@ò3g[|*2QGáç°?.´ MÌ'HHâô⁄ı`êUˆπ”√3nπÛ˚˚»√™ìÓÕ°Í$¬ˇb¢Q–J%⁄‘Hõ™	9Ç”Ωù¿Õ h• I”Øò¿Ë∑4Ri≈Gà3ßéà–,8~”µßT" 8;£ì’JëHt†a‰Y"ÉØë”ª_FUòÓÛ∫K∏ny'·NéÎê˛öîT~–I§ˆHN"ùcp‚ùk0&M)l˙viåEø˘òQ‚ãuQË‡‰Q£F5ÖñZN›&	…¢ìÊG¥ç¬í£âÍŸ;≥≥ iO!J‡¢
+N¥x<,6©À-@ú^Z\ﬁBó◊.,_ºB°I0O»*ã˛ÑTi}ü†E›Kà9@æﬂX∫∏ºπµ¥A`®XÓ
+È-9%ÈZ^ÏíÙ+K◊ë≥∑=1∞©Ï^+	{hµw◊»©qM∂9ªü&?ê‰OÉ6â,hπ,|°m/◊% ›ùåõƒ/∞¡ü‚s¥ÄPây_wmÿ;ª>ll;-‘≤CÀq±∫≥2âËõ“ÏqÏ—PÿPbÈù¢~ètÆ9Kfa-i™y[üjlÛsÛ'«Øóì_^©T⁄˙úUXF˝];Ïx≠9L5´‰/˝›ªXËa;€–‚çËSŒ(Ë˙jÔâKßÎµΩ+æX°rTpL§ »ySMöyµˇá-H[i÷))5·QHëëO!Ÿ$7q^ı
+x_.•HP«”∞…çw≠~wÙÏ]÷ŸJéSÉ∑àksË≠ˆÓıóˆÒ›ïû∑[ö8xKΩÍz*6ß‡‚‘õGπfTÎ˝∞‰ößã≤ïT=b˙ÉÉ))^8)ÇjN·¯êÛÍ©)lùcí%Ä∂h«±›V†”D∏™aÎË-d%snÖOŒ≠î÷J„Ø˝†±yI{gLgX⁄~ ˘å⁄lÌU»C‹ã^
+µÃ˚kí	T†ÓÆølÅuR¢@»tØ<Ñ®åTˆ%ÌbE)cI≠Û)Nú◊±wY!OÅh„9Ü·˝Åõ‹√6,zBœb1∂ü$…¬€?∞Ç‚ƒé^_^Wø…pì$–Ö©“H√Eâ¿3QØ°¢%JÚáYÔaj∂PúÓü8•Û§t6Ï<˙¶êx˘¥IôhQÍd¨7Iü»
+∞˝∞7¢ûû–í±π¢’)◊™"h`ÖiN—x}‚∫¶Û9FD—ÿy≤˘ŒM—ﬂåØ5.6«ŒØYm´U∏Ò∆ÂÖ,mçùﬂ†§`^ÛsSÙÌá€9+p Q°JÚmûÉÌ√F€h615Öd”èj≈⁄E—m$Ë%ﬂm•As—Ö9b%¢y€ü–ÑÆ/iZˆD·-”hc~:vû¸˙æ%‘á˛#Õˇ˘—·Ì‚Øbrƒ´ç˚Ê±L”(9Â7©DícEπè5⁄√ û®¶…6ü≈6üx"Ë˘a‘|°+	~⁄¸¬#ÍÖ˝å¨ƒà&û)Âìª∞˙Imµc(†’⁄È⁄tôÎ|.UœT∂œ	)°¥&ÿõà÷gõ∫≤±Ç»q¯Á`kpÛãåø°SR¡ˇK˘Á}˛’'π{Bñìîç:&Ã∂@Di@Ûˆ#WO™ü*Ìñœ‡áúâO¥cXu^ZŒ±Ò¿qœ94Ót€(õÛÒ{ ÀÁ«»"A‰≈±w«$;ØCˇÁmø¬∞-ß7ÜYÕéÌ˚∂øÓa{o~¨Áï˘W9á–Më„ä†∆I¬±¢∑&XEñíÈÙp/ÂjLZßl˙Õôz˛z%N/≥té2ÔâÆ%@ßÀÏÎºó¶Zc]|î˙π8XW-î¥2@Ÿ Aÿ áLo±ÃŒJl¶∂≤¢/Ÿ÷:m≤µR i|g1vx&	äñî^kó— Âãóè19¸Ø<å3ÑòH)‡åAsØ\/‡[ÕX1H©À]®	"ŒÛ±àÅß¨®A/)f
+ŸB}RZf(©/áø‹ÿ]yzÈ‡t≥÷´$rs⁄ «”©¸†a
+Õ$ï∫≥hî…Ñ–i)^C|QuDGŒ¶¿E;é´IçÜ[vã(»cÍec<*ı∑gŸ‚çÊcÑ!¯ºRπZΩfÇ›wõ„t˚¥J )íEÍÍnê/ÚPÒ‡¢M+)Õπ€Û»K5±•YOæ‹ çﬁkå¡ ,Í‹j5ÇE+¥0†ìtLêp›œZÙkΩ6ö£‘Ë7’"B®H$Ü<˚˙<w2ìóXt|õçºƒèæS˜≈aîH	UBü%kWµy°«·,_25∑iN(M¥zè¬ºóˆ¿/õ∞_W1ﬁKc@ )⁄Úo./äu£:Ç	¿ÅÁ“∫>æM≠¸¡¿µ%†˙ù{ë%¯)kìÁõ=fOpÏÇô%Q£º∏ΩxcNÙ^∏’,Ü/40ä‰˜âÁÕr¢˙Ù“H©rWÕ(wX±í$õNeæ$ô!>≥Z¯-Ährï¢OgÂ)°û‡M†˛ÚKƒ˚8MƒNRO€÷gÎOr⁄”U‡
+VäíÂì1‹•F%T@ìŒ©ÀnP¿sÍñOyL∞X9û0¬GÖMpûÜDãÀÂ'ìL$'v'_j.ç`ÖE‚ÙÙŸô3◊(¿ïi	b©/∑0ù∏Níb…Ì
+Õ¬ïç 4l,l-øæî≈7\Yﬁ‹B•˝tÚ,´!e\pN—Å∂Jˆ¡ôDqìîFí,%--◊öá˜#Òùg Ó EÔUp∏{Fû›™†Â^y{‡`Î¶EœiñÃ$"!wö¸L„Á,£1@ª(M6^HˇùdI¯,‹úrÉ©º^Ek¯πmCÃ…jë+mmÅmaRP•≠©‰'≤˝∑ÿ>Nx‚gsjÙ≈Ys”}Ißˆ‡Ò∞ºNuç2∏0oçﬂô∏¶^Ñ{Y◊∑ü⁄GGÏÔó@ß™j»ju9çï*´"D«‰‘◊Á”Ùñ¿˚ÂÖÃb4πä0πF˘cá
+∑Ù	>ó¥h§ŒSltaçC/¸YËÂ	Ö[» Úk\òiÕƒKÎ)¶8góNô≠ã^£¡Î@9¿åSwV©:âfr√D¶”ò◊œ9ÉNTÄsIî\A≥eÆ–kB›ÆÆu≥ºã’ûŸ}ø3Å(7.ÓT§ˆ%]í§ÜúpP◊(ÜFœd{¶úU›K?ßG	‰uã-∑…ÚöÃéò‹íö·˝∑2q&ùûÍÀ)Ô–
+G∏⁄ï¯¿ÖûéÃeΩƒÉãJM¨ß[µ”†ìQ;Ωñ”ˆ(bb-ŸÙ¿ØAÔsí¡ëT,É∂ÒÿfŒ‘NOüΩñBî@TèãK{¸ﬁ¯≠ßß%g„uGÏı5+∞` w
+·2(lõSïHjôE¬æh<+L≥|_5{éÇÕ§<’¿„)Kç∆∑¯uRÛŒuíFF˝R&˚Y1ÑZMÔÕ∏‚aNÛaR~KS¨F≤ﬁ≥DCÃ"9{€Óñ´™´L‚ÖàQ‹o¥3^¨+œ¢≥\?wÈªµ/)Ö∫5õÅ+SîY¿õ;ìcE≤óõzmËt¥πÎÑÕzçû˝◊ï‰2Kn1Om)X
+—‰l,Ãìy%&∏õüîmÆ¬'a°áI·®›¥Kn¢ç≤.Ù|¸“HCûÀ„◊∞ÁC£⁄LZ€∫
+1ÇBÒ–§™!¢i¥Í8Âpî„Î˝û&J'sï£:SùÆ+EoRÊ¶*ßäø’Îy5§∏∏èŸFZ•ƒ#âDjmÆ2†˘=üÛ}Ö'ÌÎè>@+¯o‚-˛˙£˜¡GkmªvK[ƒ)ˆı!»†9
+ 0YÇ;bƒ[ü@Í`˛˛ñE’⁄fµ—„ÿ5«åõ–(◊)Lõ%"nIQm⁄ã¡qäü@1l-D‰jΩa/πNì5›©ET»ëáƒ3TÅw∏Xn¶©sÃ‰L“’PUü∑4›å,õÙ˘Ÿéy*´@ÃµÆœº¿ıô|R>¶>p|ç¿Día®T⁄ÜJõ•$•$öI#H4,êNêhW<≠Ä^ykv\Ó∆÷¶M÷ƒäœ¯´1ïw6S?6œ[¥ÒtŸ#‚z[ætTÄO"7]˚≥ÊGYŸ;u(PÅ∆ß˝*	Â6∫Rxç≈’ÂµÂÕ-¿&{}	5._Y€⁄DﬂCãÀK[ó7ﬁDó__⁄x}yÈç'Vœju±˙2ä xy–Ä©è‰dÛ‡Ê¿ﬂCóh>Ókp“^vBQyàÅ‰Iëakßk≥µiÜ[mV[Åmd†SÖΩ¥µ¯f8™+¸òäjˇäŒæ¯Nªg_ çúùL!:‰˝%ê…gQ|Ñ16Q& nÅ&Ωa≥∞1ˇ3µ≥ßacÛF⁄RY™¨Ia¡†´´ÌôS˙KÅx≠|`M*∆D@ˇó÷∂ñ+âmvy-ﬁ˜¿ñ¬…‡Øh^ÁOÖ#»Ù82=¸òóLÄôæt¯H2]Ú:ÇŸ…äé§ã:
+Âd•sr	ÍÓ±ÑpölR®DHjæ„›∞Q∞Ä*F64˘≈ø5±¸¡sÓXn¢aEÃ&J¥PwÄ’æ Ø¶ªá7Iÿ¡˚Y,‚}Áá¯Ó•ÆÂ∏$w√Bx#–⁄Å[X4·]ÿE}ﬂÉ4Û
+⁄Íÿ‡K&0F$E§ãõ¿ˆ†"ÓÉƒ_I¬6ÿû.ìËÀ[Î‰Y0‰&E)nR éÄ<íÄbcÌÀOº7lã6¸uåbÑπY!â4ê:°›S9Q¸Ã§™‡:·wOdó5`ÓQiÀ∫ah-`6—¨Aô}∞ÔzÌ∂›ZÓëFûke{ØïÌ_'´8nòÑﬂ	øNËÎ¢lî´*TcAÔôd2Ω$˜ è?Gi'å•‚ûÚÚ∂d±Ò∞¥⁄t2B«ﬁÇa3õü!‘ïŸ;∑‚•y—)¸ËSjêdÕiÜ‚G$9w ÇÆí 
+õç∑®Aq∏7làÿ7¡÷õ¢ ‡?Ê 
+Hû=fÇwu<S© ©
+  √/“”q∏(≈<5ÔE ^ﬂÄW¯óæ… ÀÈ˚ΩU0…àÜ“&Ï)∫;'“®Øz)ˇ˛\õ¿m?%˜˛!˚Ä\`í±É
+¥
+"9ˆS∏!cGUmï•5°¢-LÈ“‹§^π¯jµRùΩñ—πÍ1É0d
+ CÏ©D”¯±uök™ﬁ}∂so˝”¢◊?	o∆v7ªÜàU@…MoXÈm2iÇoÕ4q"ˆÔiù” ä≤oì*,Q˝–òãj6¢à„Jb›¬Ÿ´‘¶æ/l‚{¥}¡≠Æ÷Diá<¸¶DÖÜ+FÜ∂ÇΩ^Â≈4≈àÜãÿul≤‹ﬂ-r~+Øï⁄#Ö€ò']T∞Ëﬂ]@¸ˆ≠eL•ÒûΩK®ÇËö„‡÷æ¥µ∫B⁄-—˚Û2ç‘¯Y\ÖÓq>÷∆6âcÚ,–›‚Á–vÜÍc*ﬂ≈lÃ¯Ω÷YÉ¢Ôe≤êØ[.ê@¥¶Ø–„{Ø0W¸o≈€µ˝Ã,tx?|¡hüâÂKuk≤¥óRº,ØƒH_IÖ˘GÃB˛Ízòè'¥Ï”5°M¨PfË Æy4´Ä>.Œ|£˜;[ÆÌá•q`W¿úﬁ%1ÙL„âìíèèˇù∂[^!d=ÇZ“¥ﬁ∆#Úk‘€ó¥Ó[\Wöj(è ~¿ÿa¥ÌØ£sîzWØÌ.änº(d*±≠ÖeÒ<ö˙«´ˇ¯¡´◊æˇ*˚ˇ?Tÿ/M©ü/	Èßbπƒóh¬pâº¯/…!’[§t¿WÈuàÁù/J\LÂ1—ôz@jÈ2˝5qDıƒ¶fD C~(Â™ŒÜí@¢π¯)®wàΩ˚{˙™‚ÒêTÅ·äÒ¥xÃIøπ…§†x]ªdÅPµ*Ñ$íºé‡$vp9" ∫·ÿººGf‰+≤CÔ2‡îîÿ∑_B<ÔE%uÓÒz:tfÔíèw(f‘oü¿ƒâ¨¨Bú&¡Nÿ)çø:û37I©ÄÔGﬂøzD‚Ä""û9©-≠cûÔÚc∂òÓ	?r[îÆ4Y‚{sË’÷”\èH∞g‚$◊.Ù˜¥325Ö6¡gª{(Ä”îa«é‰rzh«Ò1œÙ|Ê˘F=oW”],MΩÊÜΩÉWºÂ5K≠ÌI&âØÛæÉÒ…xwÈ^ﬁ⁄µ8‚Kqœìh?Á\B~Î≥ÿ¢Ó\o–¬}@â*iFßRÓdêéU≥Aû1‹T˝NÊƒ∞IÁsÒioÊ˚jN‹•˙&†£Õq•MsÁL%6ö€¨™¿±ñ*3uœÕ,Ë©Üæ5ÕàM(Z√@_,yC#¿^L}zoô|t†.è 1_|®{†Gﬂ°º˜≠Ø?˛©ﬁ7ˆ“>‡¡*Ω¥œ∆q0°´7ßRISÖ˘ÚÌÌ®∞k¶?√çü¬PˇÈ«©û•ÓÄlªﬁ“·#†¶)“%€˜ÁHróñPÅk‡7Æÿ§˛◊`V«ø˛›/toôV0‰Ø≈T±;\[}7Öâó≈‚
+Â&1.oR.ﬁF‹ÔB?ﬂäÍRàﬂ[E4aUöà2DVr¢ deí örT)–f~◊W‰&ÀéÎÛ`±ﬁ•'È Æz€Êeç˜OãydåÿGxÉ.s¶G&-·“›ûãî$ÉÍ≈
+ŒŒ´€^k/ÙÕN•Èu˘
+†
+…3§á:]≠ÁÇ	EuìÓ“É>z"íò˛<9X¬#—W€'5›æY;-˚~S√'øŸÚ‡1ì{çøÿ»∑€´`&]˜vö`Iëò€´dmòïâoÂÊ£ˇ∑ KîÑ†Nb/6Ç¿i˜˜@√v"{;j «/9ïT)πß@ÙÑ>u¶´<s˚ëø–(˜c#Ñ¯=ûÊ:§ı‡©«6HÄ\Ø◊˛VÓ¡Ÿt$/àÓ¥EﬂÎ∑º]›iÉÁrÀëWî©ó‡©_Q3!r}>‰@ê_Ç•ê¬t<÷÷À©ZìﬁU0ÙcÓ®ﬂÈì◊# }.t:Â´3‰∫iº6¡<YÜ∏7∆Œ/.]h\YŸ¢i† ÚDbP]&”q;øzyqi£±uyÉUò˘D»»πMKëÓ^àFéùﬂº≤æ¥è]õ•dR)G[¥∆Ñù–<Ç¸cKfúzPBmK“ª©ﬁRßÑ1˝1"'æÊûÂZç’†ô+§p&Q(Oa¶©/JàBB‰9«usìÅhäKur€¸ØËßjJÂL≥Ó 4Í¸⁄Ò{ËÜ_ê@(IHwDvHQùÿ»|Gã†·ëx;Ò∞Ïı:<{vFü=´KZõ*a≠/¶®≈y≠Úºˆ‹Tµ4ÍBn“ $™¿øéfñ˜m<Û¨79L€oZ“€ÕíBÏ9Õ˚¶êﬂûøßa‡#O{ã|Ø¥Æ÷a~Ãù∫·´ª∑%
+÷crˇcûÅp≈‚Ôı(“ºéïÔ&˝IÅ&ìFçïÏ4Å¶5#˛?Õã8ò÷¢‚(mˇ'p∂]1˙¬¡?—ÊV„¬¥∫¥˙⁄“∆¶bT†6Êh€Ò°%¿*√*◊Ï2K—π•Ω≤5=4}œu∑-øv01äò∑DJ"¡&Úï9Í≤&óD•πº˝∂6ıPH÷i¥Z>d¢œ#ﬁí¶T¸d¢ﬂ%´◊"%$¢∆¸í…ıjœØ„;NõÎ-eNÌ¥âÕT‚ëäzM>&ùƒÄ^…‹!‡’ ç:˘´Í·⁄10W$ñèä›Ç◊+â(…DØù∫·∏ÆÌOø⁄&±æ¶◊Ö≥"…T∏9û¶ö–ë8¡™ÂÙHä<ÂcÛhòÁÁ=dÅÉ Æ∞s/ Úüá9”ÈáäÁAˆ·∂’j€[ò@ñ	}©Mp”+5⁄˜»ö(QM≤f1`âÆÇ}ºﬁÈC>∫`‚EÑSË/∑ˇı_5ôåôwP—YXœºN|Á¥˙çêÌb·ô}11Â“µVy¸Rø˝‰øP‰ΩZndã›ß{©b˚òÅ)©ë@µê¿X§~›Aw»‹t]©œNß\	uSTà˚‰òxÚÏ(ì3Zl£‘Ÿ‡·Ï}µRKÿ1’isëq≤∫ÌY¨\ûÕ$ìÅ‚SRáCr≥ƒÙT°⁄Öi);·ºl“sùãëTö «˛M0Kp∫6¬Rus∆+†…PŒò{òπ©NNûgø(·‰A*ú¥›ı≠˛0P»π‡Ø)‹x0SHë`#døƒé<ü¸h
+ª_2/#EÂ£G‡Z7ÒC¿ó4œÎêK”k⁄`.Wvú^´êÇ;TSàO¸ìˇA≈!áÉwê´Û:…jÑÍAR=„ö‡<‡NL∫»eë‚ï¶Ü`´Æêbˇ*Ü_óA¿*+∆%ÖHL'úÂı ¯¢›À¡å v…[¶)vóºK'?˚ÅŸ8¢ßcq¸#DÎaü
+äAÙrtûVSòC˚‡.≤BN∆ãLÜîTU°¥Œ\&å˜y¢	÷4\&X4yÏ”yEy,¿6Áä;∏$'«3J%0Ñ2ö=˝RÆâõÄ…õDH‚ã’„
+b>8\ÖÚãÚ—ﬁæÃ¨J!3>*d¬◊‚Á≈ÄZV⁄`ÜE.Ùí®ˆÇú•xåxîÊyF”g 7 /≥uûj?un$™‡ f…ö„Ü—K»JÂâß\èQÔŸ√ƒÔ˚Ã∑∆J“—C.˜ÑÃG‹ü–îä6ñ •yF)§âŸ1õ˚tÌ†ÍvµY´^3ã.∆ ÔlUáè*àœ§ÔçK^I‡±p\Ü2AK<FQŸı®£â ùd\QxhNÑ1æÃä`åø_R·•˝ÿ`ÄOØ˝»Ô`≤oLïìzñ¡Û:æΩÉßßÜ˝`nj*¨tÌ©óˆSæK=Ï-ø®‡õªéÁ∂w√d_aU™•x}@ªz^T5≈ƒÇ)R˛Ç`«ÏYΩ4‘˘nFZú(HÏ^X}»ºÉÔ-@±òfàﬁq¨8ˇí·ÂwcBiπ˝·=¥ütõT’∞ûDIç|}íÏ«j◊Óx,Å” ø	•÷rp›ïö/w-Ea÷oÖÖî-ÏıWôÉπvà¶/4xbD5\ÎV-∞À˜‡XùØypØÊ*z>%AøãGFIìÒ”™†©Ú.ô5º≥≤KTC}Z*û{»ÍY¯L¡Oú≈Mßã`hÁV∑†èöI 	°ªh˘^)d7™™⁄÷R=s”ﬁÂ7æä‡˝∆WÑ¸À∞@
+öQ†Õw∫]ª≈Ë)eXtS∏…ãÂ4Õ^Ù†[ã@¢¬Å∆‘—»–˚◊ªâ8Â'é›Ãó%<)VÚ/zT≠hƒuxü†OBl2nì⁄z™˛(â‘,!e#TLµvz<
+¶~ìﬂ˝-xº%z^»Fá_bÜÁ˚Xâ´çıÜbÉ+p/ î0)sLdˆHÛgäàøÇÅ!Üπb»ﬁ()^LìÎ†\πL%Å%#!¶;’îk Ù¶òr†ﬁƒ˝Oñ#ïx9x5=åbë’µ£´â⁄—œ‘"Øy'≤∆∆ﬁO√çÕ∫îUú™
+£€”KEy"õ6ÊHqgÎø0S+Óúa˙©:%¬ò≥Ω8\9ì·om]´¢•<3ŸÖÍ›§∑èQblçÑ;Â´”∞)ÕHÅmT«€DYABÉ;N@≤iFÁ>äJ£}e∫]≥≈¢Søk†;ËµüqËUÄM´◊i2K÷=ydº@	ø∫ÇÎÍ.9òl
+OPJ.u©Ëów¡µÒ[ùûÕòëa∆*ây	àŒSõõòó¡¥Ã Ä BS¯Á)™
+”†B@ãk3Ãh™Âåh¸çèÁl§π„0è…√CF∆jdÆ
+,sXcusïbKå’Û¯ò¶™Å±JjF®MUR6Ü,B!kı$Ï’‚˙·∞‚¨÷»n%ÆMπŸ*⁄´πËÇÍG”]‰êB2∞«ÄVlR	ﬁ¶a:íê:>!}<¡]Ü\‘XU‡øà#™K••!ÈàÉ>∆#Ùp=«ùÂkàÿM#z∑ƒ1dzLÁÔê≠sêÉaÛÄ·fC¬¸PéÉ†ä»Bö=dPuf˙É˙ÊË”;≈‹#–≤ÈU¿y†≥,ôòH÷˚ô≠?i´≤à]Yƒ}P‹ÅTDD⁄çê°å—,ˆ3‰F(∂‡∆ÆÑ!F¶ÓÑ"yWÜ.Ö¢¥6ùÈXPÒ©°#Úò≥<sCT›,]ÒåûRñI‰ãÔg’e’ûiáC‰rX∑˝Æ’#ñ6∏àﬁNƒ>Z^$È„≥≈œ¸ôunº•›†ÍSÅ\LJ©ÜõŸúO‰˘1å<˙¡‰E®iÿˆ5Ãá}¨¥∑Ï µ!qÅ÷¢)ﬁí.1vŸ"‚˚¨ƒyA]”êÆ˙†èâm ã1ø+h<øÔŸDı⁄t˛`˙Úy…–úy0Û¡e˘JÄj»Ÿë?h6áË°Ω´◊∞wıZ°ˆÀ»È±◊ó.\ºÙ7?XY][ˇ€çÕ≠+ØøÒwo˛˝ÙÃl˝‘È3gÛEÅ¸Jp Ã¡ùVˇˇÔ™„ˇ}ˇ˚Êa?hÔ√2NSç¸6}€¯¡gˇä<—«~ûN?x≤jÖù éÎy>˝ÛÍñFÔÀÏ>zP÷‹2ñh∞∏ï˛ Ëî‡OS|û{ïw~r·Òho ò‹&‰~ùº[:∆ùg+éû–=˘ü¢6æÎ¥[ç2Äw—"˛@^pyÛÚ&=ˆöœÙ· Å≥ç/®Àü*Ós2n√…ƒ}ºÓÿªIN1¥^ffÅÃëL?,˚5¬öΩWÊñ4É˝é‡˝iâôüﬁ'ˆ3‰¢±˝òÖHáúçØ°Ûí ¥„Wôÿ%”ç.∆bw	~ø Ã98µÈIgàµyS•õî;Qåœ@ÉÃTÕ!@ú“"gn«ÈAù≈„À±Àö{èÅê‡Q©˛$˝2≠˚G_f"ã‰ôˆ˝¿’YÆÁ3´ˇ3Õü≥&Tß≈)m¨˝ÿÂ–È⁄h[‘9SyÅy˝Á+◊π˝´E*¯«?T*rƒ?kb[ñÚ∑ﬁ2ˇL={	¯¥âÒ¸P&∂B^43£¿C)‘8”l+ÉlSÇW!ïŸ∞÷æ€ô√FúGU#=ÜÈS∏°h´dBOÒV©ã8U÷¢Ø9•ñÛQ($ﬁ6<x¶å~IOÅD;_˚5TëMQà∫MîÛ‡€≥öÍ¢R~
+yëTäÿU=–|œr—Õ»à4”èêèFñÎÒı«∑–ÇÎ&~s/â°sTÜ¯ƒO§™LgK¶ˆ‡h≠™ñfÚ‚∏ôøâ ûÿF!“ÔÇ˛y˜}ä„áÔ´{QA z∫Ë°P¥)BòäbMáö ë˚¢DaJŸOíÌˇ#çÎUl|»ÉS∑y/\\•+æ“Ú<¢3Oö:ZD¸<éo	œKWàåã*≈çiO˜£«&¶ÏgÙk
+ùıÎÙ£ËÃ˘ÇΩ(∂ÑõÚj[Sï'L[ )`_*…aVê—ì»i›$\™@˛A9Å÷ñÄÇ#x’¢∏ã
+˘dÊöªI<¢\ßXÆ«˘}¸÷ÿj®T°Ôı⁄ôMâ∫TrS¥cÁÈ`©Cz8_0˜„i‰Ò…ŒËYÔ8m»üØ4]ßøÌaÕ≠≤Î„Ä√vEú4Ù‚v!©ÛÄwëò¬˙⁄Y…k∏ÑÛt∫O æQùO¥£—Á/x˝¸§6zùPvÒÑ…!HCôhLÎE©|(˙Ê∞t7√-ÊÕÀ≠à∑Ò:ó∆ˇAÉ∂ñºÙ;&~^AO
+Ÿ1X‚>Hl*,πÙ©TRΩóåvë‹!ÁÂT"˘"Ê™ÈÉi{√ƒa 
+√‹!õ–<°Ü~B ‰o∂Û∂âv≥Â¥◊˛¨XÒÈ=…£wÚo¡	∞Äø◊ç*.h©Â¿A¨Üo[(Ù–eL>∏X-Î∏65≥Ç¨â>Úˆ ÷rJ¢Gúl{3_3≈ä◊ìÍ ıÁVº"∏”J
+S˜é¥óﬁﬁrÇækÌ)ıºö™tµÈ¥{ÂÂ∏ƒâ|S´A|áM$ıâ º∑XŸV8Ì3ƒ9¯{4Œ/uØ.“úÉP¢)e_hs#eı˙BïÎM´÷ØX/¿“Êóu∑xΩîTΩzÉ¬Óq…”‹ÇÓ—S^∑‹"≈‹Âı⁄U—lèá◊;/PÎ<[Áúu•é.ç∫û92-YπhñÎE__]PWtW·ÁÊµµMÎj?5µáxK]r«àÎˇ◊˛’◊˝‚ºBq—8¬[î≈ ∏?#ç>9FË6øîjÅÄÆy—DDV˜ﬁÚ7iŸP˙à{ëÓ˜,´ùïæ„íåúá <ˆë‘ï©øR√GÁùÎ∂Ê‚è3Dúe∫ô›ìx¥M4@°¿ä`ZUj\¶ÃìËâèï´t'rœèùg¬3SµCZæ…†Vì∂ ìjêbJ jï]óSÜIZ¶ÊÍã’zıL≠ñFIS[öë‘K¬ÂÊ^‚z{TV©X1⁄^ÿÿ˘r±ı¢kD√¢Ârÿ~…ê„”Î=ø¸˘ƒ·õÑ¸?‡Pê…ØìÍâ√+›°∆º’øú Q•>”4Ou7ÜiÎôlƒDAmß>~m≤u5	S[ÀS’FÃØ\ò≥U≥ı@„R4UC’Ò7˘∂x£âj®	FØ¸Fflk¨&ïΩ≤sΩÖX¶%ˆ‰]}±yˆ¨UØ]]y∫J]UI•.a)/}ÜáwûÓïœV”n?Ê≤È∂3Ü*ıÇlÎ†XMÎ,Ï¶íı	º2˛Wì∞ÖÏå6ØÇ1©›ÜJ#]V•Kf∫g:HfÌÄ{n~∏+ıp¿∆\AçııïÂÖ∆÷ÚÂµMÙ˙“∆Úˆ)BÃ‰›Á\_†∫8U.ˇcm5^Kı<‰¯Rn√}äAΩem”¥}LSŒ Baì‰Ì´ˇ©òÌ'9CFd}î≥Ó•ú≠Ukvö%Òc5µz¬}ôˆQÇ¬3 æ˚¶›Jß‰fùÎÃ™!ıe˚ïõ,RóåîìU¥#˚fV»ä"àÎä]µC\‘Ë˜]∂Xz]X:¥9 &ù¶.j L§_dEDïÎôâ 'AyÊ@6·Ë‹TgV2≥R_€Ü9l®Ô{;∞M´◊rw âhaÄ9A=d˜H%?ºIîÎ˚òÃ]L)Z¿ä≠Ω≠ÀW.U–õﬁ u≠=H¨ÎÉ2h—…ÍÖ‰ÅékºDX!Aô îøá∂aq·»åÌø„4mmaZ…5‰ïóËî„ˆ¥í´∑ÉÔpË;NªSº¶cá{¥fKÄJãK´ó'—∆“≈++ççI¥æ±¥∫|euû≤¥≤ºµ4Aa.8Cã∫¬#ı·‘æ°e7IPø≠É%Å›ÙÒ¬Çì·õ√APë,@fÆ’1àM‹I@*jëïÿˆnR&ﬁ4r€Çâ7KM<É(A"8!H‘ÿä± îÔ(Mn^*œJÈI™cƒEé,l«Œoy°mµ^hjõ…ãr∏]ñ™PÄ{ü.À1v~øèçb<∞¯Å§ØΩ∂¿˜ár*·¯<Œ˝lı∏6Âv£òx)6˜¸¢IÏ¿f™¶¥=è‡_à#gU¬íﬂEK∑N;ˇ6¨€ÍHW-äáΩj¬¢ëZ˝ñØœ&n“Eãx˙¸Q,P‡˜›cn¨Ù	C<Ê©≈ﬂÚ¸ "=¨Mô‘gã‘”∆∫≠9Ú∑ÔÌ&¸† \E"§mÀov–îB6™	ÃlS¸∞›rmj&*g√ïf9≈©=yﬁÊ‰¢≠‹Ÿî©qŸ‹B´R≤tâ¬eïÖ∞…âï;p L¢~«ÎŸD≈¢∑JE>Ù·™–ãŒ∑| äŒf<$¬0Ÿn=UœØBô∫åoπGÑME6_!ÜÁuîÿkPÒŒ£Ád˝™ﬂ$ÉÖoX∫èá†MEïiç<Ak| t•πdÎR∂lÑñ‰ùülnJ(¶0m$Ä;e^
+€¨±V2~Ö{,ÈGo¨¨åù'Y^tölLÒÚ ƒöº%ÿÉ‘√˙Mª–˚¢Sœï•§¬«}∫‘u˚c$≥Ö±*<`5Ÿ˝}ñ„ˇ˛i¯'¬*!\Ÿå¡<›|–üë®ƒÔÿÎÈ¶ˆ–k˜¶bí
+òà{
+[”	á›ñQK3q≠⁄ãxU3˚è$ÀAKCò&ö§)âk5u≠D8´E∞öÁÒ˙g»cL√—/Ö¢eò°RÍUzÛÛ“£ç“°”ö…∏*DÆ'„x—Ú€ƒ¥Ææ?/‡.Ó[R]ãÒUODj#⁄Ø$if™“+Œ(«Ê@á®¡yı‘ˆ<(hÙß4¿ît	ı»ju?∂>Ò#6° é”ì≤G≠YóØˆ∑∂‘≈,K¯¨ö%|≤||<êzÛt›⁄æñIß≈¸mz˙ÏÃöKã∫€xu’uDS¶à˜>Ø*Ø“}+öW_¥wfÒuM·ªnº—XﬁZ^ªà6ñ^_^z-4÷ó[Kõ2or]∆ 4efYí$!RüPozz›æö	–æ∫êmdLΩûG/àÜ8ÅT—B‹7…|L!§:Ω¶;Ä≥¶b?È¢Ü?˙ë¢W2d Î(∫'Ê”›Î2.ŸlF∂√<íÈÚ‘ ,FAïÁwìıc2ÃÉ„QDY:∏ûæÿ±nX…«FÂèd% ì¥ÙΩÔe¶C¯
+˜(ÚîT»ª‰Tœ/axUUv\Nç‚åÔcØ\;ï@-WúgÆÀ1†3¨,.Áû÷“ZV–âN:∆¢lÍLúñ0HFƒˇr˚√hÕ„l uâÓoâë32·‡äscñ~Ë=Ÿ8õ%ı©π,ó-ùv%rø&“Î¶	sóù–†◊~D"D‘r?∏¶¶∞±Ò˜Ï#)7…âC©œêsP2hm28ËÇßõûF∏Jvñ”∫Kw4çÑ”Ê(W%ìù»¬j„:Ã'›±Ü$äá€ar™Ê5Ÿ∞-WhMö\ØuR≠7Fß3ßÕŒdŒò5‹È•ÓÙÚ.X]°˛î◊`<l∆u∞"∑ø÷uA…∑a/÷CÍ[‡õ≤ÔêÕ#zE⁄Z€d]›GNkç;=r,∑\üD-∂55t	s¸]äQ !f®\Àü<ÎŸ…‡_¶ÊÇ=‘T∆Ef¢iu”1SE´N/»ŒÓˇ˙Lµ/?c˙Ú"·dg!Ûkj:2ø5/ô^äLêãßgh-Z{í	t}∫U´”ôR>Ú@FGráîÊº ÍÜ¡ºπD:rñ]üsf8≤f|Ωgöà£Aﬁ∏R!ßüÙò}ëêòÀ=Ωå˚£‚&*y_‹#~QÌ≠∫Cß:êG”uh4õv?$N	Xá‹	«ByœáÉı_Oy@¿πÀâ°˙ç∑˝6‰º8=
+÷kÖIl—Îlmwòv´G†»q§_ PCõx•àÓ…V-pèóeœπçÆn>ºc§* Pe!øﬂx§|0k¬µÑ®Yûûêl ¥ÖDÎ}!’¡¥§ΩﬁêÍ`F“Å^Hu@µàdz="ÓÄiQ„}"nò÷*¢Lı
+zI¥“SZø¿|˜™V6â›â‚YË-–Ö:ìä;°◊¨¿3ÏæÔ4ÒÆÉ˛⁄ÄÀŒv˙:˚Ôb~Î·}›Ï»úûÙ	z‹∆	ö∫>‘á‹‡Úz4Ω8z£†ƒö∂f™[æ”nc”OLÇES4Ç¨¿Ûº^ÉfÌEèÕ„zŸ%∆/ÛQoá`pÖŸ€–ÃÌò¨ÌòåÌòlÌòLmHñ62Ü6Rv6Bfv,V¶g'⁄]≠f6.%:-R7Øù—"}F8Øõÿ"=fßoﬁh~5jjéì.pPiWà!°÷¶g˛…xıŒ‘Uı7¶´â¯Ä†$ì∞“àk¸¡¨≤Jû–ÁË!kT'&‰·uÒJD¨PÀA
+Â¬¬jÍÂÒd3l¯!àfp,&ê®Áún;˜&l˙Mæˆ†: Ωçu¬∞ÃMMëoÇ ††%Aõm›©~«Ωr≠>;[≠÷gj3Â≥≥≠÷Nu˙Ã©÷ŒÙ+ªÛÿˆ3^≤‹ê=0Ö°öjŒ™âYöÃ¢¬ÙNDäŸ#*&h\æΩc˚æÌØ{xi˜Ê«z^ôïﬂ‹†Jz˝Öÿ?¶iy+9tπÏEN¿dØb+eê{ı≈i{ªµ≥sMåqJ 
+„cJt°’&^ÂW˚xãÙl¸† \ÆÙ‰ã‰>’˛4ù-]%Ne2∞XL Î;Ωâr∑‰ãl≠[Ú5«VäÇ;$œ◊Ur?'äg∏ˆ $G9STúÕÃO’”yŸ«ú¶d®q‘scäIhrõIŸ"&Œ¬–w∂†x\Êgéä¥Tå"JDrÄey™0M§~ÙÖ
+<QFs⁄=’≥îYÿîW[Lìg&ôæÅMø+-}¶pàªc[ÔÏqà%Úz”∂t«R˝R“3>©ólß›	Ol^;§{ciÚôTl`ÈéìöX8π‡πûOÂâÂ¯h3ss¡=b∑j[¡¿ß∞g#dr≥?Ò¬‚NS¨wÈºA6ú`˛êVö9	EìI√	jó>®im™1b:zf˛5ì0ô˘«r‚ìö¸m8ç˝Ìù˙7,áŒ<E0˛ÏË·#{ÚËoÔ‘_r˙0ÒªÎ¡X¯Æ'5˝¸¯ìô|s—ıöÉÂh€iZ.jŸA”w˙BU—‚,µ∆3‚Àì¶#ˇÑ‰ËÑ¡lò´,&ÿ∫
+Ÿ¥›¥9Ëv-lºN°Â^Ë{¥"´9ˇæ≈gN8‹≥ƒ	-◊i≤aÿ- ªH£úœ!ë[)Í2 €1JÅ$ﬂ—rô’ô<›E±tÒﬂˇa~¡ADﬁã∞Ôsë/Õóﬂ¯ê5å{”û£˝ºœOJ—ﬂ—|Néi›ä
+¥|AîÉƒ∞~CvÓøp¯√ámÒd∞ìÜˇF∂˜óÙ˙êèx>é‰¯¡J¸%Åm$˝ÙŒ¯AæŒ†ûâ·ÜÃœy~!}L⁄§åW˛>Mû—Ô‘È°v™Ò^•\{à› ΩÄêÀ–˜≤π¥Ò˙Ú¬“&⁄X˙€+Kõ[Kãxü_æp·¬“∆“‚úëW≈XV‰!™d’˝"˙ΩÏ s ≈ ¬]2«~ A∞¡ë"4Ij=¢W]Tl
+˘ñ€äM¬M—˚9ã7¶DL^y#¯˙„_ëG}˝ª_Ö»[´P3ÃúPBüÆV„yàsÁ…Å√∞É˜`ªCgÖUº*0/t¥I!åN‡µçÀ£<I*\∞∫Oóxz4®õë'¡◊1_ˆ0ˇƒÉ¯∂P‡™u√æ<ü.jÒÙ(1ofNúa û»ı8/˝LR‚ñ7ü.™FÙhP;''NÄÙÁL"#¨äña∆ëiı‰ãôGOó0ÛFÚÙ‘héNúPaà„iRÍ(C‘yEπ©lùúz,N
+Ï®5„f¥∏[˙”éRùqg(<çXﬂ™∑R÷›m€?Æ”t€ÿI6ê∆±cH‹@Èú	∂\ó;V„ìÏ’⁄ﬂÒÎâ˚∑ü›e£îŒJ≈wŸdiWB%ZæX‘SØïœF˙É¯æ¯2∆x'Ê!◊ﬂDbª‰h’∫Áá;ûÎx¿/B/@-¿·ﬂ3`:‹ä‰Eì{}êºÓ4R}SvHÉ–x˙úFîoiP…“ √ó_Y8ƒzäoV»!´•s£»/,kL†ˇî˜–ò‚’	]Êé¬${…lCÅ˜ó€>ŒêßÉ)îÇ›˛Ht~Guæeà|ÖJ˚ÒJ«PóÑ∫Ú€∞y)"Äç2Ã”’Ñ°ìäŸN∑}≈wã÷ÃéFF≤≈q€É?U z…HÃm£>"1ïVüû–~;e» Áêôm‹iﬂx2»[¨Y◊pu´·:FÌj∏;¸{œÉ‚|¿.ÿ⁄*Y-Ù≤Ÿ¥\ªT∂˘Üí#W•j¡
+¥ÜK§+≤ˇ£Z‰—“C¶˜éÎÌñ;N´Ö©D^Å]$@ÜÄıC¸2eßáhmÖπ ¶3H·x—P
+∫˝—‹|öyO◊ÛÄ¶√ø≥™ó¢⁄Óo%ˆYr&ƒî˜1mﬁ∫I^∫0æBµ∏icÛ÷¨&w°NoÃ•⁄Éâíô!B%À2&∫“ÄïΩÊÄfóôË4±ﬁi]±åã&P¬;˙åU±«û.~»¥ 8!UÑÛ:#–F§¿†ÜW ˛r˚gøR≠Jim¬ÜØ9~ÿA∂“õÏN—“~Ôë4ˇ"ADä¸¡w†5,I¿˙˜¥hTú„IF gä‡ 0’@D…i…'Q÷^ CÙä±  1ª‘¿ü€µ”µ”◊RJœNM(†(Ëñ%&)!›%«W®ıî4ìò£I*x
+ß“îUÃC)1*h;Ÿ5¨s,&•øà‹¨òq,Êx
+L!ıE≠º‘jEUÅ3üêÊRH+à¥a©Í2F…zÏI´*Eïj ö;>õÀ Á≈æ§õ#fMn)8WáRƒï
+∞Ω5è…Öò¡\Uä^ õ@&SH"ôJ©Hõ˙NN/ß¯b–‰;
+äŒ≥ooÓíÍúﬂ¡≈)Î;—ı|ã.æéLxiôœw2Ìyîiÿ‹£K˙Ù≈1‰K0“Í;6º #8eΩˇñóƒdÁ?¡˚∑Lt¡å|'πû{…À(.¯¯ùåz^e¨ﬁâà®ëı7¬ÙùFÍ‚n5r◊≠=ÚˇÂﬁégÓ.Ô”V[˛Õ»AŒæZµ√é◊:ûüú'πÅØ<CG¸«é’”˜óã©y√˙Ãˇ◊CÈ‚Lô¶fÚ‹HÑ≤‘Gw¸$Ω‚Ès9ô˝
+Xa√Ö·c¿≥*„r˘!“œ¨πbd¨’£¯ŒE¸ÀÆµW4œ1ƒ*r;ÛPyö'œ◊wI¯YΩ∞I~Hg'û˚L/√h†&`-qyq4´!úO&ÍØ∏}	;åÚØûÂÂ2óQ–ùã>ôü—Ÿ:Œ:m⁄=[—\H˙`˘2Eyø -√˙›ô≠Q£ã	R»içfÖ¢”¶‚
+›˝œ§V¡ÀÍ–‚J†o‘˝“ƒI-€SP«Z]ßÁ‡ó°°‡®2©5<ò%©´ñ(®Ã´MVÃ.ÆJÕpüƒ± (Í`ë‚m¨:öæxl#s‹∏∆‚ÍÚj¨Øo\~Ω±Ç6ó∂†¿⁄&¿¸îx&ﬁ%Á‚ﬂ„gÛŸq˜{<«‡#^úîi[˘Yá|œVÉ3ıãHä|¡•†ñH5ÿr`ÈI] öYlû†¬h5eEÁ\k€v≥^ÇÑ™≠Ù<•©D8Á›ß›Cõ^”±√=¥aın¿í>"ÎD3EMúõ"è7M†U◊oÕ^ºˆß 3nÍ6…‘wÕî)çì«'Që ÀŸK]ˇ5∑¯+È7Iv>T7´$*cØ ,áEËîœö9nå•O≤2,+5v~√n\ÀG´6Ë@%t7Dˆ˛£C	º1°ØÌö;íıç•’Â+´cÁ◊}ª8%ÒHÓ3[8ÕgÔ]˙‰œNr<K+À[KcÁó\XLæÉ`> ≥ÅGr˚$üæ∏¥zyÏ¸¢›ı––'<˘6wﬂ·ì’’ue˜—rÔ#ezΩ]Tõ£x´∂"äDé(∫∏	˚ÕI'‘†Àº#œS·áøÊçN+Ï¸êƒ„Ëú¿cÚôíÃü‹–øDNì€@Zˇõ∏B^Ñ˛ÁúË«&	Ü˜ì[ àí†Î”ÅÎÖ≈èƒá†=T ¬:v˙AåµúÙ∆©Œ=ªEbRDﬂ-◊*+’a‚öº?/-V$ÃëëŸ≈‚BÙÃRœﬁÖªh]çJq•ñYS‘@v±Ø‚≈ºÜª›á"P‚wbµî*ëSä&}ItîTô¨≠∞Gü\¥©è)—Ó`ç¬ˆÁ«ÏJªÇh¡"§ê¢y¨f+î¢L‰"¬øN°∞	~"éö.—ëÃ«X$dvb=ﬁ≈ß™¬[»ù—{;€£;s…OpRº&b˚¡*8≥ËgS±√C"√‡5(«±∆˘uL¶qrl√Ñq–¢H‘OWJÚéâ¢Ã„ŸG·#N	¢≠^íΩˆ‘Ùô‚å£ )Œ:"á]u†;cjQ0äæPàπ¿â¢aı=ï‘åÙ^íkY¥t©tkY‰!ö çÎyîóivÃ-sZ(°™cçÃ¸†+÷˚I&_ÿ2Eò˚◊ﬂz&r F¿/∂7äÔä!˜Éi*EÕ$¢ızW≠∞É%cØÂuK‡´Á^˙DÈﬁ®h/Â5$sCó˙∂bd	VˇJ«†œTe≤f™ió§∞_®≤Wÿ,f^4¡RJÊ0ÂÁ¡D–C45™Ô94]0ÚâLõŸ&¯˙ﬂnÏÖ`Ç_¶ú“˜Òåﬂ!Ù=¡–&¥Ô~ƒ¡b…fÜµÈf.Í|ôûcH{VwdŒóÊû’ìz_»œà˚ÖåÂ8˛ó˘Tò∫ÿˇB¡Ç©≥ÓC∫“èb"8	/ ˇ  ˇˇÏ}ms«ô‡˜˚-Ÿ¡ò êî(Æ$")ôYä‚ëT\)ù  CÄAf Q√™çÎ≤ﬁTjÀuóSRÁKù‚=ŸÚ9ä£ÚVmÏ™´‰o‹Góˇ¿ÌO∏~˙m∫g∫{z@Ä¢dN*2Lø?o˝ºéGã"Íºü)QËÛZ*Q¯)øz:>Ûó£B¡ÏÓVªùÈPŒt(∫Á5◊°åH5Në
+Âò‘„LÉ‚ˆúiP,!aM^ÅríÃÚLBﬂ?”üHèdö∏Ãk¨=‡3ı	Uüƒ7ËWR}2∑§&<õ
+•?˚_´Da?ù5
+õÕq)˛!±â±2Ö:ûÅ∑""1=ø i®¢NπbEŒÀ}¶aëü◊R√í:ÓWO’íZ¬À—πT—äwp¶r9Sπhü◊\Âr\2rät/„"'gJ∑ÁL	cQ¬§•±…kc^
+?=SÀ–˜œ‘2“ìD3Y“k¨®ë.Ÿg™™™QÔËßI]sÏó\‘>©àQñHÅŒ5[Ÿ£Ái}'sÉdô‰˛†8ü)®ª“ô|4f˙“ﬁEÖ†∑‚7@~•f¶iS∫%ç{o7ùhE6°p†%⁄Î#ç$[Ä|:ÇêË≤îÖ{«UÀ»∆tÁîKì+…òìµ}óVi@÷·f£;	¥åIzª	7$^ßjüˇçó`w≈iW|û0$SﬁWk4¸˛Ä|5"@ÏÖ^≥çâpqò‚ÜAó0õπ≈Í¸=Ñøƒ™ãsUŒyÇæ◊h 'õ9]Á2rvüô Ã∏Ûõdñπ®Â5É˝b∑…ˇí”tÃï›íµ_n˘çÀÌ∞—ÒUû?G•·ù“ƒ*~Ä.`8ÔwÇÉdñÉ_À)∆
+‚ôú(„#%<2àÆ∆˛4=—Í"ôÌS_©Ÿ<ÄK^ÌIåΩµzsm{g´∂≥v{møs{k≠Øm¸˝6ZY€Z]ﬁπΩıc¥Sªûh4‚–	Ê}HÅ|«´Cáh*j!‹ DSÈ‹m&[¡≈8#Ö™?LqtcíLHÊ+Âä/•≠g©bfÁb≤˙®#Ù¬^Å˚È¯ò\ıÄguºG~3ëmaV€ÖøwΩ¶ø÷„H|∑¸^˘Ω*¶3ÔÖ{uØP≠\û©\*œ\æ4S.ï¶Ôi§í+≠˘‘ùOEO¶	o¥öMΩ±Â :>á™ä˛Û˝Á˘Vtl†[˛^úWf+b¬zÀÎy{4€@:â¯cö+ë‹&/hú4‚i ﬁ«ø#ÓÔKeﬂ«<îöƒ„ß7j∂5ØŸææA¡:«ìDH˙g¯Ñ)πvÉ¯
+>˘d„â∆˘HM®¯sûW o¿◊º÷‹cûﬁÂh˛ºø&+‘âÂÙ	~Ë(üA«ﬂ~@∂Õí8º‡tñÙJ<áﬂ?y*“–<éﬂ‘Ùô¸>F4˛ã86◊\Å/x õ|µ§˛˛+bë§‡Ò1·O‰Õ£¸Ée≈A|®ÁdŸÔÛÖΩ‡Ÿ,˛$÷u}xV`ò…◊$¸˛Õﬁdo:ªÄÒ#}jÓß[ˆ±Õ
+h?Ü°»˙ã’|J^¯ODﬁ˝Å”^ØÄU¨ÙºnªÅ∂"å˛h3l70≠bVÙˆœ0F¶ØU⁄b©ÂzπQYIë™1©ÙãÛsç{rÆ' ï}L†9ôRæá”Ò⁄∞.9%Ø†+É†_ƒ„Çˇ*UêS™î∏Ûô≈4úÍ.:√êNë fEˇ!TÜ¢Ü&E”ﬁ,ErÏnsâ¸˚ÜDŸ—¿^äœC*©˘T¶)°3—Sh£s•5ó&r]• Ø åÇméAF^	:/‹ÜtH
+Î ∆·»6‡1¿Ît√˜#¥Lîe¿Dæí∞íÑ|≈
+v˝Q†RŒÏYòmÃ∂5Õ:∏Õ!÷Yuñ|T⁄	Kƒ˛˙Ç0∆˛çºÙπ†C_J	i>yÕi”œÒ˝êÙ~í<ÂµMˇ∆ôÕüÖ¢TÚ)›2∂sR¸%@bx6∞ËÒŒâ? Ø∞ÏAœ˘ü&|%£ªû¢fÙkêºjËïMó.>	¸§J=òàäVº\~‘úS*Ìÿãﬂ4πn|˚ªQmygÌG´hskmym„&Z›∏π∂±™]ßﬁíkRòefkã∫Kr:‹ŒﬁR≤fú^„Ã„™†"˛o_>
+7c26£+ã=˝≠*mñb˚XMîWiïÈÿ2∞4JVV @˝5’ØPNÌú÷x∑~ˆØ”K∂$x≥ﬁ]LÏÃòﬁÅ,îx)x%&µJ d˘Éı∏Y°ÔÖæÇRñËüˇïç∂≠ÓˇgÌ^É( ıô÷…yIŸÿ»).îw:åfsÕ™FüêLÆ~€¥¸≈HSÏ◊1ﬂ:=†/ `Á˝[	¿ˇúaJäˇÚ >¨jD‡á¶/x‚”ç å €ªhè´ªê~N< ì8ôcDê#·Ö˘œ%ôÏƒÔöüâ˚Ô©C ≤ö1Ä¥}©(„i∆ÅÍ)˙Ñr*–Û\£õ,*”4üQ´›?5êìQéaM_*«◊Á”«sØ>ÛLµßéŸ‰FÅ„∏Èg¬Ò¸´«4«Ò©Ñb2µQ`ò7<É`õ48á}™”‹6~ôjU]È`>+·N¥Si˜⁄É∂◊πzxàò˚√*œ ¸oq¡‰ä√LëJõ
+iS651◊«b∫2◊˙XzOm%?ªIÁ¨ôò3$ˇÖ§Ïóö¡AqµB–Nîçji¢sºFÓürõÂSÆY~J,>±äÙnùäï≤_ë´ƒó	+î]iJÙSÃ6Â+IYªkU”˚çd#ö[Ÿ¶ı)î6zJFõÊ?”—ŒôcLÆÃ∆∞ô˛]W|Dk@·∂øó∂ÿìFo•l%Gˇ:ÍSwßNXÃÿ@ç6∑:mÉÇÕ/î,‚òh.!ÈR7„ﬁ¥J[¯"G{rT: ﬂdÙ 270/e‚L∑5ÌS1GmÀ>∂¶>pµ!g8ÊfGGFÃ∂6∫[ÑòIYÏ¥ª>Ê	Ög|âvΩN‰Oœ–BAFœ!Ì˜‘ˆQëÚ0Í©"˚ƒ1ó∏ÅÔuhtX ”]Ê‘ø"9∫ÅÎ\yæyy±qOfâvWíD˘≠∑q©é=’ët)oÍ§}€{ËkH∫ëfì˜Öπõ`®ñîô‹ ¥\›lgø	vò˝ˆ†ÖÔ]2“°n–‘™gr∫ÕîÂÊ¢ÜN¶Â<õJâ?n··;Z	ZoÂﬂ≠T¿£?ÈU©WvcKE(ªTN€˝Ì’£cØÄ Ò`"eh2⁄¿u“ˇúY˙∑Ò çΩﬁlÍ∂Y e˚`•,[À˙†4…÷(∂±õ™I,uiƒLã#ª¶UYCJSkﬁ/Ç£E’hno˝!&íƒ8nqµ∏eöùÙÓua˝ïlæí‰ﬂlG˝éwp˛öÇ ÃcÌ¿Ï‡Ë†:íQü ÓÜÖ0û+∂y'[ÃÁD5˝B‘¡MñsÎnjø$ÅmåáAà0Ë"‘ÄxZﬂ†¯P™∞‚ÂW„ËÈ9„•éVK¿ƒØîwò—ÍÀõYÂ≤_÷î¸“‘ÿî È¸5"PFY±◊ÜXÓ¥é»èÍñ–„∞P n≤‡ûπßtwÍ'òãw	+S˜ﬁ.5»ÈÕΩÖ¨™…öZáÊE⁄©ÖÕÀ:≈w(0t‹|ü{|Ã≥ï}œ~à˜h|ál®•{ÃsÜ/Ú≥Ù˛âú≤-‹ÀâårüÍ^‚Uƒ«cã‰ö≥x_=^‰6N|oâünÜg÷Ô˘5˛œ(M≈´éQˇÃùî)i";äRü´¯ˇA“TÎ±{«©<"lû…≥x@õ}‡»ô)d+d3Ÿ±pghƒıÛ◊∂3¯2¿Ÿ)H’í„'VRˆâLß—~πê É|˘FπÏ/ÏÓﬁìdGV–Dg|õÌ5 êåÜQùøv∏ﬂÓa˘πwg¢¨	¬ˆ^ªwD1ìæπ•F±2óh≥ÑñÜFê-˝Éù ˇ–Ø^ÿ,‹”æò˚3(A"3Õıq ˙Ä∞8†÷kÌv–tpó0}¥uŸl≠ÏÒLáç†ﬂˆõkM&£.ΩÕû.öNΩ—n ì”_£m{Ê~5¬y≥c˙~Ø0Es
+Ê{¡z^Ó)ÓÄÆÉƒÆå~|WVaTÈyBÄr(/XÛÃM∑Z£ÒgAÒ´@Ò©.#«U‡îQ˝**‘:‰ Ê`˙åP≤…èıµ·|AI^P˝.ÇÍk»¯ÅûÒÉ∏˘§˘ÅÛF€6Ê’ı>>”<õZLLÛÃ}åÖÊY„@ûSÛ,w9äÊôÄÇ»82Y›≥p±>ı∫Á['¶y¶⁄äìT;øä*ÊåàÔ,X¯Ó(õs™öœÕ©s=≠ÍÂ| Â3’2{ˆ1˜…RÉfÅ∆‚øˇèPkÀ+†®ùô∫òRÓèY/’0ìoÙy&ú»˚+™Ç∂DßûzÖƒôZ“‹¬Aæ6*æ °Ç¯(£_kU4,ÓL˝7?ÍhtØ*˘?”GigÒµ„≈4;xΩı—Ø≠6Z¨ÓåƒÕ_	uÙ\)3°¡ô>zB˙h/“∫L95“Jß£®§%pò¨>:^Ï©WH'“dLR#Ìñz„L;}äµ”ÚÑNßûvs(™È˚göÍWAS-ù≠ã™Z:⁄ÔºÆ⁄çˆ”Ø˘WQˇ3W ?IÁ©¸äEB≥<ìÜ¨¿ä~Z£‰~uT÷
+_U•≈ôŒZ∫‘ìì|≠‘dEBM¡…ÎÎ¨ß‡k|=dugää∏˘iQ\ø“L‡Lsm÷Ûæ~<°®c
+Ø∑ÚöØÒıd
+≈3Æêh~ ’◊Ê\#kΩ(R1BÀò^·}D◊ÉGŒ•<|πîáŒ”∑_TËm|ÔuèíUèÎÂÕ7ûøˆÔO˛Î«ö™/X0.\˝§b1Ù&8´Ï—RŒÇ@Ûº‚:ü¢±∞<ﬂ<{V“ı&JK◊–õ´úAÏcI”˘äÛ{ëK∂ÆXå÷˝ãﬁÿŸˆ(uìh™Øﬂ–ã3‚Öå‚Í?OE~21E∏O_©ázå˙ÊŸg%uÈl¶⁄“Bàü⁄Sæ#ÚÔ§Ì˘ö;∏Ω∞e2˚‚õgÔKnÕºv–Ûô˝KäÄ±?—-ß˝ˇä‘Îâ´…'ÙπòmÚT>J™⁄x∆ì≤˝ØÑFÂ	/≈Ò;ƒ5)ø{˛?∞/Â=¥®bãÇOøÄ1ü˝BŸôﬂ¸qœ˘¥Ñ€‡°¯åüâ:K˙˙Qœ(hHòSM¢´mWªqcm}≠∂≥ä∂Vo¨nm’÷∑—¥Y˚ÒÌ;;€h}uÂÊÍ÷âU∑˝]?ƒCû‚vãRq;µÇ\äi8ƒ;´µº¿w◊vﬁAÀÎ´µ-T[_'5Ino8p	˜˙F˙öFòÀPJ J∏ Ï£AﬂP˜IÀIÛªÚñ9 ¥∏\©Ìc˘S:rU:™Ì··–¶ÓÇj∑◊—∫ﬂdÚ>¬•™K9-é5§	≤¢4Cp]ç#ìEœπæë;D¨‘Ú»
+A∑€é"êCZ—Ù¯û≈Íú≤◊º±∏·üÒmı√Ä§FÖ|jÕ–€˜:(Ù:ƒ2cT“.K£”5…ZFa:+•§SBIH'I*∫á›¬T-Ù—A0DºXYÁ ECˆ›æáW=æ˚^H±ìlƒ¥≈®^r#HÙ6⁄iµa/¿- _Q18√ï?ƒ[µ˜z√>Íz˝>Ül∂á“ﬁ·ÊÉ <@`„ızxîŒ¡π©isÇK9'&üM‰íSº\∏k+@O“9n„)·≥/E˛`„_a™>x/&î3Ëá€∑7J±Õ`ÇÊL±®Æ„]±N+ë^q-Ò˛èi5^«®Ÿ{T¯~·£îÎ¬∑xˆæÛG®NLh™JH8†∞Ê7ÒŸÎ«÷ç¨MT©^(xIÓJ¢~w≤Lw‚ÓH tsm˛"ÙàFN∆mNBŸ•Ûíä!}≠p®¸_QM$?QØ9Ú;ªq·>Ú…Ç4e–‘ù–ãZ∫ƒÜ@3/SbÄOòÉ-JXΩªÁ¥é€'"0‰"Ù˝V@Ÿ\ILœ5‹/&Ú6;wÕ∆Ü¿Ω–ﬂ√a»æ$∑Q|^Ç2°YEîÊDòBB"QN¡ny˝%tàÓ>ñEí{KZ$Fp·Ô˙¸5Ç$®%}7óÅ´,!ö]˜6û
+ÜH‡OQÊª§ÁU/Ï˘ÕÃ◊8ÈŸﬁÏ˚=∏C◊∫ˆëèˇÆ¢√£øK+ög·¶KÅ∑Ê«;äˆ}Ù†áÂ5»+»Dîj.~)a1d’k¥
+¯wß ç'Ñˇ*ÒK¯8∫jTﬂ˜√eå≥-ïö|éı1çª√ûÌ=!wY£{&Ú≠}ˆÕ@OcXíb .¨É™≤ÈÂ4P_U` ˛ñR∆U÷”y›ÜkÈ<=qz÷ÈÕ’uÉ!!µSË≠´®b:dÿ¸ASãspU∫±µ∫:e<·Rrcç=ÎV√¶F7Z¬–±|™+ÿÆ«∏XtÄ¸`YVïQ)π∆∏Ñ≠ í2’ç$‹€∑cﬁê·›~âÉnn¨ãœpËéKCwLäßvÜGÍ:tx44bú◊~	\á’!‘˙¯RÙ–oZêC] ¯~…#–Œ˘‡ãöiì.›2ê≤9ô„∏°›"ˇæ™@◊ 8‹a†ÑÁÖz˛>⁄ˆû∆oRŸ¢Ñ/=¶‡	ÿØ©©i-vË‰n:6ñÒ}îıªÑÔPwËÔj®¡ÛYƒ∏€»‡öwÃi·∞"&ûf£ÑØÖ˛^Ëu’I©%ÈÁ¬⁄a©„˜ˆ-t¸ﬂÙß≈Ü'; Göe“F1Ù«Q¬∑ãÌq¶rNŸπRt˝BìúI”ìHï<&Å4÷Ö˘:¶ˆ€F-KçÖ6∆˚˚¨EÒÕC⁄˘—}sµ âˇoX¶XÜﬂ«Ñ}	„∆⁄F±Üo≈µn?±Ù;enwÆ“ˇ}•	ìÌxéÛ—¥eé˝V–√LmÃ÷,#˘]Ø›…|ã^–9˙‡◊◊± ﬂ8ÄKÖGK€vK‡+X˚∏o∫æÊπ\Ê°ÈÍÌáuº¿ŒR©î§	3©¿Œ==_Ç>f‘¯˛∏◊b:ﬁΩbGDì‚5õ®R˛û¨ D ¥1ü¿›4B¡.‚ÿ›îàÑé~$ñ"ËΩ⁄[iâ«±ë#5m‰D˛å¬Å⁄©M2w/‘Ó‹‰åD'ÅC∑Ú3—Cz4_Å€Ó… *Am˝ cD;¢k¡Â∏˝UÖ%∂¡MàrDÌ‰&ààÙQ√&íê˘Ûüõ:¨îÙ…?ew©ÈOã(€˘N]ß(ø,HÏAŸ]ªó-CH$ê∂πŒ)ŒUA|¯∂◊ç€éP]Ùñ9”ò•îù≠ó†àIá t{S_%ﬁ“l{√ˆÜÒ`Â)là·£¶≈6¢f √(˙Ô‹,u‚Î∂jSfË¡R4^d#¿ßL√æè •ä¢L<Vˇ≠û ‘0O#xŒf$3∑AÄÚ)¡B>Ω-”+≠Ö.ÿ(y˙ﬁmÿ«+8EÜhÿÌz·4,ï\≤Ÿ)gc‚¶lr$ä,yﬂìG∫Î·dˆñÉπ9≥6∆Ê»÷òöñ•Q1då˚Û¥ˇlkKÚ¥ˇláJÓl¯`{õIÙmÚ¡ˆvRíßÕ‘omÌì“¸9*˝ï‘Ôım±hM`€Ì -ËK áb+∆	ôŸ•÷tM'Ìñ	ÉºrU÷aSæá)•¢KøÿcäÑªø]ˇâﬂ`5M£Çåœ”Xli~°Äg?ÉBZ%nÿEo©™∆§´gòÜ«Ù<írwyUVjˆûØù®Mö#];e	˚“∏NG?{„¸¢èo˙BuåŸßö2≤¢≠ªjr»±ÑzÌ‹ﬁD7◊o_Ø≠£Ìù⁄Œ6⁄∫˝ÓË°√J·∑bù$ÖWÔæQˆ ıJŸÓ∏9/{⁄X„ÖS~°ïJeÆ“»Ëæ§∫ÚXÛÿ‹Ú3ù·ìÆFJB[ªìº--ÅìœÈë}(u rÎ«„Å®Èº≈9y˚≈rº}V˜d´Îqz˜∫∂∞OÛñp◊^}r Xq(Í#áΩ–Ô˝ÂD¸1$E °*ÁØI<´ÔÖÉﬁ ÃH
+«Ï„˛^à¡Ó‘@æs0I‡ó]ﬂj‘Ek9 `ü‚Ééo¬áD˘ËW%Ñ2¨ÿˆ`/†Ìa=jÑÌ˛¿e˜O/HäÜ”Ç<_ƒâ0ÑX0t8Úï†”Ò¬Ìˆ^œÄ	Í>æzhÕ≥=‘JÕÈ‘
+ì¿êõ>fƒ	t†É9Ë°‰'zÈ¯Ag3yab:⁄ÙÇ°ì–¥L"Uı®ëÿ√W7¥W°ì¡ç⁄æ◊√-ªNzù”ÅíßhNƒ¿∑ÀD0ˆË˝H|≤EÀéà1wﬂwÁÒso¬≥“éÍ√0¬ÙÀgﬁÒzòŒB=ﬁ(¸jbç^r2h≥^¬TÖ
+Zp<v«œ>óI%ÿ^•Ò:µ%Tªπ∫±≥ç6W∑n‹ﬁ∫U€X^E+k[¯˜€[?vV4PB=+ˆSÕ`∏Ä¢Ó$2‰zêygùÇä–∏c˛-Âê='Ê¶IP∑Ç†=ö>xHì±ÍÓãﬁE»ê7|»äƒ;ú≤Ü;˝ó Ü˛U'ê…Ã¢â"<¬©ë[§*˙ç)Yã˙{ #ˇFC%Mñ3≤&K≤@Ú{:ƒà9˘´aF[WÎÖ?ﬁÁ3ˇYŸÁKrqÖßdﬁ,†1πz9ÅUúÅjÒ–N%]’ç˝ |Ôyp.ÌÛ9ûﬂDi˘%ﬂ¡hr≠ÁR®÷óRØqç·ØYê*Màe»[≈wŸê›ê˛hÖ˚C’ù*v≥[›ÚdO≈è£Ú¢É^ŸÇ©§Ó√ÉÃwÇõhõ¢V\î,q;¸õ~∑ΩG.‘•ÿ`«W∞áòﬂ†~? Ê⁄"å‚Gr•X	[‡xèöA£–¨œ†)Í45cˆ°sXBÇ∞1xÑÇ4‘å”eõ4≥üò¸HnsïÍ‹<^ Ï,ZÒwΩagÄ˙òÃ˙≠†DtsmÔE”‰P¶>±-Oàpús¶+W.ïÀ≈2y,>oÚ√Ïs˜ﬂ<4«—ÍAÛ`≠"”cÇsπ≈πO~¬†S#'‰8ß§\dWwÖtjCá˛Ln{Í£` [oe7±ÁÅáÜµ›ˇˆ˜ø§ƒ˝èÑÑ˛âQ√g†7ïQèXy)á œ^ê"Ú<:˛+5 £Ô"π¿'§Rü Hc√∑¿)óy™$1¯ö7˘Ä&@<«¬¥>Â›˛Yº˙!	ÒˇL∞‘8‚á<	¡Ød∆¸!Ò+ëBõôÅG‰Oﬂœ<Ω#‘ç*`Èñ87ª–(†P0K˚^ÿ+L›¿8@cv ÃIr	£6Ó’ÄX£Vô<~óŒ”<ﬁOr^ö›«»ÉﬁÇiî∫~·â9Ï»nªÁA\dNŒ≤ãØ$›[◊ÜU∆O≥yuºŸW€|XÁl=íé˝bY
+…îÔ¢ˇ• KıÌñÍÀÚï¨ˇ≤áì¯ T⁄≠ñÑDD•ÉIÜ°7ä^∞z˝8«πxâÔ‰ï≠GœÙÌG#‚ÉnOZ9Ë1oh&Ií‘≈–J ZöAÉ4≠≤]V>"c∆&ªÇÊ0Ì\ALÎeÙ∂EÓKﬁÊ˙"'ªÈ$Æ–q5ñ?¿*…oJ¸ÑÇP8°ÜëÏà}‡t1ˇ ¬€Öñr¨–d∑ÉAçÛµ^fÄ=Í›ç$}èsvp[	˙ëÔ¥)–qÀ˜öˆw‡≠Pì-ZsO÷Âıã#≠%º•äë“πè©H,ÙU≥Ófl	†!	˝¡}ù∆=pÔœ+≥É÷q˙3%HøÓ5˜|4ãÒ˘°ﬂÁ ÁØ≠ıi|Å°é„Ï\1≤é£„∞Ω◊$çd‘éE6c&"_F∏éq§§•aÏãHÂ)ßôNÆ{¢I©=ƒR`ˇX◊Tk\øfëY*re ◊ynòbÑ/ ˆG\úÄLa£ñuêhÃ\¶˙&¡å¿C∑ ◊©‘n>r“àk3?|0¯ﬁù(n∆EÈ´8&í}´x£fã≠o±Ù∂ÜËÅÄÂ∂Ê£#ywÖokUNK·@[iˇÕ<ÕI–ú«±#ç∫Ve‡	ÂºA’Y¡–L‘∫ ƒ9ÕÛ]¸‡êøP;ËÙ’á6W›V≥¥Y⁄ô§uìó(3ƒ{[9X≤•d∂1YÉ´©:d≥Uvg¸Ô˘9ˆYÇÕ≥97=#o®¸òìâòäﬁAØ”Ó˘€>˜¬•¬‚fËG>¶¬4bÆ›k"‚ÚYı	u• Ç®Ñ7¥7hÔÇ0¸¶¿⁄∫4˛êh7eÇ<\ı∞òß´î%~íà€&S)ö4·Öh0˝T	_™–{üÔ!)B$ç$‹!S¢j±#»J˝®∂{ä.RdbΩÈzKïT\Çì5óƒ|ƒ,àúe‡ 4§åct |’£xÌêÿn‚WX=∞Çw%ä¸«[ëãYT3¢›pê~r†À—¥≠≤ 1ÊAiø≈»Eıìî*í#Ú˜A÷;¿ÈÇ°|îk“Œ[qX†Ç
+!üàzzK’Ÿ¿c¶kŒÖßáÒtèÿ∆Ç'{ˇÁËMÈ´£˚Ód2õkÿv˝5e=Ã¨W§>õkK·"Qè^0ÿ ·H¡ í^LÂDÍõÜØ
+ô⁄ˆ¶U‰óX◊&∂Â>T˛sÂ;F}„õÓrŸÏT6°kW—zMY$ºy´Ñ7Öñé?Ö*õÇÏ™÷F3¯„Ê*!®Ï‹($L9Ä—<Ø o<è’‹E6©U-œ36s◊n{ÿïzFS€Ø◊Ñ‹Æ¸KwÓÂé§„≈;ât'o„áÒ-X	=B?°’›&3èë)¡˘t¨É6éPÚ/c”©≤(±Áj›BJ“¡ù-©ò–9≤MpZ±JNùåPâú|$wd1!Es¬ÛIi˚âH35ˆÒÎ)(j©+ƒƒR∆TE˛:OÂAeu„‹á—µDF'Z|ä«S	9∏©èª”ë˙h‰l·ã÷ÄËN™7jEWêC„°XbπPSI©åÑ6Pú≈åπrBDrØÛ[`ÈÕq)8,^^0©˜6‹<ªÃ*Ωê}e9Øn¡^«GxÉ¡€ÌL√9∫Õs'πÇ9æ>∑ñ˜≈öâó%¸+T˘nÈx˛9n0Ÿ~-^.¨ê„‰º&ÄÑ•íEÛ/´*◊JÜ˜^-ÿå”Æ#∫ª&ı∫‘”«y:ÔâA˝Æ¨Ÿv2x≤›x2¿Ü4´∑¿,q—q◊0~ﬁS©ÖR≈\‚K9Ï`yI‘Kπ@*â¨l’ﬁ≠≠£⁄ùïµt}˝ˆÚﬂÉõÃgƒ∑Ó9˜yF>>’xLsiŸÂôî¶ôvÆ[5âÿÖ—£X≠[îÇ>XB´≤ÿÓú„X‡“¯ÀùXBè‘êÄd°.¢ºÖ‡•yà5ãÕˆ ¿J„oˇè‹ÎSÍ·˙˛¬ÀZ”íR‘ÛˇÖ°
+î±:ä-à·ÿ·j˝®?í—»
+·∆¯Dˆt|NêÑzyä2Uˇê(Ω≠‘ŒñKE˝€ˇ˝≤ÖO‚ÇXY*˙}.Ì÷S>Ü”_ ;©Ñ@h¬&≤èÁ9ßP&kbªÛÈ$[Ké3∂}/l¥T¥ò#hˇr”á;XÄÖäŸ**QÑ¿Õ˘BU«[0ËJª◊ö-ºTå»§Ã"Ü‰Äı<[ÅúìºT2∑%πêÆí◊iS3èƒ2&ñ+˜ÎüÊÁÒÔ∆~i‡Ö{>K∞da∂*35cïbE‘g¡TFv7h£%5ï}âI±°Ç’oMÒ2ÍáZXLÅ)Ï/Œõ6»pp„©
+i7™S„9M¶§ÑP™ò‰tK⁄πÓÏ‰•vØ—6˝® æc«¬~"q⁄Ù¯˙ﬁ/±R§ÑÜ∂+K„Æ?hÕ¸”—tßÀ6E]4ß¢x„ös‰Z}4~∫ïj"òZ´Ø—∫Ò⁄¢*k‡Ωø‹I◊◊ELÍÂé..îQ∑éI¨5ÏX&…‘ç@ÆØ0¿óU /`|,e‘ü6À‘˙‰ô∫c≥n}Ü±ÉG÷D‹à≥]àO©˚∞ÕuúÜ≥ù#m=l—˙qê~ùËôè◊ìVo‚≠Ÿ˜‡V?⁄˜M[üªÈ~∫Ì¡¿≈9◊’±xõ$”;~˘\UÌ◊ÔL’ó·ûz®£–ƒEïf¥;]œœ˝RªôÂ˙Y…Â˙i“Áª¯„;8yBu{ï5ˇhm›ÚÅìNπ˙∑d∫‘hMŒ_˚¡·æÏ˝È0íã˙«nˇ‡&aÈâıÓy¨ò`Ù·π&”vt}egÇÎq9ˇ$ìU¿p>©a•?]R¬yÃÆï2%˘${çw€nv•C.qekî]Ìªva"a¶UôÚDÊXl1‡ˆ„∫EÙ◊íéÁZÄ˘Ö2¡tàv2™é…ÂÁe:˚2·2õD*¬îAX≈Òˆ¬f‹ºPÙ©l3\ååN‰d`’Ω÷mS	ÀKldIèEø¶kÃÏ⁄—…ÁêÔ√©¿é\VëÏﬂÆîCŒÓùWú≠+9-ä£ŸùÍ#ÎñàüTﬁm&T Ä¡~[ ZËhÑE1≤ª ìa¨;ÑÙÂ˝¢[ø$/b9BK§ué·r‰¨K¨{tµäŸÊöŒ®Eå˘X9c	‚YC˙,GΩ)©#ë˝Í”õ/∂T Œt ?Ó&ÎåÄ|˘ëE˚‚%*I‹‰ÚÂÚÏEM‹Ω∏QÛ/ÊÃ,FÚëm€ éqedgO∫B°z’hÜjw+0√gìnNë2©-äú©óH§B™@B]/| ı·"ƒÂ”$"Ã%	˘RP#Úin¡Ëks˙Ë›˜âê°+NN1NûPØ‰!y˘…›à§Sò›vÿ-‹gÓJå	”˙∆iv˝ˆ}KœÙc#§Ã0≈i)'èÁyÃÅhc°_„¢^'Fª‹)À≈¥Eœ¥I∫YörÀm$G&ﬂ”äï§¬êR.·_Ws…èor√<ÛxS∏viÈHEt.x$GØ£◊ù;—ìŒ4ÀYn⁄BÚ2<‡¨ﬁo∆Èk¿PÎ∞F]÷j++hcı]t´∂qß∂.;´›∏ΩE÷÷6nŒn÷~|ã‰—’eÃ’xúQ√’ú^I
+Tr W0‚m∂ ∫√˘åtπWZÛfÀgè.0ˆõÛ2d8u]ŸÏµâ§U]îfoyΩ!…ü∆h5äÕJ2”1ÿÇ;◊ís“gêÎŸë\VÔúÙÑ{ävèâ∑–˚à&uÂüY¬≠_ÛÈÔ2Sm]ômÕÎ]Ü ⁄Zª»†GMr¬≈ƒ>¸R?ÙBÇMö‚“TXõÂË˘˚d£¿≤	6Ò´™Æ|EÃ6÷%®˘Oám»öµ€ˆ;ÕëÇΩ=+Y7W˙ÖGkáárÒá$˚
+U}‘%X◊ﬂ∆ ∑Q¿≠¡+ÉÙr≈‚!≠p≠á_∆Å‰¿¨/[#\œ–‘~Çë∂‘ˆÕßÀ*µCbœΩ™¶Â\€æÕçC•®ﬂi„ÌLMﬂ-Î
+TÀ›·N(.-InìÌÃeí°(∫K˝sµu.]äúÎ;πtãd}M·€–&PZùz¨P$>lÛK‘à}ã|∂t*j‚fΩÿ§Ì‘ó¯…ö_KkM`óqË±Ñ|Wú?©m.	ç˜lHñS¸MÿùòhÀ˛ñ1LT√õåj∞ìã
+˛Lw›BåH>;ãhå•ôÜ∑Ñ¶Ã#IØRJË˙2ÖC«∑)∞„ù˛{,kB≤˜(ËySSÉn.CXi&˛8œrÚ«NMö˛ÃµF·∞„’˝é"vÛ´Ï=ê32˙#uÎ`≤≠Ì‚+dHØ®M˝˝+≥dòc˘”¬ÿÊB»¯ÆÒ≈›÷{–j{-?vôn∂2aÕÁg´ Ï(é∂˚"±M\—≈`X∑πﬁ.(Çrú[ñ»®)˜[≈M7ñBMÿõÛbq“»â)s;√≤≥ùHˆP‚=6nr
+ÈbFÉFFœ‡ëˇt¢»])˚»ƒ»Ôÿî≠	∏∏ï·÷cÉ∆–∆Y–∞PNBCnXpTAYºRﬂëÌÊyï•üø¶~æ2KﬂŒŸ9Ω&}»›—Ü∑Á5•y©üGÏéÕK˙êª£≠Ä®‚â%æ»›·uØ˜ ÒbP®ââhc )`Âo+‰ÎÈ¨ŒØÃR:Âtaá "‡1KÉﬁìNü¯TÆ\zƒwÜEeÎ9Ãøì,ÀõÚ*Ò]Aî‰õß*IŸ-™?∞‘ƒ ≤Ç±x6¢Ö3ü∑™π•kÜ0îD¶çãe•–A*i=ÏÌEæ≥rÈÉÿﬁ`V∏õ≤Ÿa4◊V÷∂ØﬂŸ⁄^e!€hg´∂±]#Å‹Yq26SÉ%f4¶∆†5Ìóˇ¡˙¢™€≠˛’—ûƒ‡∑nØ¨Æ£ı’ïõ´[Ë∫±∂Q€X^„qÏk7—NÌz¢Õà#'Ï
+á4√ƒéWß~›†ÈwﬁÎ¯Õ=H5ñrÛK·≥ ,J·@‹˜s◊k˙kÈ¿ÅƒGÿƒù€õËÊ˙ÌÎ5±€;µùm¥u˚]çƒ[»‘öÃ´y=¿qÖuˆ'∑›÷°É∫‚€∏ÃõÈ‘¥ÁΩ0à¢-ˇ!Ó05H	≥Üa√/¢aw’)yv—[®P/5ÇàhÀÀ”3¯ˇ¶Ó{˛‡lˇvÀA++Ü˚>*ó.öZëTY5π •jÆ÷ ÜZir?÷ô&‘5ÓÀk‰vˆÏUí˘Æ}8ñ[ﬁ†UÍzè
+ÂôƒÍãöuÈ¬-—oIXµ+è™®≥ó“%ôúdI
+
+ºk®íß∞Â^Ë5°(CqÎ!⁄É.$åhT ’2f∏|∏Tæ\ôKfè¿\ŸØŒÕÕ›∞ﬁ•J“Z+∆≤≤5è:÷™ò9Ç ”rúsûj‰E~‘#$0≥ñ©e>Uc	W-qòF\^&g•ç˚4ZŸ	˚¨uuuÅD"“ãdjeÖ\ÖiÚ©˚É÷ÉΩΩ¨≈€À∏&@nÇl[è$$∏ÂŸ∆øò·J Âπ8m¡û¶J¢Ò‰.⁄r£,- gı9èáú7Å	º@?Ç≈$ë’8”À_L9+ÂÍbfº§$©ﬁÓt +;M8vhôàÙ1{];#ßí¢‘ºoÀò≠∑ÀêOˆDÒsÓ?èáüD^BT`*\,oz‹»IÔ£Uñbú"®"ßMKô«µ8 5ƒÀ-Pv†¬<^¸	t%"%9‚Ç"?œkRöû R+ÒsI¿d˘˚¡}Ÿ°E:í`MõÁœ∞˘xÿ¨÷C¨òW~a4ßEﬁ •≈ïlË,úÙm}ß◊˜ı/<Ç‹Ê∞Õa÷‚«Ç°rÃ©!º¿ô·∆ô¨Õ∂iR¬Ìˆ^o‹¯È¸É{û≈õ[k+K‡†z_Ú©ñÍzmΩ∂±ºä÷◊∂wí"¶n›è:“5{é\≥5˚ï˙¶S)q˜Y¶'˙·ÌÎhucgÎ«té.>≥x|°Æ†8g£ô‘ Hœ(”Æı∫hÃúh8'∑âT$ŒÎMÀ$6±¥ﬁÒÃÙÕÍP3 îdé}ÃÛ	_‡≈=¡Ü≥«O^H©Ø@âÔ˘MKF√¡_ó%!¸åÊ îù|?¯Ê”/xıí
+∫¢ú6˝kÚ Øi·ÁèÈÀ"·Ôy¡?#û˝˜â¸Ñ,i ¯ÀI
+;CÀ}ÒÕ≥'3ö∆r¡oûCRì∫pöˆÚÇºGˇ¯]0/-Nùì…∑±œÒÿRR-Òˆ∞ÅπTd	◊∞Á´NUìÒ@XAàÅ)&ÊF P'ö3U≠Œù_tπÜAòkÂ‹¶ZN0ÍQLf7ñÂ◊s…Õú^äkÕ&Eˇu2úíO»Z@©9Ωæ,∑Çv√∑
+è'gaﬁ&fp>≥†ã	ò”éÎÅíi;fñ`zndtÓòœºûÓ‡ƒùU ßœYÂ¸µb±≥çOµXÃv∫ ˙bÚ:K≥ü33mÒ·IÆ-hA“m±C&üªÚÅ—ÑøeèÅ¢ç	\†ÇÆß∑—˝º©˘·Ë>‘⁄àG=¬˚ˇ¿oNŸKΩgÌç9‡ …üƒHHPB\…√SBÑ
+îLm,Œ&‡Z~gÖ`¿¨F°$‰„%:å§≈Àu!¶Ë6F"p⁄`èLÌ‘9:˘•Ω*/.·ÈoﬁBX⁄ %å∂[mΩˇ=}ÖÖçæ–Óp∑ó¥õp hÅÓÜùSπb^≥Ëù`Ä°>ù∞º«2^O °‡ªÌˆÄa°\qg≤∏Q‡ô4<h–ÀA4ò›Ù∫PêÈt ≥pTP'wjC%,Wú&(ÿ¬≤FÅZhw&Dàá∞¨÷ı)]1ùY|
+¬mõ5y
+ú *f¯z7ÉeÑ ÄÒË`› P ¢É#∏Úå$˜ÚBÂg¥”⁄‚h…®‚é°dìTÙ>¿´ôﬁm≤≥€à˛À `∫=ÃΩA]˝]©,Y^ÕH§ñ7˛ŒÆ›ﬂ≈ﬂ∞1Ã¸ª‰ﬂ}£q˘Ú‚B˘˜w3çæ
++"È[]ÚˆCΩ>7Xwˆ¿ÓQ’/&Ø©'€∂≥∫|{kÖ€ÿV÷∂7k;ÀÔÿÌ:f˝7|≠°ØZR≠ç€¬1¸Œ≠[µ≠Á∂ÙUG≥Ù©%JZPNyçÄŒµ‹ﬂVg}m7Ç≈≥wÀ•Ú¸=Rﬁ©IüÈÔp
+,ñd¶ n˘Ló§+≈T√øÖeW<ôÌû◊k¥·Æ◊Ú˝A∂ÀÖ—äI~Õc…¥Æö[+_zdO®1Ôó,?ÿM*£±“g3%3.Œpc!Ù˜ú∑d’‹~!Á-¬øºO: ”&4£¶À∏¶õò”_Ö5AÅ7¸;KòÙÆE∏üOø7≠‘_˚U\]Fˇí‘^cyëDGœE%π‘‹_˘ö®mÛ´TïFx„π…∂IMkﬂ§?ç‰˙îQ\Á8%uGôd	ÖN»Úôéπ≈@kq`≤Z.íï[Í`Í@»]¬ÿñøL=ôÓ¬	FÍÜª<3OÁë'"¸&œ_Sº3GÓPÒ‰›O©€√ â˛bG%ëH@r%{’Øô√e’ÊÊh3ÕŸ≥g“0$ac¡\Fãú=◊‰Ï,15Z"¬ÃahËÿõfÌ°â-Àx	É€–Öômuu7ﬁV3më.≈âﬂıÎíì#Õ7}#gv)ª¯…H
+*E˝à‰ÉìO·X¡{ÈQ"¿y:ä–√'?ñÏ—{…—º\±Ú„qP—	ÊÃµLÄN.Ëò‡2˙Õ˙˝ò!çÚCO£9d'/«6
+Ä(™ß•/ƒ?e˘# z	W]eØò∞VÓ%“aª‘—U*È´&Ÿﬁ±¿»ïvwœ·5Ñ¢∞¡◊◊ıˆ¸;aáTk˝hivñ|ïÜ=∏KD-å¥›Ÿ~+≈ ¬‹¸BuÒ“|Â“•Ö‚¬‹ÂÀÛﬁ≈ÀMœØøR⁄U∏úzÉªÌ¡’FÙ/¸ÙÍb˘¬˛’Jµ<ÂñÿÎÆJ~Nm4•)•\ÂAíá„˚‡CqGMKmã˜\íª•ÚÕYÎ;’^ÔÇÆ´„&<7AOƒ¬1K¨≤ö[-ÀÄRx]&±'8ÕÇÁáÇÍ∏ù´˚"\K÷9“#ß$'O¬≠‘ N…¢e'8q[mƒ\uÔhÂ;ŒÅ”±ì^C<ˇXØò˛úwú¸¸’3ê]pÛØBa{/·(4Ò/˘Ay˚Ñfüïﬁ<C¬=:ÈÏÁπ*ÇÎø%∂“’ù⁄⁄˙Íäú≠ﬂæπ)O÷W"LFQÏjé¸ÈeÛÚ„”†•Ω≤LXÒKhùbøâ®Õã&3ÛhA_»ë`’Œé)æƒOb‘Ω&£8∏bR≈¯ÊìßT%˙[ÅÇ?ˇ#hRA˙7îôÜﬁﬂÒÈ_Q"n≈4)¢-•*·˜âÓ7yF£Mû”n>&o~)“◊?fjh2ﬂœy4Às¶ì)¶ƒu&f∫ËYè≠cµÎWOèn’¨W_%a6∑´ı¥™–\zYmƒ[zñ8Æé–Zxø∏:†∫\Ê©ïª˝Ëö\Ìd6ÇÅü°î6kkâKm?ÑS••Õmô	´v6èf÷ÄnŒŒ≈üDñÆı6˛î÷ÇR5gû]¸°≈°§ﬁŸùÖta-ﬂ‡®pπí%®1A4Ëlc‘πz∏xîJïÀôˆ™Í7€√ÆÉ`∫ƒ;âö"É8bSáñç\Í∞ÙÉ⁄=(‡’1ë)e§«≠»c>$c¶{qÍ?¿H¶Ç_‰R„i‘H3Iãõ≠äuÖ™t#›OBÈ¶πÕÄ◊Máãd±§%ı 8´86PòÊùG©îC°t˛ù∫0(8+íéßD*ªVPégó“Jˇ@É¥hŒ^‘LvPAN¥5?7çI2Ù»G Oè’{√¡iì∞ÒÛ¢É⁄ŒP2Êm#T=Á∆—9wò049¸4ÈsÈI@K"»Ì€)M	!¿'∂Ñ—¥n,«ë!Ω—I¿ãà˘f‘Æ˜®∏Oº4√aØqÉ¨6 ›ÍHñ%Ó•∑âÈ‰€¯oô‰ÂòÎë◊l¥vÆ4*™Üz—AØÅÚ‘ï+áN’∞|pQ4dÏ{=HP *M¢A´I‚’OÖ
+ãl·…WÑıôåı6⁄Å7˜€¯~ŸÓAõAÁ yMPë◊ïˇOS™”§>(?≥sS9Jí¬∞ÓUAΩ}Ø=`ÀX	Ö&¸ø>É¶∏ò=5É«œSπìï;böôA¨ôa˚¬*t‚%©‡¬}p.GπN‘ ˆÔÇÜyãµø‰C¬É¬Õ @Ê⁄l…Kx…–oÓ’ﬁ†Í(	,‚uèø©√[NıJ’j•!’“ ,Öí°I©a µ‰⁄ àfç^äÄ6/ªfóµ∫i
+î≤ªp2≤Ø»©kâ”…ﬁîÃ’¬¶M…¢7*˚«ñ=ëQºèie–¿0 ïO\Õ"nπ=Ä·§'πÄà*·&$úö\^*oKBÀxMh9ÙΩ¶6${ÊY˙©l3¡é∑7#¡!d,≈s¢'Ò6öZ≈ü•sôÇã9_˛÷*ıütn™m 'b“∞4Å7é¿R^À∞o˝À¯Æ„ı˚X†¿¥Ñ	ØÒ”aõ—·vÔ!…û”á¬Ü#®‡uøhs˝l{}≤ëπ≥¸H»ç^zXôŒ$»åﬂ2.“BæoTΩû¬Äˆ≠m.d2ã€»ùthSnöMSÀ´ZÓO˛Å/5Øû;'#˜Câµ˛H&¢´ÜªÕ#ÊK`uãoú|9KFëˆ‡ ÀWÛéaç£Ü3Rµ•ÄBc⁄Íbùn1ÖÔMOèâﬂm˜Æû∑‰ã¿7z¸ª-4_A„π7Ù{◊{À›ﬁàƒºÉ+ñù3g\ˇ	"„∏—Àèaª*¸GF+{Ø,ÂU‚isﬂC€}üƒÏa˛&®Ñ#û‡eèÇ∏Ÿ…E^üRËøÂ=Ç™≈*‹&p„u¶_],Ä≈‘:ù`ﬂo&ıŸK˜P–·NØ”∆r:^@{·[\ÔÅ‡•√äG@÷Úe‰|9•8±°QzêL¯√mÔ∑AèÈö?;o=î5W6MŒaÆﬂ"kƒw^oª…≠"\õR∆Ye_éì ˛ÓÂ“Ç˛∆M,{ãIrÀ4µÙ¬ÃÙ˜Õå¢5ˆ4Ú.›h˘çı¿íÑº∑Ç|k›ó∞è7ç—èuÌäÄ:}≠
+ ¢1D+X—5=Î(ÿ$Æ°©ïµJ,C(	ìU/vP}„./êÀ}5UG"≥/“OªjsRs7ÁF5ƒ°0Ó63”∂vSt©≥S√_rŸúD~ÓQ6»öä€æEÓïÖ°Ÿª™äDÀŒ∫ÿ')1†ØŸ¬~Èbπƒàø*Õ±–√4√Ëî“…Leô©R¿π◊ ;˜/®◊ ƒ"É[.o8"P0_îYç¨÷∑R?1nıΩÚXô‰fùìì.-îı^$Æ)á\mr6ª‘2X´;fî»0êôDèªûrº€ri!QYàÛ9RY®>∑xqæöNËDˇL\:∏CQ¬í‹wv~ƒ·°á°®XÎj|Mñré”bIù∫M˛W\
+™r¸‹Á)€»ùÕï⁄Œ*ZæΩ≤JÌ"[´‚≥ôO¢‰rÜ5-¢º‚∫?°O≤!M¥⁄Õ¶ﬂKd{oö'0‚%√¨tVô7 ≥4
+åzxL;{ÃÏL‘∏«Ó2\,{ØÏe…ÒÊ¥L÷:UÒÕì…àäwÑﬂTΩi·¬Y•ÈÔ*úËµ÷ D⁄d"ØâØ˚Ç≈’hiæYÚùqπ6[¶E∆÷I›„1Ω0 ñ)àÆTméÏ‹8hÛ˝JõÉÒ∂∑‡ü.Óë;Ωà;Ân˝a'ÚÌ∞îÖìí/De†ÊAœÎ∂àß‰∂®Ûï∑dè2ÿáì~®0{·…◊ÕH3_CÃ∆⁄!01E|”◊&0s-ﬁ®`wü≥&ì*≤°XòóÕ^ˇ£%»ö∆≈b\d9Öo1,k@9µ>Á÷÷îYYA]¸5¥+•™J:ÿk•Æ≠ê…lhf ± jl®º:‡"ÎŸŸ†tΩê,Ì2Fn€FÌÇ™^ÒøÕY,Ï;‰…“Óáíå+úFÍ©bf;∞Ú†+óúb~^ô˘±\‚∞0‘ÃU.U3“ci=	¢!D$≥Çù	ãp!Mrá∏`ÃB;>Úqö:ÿŒ2&EÅÇnqtQ@L'ï}¿íuSiñM@æP§ã\’°u%”‚˝ÀóÙ@lgLÃ;˙∫}„ÜÀ⁄\C:F‹‡‰ô2ÿªïviK¯À≥≈ƒÀ¡m>ﬁ©Ÿ‰î∞Ç$òM,π∏œÀÕe8º#4ÀøÎRù
+:áe> ±›vÉŸÖ(˝3Ëõ∞T®˛Äoëﬂ˛”ˇtäN:Œ¡rjÓiŒ—)˝ıp€	ˆˆ:‘«ç2F)Û&t:ºœÒ∑WÎKÅkó ÌLØ≈Ao∫z≈3öÕÙméç®“ƒ&EO,‘ga y¨%2ñÈæe∏L9ˆtﬂÂ‹r—@æó∞GÙ/¢MYÎQágßlaÆÂ«@úÑ¬ÆaèúBpéÖFÆêôThS4s£HÈ∂c>ûª°Ì÷2π¸›Å*<≈+rw#t‰*ÿÂÓáÎÕG•¯,ÊM˘n{ôJıÙTrh‰ıçuÛÒ„#£âí°◊=Vb~>IÖ2ÙıÂ§8"œH±5B|5–¯vè¯/§Tr.a5"∞Ü8ƒ√÷π¥r£ÉWHü ù"˝ZØS<M˙7éNcã$"—n£√Öd<6Zã∞‡ﬂ/$8õ>§j@¿¢´∆∫†™…¬òrßY>#Aö%jäˇl÷èÈ∆µ'@ ¸2gVh¥ºÅ.˛™*Çu¸¬2DùDA„Å?Ä"Q~x'Ï\=L|q§Æ}ÿzxM,ŒﬁÎÉˆnõ∞ÁâK8eFquˆ§(ÆJïX1.2ä^®sr“Z•÷˝›¡…~`ÅúòπX§¯¬"≈∏Iy∑R©xãTCµHÕÅ/û,≥	‚O‡RA$Œ§° Ó≤ïúìWèÇŒXN–/Ç√∆Ó ˇá)T[úºiÏ¶q=ÊámØx‡Éèes˚Ìbπl@xáyÈmNs‡¿©m”Ÿ ™RIt∞È·ïàiß%ÒO\M¶å»}À«Û"5üíœLÓl5%lÓf*a…úÇVò¬ÌÊ0j°ƒ1_ômUçÉ∫ÿ/=ıªcJ	Ã√Œ_#˘Îûí‘xüâ2/XπíRéeñ˚ê§ï?>!%Fû˝ìö étc¥Hd%•‘˝¢kÛ{ÕÎúNiC€LY^Ù¶5® LºÚxYµfÙ16€#t„V,˘e¥àîtUÑgs√ñ°/°t5e∞;M›áŸT·òOg¯Rç∂∆‹<T3∂‚Ôz√&ﬁ5LﬁÓè–…t»@ABDñCÒœ”«q•EŒç”gÓ÷Ç“±'ì÷˘}^Ow0Ák¶î™ˆ¶â[p. ß±ÊmÅ	ZïûmÓ˘Û◊˛˝…o˛E>Íõù†Óuêÿ4zÊ”œ*rËu:[˛^
+E˘M2±£kÜÖœïQ†±°0∞ üáRΩ˛Ç]ê˝˜'ˇÂ)¢ç·47‰∆∫ﬁP!=“‘FÄxŒ©©#[âÑÏ˝1÷≥~åÊSOò⁄9Ë€csìŒIë;iæ pœ°˚,+\$/¡›èJ;p”’@^Ñºﬁ¡wóx¥{ª¡˘kﬂ˛ÁØˇﬂW¢5¸Å1äøíÛ£nˇ≠Äˆâ3¡Hå¡R·‡a~ˇKƒ=∏È0$ÇG˘ª%πipß˝Ê~*f≤Ñ¬QÍÖ»¨à\˘«cItπ˝•®}zßâ€`ƒd9ö—ò£a∏Ë ”€.¨Ôø√˙∂…«x}_©πïÒ_å≤ „Q®ÈVãv@·ÚJQ*2·YRπ6ÛK˚˜≈x
+ö3Í3E¸`∆£R?hÎ.4•N©
+›Ú@;◊Ûh!bà<]çA8àP_ÃõNÆ ì¢§“§%ó≥	–◊£‰|πÖ…`V^ÇSÜ1| ≥Ù*+–SŒ*X"¯‘Õ7ô`d/ÙΩ—q%ˆ£´áÛfàN"[ÃàËƒZèàP+æ‹iêªa4Éˆ}‘Ú˙‰ãGÆ^FsÌ°ﬂÖîôD'ﬁÛhl.Mßï–2DæÅ$æÿ<?NÉ˙
+ü{Ωê√@‘˛m4fƒ%∫N‘Òf|<v¡Ì8¡K;Ç1Ê≈öCÌA≈õ$\–Ñ22Œª"æ]\(É!O
+ˆP|Å5¥ îkÊ¯H·¨Üu$,8N%øÛñÙ&gï€Ú¬íf•7|ƒêË©+ïJƒµ!~MH^Â-ÒZØb:+«7˚hïw˘ÉG∂¿«aIÂ-Ô‡Àz†ì‰U⁄_:Æ“>ün>;Ùª[CÇ…qxˆbôì±ËÀ'¨j¶†¡˜¸ÇıûÄ∫îÃüìÚ‘ºéµTç‰º`
+‘=˘åñ∑&<˘è‰ﬂ«‰öoT9˝/s˝u~sF,	Ü∫ÄE’ D
+ùcò∆…’¨JzeXè„E»1ËCEÃiÊÊ°2‚DRöÉ¨0rcı Ms›ÔtT≤Gã&¢D0ŒTÌ—íÚÁó·ùDå(ª©gh—Ö¶-Ä¬Ú≤5—`ªëMßR–GÉ⁄wB˝aN1±9j√$xõÔ⁄VÒ.>5òπ0J–3Ëáƒî5¬†”©{°˝Hu F¸”…ä3 fgQ”«∞Ñ{Q48Ë¯êZ9¬ËÑwIŸ2êLå›t¸n÷‹ÛØÔ°´ƒ±é≈X≈ë|ª#∆/TÀSˆ$d%üö√ô"hj:1§õØe¬≈;ÁÿD[îYx^Úl›äÁ•¯y.ÔhLWîØ?˚u{ŸW“®“K˘∑ò®âR„*ˆ`2,˝FU∂OYäÚ:T≤jâ5ÄN=´ﬁÜ6I'ï4´sUOÎï∂(9Uâ∞2èDzÑ9Ÿ3"%y$ ïXföcæÀ#∑çπ∏_ÃÆGÍÊB@ã˜CØ?Beä√˚î>/™°°ZÊÄ9zÖﬁeûŒéÁÕCáG˜›‚$x+®ß«V ƒ`±÷å?åÀîdW7JCã4 éÄ≠‹n*ÃêLÈ≈6ñÔhº„I–Á}[£lÂá–‘•∫πnªm≥- 2◊æi≈HµÀhõF{∫D<ù7Ì7ˇÇ®euú[e©ï±Mˆ˙<y*‹˚˚j’qÜ“Ó˙ò"v˚¥^‘Hı^›äÀòı2“[ö ˇÑÚ"æ¶Òd<Qo∏w˛'(Dqnãécπ&∫~?…Ù?®éÂÿ≈}(9&&–e FkµÎé∏πª¶‚Å«‚<,ÀßŒ≥3Äyﬂn˘–]@Ãw6„bJøóeûJ•@ø˛ø1ïÁ$NSY´Mπ6KÓ»T»X¨x’˘§êë†F∫ö’:‡0=W∂¯9G-åTä¯Œ÷)Zr¬ì	Ω«sLvqIŒ®⁄n)’`*‘`∫†iH£µ¥≤ı+ª£ÓCHÑπ<s•@|ûí°›CP¨˛+´EµÊä+ﬁ⁄¬X—£%>åÅ‰f›1∆¸«!FH¢Jä–;ò¬`@q*msbÒ¸XcÂ~IæY\EUuﬂW˜aîQs∆tõqôh¸wvôh◊B‘≤úû¨?M$y'm#K#È‰ ;ßﬁÇ[å∂‘œ	˛2©!5≈°â˚¨[r≥ªßs˙ù—/
+„H∞ é≤FÍ¡ê"Ët@ÕÉâŸ.f=íP«°˙ƒ|‰#Ú˜GËõgˇÒZ‘üâbœéÒÑz›~Œπ¯Nò≥€ÊŒ†sôI´œjm øF™K¢#√£eÎæ˝ËcTb|ﬁÜ{◊∂7¯;4áÖ∫Écdœ—˛î´Hˆ©ÀßƒÀiˇqnˇ%≠‡Õx˛ßL, 6ÜfÍI˚[Vï˚ˇ  ˇˇÏ]ms‹∆ë˛~øbL€·Ú¥Ô\Æ$)ﬂd3°DI;âU*	‹Ö∏∞vk`IäfXÂ\U‚ ◊}9«UIÍú‹Y± qló?8Œ›UÚWR˘w?·∫{f 0ÉóÂãlŸ[¿ÉôÈôûÓÈÓßˇˆ˚?}√eÇ¥$‰,ﬂ@‚£Ês)Épü…É¨·üìÏó˛òæSçH¢¡<Á⁄Q˘âîwÑ§ÛSŸ±um~ü…:Bo˛zﬂ{auqÒèAßÒ¥ÈP‘Ø˘	âL}¿≥≠?°G~‘‡g‘..qΩOO}¡_˝ònyOìì˝3˘KòZù€>àœ3~ÚzÚ∫ˇw¨¥≤ÛHﬂﬂŸº=cJ•~	y‘q·ÂÎ™{4Ïªñ¥˙˙ud\fÛ3”`QHÁ™i|Œòbû‰wÏv≠c– ÿ"€∑«À´®√	%≠n≈ÏG#◊ø∆eûwﬂﬂuÅ<•√Bô›«h∞±{–È›	˛ûêÓÕ¬˚¸{/ú»üV;˛·}√´!®*–áÙ"àB|¥£¶Ì»æØ~í€d·‡!CF∞|Ò◊Üòœ2=m˚eh¢Ç∏∏y6,~–•¨'Ãà0◊uÏ>Ãú;hÂ∞¥û.}”u}™hó2-I «mÂAıı‹ÓÕ˘œW4SøHâH∑q›∆>2•Iˇæ;<€Ë∆~®^#?ÿ¶ä.≠Õ8äÒDcﬂ∞vic;ùy÷€É å
+ÏÔ˚ÓP3¢UÉU∆¯¶,”€Ûå‰‰/9ì
+g˛°’?’Œg;ÉÅÛÂ˘¨¥%¸ªñ°∑]J›ßÀ&ëı	⁄Gx⁄TÉ@[DCù◊ •≥∞aŒtXc^ .nY˚ˆ°c˘π¬\Æ"®/FıGSTÁb9{˙6Ùå:™4j≥&m*;}∂Ÿ3*∂Âqí‰⁄Ô≈Wú1:πkÂøO˘X Ø˛"çïö4˜¢ù=fêoΩ‚Ç:≠^áã@dùD£Ù¥HU“<CÃ®\S7Frÿe˙jh~»„N#Tí¶íà<¢ûÏ"ôAq¢˚¿ﬂ<◊˜ô't—´ÕJéú!H
+zÉ4©SÃ≤Ê<{uËºy`3±}#gY®◊‚,k^Ó,˝∑c˚>yüÄhÚéT7p3Y£~}ÊÁOÕ\9Âï©˜¿È√™[:D±Ë∞Í¯ºf‰î,ËıîgûÜ¨42KxÁØo=µi∫Í†õfgÃˆ–„∑œÂ@Ëª˚˚‹ˇÖ{Q˜M<Sgq=1o⁄ˇFO’®ÚtTi^ˆí(ªPnÂïhW·7“ÊÉ´·ëòha˙˙Ã◊ƒbï>cKY8`g–\◊3[†P44h»H˛0I˛ÏÛX„c‹Ñãß∆7P¨e\Æãïûz	Ìek∏ﬂ∑∫∂ﬂcªŒ¿f•Âù›ôâ9G9«à°≈‹ò!ÒkŒ5§MX∆lÕ¥Qpa,cƒ0‹úo˜Ü`é˙Ño„ˆiç∂1ˇùo€fÏG\”@˚WågPÁÕ÷µŸn«H(QYX+m˙üw·(ÁÛÏÑ›yhœ3ü8À›y∆≥Ó±S`;'ßf6£◊[≥:=Œ`“‡—Ò∞JØˆégDÓWÓ¬;K…ã‰]¬Æ∞Üπ6ß)Qr”îæπ˜Ü›WAãˆ€Ôö©˙Æ7.ï¨2€£æ€ªBkÖY5sß~7ì◊bŸ/±˚∏Â3Ç˚OYâ6ÓûŒ‹gÛlÍ6z¯û'{Ω`%⁄≥oª˚û5Í´Ñ¿éÑn€;† ò1_´S˘üˆ¢n€£{àë¢]vì™2àÌñ◊È±Ô±”øJ˘È‡«€≤Üv?üï{Ç#¢ñÅ?Ì˛~h—Ü„â,⁄y-z#∂Œå›‰òUyëûÃÜl≥ŸΩ›.ÒÈúÌÀ¿∫ƒÄÛ—˜áÿ6Fr¶wœíÛ·ãƒçå“K)ÙH‚°˘üp`Ä'2⁄¸]π5ÙßTI˚Kn®{BEHsﬁGo4sÚ’Úó 'eú4hˆ“«Ÿ'«ëπ…‚0s#Ú˙∂¥‡¯‡ Ñêi´ﬂO√X‹A_ÚöLeXv≥n7¢∂∆‡µ…n–êë∑Iq+”†@oR$ß‡˘·∂u˝'√-˙i(’/%£tﬁ7*£J+p^ƒÆ@SÒAΩ«^∏D∆]ˆLEõ0¥MLd#Eπ”á¡I˘>yDwÇıŒ'	«ŒgÿüI5œ*∞Ë¨	¥‘"s'Û°gdÒ˝Œ!⁄2R7äû˙|9∂˝±~∫4&ö.XûÌM0eDE
+Õò¨gûë	ˆÈ∑p“¸X6'Œ˚$Gæ«˝Áû˙‹π∏ÍßOs≤’Ê»ΩGÆ÷æ[x—	™SlŸ…~ÏôGJÁ~ßRìãoK˚àÖ˜—≈ÙÁ‰.yÒÎëyËÛÏÜ”∆ úo÷X≠˘é≤ËˆW)©˜G˜B ∆¨qwñÅ˜¿wzø8” ãÇEnﬂp).å—†ènÔ≈|ﬁfuaV˙$¸ë;≤:Œ¯Fà…©-gûÈ ñç◊po	®fD-⁄∂x∂ﬂ[9Rfh$8fêÆCq»"‰	ïhFõyÓ<Fè §PÇ3è	‹ÂOzqï„Eô{§+t@;3q÷5Œ&&C≠sC‘°¨∆∂m‡πiz§‡Pö,∆/muö¿ã>∫oO{´lÒ0}VZqá]á√‘È<Cøñî!Ü'jîÿo±Äõ'≤“‹Ht<À{r–çúŒÚM}A{”Ñ˚˘}á*pá&’Fz†æ=Q\àt-z:ÌÒz‹ k wå£@RÊXo,M_ä ˙ﬂ¢û9îTt[0«Ω
+‹∆√ò _∑1°ú=æE˘g”CÑcﬁîÅ€vFë9πQÅ˝M}®˝Èk9˙@„äéΩw»<ÚŒ◊aÏ	]p¢ë'ı»Ô∆]Ü-0€†@∆EtIx.Œ6PyN•ÁLFﬁFÇé*Mì)MÑ∏qÀﬁ;,…C3_Íÿe¡˚V˜n≈‡oè?LOıw Ï>L†Ù «≈˙Rzë∆ﬂR≤	&GjØ“ ®øV<´“XâHoGÛ(E–L)kÁ–ˆaenús»◊ŸÇX“ ñF£˛±4dFó(P˛ﬂW»k@N›E»∞”∆/Î@P|)BÑ7Ü®5Ipπ‹’§Áôﬁ”Aî™s6#73VID™5YÖàCÏÎò.(°<Å’›‰ÇffÒY Ï1±Ç™¸œ∂w¨ËiBE¯l>ˆÆ@AãŒ⁄;fÎ[ÃÍvAKÙÀÅcB3¡Ë eÈ\fÆ«FhP‹FÚE–˛µz∆Öâ¶æ$«ÄœÂ˙ ”‚ﬁ ?E˚
+ã’jUﬂK…π=Í”‰ˆ0œÓ1SÄUi∂1◊¨g¨J…µ®L^d)JüßöëR–kÈÂ–CÍwÏè‡?[FT cU‚°Z+0¢C¢h-E¡)˙·Yî∑]⁄ÿF^0ﬂ	¸£≤æÖ^ÀıüÕåì»ÚÉ=>{®Ÿ«`}â—◊î¥j⁄Åâéla◊§:äF¡nu\w°÷kÂÒÿ“‡Ä6[Z– t‹sÙÓ∏ŸÓúŒú'Ω©•SÁ?1ôπÄ˘†Â˝ +§{}N‡Û)Í≈ù(\MΩ:|8ƒi¬©sltéöp
+Ì‹M√Ç€∞¢ÈırÿÍzY48®¶|Â∫=≈R‹]S˘Œ*æÔ ïÙñD¢r"Oä
+ö6˚∑ÚFVª[»¡ï™+º\Èÿ¯
+√elØ≤YóF!·/õ€ã÷éñ%ÇìLP√}ÈF? Ôzüu¨º
+∫‰ÿÊ—=∆û-÷h——n‚Ω#ÜR¶ë5æ[f∞ÃGπ¨û#ûAËvñÍÍ¿ñu§tFº∑T¬B9≠j¨§Ÿ!Ö¡€òÅıÖ¡ì3Ÿq!Yê¨vU4IõÈ±ëX8Î"ã,ÁÖl:ûÈTòƒÁOà∫Ëçû·ö˙¢ÿ8¶’lÍF–Èó´"ÖÇ‚]r°fûzJfóÖ»;s÷. .õ-P|»Aÿì` ú“êEÈ©5—(Ò®`«ßb·»ljvá‰Ëé¯¿Û}ÎV]Ö Õì^|2OHÙS/|Ò‰ÑÅt6ÓÕc|É‡Wß/ﬁU?'0£ÕìÉ†4Å.HiÉY≤å¯;ôZ˘lπ£ÉæÂâÆ˘!A¯"ôﬁìàÑ˝W˙Ù1áÍz6≈Î\±RKÕ#íöIâG	µñ"$Qrç†Âàú∫ πRN}É•IÍr9ëX◊["l¸¢%I|qô÷¨s#/[Çƒ¶|s≈«xÂù´ı≥Í2•b«Q°$j◊ÎA£@û#Ú<eQ.¿¡É˙pi-ºK°z=5ô*ç˛VäT⁄ãö‘[ñO]ˆù¶v—•§ä•©ÛÀñi—ºjc¶év@´÷ùjµaxöH^⁄ì…äØ–/B…D™'3íÂ≥^Fı#)M(∑P†Ê®Ç|P}∏”»P‹º!“¸∫Ûµ$‚≥î∞6á◊RçÕY÷ã	Ñ∑Ê∆¢˛ı¸◊Ö≈XEt˝¶„Ië6”"∂∞*PhPöI#Ìõ,¨sÙAw√=≤ΩPzÙÊÍ¨Ó“ˆn–éxè8#ıUgÿÈÄRUzÍ˚ìüòûó€‹Tà8ô∞$g,ãÅ£… ê HTå8ô¨$◊ÁÖ∏˛Ñœ{˚¢ o≤H.ß"(•M⁄Aõ∏î"‚ûY◊èIa*Ã‹—¸…¸ñÅ“Æ`¯Éã ÇØ√"0·	‰óeÇ™åLR∫Ωåúéqè•àx∆VÌ±ÂÙaˆÀåõ( Ñ·∂˙î‘öêyÑŸ6yaò∑-ƒØy°‡3>ô†‡S¿R{GDò˘)LƒS≈Õ≥©|*#√hÅîZAs†ÈÜíÓe≤\Z'¡≤#ìèzv˛¿°ÏÃ>7ﬁÄ≤ÛAßõú!-t7"P¡ô)Å
+8Œ…ÂárÚ\ÃéT∆@q4ü/LüàúÕ≥iŸ´)IÒc¿/óO+¯ÕvÛ'AsN·$)—ß"ôÛOä\4"68“#®ªHË`ú™ÄËËﬂû¿DoG¬üí)3uô3É`©3∆ÇÂà–«Rπ≥bxiŸèDÖò„û„ár‡òtK‹_`ËôCπ=›\`™Æ¿T´AbëëDâcKGjêµﬂëØC∑|À'7¥üyvßAµÛœÂOÔ"Òo&ƒˆg}6#ı'ú∆z®xö∆9°‚EA`|˛Ÿl˙›Ïüí˘/.Y
+«#ùEL9=Ï)rMÙG‹wdy@u≥≤¿IíÙÂYkÔ4öı–,C)—§ Ü+Ë.}k‰ÁÒ∆=€Í¶dÏ≈∂x@oBè DÙJ∑∂fô6∆=U°k°£l{Í∆˙,∑A#sΩálÀsq.‘∆Ω¢ÂM› h“ù–i≤Á#^≠õt≤ÇñÂ∆€‹ô¨Ñ®~≤∂Ì∂ÁA%V›ÅÂL‘tbY¸(‚@Tã `)˘iV°ªó∆
+2ÜÒ¬≤h•`ñc·1|Ïﬁ©WÎ≥È&*˝öîôæx!≠˛ÚÇ‹˛pΩ≈ì´ßjJ’+j≠”Â≈,X9zå›vŸ¿wzïﬂM¢}?Äk–œpΩowpH°‡ü-Q\
+ö˝˛gÓHœSmÕT3çl„T^ñ5éÚ‰S»O∆fËöb†·n‚,ãx…¸˚í+?`mÇ_RÂ©<{êGºÈ9∆–Ìíxuƒ5¸.i∑˜‘œK≤æÒúƒ”ˆ∞ÚÍŒt9≥’¸£Õt”~‰èÈrÆg@íÖ'Ü†M9ùúœ`“x®YÈ:˚Nﬁ¡™z0∂?Ê€–€›¬èaÕy¥!g9ƒ·Á4õHPÖ€µ%Ù3ÓÃ·v¿?∏ﬁìÔéDßã~‹¬v›A	T©©≥≠î™CN⁄∏4÷ÍCæŸµƒùÔ±ıù≠‘Ωòhµª:©ÄÂuò …µ±÷®ÍR¸JÃv20¶Æò∫¡…0 Ì“¿?¸)·#oäœY]5≥A∞›·KÕµ‹Ót‰J´ﬂ|çæ*cg0˛y5èüi§°Öz4Gv^h7qk¶ª1„<G√ÂÓ4çk\ƒñ^6°¿/t>Æ∑Zh‹†â	f˝4Ò¸@†Æ·dúŒ€yªñØÿ9YB(ïOÃr®l¸wı√ó^«ﬂ¿Ò’=˜àíX≠µÁóp…Ø›#®G≈$Ds∂¿ö0FÍ3˘ﬂ6œX}_kú÷}
+ıÑƒ„xÕÍãÓêW»õ2sµRK„"Õ™,aëï≠æÙ-Dß¿◊œBÉv	JPä\ô©¬-d‹/5Àl∫ûÆ~»F_ œK±N’(4§xüÍk⁄ì˛à˙ÆÎQπ56€Æßa«ÍK®%QQ/Ú¢†»vÒ}‹Œ§B⁄ı¸œÍ∆ªëÓΩö¸à˛Fß0´[ÍÅê“C»4<¿	»{‚Ãá3†»˝¸Uœ«¸d›g≠˚ÂUW}o—7ùÊûŒÿ-úIÈó‹¢k¯…íπí{∏ifaùë9å˜–• ê∞E£ÉæØè‹7NTvWäR Ãﬂﬂ˛ÜX§3
+	:)˛çÒè∆ıCˇ)L¡BÙÀ≤ÍÔá2î‹ú]jï=~N‡BÙJ•÷E…¢˘dNây,5’í¶Ï§ZvaY<ADQ”∏∫Ec(Øˆ¨á÷t!›Î¢Ä–˝;ëh¶àlÔÒlOîg'<?-≥˚Ïê∑?1üÛu=]Ÿ?∫~âc/ÖDÅﬁ˙ú‘vÈ5à˝∏“Û‹Å]p,L˚q¶]â|⁄g∫Ω3öÃñ4Iü⁄˛CJ‰Íkº∞]˚–È–F‰Ï94ÄØ⁄˛CÃUc÷¶u7-ªûÎtŸ*]”ﬁ‚¿Ää¸|∂ùí4_©âvIR=’ccvV≥åNæ∞ÂÍú∑N
+Ò4{]ÙnAéæ@™&Ù)«Ñ€cjû;πÛ”Tw~hÚ*ª>öTh¶……È⁄”ÂÙÅπÒ≤©Ú]›“tuƒ#jfã¿√fÿ^1àá∏·xvgÏmŸu,Ô·”ﬂ|„˚Yìo»´F‡∏≠2Ïze}Âœ9,ÿ—ÂY±í[îœ∞mKIÃ¢¢€ÚŒ.¯Â[ªW⁄E…ñ„ÆLãsÜ"ëj~J·Íj4∑õs»≈ÂúP˜‚MHj=â'U§>‹ãì}bØæµ¥˝Éµ›ı€/cË›*€›^Z˘ûm≠ˇhmcáÌ.-´L¯÷ÿ<·Æ`ª÷wDVacvIç8≥pK˛∏Â<≤˚˛-khÌ€^¨æ=∆[¸≈ìŒÅáŒJ¡S;‚ó8Ì›·éuhÔœqLsºñxt≈’°’è¡ù÷áK›Å3\XNÒƒ
+é’ªk&j™é]Í%ø€ÿ\"Ω≤˛Ú+wmï≠º≤¥Àñ_›››ºÕJÀÓìlÉ™`ºÉÀv0‡¥À˙ŒCõ≠Ù`ìÁœúˆŸ-€˜1€1ﬁÖßKàÓ–›(Ωa·¿âˇ¡˜[¿!"ú-È}öLV±$©]öÓ√Aßgç’Ï»Xdã6îEúUmm´AΩp—;œ7ÏV›zpó:úÕÓ]k>hﬂE®—;œ∑Î÷‹ÉDXèÙ}¨π#‚èÚsœza24ñ# ˝F¡(Ê<πµ…‡†;ı{≠—£{M¸„ÌÔY•Ÿ´ÂÎ◊ÀÕŸπrΩ⁄öõπıy¥<h	Å/Në9g$ttú\Åûoº„ [}q6ı€8“cÛ4±pHùŒËZ©'z\∆?+;ä¯ÈzuéâWÏC çO`é‰a´ﬁ&tlﬂ—”\Ô¿Å˙∞m#"Ê¡0dü9Ëπ≈”e,ˇ!jïâVÓìøË≤˚hq™ŒÍàwÄˇßTó≈kÑíèπªáô‘‘6JU:ƒ•Y•-≥,1Å`°k?A”‘ßª8Ö≠≠fVbÖXãr^tåﬁù˚åK9>{hèË5$•Q(˙‚ıCœ∆Ÿ-N8}H|+JÁ˘J{DÀ≥-|ìg†•]VB_+r‰ıfW2≈}H˘≥ıpˇ$√kOËÅ[¨’`ÕklÖÕ°[4µõlv·ª5◊·{∑—Ê⁄¯Á*k]gs◊·pÉµÆ≤vø¸ˆ,´›¨6X´NWËàØ@—ÚZJh¡	|”‡õﬁHw@‡¯˚˙îÆ º„8ZïÓwﬁŸw¸êS¶ùrÀÜ3¥ﬂÄë	g†ÊŒ·j8äbC∞ñÉ 	i7¥∞,säñˆle›öl@Ú8MµÙ$ZŒ]«ŒöaO¬—’6k!Ÿ‡õz|è@œºä¥n√?†‡U¢%=qµÖG¯€’zU–é‡ëøÜG¸h}]^k5YªÖ≈;‡àﬁJw@-x≠íÙL£%6}qÍ¿Îóû◊O“ôÿ#µåﬁ¿)#;V©·89YÃ˚Õô$ÊNUzÙä√˝ƒz≤áa´õCD &ƒ≈üu›1É5Å)\D…ΩÑUÑhÉ-Â⁄JÑÈ¯ ÒÚërA3‹‘™7ÎW≠ªö@âò∞"÷˜˛~|1à◊ÛàÏ∏$^Œ‚Uã]¢„°ÑîóÂxh∑ö€ßﬁ⁄≥∫ ÊÓ3ûªDtWÉ7{Î(±áë,$*D	BtQE@º—2}O(IL›–i†â"eÙ]JÈ¢Ú-sÅÿu’d	FN°Ò‘çÁíı2‰îÿÆÎˆ«Œ®∆#ÆbƒàâÂAœ	\„ÒÆu´æ◊®ﬂ≠ÅÃπ”´Î°@Û*Ûl"3Z¡h!æ·$ëãÑI©Çêºä‚WDÑóUJ'vQœs{»–%{Ç)î^ïÇ›!tô≠CQØ„a9I%L‰cÉí8∏É©U«ê\Ã1wªágnäËTK|–oy√∞Ÿ@8Ò{Óë(o•o[^\Û’´cRÓ~∆&|r0ú‰Ó‚¬¿≈T·1˛ÏÅ"VÅäQÊAZNæâô¨‹÷Hﬁf?r∆YE%ï≈ùXøî»Â+±uì¶î?◊‚ì¡Lôóùú=C‚<4¶zΩÃ∞·sÂºù%ûl–sırÆŒ+¯∂NÖå!°–
+&á@•lã-d`íKÊ˘∆sÑ⁄i˝ﬁ\]Í¶ÕŸÎÂˆ5¸WØ6@7lñm]2¨∑\Xt·[IÄ•4#!πöÕÈ>%£¢\Õ(˛ ¨©M\Rõ⁄≈EI ôË™πÏ©dô√$ƒ8”ÌÓÙªﬂ]¬‹1jq'£ù∫¥ã@\ÿÃf&⁄Ël¬Æ@mån—˚˚Ø~˚ø_˝+€˘ÒŒÓ⁄-∂Ω∂≥∂ÀV6oﬂ\ﬂæµ¥ªé¡íΩYmUí∞é‘.wÂ“ˆ¿°u¯¶¨‡`.iÿxß|ÛÏô<bÁØA.Õ/y¸O ÚOÖ°<=Ûì…ìøí!@üQ@?£Kü—9øÈGÑ˜ï)Òf‘xè^Û/+bí| ®*âÇÇÀ°ä¸Fd¬ƒOî–$*!W·Ícô7Ò)ΩÙ◊¸‰ÙÀÅBÁø‚ø§›æÂ§è¿•U≤,ÜRSå:—tçÕ∫H5e›'¶ë™–WÔPﬂ#≠˛¬s/Ò˛°é§˚î˙ÒcB¢Âë_ˇ<ƒÅ`>ë?|H4{õ'ÁQà°ÈÌ HÏÈ≥˚)˝}‰â˙\éﬁ†ﬂ1Y c|+∆ßΩM†7¢ÒAÚYÿ¿«Ê0 µù âñju”ÿåu¿˙üuÒ‡¯QCÙ)µMì„IÚ<…mRÛ‘b&™§èé∫}ﬂ]Œ .™õ14-˛R?èí¸	+≠X ßˆìf4sÏ˙9≈~dw@Ç#:ps≈RáC#án√_$x≈~<lÁ»$f§I∆:x‘˙sÑg¸¥F’Úv ⁄îõÄöyªPaUâU.se°ñ–sí 	;µùÉNz\jOπT%º2æÂv≠æ¥]}ß+€éwLiÚÏw∫RQ]È‰æ‡ﬁiCòü,‘xBêãú∫{!WêÒ’qÄ¢„Û4≠3ºDÈÎAÌªVÔÜj_·I‘[^%AlN[ﬁº,OQ#+ûÎ€±¬Ëí()V–È}µÁ/JΩ√ÑÈZ˝.«¶,◊’‰"Æ°H>öh%TNîX@™é2sâ0U}Åú*¬“B∫à¢‰Öd9@›zì‰µ∫ëgBéXXÈŸùá+é◊È€Mç^k “1#,¸àñ¶#Ô©;z%YÎÚSPsnHåKΩˆ(Œ⁄û»Kòi°oﬂﬁ‹]øπæBö6lmn≠m”ªπ¥æ±∂™uÕªtù\◊,(U_∑P:.O›»πV„' “@¿ùìÓeà•zﬁwÓ'˘üN4óúNàÁÿ¬Ë‘–JÎÅMªößdùZ5Y•‘x¢ZÑÀ†∂
+Ò•?z±ˇ∑§úΩ«˜†Hæ/m˛ øVv·B}‘íXπ	„¨è&úıJÁØÉî#‹wé#˛	J?vóﬂ£H9Â˜@V’πÚ˚ãQTMË·£Ã{rvGP|‹ô€háCìhãß.n	£\ãe'/â˘——+¥Ó›ÅSqjŒ6≈[ˇZ]kò„õ›˙}ä˜˚ø˛Ì]∂ÍvË<∏>ÙG–aÆ«j|·1çœèiÒ]æªl§˝^Ó;}â#∏Ù:ë}&65Ü[-∑ÕØÑAÚz8∞8WM:	ãªvêÎi”à∂—ì£"ì¡Âi∆ñë‹Å†-Üπb£¥(Dàï˚ç1Îê¡d†'
+ƒƒï>0 ¢—'r?#%±xÜ•ÂG™§Ös	—J«tík.!‚`õxÕY«ZòäË5«>"√l˙S<A+©Çqï¨ı®/”Ä]´ˆrËˆqv√<¿Hó®|Àvàß∑í|û YW˛ZP„®r-1ú¡~r∞zù≈(;MÆ*Vº8•ôæ|™$EñH+xù-º2\JÃu8∂úaT˜5˘∏&ÏzTsë	G'SIW yvüÜyÈj#ÕŸ”∆ùl≈E9OOªˆ˛Ã}îUP‹&0eg+øËs˛•QâíΩËâ¿û-x–Ò‚‘˜˘•x”sDøÃ∆&»
+tßÎU2ﬂM|l∆u«;•ƒdÕÒÏJu5ì‘Í<ŒJ¯¨nπ √Øæ;Úl ¿¡≥ïYèJıÍ\ô—’
+´Wõs3i{W∏§	t‹ËÊ{>nL∑2˘∑hAoÔ·∆gÓÎõõ∑X%ìsö÷˝h5„	¥T∑ùœ8â$Äfê»Ûv˙‚˘,ƒ)ÑuÜ•ñ Îïgî¨Wrê5u©8™å∏Á\¥¡q7¯b§DI1±Æ◊ü•Óﬂﬁ‹]⁄]cˇ˘ÂôYgÓæ+œj˜˝∑°˚.m‘%˘ì—„§R rj)®81ˇHc,˚‹S£'˘’‘ˇ'dî¶}⁄C»+ªkO√P5Ëlı+àÊ&É »®ÁÉ l˘µ¬ÖC%˙ƒ≥°ŸﬁÕæka0ø≥$ãﬁî<˝áˇ  ˇˇ Uã

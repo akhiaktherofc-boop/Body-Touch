@@ -1,52 +1,55 @@
 <?php
 /**
  * =========================================================================
- * 🛡️ BODY TOUCH SECURITY PORTAL - SECURE PHP VISITORS FETCH SCRIPT
+ * BODY TOUCH SECURITY PORTAL - SECURE PHP VISITOR RETRIEVAL SCRIPT
  * =========================================================================
- * Designed for Hostinger Shared (or VPS) Hosting environments.
- * This script retrieves stored visitor details from visitor_logs.json.
+ * Retrieves visitor logs for Administrator Console with 3-Day Retention
  */
-
-// Enable CORS for frontend compatibility
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Content-Type: application/json; charset=UTF-8");
 
-// Handle preflight OPTIONS requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
-    exit();
-}
-
-// Ensure it is a GET request
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    http_response_code(405);
-    echo json_encode([
-        "success" => false,
-        "error" => "Method not allowed. Use GET request only."
-    ]);
-    exit();
+    exit;
 }
 
 $logFile = __DIR__ . '/visitor_logs.json';
 $logs = [];
 
 if (file_exists($logFile)) {
-    $content = file_get_contents($logFile);
-    $decoded = json_decode($content, true);
+    $existingContent = file_get_contents($logFile);
+    $decoded = json_decode($existingContent, true);
     if (is_array($decoded)) {
-        // Absolutely filter out any admin entries before returning
-        $logs = array_filter($decoded, function($log) {
+        // 3 Days Retention Limit (3 * 24 * 60 * 60 = 259200 seconds)
+        $threeDaysAgo = time() - (3 * 24 * 60 * 60);
+
+        // Filter out admin routes and logs older than 3 days
+        $logs = array_filter($decoded, function($log) use ($threeDaysAgo) {
             $p = isset($log['path']) ? strtolower($log['path']) : '';
             $isFromAdmin = strpos($p, 'admin') !== false || strpos($p, 'turmarheda') !== false;
-            return !$isFromAdmin;
+            if ($isFromAdmin) return false;
+
+            if (isset($log['timestamp'])) {
+                $t = strtotime($log['timestamp']);
+                if ($t && $t < $threeDaysAgo) {
+                    return false; // older than 3 days, auto-prune
+                }
+            }
+            return true;
         });
         $logs = array_values($logs);
+
+        // Save pruned version back if size decreased
+        if (count($logs) !== count($decoded)) {
+            file_put_contents($logFile, json_encode($logs, JSON_PRETTY_PRINT), LOCK_EX);
+        }
     }
 }
 
 echo json_encode([
     "success" => true,
+    "retentionDays" => 3,
     "logs" => $logs
 ]);
