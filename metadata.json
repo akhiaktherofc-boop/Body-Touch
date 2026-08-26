@@ -1,6 +1,6 @@
 {
   "name": "The Body Touch",
-  "description": "Premium Concierge Companion Services Portal",
+  "description": "Premium Concierge Companion Services Portal - Build Fixed",
   "requestFramePermissions": [
     "camera",
     "microphone"
