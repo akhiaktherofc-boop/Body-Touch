@@ -28,6 +28,17 @@ export const calculateBookingCost = (hourlyRate: number, service: string, timeFr
       if (timeFrame === '2_HOURS' && companion.rateMakeOut_2h && companion.rateMakeOut_2h > 0) return companion.rateMakeOut_2h;
       if (timeFrame === '3_HOURS' && companion.rateMakeOut_3h && companion.rateMakeOut_3h > 0) return companion.rateMakeOut_3h;
       if (timeFrame === 'FULL_NIGHT' && companion.rateMakeOut_fn && companion.rateMakeOut_fn > 0) return companion.rateMakeOut_fn;
+    } else if (service === 'TOUR') {
+      if (timeFrame.startsWith('CUSTOM_') && companion.customTourRates) {
+        const idx = parseInt(timeFrame.split('_')[1]);
+        if (companion.customTourRates[idx]) {
+          return companion.customTourRates[idx].rate;
+        }
+      }
+      if (timeFrame === '2_DAYS' && (companion.rateTour || companion.rateLiveTogether_2d)) return (companion.rateTour ? companion.rateTour * 12 : companion.rateLiveTogether_2d!);
+      if (timeFrame === '7_DAYS' && companion.rateLiveTogether_7d) return companion.rateLiveTogether_7d;
+      if (timeFrame === '15_DAYS' && companion.rateLiveTogether_15d) return companion.rateLiveTogether_15d;
+      if (timeFrame === '1_MONTH' && companion.rateLiveTogether_1m) return companion.rateLiveTogether_1m;
     } else if (service === 'LIVE_TOGETHER') {
       if (timeFrame.startsWith('CUSTOM_') && companion.customLiveTogetherRates) {
         const idx = parseInt(timeFrame.split('_')[1]);
@@ -59,6 +70,12 @@ export const calculateBookingCost = (hourlyRate: number, service: string, timeFr
       baseRate = companion.rateMakeOut;
     } else {
       baseRate = baseRate * 0.65; // 35% off
+    }
+  } else if (service === 'TOUR') {
+    if (companion && companion.rateTour && companion.rateTour > 0) {
+      baseRate = companion.rateTour;
+    } else if (companion && companion.rateLiveTogether && companion.rateLiveTogether > 0) {
+      baseRate = companion.rateLiveTogether;
     }
   } else if (service === 'LIVE_TOGETHER') {
     if (companion && companion.rateLiveTogether && companion.rateLiveTogether > 0) {

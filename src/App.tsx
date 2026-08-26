@@ -58,7 +58,11 @@ import {
   Search,
   MapPin,
   Database,
-  ExternalLink
+  ExternalLink,
+  Video,
+  Heart,
+  Home,
+  Plane
 } from 'lucide-react';
 
 
@@ -818,6 +822,8 @@ export default function App() {
   const [selectedSegment, setSelectedSegment] = useState<string>(() => {
     return (getStoredItem('bt_selected_segment') as any) || 'Female Model';
   });
+
+  const [selectedServiceFilter, setSelectedServiceFilter] = useState<'ALL' | 'REAL' | 'CAM' | 'MAKE_OUT' | 'TOUR' | 'LIVE_TOGETHER'>('ALL');
 
   useEffect(() => {
     if (!visibleCategories.includes(selectedSegment)) {
@@ -2050,6 +2056,26 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Dynamic service counts for active tier and segment
+  const serviceCounts = useMemo(() => {
+    const baseList = companions.filter((comp) => {
+      if (comp.status !== undefined && comp.status !== 'Approved') return false;
+      const compCategory = comp.category || 'Female Model';
+      if (compCategory !== selectedSegment) return false;
+      if (comp.badge !== selectedCategory) return false;
+      return true;
+    });
+
+    return {
+      ALL: baseList.length,
+      REAL: baseList.filter((c) => c.isRealActive !== false).length,
+      CAM: baseList.filter((c) => c.isCamActive !== false).length,
+      MAKE_OUT: baseList.filter((c) => c.isMakeOutActive !== false).length,
+      TOUR: baseList.filter((c) => c.isTourActive !== false).length,
+      LIVE_TOGETHER: baseList.filter((c) => c.isLiveTogetherActive !== false && (c.category || 'Female Model') !== 'Sperm Donor').length,
+    };
+  }, [companions, selectedSegment, selectedCategory]);
+
   // Filter companionship roster dynamically based on search, rate, and category parameters
   const filteredCompanions = companions.filter((comp) => {
     // A. Status validation - exclude pending/declined candidates from standard client view
@@ -2068,7 +2094,20 @@ export default function App() {
       return false;
     }
 
-    // 2. Search query filtering (by name, tag, or city)
+    // 2. Service sub-category filtering (ALL, REAL, CAM, MAKE_OUT, TOUR, LIVE_TOGETHER)
+    if (selectedServiceFilter === 'REAL') {
+      if (comp.isRealActive === false) return false;
+    } else if (selectedServiceFilter === 'CAM') {
+      if (comp.isCamActive === false) return false;
+    } else if (selectedServiceFilter === 'MAKE_OUT') {
+      if (comp.isMakeOutActive === false) return false;
+    } else if (selectedServiceFilter === 'TOUR') {
+      if (comp.isTourActive === false) return false;
+    } else if (selectedServiceFilter === 'LIVE_TOGETHER') {
+      if (comp.isLiveTogetherActive === false || (comp.category || 'Female Model') === 'Sperm Donor') return false;
+    }
+
+    // 3. Search query filtering (by name, tag, or city)
     if (searchQuery.trim().length > 0) {
       const q = searchQuery.toLowerCase();
       const nameMatch = comp.name.toLowerCase().includes(q);
@@ -2079,7 +2118,7 @@ export default function App() {
       }
     }
 
-    // 3. Rate filtering
+    // 4. Rate filtering
     if (rateFilter !== 'all') {
       if (rateFilter === 'low') {
         return comp.rate < 10000;
@@ -4930,6 +4969,42 @@ https://service.bodytouch.com
                   })}
                 </div>
 
+                {/* Service Sub-Category Filter Bar (English Only) */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-none">
+                  {[
+                    { id: 'ALL', label: 'All Services', icon: Sparkles },
+                    { id: 'REAL', label: 'Real Service', icon: User },
+                    { id: 'CAM', label: 'Cam Service', icon: Video },
+                    { id: 'MAKE_OUT', label: 'Makeout', icon: Heart },
+                    { id: 'TOUR', label: 'Tour', icon: Plane },
+                    { id: 'LIVE_TOGETHER', label: 'Live Together', icon: Home },
+                  ].map((srv) => {
+                    const Icon = srv.icon;
+                    const isActive = selectedServiceFilter === srv.id;
+                    const count = serviceCounts[srv.id as keyof typeof serviceCounts] || 0;
+                    return (
+                      <button
+                        key={srv.id}
+                        type="button"
+                        onClick={() => setSelectedServiceFilter(srv.id as any)}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-200 cursor-pointer border flex items-center gap-1.5 ${
+                          isActive
+                            ? 'bg-gradient-to-r from-[#0d226a] to-[#0a1945] text-[#00e5ff] border-[#00e5ff] shadow-[0_0_14px_rgba(0,229,255,0.25)]'
+                            : 'bg-[#04091e]/80 text-slate-400 border-blue-500/10 hover:text-slate-200 hover:border-blue-500/25 hover:bg-[#071336]'
+                        }`}
+                      >
+                        <Icon className={`w-3 h-3 ${isActive ? 'text-[#00e5ff]' : 'text-slate-400'}`} />
+                        <span>{srv.label}</span>
+                        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full leading-none ${
+                          isActive ? 'bg-[#00e5ff]/20 text-[#00e5ff]' : 'bg-slate-800 text-slate-400'
+                        }`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
                 {/* Companions Deluxe Grid */}
                 <div className="grid grid-cols-2 gap-4 mt-2">
                   {filteredCompanions.length === 0 ? (
@@ -5004,6 +5079,35 @@ https://service.bodytouch.com
                                   Unlock Now
                                 </button>
                               </div>
+                            )}
+                          </div>
+
+                          {/* Available Services Badges */}
+                          <div className="flex flex-wrap items-center gap-1 mb-2 px-0.5">
+                            {comp.isRealActive !== false && (
+                              <span className="text-[7.5px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                Real
+                              </span>
+                            )}
+                            {comp.isCamActive !== false && (
+                              <span className="text-[7.5px] font-black uppercase px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                                Cam
+                              </span>
+                            )}
+                            {comp.isMakeOutActive !== false && (
+                              <span className="text-[7.5px] font-black uppercase px-1.5 py-0.5 rounded bg-pink-500/10 text-pink-400 border border-pink-500/20">
+                                Makeout
+                              </span>
+                            )}
+                            {comp.isTourActive !== false && (
+                              <span className="text-[7.5px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                Tour
+                              </span>
+                            )}
+                            {comp.isLiveTogetherActive !== false && (comp.category || 'Female Model') !== 'Sperm Donor' && (
+                              <span className="text-[7.5px] font-black uppercase px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                Live Together
+                              </span>
                             )}
                           </div>
 

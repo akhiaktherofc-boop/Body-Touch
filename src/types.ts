@@ -19,7 +19,8 @@ export interface Companion {
   rateReal?: number;         // Custom base rate for Real service
   rateCam?: number;          // Custom base rate for Cam service
   rateMakeOut?: number;      // Custom base rate for Make out service
-  rateLiveTogether?: number;  // Custom base rate for Tour service
+  rateTour?: number;         // Custom base rate for Tour service
+  rateLiveTogether?: number;  // Custom base rate for Live Together service
   city?: string;
   category?: string;
   status?: 'Pending' | 'Approved' | 'Declined' | 'Incomplete';
@@ -74,6 +75,7 @@ export interface Companion {
   // Dynamic custom rate lists
   customRealRates?: { id: string; duration: string; rate: number }[];
   customCamRates?: { id: string; duration: string; rate: number }[];
+  customTourRates?: { id: string; duration: string; rate: number }[];
   customLiveTogetherRates?: { id: string; duration: string; rate: number }[];
 
   // Recruitment Payment Details

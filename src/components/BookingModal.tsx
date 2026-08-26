@@ -122,7 +122,7 @@ export default function BookingModal({
   // Step 4: Schedule details (Date, Time, Custom Requests)
   // Step 5: Secure Contact Channel (PHONE, WHATSAPP, TELEGRAM) & Deficit Payment Gateway (if applicable)
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
-  const [selectedService, setSelectedService] = useState<'REAL' | 'CAM' | 'MAKE_OUT' | 'LIVE_TOGETHER'>('REAL');
+  const [selectedService, setSelectedService] = useState<'REAL' | 'CAM' | 'MAKE_OUT' | 'TOUR' | 'LIVE_TOGETHER'>('REAL');
 
   // Automatically fallback selectedService to the first available active service
   useEffect(() => {
@@ -130,24 +130,34 @@ export default function BookingModal({
       const isReal = companion.isRealActive !== false;
       const isCam = companion.isCamActive !== false;
       const isMakeOut = companion.isMakeOutActive !== false;
+      const isTour = companion.isTourActive !== false;
       const isLive = companion.isLiveTogetherActive !== false && (companion.category || 'Female Model') !== 'Sperm Donor';
 
       if (selectedService === 'REAL' && !isReal) {
         if (isCam) setSelectedService('CAM');
         else if (isMakeOut) setSelectedService('MAKE_OUT');
+        else if (isTour) setSelectedService('TOUR');
         else if (isLive) setSelectedService('LIVE_TOGETHER');
       } else if (selectedService === 'CAM' && !isCam) {
         if (isReal) setSelectedService('REAL');
         else if (isMakeOut) setSelectedService('MAKE_OUT');
+        else if (isTour) setSelectedService('TOUR');
         else if (isLive) setSelectedService('LIVE_TOGETHER');
       } else if (selectedService === 'MAKE_OUT' && !isMakeOut) {
         if (isReal) setSelectedService('REAL');
         else if (isCam) setSelectedService('CAM');
+        else if (isTour) setSelectedService('TOUR');
+        else if (isLive) setSelectedService('LIVE_TOGETHER');
+      } else if (selectedService === 'TOUR' && !isTour) {
+        if (isReal) setSelectedService('REAL');
+        else if (isCam) setSelectedService('CAM');
+        else if (isMakeOut) setSelectedService('MAKE_OUT');
         else if (isLive) setSelectedService('LIVE_TOGETHER');
       } else if (selectedService === 'LIVE_TOGETHER' && !isLive) {
         if (isReal) setSelectedService('REAL');
         else if (isCam) setSelectedService('CAM');
         else if (isMakeOut) setSelectedService('MAKE_OUT');
+        else if (isTour) setSelectedService('TOUR');
       }
     }
   }, [companion, selectedService]);
@@ -462,7 +472,7 @@ export default function BookingModal({
 
   const companionCost = calculateBookingCost(companion.rate, selectedService, selectedTimeFrame, companion);
   const selectedHotelObj = sanctuaries.find(s => s.address === specificAddress || s.name === specificAddress);
-  const hotelCost = (selectedService !== 'CAM' && selectedService !== 'LIVE_TOGETHER' && coordinatesType === 'INCALL') ? (selectedHotelObj?.price || 0) : 0;
+  const hotelCost = (selectedService !== 'CAM' && selectedService !== 'LIVE_TOGETHER' && selectedService !== 'TOUR' && coordinatesType === 'INCALL') ? (selectedHotelObj?.price || 0) : 0;
   
   const discountAmount = Math.round(companionCost * (promoDiscountPercent / 100));
   const bookingCost = companionCost - discountAmount + hotelCost;
@@ -479,7 +489,7 @@ export default function BookingModal({
     }
   };
 
-  const handleServiceChange = (service: 'REAL' | 'CAM' | 'MAKE_OUT' | 'LIVE_TOGETHER') => {
+  const handleServiceChange = (service: 'REAL' | 'CAM' | 'MAKE_OUT' | 'TOUR' | 'LIVE_TOGETHER') => {
     setSelectedService(service);
     if (service === 'CAM') {
       if (companion?.customCamRates && companion.customCamRates.length > 0) {
@@ -489,6 +499,14 @@ export default function BookingModal({
       }
     } else if (service === 'MAKE_OUT') {
       setSelectedTimeFrame('2_HOURS');
+      setCoordinatesType('OUTCALL');
+      setSpecificAddress('');
+    } else if (service === 'TOUR') {
+      if (companion?.customTourRates && companion.customTourRates.length > 0) {
+        setSelectedTimeFrame('CUSTOM_0');
+      } else {
+        setSelectedTimeFrame('2_DAYS');
+      }
       setCoordinatesType('OUTCALL');
       setSpecificAddress('');
     } else if (service === 'LIVE_TOGETHER') {
@@ -519,6 +537,9 @@ export default function BookingModal({
       }
       if (selectedService === 'CAM' && companion.customCamRates?.[idx]) {
         return companion.customCamRates[idx].duration || `Custom Slot ${idx + 1}`;
+      }
+      if (selectedService === 'TOUR' && companion.customTourRates?.[idx]) {
+        return companion.customTourRates[idx].duration || `Custom Slot ${idx + 1}`;
       }
       if (selectedService === 'LIVE_TOGETHER' && companion.customLiveTogetherRates?.[idx]) {
         return companion.customLiveTogetherRates[idx].duration || `Custom Slot ${idx + 1}`;
@@ -1038,7 +1059,23 @@ export default function BookingModal({
                             </button>
                           )}
 
-                          {/* TOUR VIEW */}
+                          {/* TOUR SERVICE VIEW */}
+                          {companion.isTourActive !== false && (
+                            <button
+                              type="button"
+                              onClick={() => handleServiceChange('TOUR')}
+                              className={`p-5 rounded-xl border text-center flex flex-col items-center justify-center space-y-2 transition-all duration-300 group cursor-pointer ${
+                                selectedService === 'TOUR'
+                                  ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                  : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                              }`}
+                            >
+                              <Car className={`w-6 h-6 ${selectedService === 'TOUR' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                              <span className="text-xs font-black uppercase tracking-wider text-white leading-none">TOUR</span>
+                            </button>
+                          )}
+
+                          {/* LIVE TOGETHER VIEW */}
                           {companion.isLiveTogetherActive !== false && (companion.category || 'Female Model') !== 'Sperm Donor' && (
                             <button
                               type="button"
@@ -1047,12 +1084,10 @@ export default function BookingModal({
                                 selectedService === 'LIVE_TOGETHER'
                                   ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
                                   : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
-                              } ${
-                                (companion.isRealActive === false && companion.isCamActive === false && companion.isMakeOutActive === false) ? 'col-span-2' : ''
                               }`}
                             >
-                              <Users className={`w-6 h-6 ${selectedService === 'LIVE_TOGETHER' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
-                              <span className="text-xs font-black uppercase tracking-wider text-white leading-none">TOUR / ট্যুর</span>
+                              <Home className={`w-6 h-6 ${selectedService === 'LIVE_TOGETHER' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                              <span className="text-xs font-black uppercase tracking-wider text-white leading-none">LIVE TOGETHER</span>
                             </button>
                           )}
                         </div>
@@ -1149,6 +1184,46 @@ export default function BookingModal({
                             <Clock className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === '2_HOURS' ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
                             <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">2 HOURS</span>
                           </button>
+                        </div>
+                      )
+                    ) : selectedService === 'TOUR' ? (
+                      companion.customTourRates && companion.customTourRates.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          {companion.customTourRates.map((slot, idx) => (
+                            <button
+                              key={slot.id || idx}
+                              type="button"
+                              onClick={() => setSelectedTimeFrame(`CUSTOM_${idx}`)}
+                              className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                                selectedTimeFrame === `CUSTOM_${idx}`
+                                  ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                  : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                              }`}
+                            >
+                              <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === `CUSTOM_${idx}` ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                              <span className="text-[10px] font-black uppercase tracking-wider block mb-0.5">{slot.duration || `Option ${idx + 1}`}</span>
+                              <span className="text-[11px] font-bold text-emerald-400 font-mono">৳{slot.rate?.toLocaleString()}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        /* Tour Timeframes: 2 Days, 7 Days, 15 Days, 1 Month */
+                        <div className="grid grid-cols-2 gap-3">
+                          {['2_DAYS', '7_DAYS', '15_DAYS', '1_MONTH'].map((tf) => (
+                            <button
+                              key={tf}
+                              type="button"
+                              onClick={() => setSelectedTimeFrame(tf as any)}
+                              className={`p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all duration-300 cursor-pointer ${
+                                selectedTimeFrame === tf
+                                  ? 'bg-[#dbaa61]/15 border-[#dbaa61] shadow-[0_0_15px_rgba(219,170,97,0.15)] text-white'
+                                  : 'bg-[#030a1c]/80 border-[#dbaa61]/10 hover:border-[#dbaa61]/25 text-slate-400'
+                              }`}
+                            >
+                              <Calendar className={`w-5 h-5 mb-1.5 ${selectedTimeFrame === tf ? 'text-[#dbaa61]' : 'text-slate-400'}`} />
+                              <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap">{tf.replace('_', ' ')}</span>
+                            </button>
+                          ))}
                         </div>
                       )
                     ) : selectedService === 'LIVE_TOGETHER' ? (
@@ -1348,10 +1423,10 @@ export default function BookingModal({
                   </div>
 
                   <div className="space-y-4">
-                    {selectedService === 'LIVE_TOGETHER' ? (
+                    {selectedService === 'TOUR' ? (
                       <div className="space-y-2 animate-fadeIn">
                         <span className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider font-mono">
-                          কোথায় নিয়ে যেতে চাচ্ছেন তার ঠিকানা লিখুন / Destination Address (Tour)
+                          Destination Tour Location & Address
                         </span>
                         <div className="relative">
                           <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#dbaa61] pointer-events-none" />
@@ -1360,7 +1435,24 @@ export default function BookingModal({
                             required
                             value={specificAddress}
                             onChange={(e) => setSpecificAddress(e.target.value)}
-                            placeholder="কোথায় নিয়ে যাবেন তার বিস্তারিত ঠিকানা লিখুন (যেমন: কক্সবাজার, গুলশান)..."
+                            placeholder="Enter tour destination details (e.g. Cox's Bazar, Sylhet, Luxury Resort)..."
+                            className="w-full bg-[#030a1c] border border-[#dbaa61]/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-[#dbaa61]/40 leading-normal font-semibold placeholder:text-slate-600"
+                          />
+                        </div>
+                      </div>
+                    ) : selectedService === 'LIVE_TOGETHER' ? (
+                      <div className="space-y-2 animate-fadeIn">
+                        <span className="block text-[10px] text-[#dbaa61] font-black uppercase tracking-wider font-mono">
+                          Live Together Residence / Apartment Address
+                        </span>
+                        <div className="relative">
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#dbaa61] pointer-events-none" />
+                          <input
+                            type="text"
+                            required
+                            value={specificAddress}
+                            onChange={(e) => setSpecificAddress(e.target.value)}
+                            placeholder="Enter residence or suite address for live together..."
                             className="w-full bg-[#030a1c] border border-[#dbaa61]/25 text-white text-xs rounded-xl !pl-12 pr-4 py-3.5 focus:outline-none focus:border-[#dbaa61]/40 leading-normal font-semibold placeholder:text-slate-600"
                           />
                         </div>
@@ -2076,7 +2168,7 @@ export default function BookingModal({
                               <span>Base Service Value</span>
                             </div>
                             <span className="font-semibold text-slate-200 font-mono">
-                              ৳{Math.round(selectedService === 'REAL' ? (companion.rateReal || companion.rate) : selectedService === 'CAM' ? (companion.rateCam || companion.rate * 0.55) : selectedService === 'MAKE_OUT' ? (companion.rateMakeOut || companion.rate * 0.65) : (companion.rateLiveTogether || companion.rate)).toLocaleString('en-US')} x {getDurationString()}
+                              ৳{Math.round(selectedService === 'REAL' ? (companion.rateReal || companion.rate) : selectedService === 'CAM' ? (companion.rateCam || companion.rate * 0.55) : selectedService === 'MAKE_OUT' ? (companion.rateMakeOut || companion.rate * 0.65) : selectedService === 'TOUR' ? (companion.rateTour || companion.rateLiveTogether_2d || companion.rate) : (companion.rateLiveTogether || companion.rate)).toLocaleString('en-US')} x {getDurationString()}
                             </span>
                           </div>
 

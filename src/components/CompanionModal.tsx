@@ -1,6 +1,6 @@
 import { Companion, Review } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Calendar, Globe, Award, Sparkles, Star, User, Video, Heart, Users } from 'lucide-react';
+import { X, Calendar, Globe, Award, Sparkles, Star, User, Video, Heart, Users, Plane, Home } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { calculateBookingCost } from '../utils/bookingUtils';
 
@@ -295,11 +295,36 @@ export default function CompanionModal({
                     </div>
                   )}
 
+                  {companion.isTourActive !== false && (
+                    <div className="space-y-1.5 animate-fadeIn">
+                      <div className="flex justify-between items-center text-xs font-bold bg-black/40 p-2 rounded-xl border border-amber-500/5">
+                        <span className="flex items-center gap-1.5 text-slate-200 font-sans">
+                          <Plane className="w-3.5 h-3.5 text-amber-400" /> Tour Service
+                        </span>
+                        {(!companion.customTourRates || companion.customTourRates.length === 0) && (
+                          <span className="text-emerald-450 font-mono font-extrabold">
+                            ৳{calculateBookingCost(companion.rate, 'TOUR', '2_DAYS', companion).toLocaleString()} / 2 Days
+                          </span>
+                        )}
+                      </div>
+                      {companion.customTourRates && companion.customTourRates.length > 0 && (
+                        <div className="pl-6 space-y-1">
+                          {companion.customTourRates.map((r, i) => (
+                            <div key={r.id || i} className="flex justify-between items-center text-[11px] text-slate-300 font-semibold bg-black/20 p-1.5 px-2.5 rounded border border-amber-500/5 hover:border-amber-500/10 transition">
+                              <span>• {r.duration}</span>
+                              <span className="text-emerald-400 font-mono font-bold">৳{r.rate.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {companion.isLiveTogetherActive !== false && (companion.category || 'Female Model') !== 'Sperm Donor' && (
                     <div className="space-y-1.5 animate-fadeIn">
                       <div className="flex justify-between items-center text-xs font-bold bg-black/40 p-2 rounded-xl border border-purple-500/5">
                         <span className="flex items-center gap-1.5 text-slate-200 font-sans">
-                          <Users className="w-3.5 h-3.5 text-purple-405" /> Tour / ট্যুর
+                          <Home className="w-3.5 h-3.5 text-purple-400" /> Live Together
                         </span>
                         {(!companion.customLiveTogetherRates || companion.customLiveTogetherRates.length === 0) && (
                           <span className="text-emerald-450 font-mono font-extrabold">
@@ -320,7 +345,7 @@ export default function CompanionModal({
                     </div>
                   )}
 
-                  {companion.isRealActive === false && companion.isCamActive === false && companion.isMakeOutActive === false && (companion.isLiveTogetherActive === false || (companion.category || 'Female Model') === 'Sperm Donor') && (
+                  {companion.isRealActive === false && companion.isCamActive === false && companion.isMakeOutActive === false && companion.isTourActive === false && (companion.isLiveTogetherActive === false || (companion.category || 'Female Model') === 'Sperm Donor') && (
                     <p className="text-[10px] text-rose-500 italic">No services currently enabled by the model.</p>
                   )}
                 </div>
